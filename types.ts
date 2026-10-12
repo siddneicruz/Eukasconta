@@ -1,0 +1,2272 @@
+
+export interface ReceiptItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  category: string;
+  unitType?: string;
+}
+
+export interface Receipt {
+  id: string;
+  establishmentName: string;
+  receiptNumber?: string;
+  cnpj: string;
+  address: string;
+  city: string;
+  state: string;
+  date: string;
+  time: string;
+  totalAmount: number;
+  items: ReceiptItem[];
+  scannedAt: string;
+}
+
+export interface Establishment {
+    cnpj: string;
+    originalName: string;
+    aliasName?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    // Geocodificação (endereço -> coordenadas), feita uma única vez por
+    // estabelecimento e guardada aqui para nunca ser refeita — a política de
+    // uso do Nominatim exige cache dos resultados.
+    latitude?: number;
+    longitude?: number;
+    geocodeStatus?: 'pending' | 'found' | 'not_found';
+    geocodedAt?: number;
+}
+
+export interface MasterProduct {
+  code: string;           // E.g. "MAE0001"
+  description: string;    // Clean/Standardized Master Name
+  unitType: string;       // Standard unit (KG, UN, etc)
+  category: string;       // Standard Category
+  aliases: string[];      // Raw item descriptions that map to this parent
+  establishmentCodes: Record<string, string>; // Maps establishment name/CNPJ to raw item code at that store
+}
+
+export interface SystemSnapshot {
+    id: string;
+    timestamp: number;
+    name: string;
+    data: {
+        receipts: Receipt[];
+        taxonomy: TaxonomyNode[];
+        aiLearning: AILearningEntry[];
+        categoryMeta: any;
+        categoryGoals?: Record<string, number>;
+        establishments?: Establishment[];
+        masterProducts?: MasterProduct[];
+    };
+    version: number;
+}
+
+export interface CategoryMeta {
+  icon: string;
+  color: string;
+}
+
+export enum TaxonomySource {
+  SYSTEM = 'SYSTEM',
+  AI_GENERATED = 'AI_GENERATED',
+  USER_CUSTOMIZED = 'USER_CUSTOMIZED'
+}
+
+export interface TaxonomyNode {
+  id: string;
+  parentId: string | null;
+  level: 1 | 2 | 3 | 4;
+  name: string;
+  slug: string;
+  icon?: string;
+  color?: string;
+  sourceType: TaxonomySource;
+  isCustomized: boolean;
+  aiConfidence?: number;
+  lastUpdated: number;
+}
+
+export interface AILearningEntry {
+  keyword: string;
+  targetNodeId: string;
+  hitCount: number;
+}
+
+export interface UnifiedVault {
+  version: string;
+  receipts: Receipt[];
+  taxonomy: TaxonomyNode[];
+  aiLearning: AILearningEntry[];
+  categoryMeta: Record<string, CategoryMeta>;
+  categoryGoals: Record<string, number>;
+  establishments: Establishment[];
+  masterProducts?: MasterProduct[];
+  exportedAt: string;
+}
+
+export interface DashboardConfig {
+    year: number;
+    month: number | null;
+    category: string | null;
+    quickFilter: '7d' | '30d' | 'custom' | null;
+    customStartDate: string;
+    customEndDate: string;
+    establishment: string | null;
+}
+
+export type ViewState = 
+  | 'dashboard' 
+  | 'history' 
+  | 'scanner' 
+  | 'reports' 
+  | 'category_detail' 
+  | 'subcategory_detail' 
+  | 'product_detail' 
+  | 'product_variant_detail' 
+  | 'establishment_detail'
+  | 'settings' 
+  | 'alerts'
+  | 'diagnostics';
+
+export type LogType = 'CLICK' | 'API_CALL' | 'SYSTEM_ERROR' | 'PERFORMANCE' | 'DATA_INTEGRITY' | 'SCANNER';
+
+export interface DiagnosticLog {
+    id: string;
+    timestamp: number;
+    type: LogType;
+    description: string;
+    executionTime?: number;
+    metadata?: any;
+}
+
+export interface PerformanceReport {
+    avgApiLatency: number;
+    errorRate: number;
+    totalInteractions: number;
+    uptime: number;
+}
+
+export const DEFAULT_TAXONOMY_STRING = `
+CATEGORIA MESTRE: Açougue
+- Açougue - Carne Bovina
+-- Cortes Nobres
+--- Picanha
+--- Filé Mignon
+--- Contrafilé
+--- Alcatra
+--- Maminha
+--- Fraldinha
+--- Entrecot
+--- Ancho
+--- Chorizo
+--- T-Bone
+--- Prime Rib
+--- Miolo da Alcatra
+--- Baby Beef
+--- Short Rib
+--- Tomahawk
+-- Cortes de Segunda
+--- Acém
+--- Paleta
+--- Músculo
+--- Cupim
+--- Costela Ponta de Agulha
+--- Costela Janela
+--- Peito
+--- Capa de Filé
+--- Patinho
+--- Coxão Mole
+--- Coxão Duro
+--- Lagarto
+--- Maminha de Paleta
+--- Raquete
+--- Aba de Filé
+-- Carne Moída
+--- Moída de Patinho
+--- Moída de Acém
+--- Moída de Coxão Mole
+--- Moída de Músculo
+--- Moída Especial Mista
+-- Cortes para Preparo
+--- Bife de Alcatra
+--- Bife de Coxão Mole
+--- Carne em Cubos
+--- Carne para Strogonoff
+--- Carne para Picadinho
+--- Iscas de Carne
+--- Rolê
+--- Espetinho Bovino
+--- Hambúrguer Artesanal Bovino
+-- Miúdos Bovinos
+--- Fígado
+--- Coração
+--- Língua
+--- Rabada
+--- Bucho
+--- Dobradinha
+--- Mocotó
+--- Rim
+--- Tutano
+--- Ossobuco
+-- Carnes Maturadas e Premium
+--- Picanha Maturada
+--- Ancho Dry Aged
+--- Wagyu
+--- Angus Certificado
+--- Carne Kobe
+--- Carne de Gado Nelore Premium
+- Açougue - Carne Suína
+-- Cortes Suínos
+--- Lombo
+--- Pernil
+--- Costelinha
+--- Bisteca
+--- Filé Mignon Suíno
+--- Paleta Suína
+--- Copa Lombo
+--- Barriga Suína
+--- Panceta
+--- Picanha Suína
+--- Secreto Suíno
+--- Pancetta
+-- Miúdos e Partes Suínas
+--- Pé de Porco
+--- Orelha de Porco
+--- Rabo de Porco
+--- Joelho (Eisbein)
+--- Toucinho
+--- Pele Suína
+--- Fígado Suíno
+-- Suínos para Feijoada
+--- Kit Feijoada
+--- Costelinha Salgada
+--- Pé Salgado
+--- Orelha Salgada
+--- Rabo Salgado
+--- Lombo Salgado
+- Açougue - Aves
+-- Frango Inteiro e Partes
+--- Frango Inteiro
+--- Frango a Passarinho
+--- Coxa
+--- Sobrecoxa
+--- Coxa e Sobrecoxa
+--- Peito com Osso
+--- Filé de Peito
+--- Filezinho Sassami
+--- Asa
+--- Drumete
+--- Tulipa
+--- Meio da Asa
+--- Dorso
+-- Miúdos de Frango
+--- Coração de Frango
+--- Moela
+--- Fígado de Frango
+--- Pé de Frango
+--- Pescoço de Frango
+-- Outras Aves
+--- Peru Inteiro
+--- Chester
+--- Peito de Peru
+--- Pato
+--- Marreco
+--- Codorna
+--- Galinha Caipira
+--- Chester Temperado
+-- Frango Temperado
+--- Frango Assado
+--- Coxinha da Asa Temperada
+--- Filé Temperado Limão
+--- Espeto de Frango
+--- Frango Recheado
+- Açougue - Cordeiro, Caprinos e Exóticos
+-- Cordeiro
+--- Carré de Cordeiro
+--- Pernil de Cordeiro
+--- Paleta de Cordeiro
+--- Costela de Cordeiro
+--- Lombo de Cordeiro
+-- Caprinos
+--- Cabrito
+--- Carne de Bode
+-- Carnes Exóticas
+--- Javali
+--- Coelho
+--- Rã
+--- Jacaré
+--- Avestruz
+--- Búfalo
+- Açougue - Linguiças e Embutidos Frescos
+-- Linguiças
+--- Linguiça Toscana
+--- Linguiça Calabresa Fresca
+--- Linguiça de Frango
+--- Linguiça Cuiabana
+--- Linguiça de Pernil
+--- Linguiça Apimentada
+--- Linguiça Mista
+--- Linguiça com Queijo
+--- Linguiça Blumenau
+-- Hambúrgueres e Almôndegas
+--- Hambúrguer Bovino
+--- Hambúrguer de Frango
+--- Hambúrguer Suíno
+--- Almôndega Bovina
+--- Kafta
+- Açougue - Churrasco
+-- Kits e Espetos
+--- Kit Churrasco
+--- Espeto Misto
+--- Espeto de Coração
+--- Espeto de Linguiça
+--- Espeto de Queijo Coalho
+-- Acessórios de Churrasco
+--- Carvão Vegetal
+--- Acendedor
+--- Sal Grosso
+--- Sal de Parrilla
+--- Espetos de Bambu
+--- Grelha Descartável
+--- Papel Alumínio para Churrasco
+CATEGORIA MESTRE: Peixaria
+- Peixaria - Peixes Frescos
+-- Peixes de Água Salgada
+--- Salmão
+--- Robalo
+--- Pescada Amarela
+--- Linguado
+--- Pargo
+--- Garoupa
+--- Namorado
+--- Cação
+--- Sardinha
+--- Atum Fresco
+--- Anchova
+--- Corvina
+-- Peixes de Água Doce
+--- Tilápia
+--- Tambaqui
+--- Pintado
+--- Pirarucu
+--- Truta
+--- Pacu
+--- Dourado
+--- Surubim
+--- Traíra
+- Peixaria - Frutos do Mar
+-- Crustáceos
+--- Camarão Cinza
+--- Camarão Rosa
+--- Camarão VG
+--- Lagosta
+--- Lagostim
+--- Caranguejo
+--- Siri
+--- Carne de Siri
+-- Moluscos
+--- Lula
+--- Polvo
+--- Mexilhão
+--- Marisco
+--- Vôngole
+--- Ostra
+--- Vieira
+- Peixaria - Peixes Congelados
+-- Filés Congelados
+--- Filé de Tilápia
+--- Filé de Merluza
+--- Filé de Salmão
+--- Filé de Polaca
+--- Filé de Pescada
+--- Posta de Cação
+-- Empanados de Peixe
+--- Iscas de Peixe Empanadas
+--- Filé de Peixe Empanado
+--- Fish Sticks
+--- Camarão Empanado
+- Peixaria - Bacalhau e Salgados
+-- Bacalhau
+--- Bacalhau Porto
+--- Bacalhau Saithe
+--- Bacalhau Ling
+--- Bacalhau Zarbo
+--- Bacalhau Desfiado
+--- Bacalhau Dessalgado Congelado
+-- Pescados Secos e Defumados
+--- Salmão Defumado
+--- Truta Defumada
+--- Arenque
+--- Peixe Seco
+--- Camarão Seco
+CATEGORIA MESTRE: Hortifruti
+- Hortifruti - Frutas
+-- Frutas Tropicais
+--- Banana Prata
+--- Banana Nanica
+--- Banana da Terra
+--- Manga Palmer
+--- Manga Tommy
+--- Mamão Papaya
+--- Mamão Formosa
+--- Abacaxi
+--- Maracujá
+--- Goiaba
+--- Coco Verde
+--- Caju
+--- Acerola
+--- Graviola
+--- Pitaya
+-- Frutas Cítricas
+--- Laranja Pera
+--- Laranja Lima
+--- Laranja Bahia
+--- Limão Tahiti
+--- Limão Siciliano
+--- Limão Cravo
+--- Tangerina Ponkan
+--- Mexerica Murcote
+--- Lima da Pérsia
+--- Grapefruit
+-- Frutas de Clima Temperado
+--- Maçã Gala
+--- Maçã Fuji
+--- Maçã Verde
+--- Pera Williams
+--- Pera Portuguesa
+--- Uva Thompson
+--- Uva Niágara
+--- Uva Rubi
+--- Pêssego
+--- Ameixa
+--- Nectarina
+--- Kiwi
+--- Caqui
+--- Figo
+-- Frutas Vermelhas
+--- Morango
+--- Mirtilo
+--- Framboesa
+--- Amora
+--- Cereja
+--- Groselha
+-- Melões e Melancias
+--- Melancia
+--- Melão Amarelo
+--- Melão Cantaloupe
+--- Melão Gália
+--- Melão Orange
+-- Frutas Exóticas e Regionais
+--- Lichia
+--- Carambola
+--- Pitanga
+--- Jabuticaba
+--- Cupuaçu
+--- Açaí Fruto
+--- Cajá
+--- Seriguela
+--- Mangostim
+--- Physalis
+--- Romã
+--- Tâmara Fresca
+- Hortifruti - Legumes
+-- Legumes de Fruto
+--- Tomate Italiano
+--- Tomate Cereja
+--- Tomate Salada
+--- Abobrinha
+--- Berinjela
+--- Pepino Japonês
+--- Pepino Comum
+--- Pimentão Verde
+--- Pimentão Vermelho
+--- Pimentão Amarelo
+--- Chuchu
+--- Quiabo
+--- Jiló
+--- Maxixe
+--- Abóbora Cabotiá
+--- Abóbora Moranga
+--- Abóbora Paulista
+-- Raízes e Tubérculos
+--- Batata Inglesa
+--- Batata Asterix
+--- Batata Doce
+--- Batata Baroa
+--- Mandioca
+--- Inhame
+--- Cará
+--- Cenoura
+--- Beterraba
+--- Rabanete
+--- Nabo
+--- Gengibre
+--- Yacon
+-- Bulbos
+--- Cebola Branca
+--- Cebola Roxa
+--- Alho
+--- Alho Poró
+--- Cebolinha Pérola
+--- Chalota
+-- Vagens e Grãos Frescos
+--- Vagem
+--- Ervilha Torta
+--- Milho Verde
+--- Feijão Verde
+--- Fava
+- Hortifruti - Verduras e Folhas
+-- Folhas
+--- Alface Crespa
+--- Alface Americana
+--- Alface Lisa
+--- Alface Roxa
+--- Rúcula
+--- Agrião
+--- Couve Manteiga
+--- Espinafre
+--- Acelga
+--- Almeirão
+--- Chicória
+--- Escarola
+--- Repolho Verde
+--- Repolho Roxo
+--- Mostarda
+--- Radicchio
+-- Crucíferas
+--- Brócolis Ninja
+--- Brócolis Ramoso
+--- Couve-Flor
+--- Couve de Bruxelas
+--- Couve-Rábano
+-- Ervas Frescas
+--- Salsinha
+--- Cebolinha
+--- Coentro
+--- Manjericão
+--- Hortelã
+--- Alecrim
+--- Tomilho
+--- Sálvia
+--- Louro Fresco
+--- Endro
+--- Orégano Fresco
+--- Estragão
+- Hortifruti - Cogumelos
+-- Cogumelos Frescos
+--- Champignon Paris
+--- Shimeji Branco
+--- Shimeji Preto
+--- Shiitake
+--- Portobello
+--- Cogumelo Eryngui
+- Hortifruti - Minimamente Processados
+-- Saladas Prontas
+--- Mix de Folhas
+--- Salada Americana
+--- Rúcula Higienizada
+--- Couve Fatiada
+--- Repolho Fatiado
+-- Legumes Cortados
+--- Cenoura Ralada
+--- Beterraba Ralada
+--- Abóbora em Cubos
+--- Mandioca Descascada
+--- Mix para Sopa
+--- Mix de Legumes no Vapor
+-- Frutas Cortadas
+--- Abacaxi em Rodelas
+--- Salada de Frutas
+--- Melancia em Cubos
+--- Mamão Cortado
+--- Mix de Frutas
+- Hortifruti - Ovos
+-- Ovos de Galinha
+--- Ovo Branco
+--- Ovo Vermelho
+--- Ovo Caipira
+--- Ovo Orgânico
+--- Ovo Enriquecido com Ômega 3
+--- Ovo Livre de Gaiola
+-- Outros Ovos
+--- Ovo de Codorna
+--- Ovo de Pata
+- Hortifruti - Orgânicos
+-- Hortifruti Orgânico
+--- Tomate Orgânico
+--- Alface Orgânica
+--- Cenoura Orgânica
+--- Banana Orgânica
+--- Maçã Orgânica
+--- Cesta Orgânica
+CATEGORIA MESTRE: Frios e Laticínios
+- Frios e Laticínios - Queijos
+-- Queijo Fatiado
+--- Mussarela Fatiada
+--- Prato Fatiado
+--- Queijo Suíço Fatiado
+--- Provolone Fatiado
+--- Cheddar Fatiado
+--- Minas Padrão Fatiado
+--- Gouda Fatiado
+-- Queijos Frescos
+--- Minas Frescal
+--- Ricota
+--- Cottage
+--- Queijo Coalho
+--- Burrata
+--- Muçarela de Búfala
+--- Queijo Branco
+--- Boursin
+-- Queijos Duros e Semiduros
+--- Parmesão
+--- Grana Padano
+--- Pecorino
+--- Provolone
+--- Queijo Canastra
+--- Queijo do Reino
+--- Gouda
+--- Emmental
+--- Gruyère
+--- Estepe
+--- Tilsit
+--- Minas Padrão
+--- Queijo Serrano
+-- Queijos Mofados e Especiais
+--- Brie
+--- Camembert
+--- Gorgonzola
+--- Roquefort
+--- Queijo de Cabra
+--- Stilton
+--- Taleggio
+--- Morbier
+-- Queijos Ralados e Processados
+--- Parmesão Ralado
+--- Queijo Ralado Misto
+--- Requeijão Cremoso
+--- Requeijão de Copo
+--- Cream Cheese
+--- Queijo Cremoso
+--- Cheddar Cremoso
+--- Queijo Processado em Porção
+--- Requeijão Culinário
+- Frios e Laticínios - Frios e Embutidos
+-- Presuntos
+--- Presunto Cozido
+--- Presunto Parma
+--- Presunto Serrano
+--- Presunto Royale
+--- Tender
+--- Apresuntado
+--- Presunto Defumado
+-- Salames e Curados
+--- Salame Italiano
+--- Salame Milano
+--- Copa
+--- Lombo Canadense
+--- Pastrami
+--- Bresaola
+--- Coppa
+--- Pepperoni
+--- Jamón Ibérico
+-- Mortadelas e Blanquet
+--- Mortadela Tradicional
+--- Mortadela Defumada
+--- Mortadela com Azeitona
+--- Mortadela Bologna
+--- Blanquet de Peru
+--- Peito de Peru Defumado
+--- Peito de Frango Defumado
+-- Salsichas
+--- Salsicha Hot Dog
+--- Salsicha Viena
+--- Salsicha de Frango
+--- Salsicha Alemã
+--- Salsicha Bock
+-- Linguiças Defumadas
+--- Calabresa Defumada
+--- Paio
+--- Linguiça Portuguesa
+--- Chouriço
+--- Linguiça Mineira Defumada
+-- Bacon e Toucinho
+--- Bacon em Manta
+--- Bacon Fatiado
+--- Bacon em Cubos
+--- Toucinho Defumado
+--- Torresmo Pronto
+- Frios e Laticínios - Leites e Bebidas Lácteas Refrigeradas
+-- Leite Refrigerado
+--- Leite Pasteurizado Integral
+--- Leite Pasteurizado Desnatado
+--- Leite Tipo A
+--- Leite Fresco Orgânico
+-- Bebidas Lácteas
+--- Bebida Láctea Fermentada
+--- Leite Fermentado
+--- Achocolatado Refrigerado
+--- Kefir
+--- Iogurte Líquido
+- Frios e Laticínios - Iogurtes e Sobremesas Lácteas
+-- Iogurtes
+--- Iogurte Natural
+--- Iogurte Grego
+--- Iogurte com Polpa de Fruta
+--- Iogurte Desnatado
+--- Iogurte Zero Lactose
+--- Iogurte Proteico
+--- Skyr
+--- Iogurte Integral
+-- Sobremesas Lácteas
+--- Petit Suisse
+--- Pudim Refrigerado
+--- Flan
+--- Mousse Refrigerado
+--- Chandelle
+--- Arroz Doce Refrigerado
+- Frios e Laticínios - Manteigas, Margarinas e Cremes
+-- Manteiga
+--- Manteiga com Sal
+--- Manteiga sem Sal
+--- Manteiga Ghee
+--- Manteiga de Garrafa
+--- Manteiga Extra
+-- Margarina e Cremes Vegetais
+--- Margarina com Sal
+--- Margarina sem Sal
+--- Creme Vegetal
+--- Margarina Light
+-- Cremes e Natas
+--- Creme de Leite Fresco
+--- Nata
+--- Chantilly Pronto
+--- Coalhada
+--- Creme Azedo (Sour Cream)
+- Frios e Laticínios - Massas Frescas e Refrigerados Prontos
+-- Massas Frescas
+--- Ravioli Fresco
+--- Capeletti Fresco
+--- Nhoque Fresco
+--- Talharim Fresco
+--- Lasanha Fresca
+--- Massa de Pastel
+--- Massa de Pizza
+--- Massa de Lasanha
+--- Massa Folhada
+-- Pratos Refrigerados
+--- Pão de Queijo Refrigerado
+--- Salada de Maionese
+--- Homus
+--- Patê de Frango
+--- Patê de Atum
+--- Guacamole
+--- Tabule
+- Frios e Laticínios - Antepastos e Conservas Refrigeradas
+-- Antepastos
+--- Azeitonas a Granel
+--- Tomate Seco
+--- Berinjela Antepasto
+--- Pimentão Assado
+--- Cogumelo Marinado
+--- Alcaparras
+CATEGORIA MESTRE: Padaria e Confeitaria
+- Padaria e Confeitaria - Pães de Produção Própria
+-- Pães Salgados
+--- Pão Francês
+--- Pão de Leite
+--- Pão Italiano
+--- Pão Baguete
+--- Pão Australiano
+--- Pão de Milho
+--- Pão Ciabatta
+--- Pão Sírio
+--- Bisnaguinha Caseira
+--- Pão Integral Artesanal
+--- Pão de Fermentação Natural
+--- Focaccia
+-- Pães Recheados e Especiais
+--- Pão de Queijo
+--- Pão de Calabresa
+--- Pão Recheado de Frango
+--- Pão de Alho
+--- Esfiha
+--- Enroladinho de Salsicha
+--- Croissant
+--- Pão de Batata
+-- Pães Doces
+--- Sonho
+--- Pão Doce
+--- Rosca Doce
+--- Pão de Coco
+--- Pão de Mel
+--- Bolo de Rolo
+--- Cuca
+--- Panetone Artesanal
+--- Sonho de Doce de Leite
+- Padaria e Confeitaria - Pães Industrializados
+-- Pão de Forma
+--- Pão de Forma Tradicional
+--- Pão de Forma Integral
+--- Pão de Forma sem Casca
+--- Pão de Forma Multigrãos
+--- Pão de Forma sem Glúten
+--- Pão Brioche
+-- Pães para Lanche
+--- Pão de Hambúrguer
+--- Pão de Hot Dog
+--- Bisnaguinha
+--- Pão Tortilla (Wrap)
+--- Pão Pita
+--- Mini Pão
+-- Torradas e Croutons
+--- Torrada Tradicional
+--- Torrada Integral
+--- Torrada de Arroz
+--- Croutons
+--- Pão Torrado Temperado
+--- Grissini
+- Padaria e Confeitaria - Bolos e Tortas
+-- Bolos
+--- Bolo de Cenoura
+--- Bolo de Chocolate
+--- Bolo de Fubá
+--- Bolo de Laranja
+--- Bolo de Milho
+--- Bolo Formigueiro
+--- Bolo Red Velvet
+--- Bolo Inglês
+--- Bolo de Aniversário
+-- Tortas
+--- Torta de Limão
+--- Torta Holandesa
+--- Torta de Morango
+--- Torta Floresta Negra
+--- Torta Salgada de Frango
+--- Quiche Lorraine
+--- Empadão
+- Padaria e Confeitaria - Confeitaria
+-- Doces Finos
+--- Brigadeiro
+--- Beijinho
+--- Bem Casado
+--- Quindim
+--- Pudim
+--- Pão de Mel Artesanal
+--- Éclair
+--- Macarons
+--- Carolina
+-- Salgados Assados e Fritos
+--- Coxinha
+--- Kibe
+--- Risole
+--- Empada
+--- Pastel Assado
+--- Esfiha Aberta
+--- Bolinha de Queijo
+--- Enroladinho de Queijo
+- Padaria e Confeitaria - Sazonais de Padaria
+-- Natal e Páscoa
+--- Panetone
+--- Chocotone
+--- Colomba Pascal
+--- Stollen
+--- Rabanada
+CATEGORIA MESTRE: Mercearia Básica
+- Mercearia Básica - Arroz
+-- Arroz Branco
+--- Arroz Agulhinha Tipo 1
+--- Arroz Tipo 2
+--- Arroz Parboilizado
+--- Arroz Arbóreo
+--- Arroz Carnaroli
+--- Arroz Japonês
+--- Arroz Basmati
+--- Arroz Jasmim
+-- Arroz Integral e Especiais
+--- Arroz Integral
+--- Arroz Negro
+--- Arroz Vermelho
+--- Arroz Selvagem
+--- Arroz 7 Grãos
+--- Arroz Cateto
+- Mercearia Básica - Feijões e Leguminosas
+-- Feijões
+--- Feijão Carioca
+--- Feijão Preto
+--- Feijão Branco
+--- Feijão Fradinho
+--- Feijão Rajado
+--- Feijão Jalo
+--- Feijão Vermelho
+--- Feijão Bolinha
+--- Feijão Azuki
+--- Feijão Mulatinho
+-- Outras Leguminosas
+--- Lentilha
+--- Grão-de-Bico
+--- Ervilha Seca
+--- Soja em Grão
+--- Lentilha Vermelha
+--- Feijão Moyashi
+- Mercearia Básica - Farinhas e Amidos
+-- Farinhas de Trigo
+--- Farinha de Trigo Tradicional
+--- Farinha de Trigo com Fermento
+--- Farinha de Trigo Integral
+--- Farinha Tipo 00
+--- Farinha para Pizza
+-- Farinhas de Mandioca e Milho
+--- Farinha de Mandioca Crua
+--- Farinha de Mandioca Torrada
+--- Farinha d'Água
+--- Farinha de Milho
+--- Fubá
+--- Flocão de Milho
+--- Farofa Pronta
+--- Farinha de Rosca
+--- Farinha Panko
+-- Amidos e Féculas
+--- Amido de Milho
+--- Polvilho Doce
+--- Polvilho Azedo
+--- Fécula de Batata
+--- Tapioca Granulada
+--- Goma de Tapioca
+--- Sagu
+-- Farinhas Especiais
+--- Farinha de Arroz
+--- Farinha de Amêndoas
+--- Farinha de Coco
+--- Farinha de Aveia
+--- Farinha de Grão-de-Bico
+--- Farinha de Linhaça
+--- Mix sem Glúten
+- Mercearia Básica - Açúcares e Adoçantes
+-- Açúcares
+--- Açúcar Refinado
+--- Açúcar Cristal
+--- Açúcar Mascavo
+--- Açúcar Demerara
+--- Açúcar de Confeiteiro
+--- Açúcar de Coco
+--- Açúcar Orgânico
+-- Adoçantes
+--- Adoçante Líquido Sucralose
+--- Adoçante Stevia
+--- Adoçante em Pó
+--- Xilitol
+--- Eritritol
+--- Adoçante Aspartame
+-- Mel e Melados
+--- Mel Silvestre
+--- Mel de Eucalipto
+--- Mel de Laranjeira
+--- Melado de Cana
+--- Rapadura
+--- Xarope de Bordo
+--- Glucose de Milho
+- Mercearia Básica - Óleos, Azeites e Gorduras
+-- Óleos Vegetais
+--- Óleo de Soja
+--- Óleo de Milho
+--- Óleo de Girassol
+--- Óleo de Canola
+--- Óleo Composto
+--- Óleo de Coco
+--- Óleo de Gergelim
+--- Óleo de Abacate
+-- Azeites
+--- Azeite Extravirgem
+--- Azeite Virgem
+--- Azeite de Oliva Tipo Único
+--- Azeite Aromatizado
+--- Azeite de Dendê
+-- Gorduras
+--- Gordura Vegetal Hidrogenada
+--- Banha de Porco
+--- Gordura de Palma
+- Mercearia Básica - Massas Secas
+-- Massas Longas
+--- Espaguete
+--- Talharim
+--- Fettuccine
+--- Linguine
+--- Capellini
+--- Bucatini
+--- Pappardelle
+--- Macarrão Instantâneo Longo
+-- Massas Curtas
+--- Parafuso
+--- Penne
+--- Pene Rigate
+--- Fusilli
+--- Farfalle
+--- Ave-Maria
+--- Padre Nosso
+--- Conchinha
+--- Rigatoni
+--- Gravata
+--- Argolinha
+--- Letrinha
+-- Massas Especiais
+--- Massa de Lasanha Seca
+--- Canelone
+--- Massa Integral
+--- Massa de Arroz
+--- Massa sem Glúten
+--- Massa com Ovos
+--- Massa Grano Duro
+--- Massa de Legumes
+-- Massas Orientais
+--- Lámen
+--- Udon
+--- Soba
+--- Bifum
+--- Harusame
+--- Macarrão de Arroz para Yakisoba
+-- Macarrão Instantâneo
+--- Macarrão Instantâneo Galinha
+--- Macarrão Instantâneo Carne
+--- Macarrão Instantâneo em Copo
+--- Lámen Coreano
+--- Macarrão Instantâneo Picante
+- Mercearia Básica - Grãos, Cereais e Sementes
+-- Grãos
+--- Quinoa
+--- Aveia em Flocos
+--- Aveia em Flocos Finos
+--- Farelo de Aveia
+--- Cevadinha
+--- Trigo para Quibe
+--- Cuscuz Marroquino
+--- Canjica
+--- Milho de Pipoca
+--- Amaranto
+--- Painço
+-- Sementes
+--- Chia
+--- Linhaça Dourada
+--- Linhaça Marrom
+--- Gergelim Branco
+--- Gergelim Preto
+--- Semente de Girassol
+--- Semente de Abóbora
+--- Psyllium
+- Mercearia Básica - Sal e Temperos Básicos
+-- Sal
+--- Sal Refinado
+--- Sal Grosso
+--- Sal Marinho
+--- Sal Rosa do Himalaia
+--- Sal Light
+--- Flor de Sal
+--- Sal Defumado
+-- Vinagres
+--- Vinagre de Álcool
+--- Vinagre de Maçã
+--- Vinagre de Vinho Tinto
+--- Vinagre de Vinho Branco
+--- Aceto Balsâmico
+--- Vinagre de Arroz
+CATEGORIA MESTRE: Mercearia Doce e Matinais
+- Mercearia Doce e Matinais - Café
+-- Café Torrado e Moído
+--- Café Tradicional
+--- Café Extra Forte
+--- Café Gourmet
+--- Café Descafeinado
+--- Café Orgânico
+--- Café Especial
+-- Café em Grão
+--- Café em Grão Tradicional
+--- Café em Grão Gourmet
+--- Café em Grão Especial
+-- Café em Cápsula
+--- Cápsula Padrão Espresso
+--- Cápsula Multibebidas
+--- Cápsula de Café Coado
+--- Cápsula Compatível
+-- Café Solúvel e Preparos
+--- Café Solúvel
+--- Cappuccino em Pó
+--- Café com Leite em Pó
+--- Mocaccino
+--- Café Gelado Pronto
+- Mercearia Doce e Matinais - Chás e Infusões
+-- Chás em Sachê
+--- Chá de Camomila
+--- Chá Verde
+--- Chá Preto
+--- Chá de Hortelã
+--- Chá de Erva-Doce
+--- Chá de Hibisco
+--- Chá de Boldo
+--- Chá de Frutas Vermelhas
+--- Chá Mate
+-- Chás a Granel e Especiais
+--- Erva-Mate para Chimarrão
+--- Erva para Tereré
+--- Matcha
+--- Chá Branco
+--- Chá Oolong
+--- Rooibos
+- Mercearia Doce e Matinais - Achocolatados e Bebidas em Pó
+-- Achocolatados
+--- Achocolatado em Pó
+--- Achocolatado Diet
+--- Cacau em Pó 50%
+--- Chocolate em Pó 100%
+-- Refrescos em Pó
+--- Refresco de Laranja
+--- Refresco de Uva
+--- Refresco de Limão
+--- Refresco de Maracujá
+--- Refresco Diet
+- Mercearia Doce e Matinais - Cereais Matinais
+-- Cereais e Granolas
+--- Flocos de Milho
+--- Cereal de Chocolate
+--- Cereal Açucarado
+--- Granola Tradicional
+--- Granola sem Açúcar
+--- Muesli
+--- Cereal Integral
+--- Cereal Infantil
+-- Barras de Cereal
+--- Barra de Cereal Tradicional
+--- Barra de Proteína
+--- Barra de Castanhas
+--- Barra de Frutas
+--- Barra de Cereal Diet
+- Mercearia Doce e Matinais - Biscoitos
+-- Biscoitos Salgados
+--- Cream Cracker
+--- Água e Sal
+--- Biscoito Integral
+--- Biscoito Cracker Folhado
+--- Biscoito de Polvilho
+--- Grissini Salgado
+--- Biscoito de Arroz
+-- Biscoitos Doces
+--- Biscoito Maisena
+--- Maria
+--- Rosquinha de Coco
+--- Wafer
+--- Biscoito Recheado de Chocolate
+--- Biscoito Recheado de Morango
+--- Cookies
+--- Amanteigado
+--- Biscoito de Leite
+--- Casadinho
+-- Biscoitos Especiais
+--- Biscoito sem Glúten
+--- Biscoito Zero Açúcar
+--- Biscoito Integral Doce
+--- Biscoito Importado
+- Mercearia Doce e Matinais - Doces e Sobremesas
+-- Chocolates
+--- Barra de Chocolate ao Leite
+--- Chocolate Meio Amargo
+--- Chocolate 70% Cacau
+--- Chocolate Branco
+--- Bombons Sortidos
+--- Caixa de Bombom
+--- Tablete Recheado
+--- Chocolate Zero Açúcar
+-- Balas, Gomas e Pirulitos
+--- Bala de Goma
+--- Bala Mastigável
+--- Bala Dura
+--- Pirulito
+--- Chiclete
+--- Pastilha
+--- Marshmallow
+--- Jujuba
+-- Doces Tradicionais
+--- Paçoca
+--- Pé de Moleque
+--- Doce de Leite em Pasta
+--- Goiabada
+--- Marmelada
+--- Bananada
+--- Cocada
+--- Doce de Abóbora
+--- Doce de Figo
+-- Sobremesas para Preparo
+--- Gelatina em Pó
+--- Pudim em Pó
+--- Manjar
+--- Mousse em Pó
+--- Flan em Pó
+--- Chantilly em Pó
+- Mercearia Doce e Matinais - Confeitaria Caseira
+-- Ingredientes para Bolo
+--- Mistura para Bolo
+--- Fermento Químico
+--- Fermento Biológico Seco
+--- Bicarbonato de Sódio
+--- Cremor Tártaro
+--- Essência de Baunilha
+--- Corante Alimentício
+-- Decoração e Coberturas
+--- Granulado
+--- Confeitos Coloridos
+--- Cobertura de Chocolate
+--- Chocolate Fracionado
+--- Pasta Americana
+--- Glacê
+--- Calda de Chocolate
+--- Calda de Caramelo
+-- Leites e Cremes para Doces
+--- Leite Condensado
+--- Creme de Leite de Caixinha
+--- Creme de Leite em Lata
+--- Leite de Coco
+--- Doce de Leite Cremoso
+--- Cobertura Sabor Chocolate
+- Mercearia Doce e Matinais - Geleias e Pastas
+-- Geleias e Cremes
+--- Geleia de Morango
+--- Geleia de Uva
+--- Geleia de Damasco
+--- Geleia de Pimenta
+--- Creme de Avelã
+--- Pasta de Amendoim
+--- Pasta de Castanha
+--- Mel em Bisnaga
+- Mercearia Doce e Matinais - Leite Longa Vida e em Pó
+-- Leite UHT
+--- Leite Integral UHT
+--- Leite Semidesnatado UHT
+--- Leite Desnatado UHT
+--- Leite Zero Lactose
+--- Leite com Vitaminas
+--- Leite A2
+-- Leite em Pó
+--- Leite em Pó Integral
+--- Leite em Pó Desnatado
+--- Composto Lácteo
+--- Leite em Pó Zero Lactose
+-- Bebidas Vegetais
+--- Bebida de Amêndoas
+--- Bebida de Aveia
+--- Bebida de Soja
+--- Bebida de Coco
+--- Bebida de Arroz
+--- Bebida de Castanha
+CATEGORIA MESTRE: Mercearia Salgada e Conservas
+- Mercearia Salgada e Conservas - Molhos
+-- Molhos de Tomate
+--- Molho de Tomate Tradicional
+--- Molho de Tomate Manjericão
+--- Molho Pomodoro
+--- Extrato de Tomate
+--- Polpa de Tomate
+--- Tomate Pelado
+--- Passata
+--- Molho à Bolonhesa
+-- Condimentos
+--- Ketchup
+--- Maionese
+--- Mostarda Amarela
+--- Mostarda Dijon
+--- Molho Barbecue
+--- Maionese Temperada
+--- Molho Rosé
+--- Molho Tártaro
+-- Molhos Especiais
+--- Molho Shoyu
+--- Molho Inglês
+--- Molho de Pimenta
+--- Molho Tarê
+--- Molho Teriyaki
+--- Molho de Ostra
+--- Molho Sriracha
+--- Molho Pesto
+--- Molho Branco Pronto
+--- Molho para Salada
+- Mercearia Salgada e Conservas - Temperos e Especiarias
+-- Temperos Prontos
+--- Tempero Completo
+--- Caldo de Carne em Tablete
+--- Caldo de Galinha em Tablete
+--- Caldo de Legumes
+--- Tempero Baiano
+--- Sazón
+--- Tempero para Arroz
+--- Alho e Sal
+--- Chimichurri
+--- Lemon Pepper
+-- Especiarias Secas
+--- Pimenta-do-Reino
+--- Orégano
+--- Colorau
+--- Cominho
+--- Páprica Doce
+--- Páprica Defumada
+--- Canela em Pó
+--- Canela em Pau
+--- Cravo
+--- Noz-Moscada
+--- Açafrão da Terra
+--- Curry
+--- Louro Seco
+--- Ervas Finas
+--- Gengibre em Pó
+--- Alecrim Seco
+-- Pimentas
+--- Pimenta Calabresa
+--- Pimenta Caiena
+--- Pimenta Rosa
+--- Pimenta Biquinho em Conserva
+--- Pimenta Malagueta
+--- Pimenta Dedo-de-Moça em Conserva
+- Mercearia Salgada e Conservas - Conservas
+-- Conservas Vegetais
+--- Milho em Conserva
+--- Ervilha em Conserva
+--- Seleta de Legumes
+--- Palmito
+--- Azeitona Verde
+--- Azeitona Preta
+--- Cogumelo em Conserva
+--- Pepino em Conserva
+--- Picles Misto
+--- Alcachofra em Conserva
+--- Aspargos em Conserva
+--- Grão-de-Bico em Conserva
+--- Feijão Pronto
+-- Conservas de Pescado
+--- Atum em Óleo
+--- Atum em Água
+--- Atum Sólido
+--- Sardinha em Óleo
+--- Sardinha com Tomate
+--- Salmão em Lata
+--- Anchova em Conserva
+--- Mexilhão em Conserva
+-- Conservas de Carne
+--- Salsicha em Lata
+--- Patê de Fígado
+--- Carne Enlatada
+--- Feijoada Pronta em Lata
+--- Almôndega em Molho
+-- Conservas de Frutas
+--- Pêssego em Calda
+--- Figo em Calda
+--- Abacaxi em Calda
+--- Coquetel de Frutas
+--- Cereja em Calda
+--- Goiaba em Calda
+- Mercearia Salgada e Conservas - Pratos Prontos e Sopas
+-- Refeições Instantâneas
+--- Sopa Instantânea
+--- Creme de Cebola
+--- Purê de Batata em Pó
+--- Risoto Pronto
+--- Arroz Pronto
+--- Feijão Temperado Pronto
+-- Kits de Preparo
+--- Kit Yakisoba
+--- Kit Tacos
+--- Kit Paella
+--- Kit Fondue
+--- Farofa Temperada
+- Mercearia Salgada e Conservas - Snacks e Aperitivos
+-- Salgadinhos
+--- Batata Chips
+--- Batata Palha
+--- Salgadinho de Milho
+--- Tortilla Chips
+--- Amendoim Japonês
+--- Salgadinho de Queijo
+--- Pipoca de Micro-ondas
+--- Snack de Mandioca
+--- Snack Assado
+-- Castanhas e Nuts
+--- Castanha de Caju
+--- Castanha-do-Pará
+--- Amendoim Torrado
+--- Amêndoas
+--- Nozes
+--- Pistache
+--- Avelã
+--- Macadâmia
+--- Mix de Castanhas
+--- Noz Pecã
+-- Frutas Secas e Desidratadas
+--- Uva-Passa
+--- Damasco Seco
+--- Tâmara Seca
+--- Ameixa Seca
+--- Banana Passa
+--- Cranberry Desidratado
+--- Figo Seco
+--- Coco Ralado
+--- Chips de Coco
+CATEGORIA MESTRE: Bebidas
+- Bebidas - Águas
+-- Água Mineral
+--- Água sem Gás
+--- Água com Gás
+--- Água Alcalina
+--- Água Aromatizada
+--- Água em Galão 20L
+--- Água Premium Importada
+-- Água de Coco
+--- Água de Coco Integral
+--- Água de Coco Reconstituída
+--- Água de Coco Orgânica
+- Bebidas - Refrigerantes
+-- Refrigerantes de Cola
+--- Cola Tradicional
+--- Cola Zero
+--- Cola Light
+--- Cola Lata
+--- Cola Pet 2L
+-- Refrigerantes de Sabores
+--- Guaraná
+--- Guaraná Zero
+--- Laranja
+--- Limão
+--- Uva
+--- Tubaína
+--- Soda Limonada
+--- Citrus
+--- Refrigerante de Maçã
+- Bebidas - Sucos e Néctares
+-- Sucos Prontos
+--- Suco Integral de Uva
+--- Suco Integral de Laranja
+--- Néctar de Pêssego
+--- Néctar de Manga
+--- Néctar de Maracujá
+--- Suco de Caixinha Infantil
+--- Suco Detox
+--- Suco de Tomate
+-- Sucos Concentrados e Polpas
+--- Suco Concentrado de Caju
+--- Suco Concentrado de Maracujá
+--- Polpa de Fruta Congelada
+--- Xarope de Groselha
+- Bebidas - Bebidas Funcionais
+-- Energéticos
+--- Energético Tradicional
+--- Energético Zero
+--- Energético Sabores
+--- Energético em Lata 473ml
+-- Isotônicos e Esportivos
+--- Isotônico Limão
+--- Isotônico Laranja
+--- Isotônico Tangerina
+--- Bebida Proteica Pronta
+-- Chás Prontos e Kombuchas
+--- Chá Gelado Pêssego
+--- Chá Gelado Limão
+--- Chá Mate Pronto
+--- Kombucha
+--- Bebida de Gengibre
+- Bebidas - Cervejas
+-- Cervejas Nacionais
+--- Cerveja Pilsen Lata
+--- Cerveja Pilsen Long Neck
+--- Cerveja Puro Malte
+--- Cerveja Premium
+--- Cerveja Retornável 600ml
+--- Cerveja Sem Álcool
+--- Cerveja Sem Glúten
+-- Cervejas Especiais e Importadas
+--- IPA
+--- APA
+--- Weiss
+--- Stout
+--- Lager Importada
+--- Red Ale
+--- Sour
+--- Cerveja Trapista
+--- Cerveja Artesanal Local
+- Bebidas - Vinhos e Espumantes
+-- Vinhos Tintos
+--- Cabernet Sauvignon
+--- Merlot
+--- Malbec
+--- Carménère
+--- Tannat
+--- Pinot Noir
+--- Syrah
+--- Tempranillo
+--- Vinho Tinto Suave
+--- Vinho de Mesa
+-- Vinhos Brancos e Rosés
+--- Chardonnay
+--- Sauvignon Blanc
+--- Moscato
+--- Riesling
+--- Vinho Verde
+--- Vinho Rosé
+--- Vinho Branco Suave
+-- Espumantes
+--- Espumante Brut
+--- Espumante Demi-Sec
+--- Espumante Moscatel
+--- Prosecco
+--- Champagne
+--- Cava
+--- Sidra
+-- Vinhos Fortificados
+--- Vinho do Porto
+--- Jerez
+--- Marsala
+--- Vinho Licoroso
+- Bebidas - Destilados e Licores
+-- Destilados
+--- Cachaça Prata
+--- Cachaça Ouro
+--- Vodka
+--- Whisky Escocês
+--- Whisky Bourbon
+--- Gin
+--- Rum
+--- Tequila
+--- Conhaque
+--- Pisco
+--- Saquê
+--- Steinhäger
+--- Grappa
+-- Licores e Aperitivos
+--- Licor de Chocolate
+--- Licor de Café
+--- Licor de Creme
+--- Licor de Laranja
+--- Licor de Marula
+--- Vermute
+--- Bitter
+--- Bitter Vermelho
+--- Aperitivo de Laranja
+--- Licor de Ervas
+--- Limoncello
+-- Drinks Prontos
+--- Caipirinha Pronta
+--- Gin Tônica em Lata
+--- Ice Vodka
+--- Hard Seltzer
+--- Coquetel Pronto
+- Bebidas - Mixers e Gelo
+-- Mixers
+--- Água Tônica
+--- Club Soda
+--- Ginger Ale
+--- Xarope para Drinks
+--- Suco de Limão Pronto
+-- Gelo
+--- Gelo em Cubos
+--- Gelo em Escamas
+--- Gelo de Coco
+--- Gelo Saborizado
+CATEGORIA MESTRE: Congelados
+- Congelados - Pratos Prontos Congelados
+-- Refeições Individuais
+--- Lasanha à Bolonhesa
+--- Lasanha 4 Queijos
+--- Escondidinho de Carne
+--- Strogonoff com Arroz
+--- Nhoque ao Sugo
+--- Arroz com Frango
+--- Feijoada Congelada
+--- Parmegiana
+--- Risoto Congelado
+--- Refeição Fit
+-- Pizzas
+--- Pizza de Mussarela
+--- Pizza de Calabresa
+--- Pizza de Frango com Requeijão
+--- Pizza Portuguesa
+--- Pizza 4 Queijos
+--- Mini Pizza
+--- Pizza Brotinho
+-- Salgados Congelados
+--- Pão de Queijo Congelado
+--- Coxinha Congelada
+--- Kibe Congelado
+--- Esfiha Congelada
+--- Mini Salgados Sortidos
+--- Pastel Congelado
+--- Empanada
+--- Rolinho Primavera
+--- Gyoza
+--- Dim Sum
+- Congelados - Empanados e Processados
+-- Empanados de Frango
+--- Nuggets
+--- Steak de Frango
+--- Frango Empanado
+--- Tirinhas de Frango
+--- Chicken Popcorn
+-- Hambúrgueres Congelados
+--- Hambúrguer Bovino Congelado
+--- Hambúrguer de Frango Congelado
+--- Hambúrguer Picanha
+--- Hambúrguer Vegetal
+- Congelados - Vegetais e Frutas Congelados
+-- Vegetais Congelados
+--- Brócolis Congelado
+--- Ervilha Congelada
+--- Seleta de Legumes Congelada
+--- Espinafre Congelado
+--- Milho Congelado
+--- Mandioca Congelada
+--- Couve-Flor Congelada
+-- Batatas Congeladas
+--- Batata Palito Pré-Frita
+--- Batata Rústica
+--- Batata Smile
+--- Batata Noisette
+--- Batata Canoa
+--- Batata Frita Airfryer
+-- Frutas Congeladas
+--- Açaí na Tigela
+--- Polpa de Açaí
+--- Morango Congelado
+--- Mix de Frutas Vermelhas Congelado
+--- Manga em Cubos Congelada
+- Congelados - Sorvetes e Sobremesas Geladas
+-- Sorvetes
+--- Sorvete Pote 2L
+--- Sorvete Pote 1,5L
+--- Sorvete Premium
+--- Sorvete Zero Açúcar
+--- Sorvete Vegano
+--- Gelato
+-- Picolés e Individuais
+--- Picolé de Frutas
+--- Picolé de Creme
+--- Picolé Cobertura Chocolate
+--- Cone Recheado
+--- Sanduíche de Sorvete
+--- Paleta Mexicana
+-- Sobremesas Congeladas
+--- Torta Gelada
+--- Bolo Sorvete
+--- Petit Gâteau
+--- Churros Congelado
+--- Mousse Congelado
+- Congelados - Massas e Pães Congelados
+-- Massas Congeladas
+--- Massa de Pizza Congelada
+--- Massa Folhada Congelada
+--- Waffle Congelado
+--- Panqueca Congelada
+--- Tortilha Congelada
+-- Pães Congelados
+--- Pão de Alho Congelado
+--- Baguete Congelada
+--- Croissant Congelado
+--- Pão Francês Pré-Assado
+CATEGORIA MESTRE: Saudáveis e Especiais
+- Saudáveis e Especiais - Sem Glúten e Sem Lactose
+-- Sem Glúten
+--- Pão sem Glúten
+--- Macarrão sem Glúten
+--- Biscoito sem Glúten
+--- Mistura para Bolo sem Glúten
+--- Farinha sem Glúten
+-- Zero Lactose
+--- Queijo Zero Lactose
+--- Iogurte Zero Lactose
+--- Manteiga Zero Lactose
+--- Creme de Leite Zero Lactose
+--- Leite Condensado Zero Lactose
+- Saudáveis e Especiais - Vegano e Vegetariano
+-- Proteínas Vegetais
+--- Tofu
+--- Tempeh
+--- Proteína Texturizada de Soja
+--- Seitan
+--- Carne Vegetal Moída
+--- Frango Vegetal
+--- Linguiça Vegetal
+-- Laticínios Vegetais
+--- Queijo Vegano
+--- Manteiga Vegetal
+--- Iogurte Vegetal
+--- Creme de Leite Vegetal
+--- Requeijão Vegano
+- Saudáveis e Especiais - Suplementos e Nutrição Esportiva
+-- Proteínas
+--- Whey Protein Concentrado
+--- Whey Protein Isolado
+--- Proteína Vegana
+--- Albumina
+--- Colágeno Hidrolisado
+-- Suplementos
+--- Creatina
+--- Pré-Treino
+--- BCAA
+--- Glutamina
+--- Multivitamínico
+--- Vitamina C Efervescente
+--- Ômega 3
+- Saudáveis e Especiais - Diet, Light e Zero
+-- Doces Zero Açúcar
+--- Chocolate Zero
+--- Geleia Zero
+--- Gelatina Diet
+--- Doce de Leite Diet
+--- Bala Zero
+- Saudáveis e Especiais - Produtos Naturais e a Granel
+-- Granel
+--- Granola a Granel
+--- Castanhas a Granel
+--- Frutas Secas a Granel
+--- Sementes a Granel
+--- Grãos a Granel
+--- Temperos a Granel
+-- Superalimentos
+--- Spirulina
+--- Cacau Nibs
+--- Goji Berry
+--- Cúrcuma
+--- Maca Peruana
+--- Açaí em Pó
+CATEGORIA MESTRE: Mundo Infantil
+- Mundo Infantil - Alimentação Infantil
+-- Fórmulas e Leites Infantis
+--- Fórmula Infantil 1
+--- Fórmula Infantil 2
+--- Fórmula Infantil 3
+--- Composto Lácteo Infantil
+--- Fórmula Sem Lactose
+-- Papinhas e Cereais Infantis
+--- Papinha de Frutas
+--- Papinha Salgada
+--- Cereal Infantil de Arroz
+--- Cereal Infantil Multicereais
+--- Farinha Láctea
+--- Suco Infantil
+-- Snacks Infantis
+--- Biscoito Infantil
+--- Snack de Arroz Infantil
+--- Purê de Fruta em Squeeze
+--- Bolinho Infantil
+- Mundo Infantil - Higiene do Bebê
+-- Fraldas
+--- Fralda RN
+--- Fralda P
+--- Fralda M
+--- Fralda G
+--- Fralda XG
+--- Fralda XXG
+--- Fralda Calça
+--- Fralda Geriátrica
+-- Cuidados do Bebê
+--- Lenço Umedecido
+--- Pomada contra Assaduras
+--- Shampoo Infantil
+--- Sabonete Infantil
+--- Condicionador Infantil
+--- Colônia Infantil
+--- Talco Infantil
+--- Óleo Infantil
+--- Hastes Flexíveis Infantis
+-- Acessórios do Bebê
+--- Mamadeira
+--- Chupeta
+--- Bico de Mamadeira
+--- Copo de Transição
+--- Mordedor
+--- Escova de Dente Infantil
+--- Pratinho Infantil
+CATEGORIA MESTRE: Higiene e Perfumaria
+- Higiene e Perfumaria - Cuidados com o Cabelo
+-- Shampoos e Condicionadores
+--- Shampoo Anticaspa
+--- Shampoo Cabelos Cacheados
+--- Shampoo Cabelos Lisos
+--- Shampoo 2 em 1
+--- Condicionador Hidratação
+--- Condicionador Reconstrução
+--- Shampoo Masculino
+-- Tratamento Capilar
+--- Máscara de Hidratação
+--- Creme para Pentear
+--- Leave-in
+--- Óleo Capilar
+--- Finalizador
+--- Ampola Capilar
+--- Protetor Térmico
+-- Coloração e Styling
+--- Tintura para Cabelo
+--- Descolorante
+--- Gel Fixador
+--- Pomada Modeladora
+--- Spray Fixador
+--- Mousse Capilar
+- Higiene e Perfumaria - Higiene Bucal
+-- Cremes Dentais
+--- Creme Dental Tradicional
+--- Creme Dental Branqueador
+--- Creme Dental Sensível
+--- Creme Dental Infantil
+--- Gel Dental
+-- Acessórios Bucais
+--- Escova de Dente Macia
+--- Escova de Dente Média
+--- Escova Elétrica
+--- Fio Dental
+--- Fita Dental
+--- Enxaguante Bucal
+--- Escova Interdental
+- Higiene e Perfumaria - Cuidados com o Corpo
+-- Sabonetes
+--- Sabonete em Barra
+--- Sabonete Líquido
+--- Sabonete Íntimo
+--- Sabonete Antibacteriano
+--- Sabonete Glicerinado
+--- Refil de Sabonete Líquido
+-- Desodorantes
+--- Desodorante Aerosol
+--- Desodorante Roll-on
+--- Desodorante Stick
+--- Desodorante Creme
+--- Desodorante Masculino
+--- Desodorante Feminino
+-- Hidratantes e Óleos
+--- Loção Hidratante
+--- Creme para Mãos
+--- Creme para Pés
+--- Óleo Corporal
+--- Hidratante Infantil
+--- Manteiga Corporal
+-- Proteção Solar
+--- Protetor Solar FPS 30
+--- Protetor Solar FPS 50
+--- Protetor Facial
+--- Bronzeador
+--- Pós-Sol
+--- Repelente de Insetos
+- Higiene e Perfumaria - Cuidados com o Rosto e Maquiagem
+-- Skincare
+--- Sabonete Facial
+--- Água Micelar
+--- Tônico Facial
+--- Hidratante Facial
+--- Sérum Facial
+--- Demaquilante
+--- Máscara Facial
+-- Maquiagem
+--- Base
+--- Pó Compacto
+--- Batom
+--- Rímel
+--- Delineador
+--- Lápis de Olho
+--- Blush
+--- Esmalte
+--- Removedor de Esmalte
+- Higiene e Perfumaria - Barbear e Depilação
+-- Barbear
+--- Aparelho de Barbear Descartável
+--- Carga para Aparelho
+--- Espuma de Barbear
+--- Gel de Barbear
+--- Loção Pós-Barba
+--- Óleo para Barba
+-- Depilação
+--- Cera Depilatória
+--- Creme Depilatório
+--- Lâmina Feminina
+--- Folhas de Cera Prontas
+- Higiene e Perfumaria - Higiene Íntima e Pessoal
+-- Absorventes
+--- Absorvente com Abas
+--- Absorvente sem Abas
+--- Absorvente Noturno
+--- Protetor Diário
+--- Absorvente Interno
+--- Coletor Menstrual
+-- Papel e Lenços
+--- Papel Higiênico Folha Simples
+--- Papel Higiênico Folha Dupla
+--- Papel Higiênico Folha Tripla
+--- Lenço de Papel
+--- Lenço Umedecido Adulto
+-- Algodão e Hastes
+--- Algodão em Bola
+--- Algodão em Disco
+--- Hastes Flexíveis
+- Higiene e Perfumaria - Farmácia Básica
+-- Primeiros Socorros
+--- Curativo Adesivo
+--- Esparadrapo
+--- Gaze
+--- Álcool 70% Líquido
+--- Álcool em Gel
+--- Água Oxigenada
+--- Soro Fisiológico
+--- Termômetro
+-- Preservativos e Lubrificantes
+--- Preservativo Tradicional
+--- Preservativo Sensitive
+--- Gel Lubrificante
+- Higiene e Perfumaria - Perfumaria
+-- Fragrâncias
+--- Colônia Feminina
+--- Colônia Masculina
+--- Body Splash
+--- Perfume Importado
+--- Talco Perfumado
+CATEGORIA MESTRE: Limpeza
+- Limpeza - Cuidados com Roupas
+-- Sabão para Roupas
+--- Sabão em Pó
+--- Sabão Líquido
+--- Sabão em Barra
+--- Sabão de Coco
+--- Sabão Líquido Roupas Delicadas
+--- Sabão para Roupas de Bebê
+--- Lava-Roupas em Cápsula
+-- Amaciantes e Tratamento
+--- Amaciante Concentrado
+--- Amaciante Diluído
+--- Alvejante sem Cloro
+--- Tira-Manchas
+--- Água Sanitária
+--- Passa Roupa Facilitador
+--- Anil
+- Limpeza - Limpeza da Cozinha
+-- Lava-Louças
+--- Detergente Neutro
+--- Detergente Limão
+--- Detergente Concentrado
+--- Lava-Louças para Máquina
+--- Pastilha para Lava-Louças
+--- Secante para Máquina
+-- Desengordurantes
+--- Desengordurante Spray
+--- Limpa-Forno
+--- Limpa-Inox
+--- Limpa-Cooktop
+-- Esponjas e Panos
+--- Esponja Dupla Face
+--- Esponja de Aço
+--- Esponja Anti-Risco
+--- Pano Multiuso
+--- Pano de Prato
+--- Flanela
+--- Pano Descartável
+--- Palha de Aço
+- Limpeza - Limpeza da Casa
+-- Limpadores Multiuso
+--- Multiuso Tradicional
+--- Limpador Perfumado
+--- Limpa-Vidros
+--- Lustra-Móveis
+--- Limpador de Piso Laminado
+--- Cera para Piso
+--- Limpa-Porcelanato
+-- Banheiro
+--- Desinfetante
+--- Limpa-Banheiro
+--- Tira-Limo
+--- Pedra Sanitária
+--- Bloco Sanitário
+--- Gel Sanitário
+--- Cloro Gel
+--- Limpador de Rejunte
+-- Utensílios de Limpeza
+--- Vassoura
+--- Rodo
+--- Pá de Lixo
+--- Balde
+--- Mop
+--- Refil de Mop
+--- Escova Sanitária
+--- Luva de Borracha
+--- Espanador
+-- Sacos de Lixo
+--- Saco de Lixo 15L
+--- Saco de Lixo 30L
+--- Saco de Lixo 50L
+--- Saco de Lixo 100L
+--- Saco de Lixo Reforçado
+--- Saco para Pia
+- Limpeza - Ambiente e Controle de Pragas
+-- Aromatizantes
+--- Aromatizador Spray
+--- Aromatizador Automático
+--- Difusor de Varetas
+--- Vela Aromática
+--- Neutralizador de Odores
+--- Sachê Perfumado
+-- Inseticidas
+--- Inseticida Aerosol
+--- Inseticida Elétrico
+--- Repelente Elétrico
+--- Isca para Baratas
+--- Raticida
+--- Armadilha para Moscas
+--- Inseticida para Formigas
+- Limpeza - Descartáveis e Embalagens
+-- Papel e Filmes
+--- Papel Toalha
+--- Guardanapo de Papel
+--- Papel Alumínio
+--- Filme PVC
+--- Papel Manteiga
+--- Saco para Freezer
+--- Saco Zip
+-- Descartáveis de Mesa
+--- Copo Descartável
+--- Prato Descartável
+--- Talher Descartável
+--- Canudo
+--- Marmitex
+--- Pote Descartável
+--- Toalha de Mesa Descartável
+CATEGORIA MESTRE: Pet Shop
+- Pet Shop - Cães
+-- Alimentação para Cães
+--- Ração Seca Filhote
+--- Ração Seca Adulto
+--- Ração Seca Sênior
+--- Ração Úmida Sachê
+--- Ração Úmida Lata
+--- Ração Raças Pequenas
+--- Ração Premium
+-- Petiscos para Cães
+--- Bifinho
+--- Osso Mastigável
+--- Biscoito Canino
+--- Palito Dental Canino
+-- Higiene para Cães
+--- Tapete Higiênico
+--- Shampoo Canino
+--- Saco Coletor
+--- Antipulgas
+--- Areia/Granulado Higiênico
+- Pet Shop - Gatos
+-- Alimentação para Gatos
+--- Ração Seca Filhote Gato
+--- Ração Seca Adulto Gato
+--- Ração Gato Castrado
+--- Sachê para Gatos
+--- Patê para Gatos
+-- Higiene para Gatos
+--- Areia Sanitária
+--- Areia de Sílica
+--- Granulado de Madeira
+--- Petisco para Gatos
+--- Arranhador
+- Pet Shop - Outros Pets
+-- Pássaros, Peixes e Roedores
+--- Alpiste
+--- Mistura para Pássaros
+--- Ração para Peixes
+--- Ração para Roedores
+--- Feno
+--- Ração para Tartaruga
+- Pet Shop - Acessórios Pet
+-- Acessórios
+--- Comedouro
+--- Bebedouro
+--- Coleira
+--- Guia
+--- Brinquedo para Pet
+--- Caminha Pet
+CATEGORIA MESTRE: Bazar e Utilidades Domésticas
+- Bazar e Utilidades Domésticas - Utensílios de Cozinha
+-- Panelas e Formas
+--- Panela Antiaderente
+--- Frigideira
+--- Panela de Pressão
+--- Forma de Bolo
+--- Assadeira
+--- Forma de Gelo
+--- Caçarola
+-- Utensílios
+--- Colher de Pau
+--- Espátula
+--- Concha
+--- Escumadeira
+--- Abridor de Latas
+--- Descascador
+--- Ralador
+--- Peneira
+--- Tábua de Corte
+--- Faca de Cozinha
+--- Tesoura de Cozinha
+-- Potes e Armazenamento
+--- Pote Plástico
+--- Pote de Vidro
+--- Garrafa Térmica
+--- Garrafa de Água
+--- Marmita
+--- Porta-Mantimentos
+- Bazar e Utilidades Domésticas - Mesa e Copa
+-- Louças e Copos
+--- Prato Raso
+--- Prato Fundo
+--- Copo de Vidro
+--- Taça
+--- Caneca
+--- Xícara
+--- Jogo de Talheres
+-- Têxteis de Mesa
+--- Toalha de Mesa
+--- Jogo Americano
+--- Guardanapo de Tecido
+--- Pano de Copa
+- Bazar e Utilidades Domésticas - Casa e Organização
+-- Organização
+--- Cabide
+--- Prendedor de Roupa
+--- Varal
+--- Cesto de Roupa
+--- Caixa Organizadora
+--- Lixeira
+-- Cama, Mesa e Banho
+--- Toalha de Banho
+--- Toalha de Rosto
+--- Tapete de Banheiro
+--- Jogo de Lençol
+--- Fronha
+--- Cobertor
+- Bazar e Utilidades Domésticas - Elétricos e Iluminação
+-- Pilhas e Baterias
+--- Pilha AA
+--- Pilha AAA
+--- Bateria 9V
+--- Pilha Recarregável
+--- Bateria de Lítio (Botão)
+-- Lâmpadas e Elétricos
+--- Lâmpada LED
+--- Lâmpada Fluorescente
+--- Extensão Elétrica
+--- Benjamim/Adaptador
+--- Fita Isolante
+--- Lanterna
+-- Eletroportáteis
+--- Liquidificador
+--- Sanduicheira
+--- Cafeteira Elétrica
+--- Fritadeira Airfryer
+--- Batedeira
+--- Ferro de Passar
+--- Chaleira Elétrica
+--- Mixer
+- Bazar e Utilidades Domésticas - Papelaria
+-- Material Escolar e Escritório
+--- Caderno
+--- Caneta Esferográfica
+--- Lápis
+--- Borracha
+--- Cola Branca
+--- Fita Adesiva
+--- Papel Sulfite
+--- Envelope
+--- Lápis de Cor
+- Bazar e Utilidades Domésticas - Automotivo
+-- Cuidados com o Veículo
+--- Óleo de Motor
+--- Aditivo para Radiador
+--- Cera Automotiva
+--- Shampoo Automotivo
+--- Aromatizador Automotivo
+--- Fluido de Freio
+--- Limpa-Para-Brisa
+- Bazar e Utilidades Domésticas - Jardinagem e Churrasqueira
+-- Jardinagem
+--- Terra Vegetal
+--- Adubo
+--- Substrato
+--- Vaso Plástico
+--- Sementes de Hortaliças
+--- Regador
+- Bazar e Utilidades Domésticas - Sazonais e Festas
+-- Festas
+--- Balões
+--- Velas de Aniversário
+--- Descartáveis Temáticos
+--- Chapéu de Festa
+--- Serpentina
+-- Datas Comemorativas
+--- Ovos de Páscoa
+--- Cesta de Natal
+--- Enfeites de Natal
+--- Artigos Juninos
+--- Artigos de Carnaval
+CATEGORIA MESTRE: Tabacaria e Conveniência
+- Tabacaria e Conveniência - Tabacaria
+-- Produtos de Tabaco
+--- Cigarro Maço
+--- Cigarro Carteira (Pacote)
+--- Fumo para Cachimbo
+--- Seda
+--- Isqueiro
+--- Fósforo
+--- Charuto
+- Tabacaria e Conveniência - Conveniência
+-- Recargas e Serviços
+--- Recarga de Celular
+--- Cartão Presente
+--- Cartão de Streaming
+--- Cartão de Games
+-- Revistas e Jornais
+--- Revistas
+--- Jornais
+--- Livros de Passatempo
+--- Álbum de Figurinhas
+--- Figurinhas
+CATEGORIA MESTRE: Rotisseria e Comida Pronta
+- Rotisseria e Comida Pronta - Assados
+-- Aves e Carnes Assadas
+--- Frango Assado Inteiro
+--- Meio Frango Assado
+--- Costela Assada
+--- Pernil Assado
+--- Leitão à Pururuca
+--- Cupim Assado
+- Rotisseria e Comida Pronta - Pratos Quentes
+-- Buffet por Quilo
+--- Arroz Branco Pronto
+--- Feijão Pronto
+--- Farofa
+--- Maionese de Batata
+--- Lasanha Rotisseria
+--- Strogonoff Rotisseria
+--- Legumes Refogados
+--- Batata Frita
+--- Polenta Frita
+--- Mandioca Frita
+- Rotisseria e Comida Pronta - Culinária Oriental Pronta
+-- Sushi e Temaki
+--- Combinado de Sushi
+--- Temaki de Salmão
+--- Hot Roll
+--- Sashimi
+--- Uramaki
+--- Hossomaki
+--- Poke
+- Rotisseria e Comida Pronta - Saladas e Sanduíches Prontos
+-- Sanduíches
+--- Sanduíche Natural de Frango
+--- Sanduíche de Atum
+--- Wrap Pronto
+--- Misto Quente
+--- Baguete Recheada
+-- Saladas
+--- Salada Caesar
+--- Salada Caprese
+--- Salada de Grãos
+--- Salada no Pote
+--- Salpicão
+`;
+
+export const DEFAULT_CATEGORIES = DEFAULT_TAXONOMY_STRING.split('\n')
+  .filter(line => line.startsWith('- '))
+  .map(line => line.substring(2));

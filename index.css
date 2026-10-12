@@ -1,0 +1,78 @@
+@import '@fontsource/inter/300.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/cinzel/400.css';
+@import '@fontsource/cinzel/500.css';
+@import '@fontsource/cinzel/600.css';
+@import '@fontsource/cinzel/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Celular: respeita entalhe (notch) e barra de gestos do aparelho */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Evita zoom automático do iOS ao focar campos com fonte < 16px */
+@media (max-width: 767px) {
+  input, textarea { font-size: 16px !important; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Espaçamento do conteúdo: celular tem cabeçalho de 56px + barra de abas de 64px */
+.app-header { padding-top: var(--safe-top); }
+.app-main {
+  padding-top: calc(3.5rem + var(--safe-top));
+  padding-bottom: calc(4rem + var(--safe-bottom));
+}
+.app-tabbar { padding-bottom: var(--safe-bottom); }
+@media (min-width: 768px) {
+  .app-main { padding-top: 5rem; padding-bottom: 0; }
+}
+
+/* ---------- Celular deitado (paisagem) ----------
+   A barra de abas vira um trilho vertical à esquerda e o conteúdo usa a
+   largura toda. Altura <= 500px = celular; tablets deitados não entram aqui. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-tabbar {
+    top: 0; bottom: 0; right: auto;
+    width: calc(76px + env(safe-area-inset-left, 0px));
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-bottom: 0;
+    border-top: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .app-tabbar .tabbar-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(5, 1fr);
+    align-items: center;
+    height: 100%;
+    padding: 0.25rem 0;
+  }
+  .app-tabbar .tab-scan { margin-top: 0; padding-bottom: 0; justify-content: center; }
+  .app-tabbar .tab-scan > span:first-child { width: 2.75rem; height: 2.75rem; border-width: 0; }
+  .app-header { left: calc(76px + env(safe-area-inset-left, 0px)); }
+  .app-main {
+    padding-top: 3.5rem;
+    padding-bottom: 0;
+    padding-left: calc(76px + env(safe-area-inset-left, 0px));
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+}
+
+/* Remove a caixa de foco padrão do navegador em botões/selects de filtro
+   (aparecia como um contorno branco "flutuando" sobre o item ativo) e troca
+   por um anel discreto, na cor do tema, só quando navegado por teclado. */
+button, select {
+  outline: none;
+}
+button:focus-visible, select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.4);
+}

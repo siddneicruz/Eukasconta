@@ -1,0 +1,44 @@
+name: Android APK (teste)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run android:sync
+      - name: Compilar APK de teste
+        run: |
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eukasconta-apk-teste
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Guardar o APK na branch "apk"
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/eukasconta-teste.apk
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan apk
+          git rm -rf . > /dev/null 2>&1 || true
+          cp /tmp/eukasconta-teste.apk .
+          git add eukasconta-teste.apk
+          git commit -m "APK de teste"
+          git push -f origin apk

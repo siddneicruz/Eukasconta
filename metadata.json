@@ -1,0 +1,7 @@
+{
+  "name": "Eukasconta Nova Versão",
+  "description": "Luxurious financial management and receipt scanner powered by Gemini AI",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

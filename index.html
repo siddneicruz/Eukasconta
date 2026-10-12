@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <title>Eukasconta</title>
+    <style>
+      body {
+        background-color: #09090b;
+        color: #f4f4f5; /* Zinc 100 */
+      }
+      
+      /* Elegant Scrollbar - Global Styling */
+      /* Firefox */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #27272a #09090b;
+      }
+
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: #09090b;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background-color: #27272a;
+        border-radius: 9999px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: #3f3f46;
+      }
+
+      ::-webkit-scrollbar-corner {
+        background: #09090b;
+      }
+
+      /* Light Theme Overrides */
+      html.light-theme body {
+        background-color: #f4f4f5; /* zinc-100 */
+        color: #09090b; /* zinc-950 */
+      }
+      
+      html.light-theme * {
+        scrollbar-color: #d4d4d8 #f4f4f5;
+      }
+      html.light-theme ::-webkit-scrollbar-track { background: #f4f4f5; }
+      html.light-theme ::-webkit-scrollbar-thumb { background-color: #d4d4d8; }
+      html.light-theme ::-webkit-scrollbar-thumb:hover { background-color: #a1a1aa; }
+      html.light-theme ::-webkit-scrollbar-corner { background: #f4f4f5; }
+
+      html.light-theme .bg-black { background-color: #ffffff; }
+      html.light-theme .bg-black\/10 { background-color: rgba(0, 0, 0, 0.02); }
+      html.light-theme .bg-black\/20 { background-color: rgba(0, 0, 0, 0.04); }
+      html.light-theme .bg-black\/40 { background-color: rgba(0, 0, 0, 0.06); }
+      html.light-theme .bg-black\/50 { background-color: rgba(0, 0, 0, 0.08); }
+      html.light-theme .bg-black\/60 { background-color: rgba(255, 255, 255, 0.8); }
+      html.light-theme .bg-black\/80 { background-color: rgba(255, 255, 255, 0.9); }
+      html.light-theme .bg-black\/90 { background-color: rgba(255, 255, 255, 0.95); }
+      html.light-theme .bg-black\/95 { background-color: rgba(255, 255, 255, 0.98); }
+      
+      html.light-theme .text-white { color: #09090b; }
+      
+      html.light-theme .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
+      html.light-theme .border-white\/10 { border-color: rgba(0, 0, 0, 0.1); }
+      html.light-theme .border-white\/20 { border-color: rgba(0, 0, 0, 0.2); }
+      html.light-theme .border-white\/30 { border-color: rgba(0, 0, 0, 0.3); }
+      
+      html.light-theme .bg-white\/5 { background-color: rgba(0, 0, 0, 0.05); }
+      html.light-theme .bg-white\/10 { background-color: rgba(0, 0, 0, 0.1); }
+      html.light-theme .bg-white\/20 { background-color: rgba(0, 0, 0, 0.2); }
+      html.light-theme .bg-white\/\[0\.01\] { background-color: rgba(0, 0, 0, 0.01); }
+      html.light-theme .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
+      html.light-theme .bg-white\/\[0\.03\] { background-color: rgba(0, 0, 0, 0.03); }
+      html.light-theme .bg-white\/\[0\.04\] { background-color: rgba(0, 0, 0, 0.04); }
+      html.light-theme .bg-white\/\[0\.05\] { background-color: rgba(0, 0, 0, 0.05); }
+      html.light-theme .bg-white\/\[0\.06\] { background-color: rgba(0, 0, 0, 0.06); }
+      
+      html.light-theme .text-zinc-100 { color: #18181b; }
+      html.light-theme .text-zinc-200 { color: #27272a; }
+      html.light-theme .text-zinc-300 { color: #3f3f46; }
+      html.light-theme .text-zinc-400 { color: #52525b; }
+      html.light-theme .text-zinc-500 { color: #71717a; }
+      html.light-theme .text-zinc-600 { color: #a1a1aa; }
+      html.light-theme .text-zinc-700 { color: #d4d4d8; }
+      html.light-theme .text-zinc-800 { color: #e4e4e7; }
+      html.light-theme .text-zinc-900 { color: #f4f4f5; }
+      html.light-theme .text-zinc-950 { color: #ffffff; }
+      
+      html.light-theme .bg-zinc-950 { background-color: #ffffff; }
+      html.light-theme .bg-zinc-950\/95 { background-color: rgba(255, 255, 255, 0.95); }
+      /* Cores hexadecimais fixas usadas como "cartão escuro" em várias telas
+         (Relatórios, Detalhe de Recibo, Config, Lançamento Manual...). Sem
+         esta tradução, essas telas ficam com blocos pretos flutuando sobre
+         o fundo branco do tema claro. */
+      html.light-theme .bg-\[\#08080a\] { background-color: #ffffff; }
+      html.light-theme .bg-\[\#09090b\] { background-color: #ffffff; }
+      html.light-theme .bg-\[\#0c0c0e\] { background-color: #ffffff; }
+      html.light-theme .bg-\[\#121214\] { background-color: #fafafa; }
+      html.light-theme .bg-\[\#161618\] { background-color: #f4f4f5; }
+      html.light-theme .bg-zinc-900 { background-color: #f4f4f5; }
+      html.light-theme .bg-zinc-900\/10 { background-color: rgba(244, 244, 245, 0.1); }
+      html.light-theme .bg-zinc-900\/20 { background-color: rgba(244, 244, 245, 0.2); }
+      html.light-theme .bg-zinc-900\/40 { background-color: rgba(244, 244, 245, 0.4); }
+      html.light-theme .bg-zinc-900\/50 { background-color: rgba(244, 244, 245, 0.5); }
+      html.light-theme .bg-zinc-900\/80 { background-color: rgba(244, 244, 245, 0.8); }
+      html.light-theme .bg-zinc-800 { background-color: #e4e4e7; }
+      html.light-theme .bg-zinc-800\/50 { background-color: rgba(228, 228, 231, 0.5); }
+      html.light-theme .bg-zinc-600 { background-color: #a1a1aa; }
+      html.light-theme .bg-surface { background-color: #f4f4f5; }
+      html.light-theme .bg-surface\/20 { background-color: rgba(244, 244, 245, 0.2); }
+      html.light-theme .bg-surface\/30 { background-color: rgba(244, 244, 245, 0.3); }
+      html.light-theme .bg-surfaceHighlight { background-color: #e4e4e7; }
+      
+      html.light-theme .hover\:bg-white:hover { background-color: #09090b; }
+      html.light-theme .hover\:bg-zinc-200:hover { background-color: #27272a; }
+      html.light-theme .hover\:bg-zinc-800:hover { background-color: #e4e4e7; }
+      html.light-theme .hover\:bg-zinc-900:hover { background-color: #f4f4f5; }
+      html.light-theme .hover\:bg-zinc-900\/40:hover { background-color: rgba(244, 244, 245, 0.4); }
+      html.light-theme .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.05); }
+      html.light-theme .hover\:bg-white\/10:hover { background-color: rgba(0, 0, 0, 0.1); }
+      html.light-theme .hover\:bg-white\/\[0\.02\]:hover { background-color: rgba(0, 0, 0, 0.02); }
+      html.light-theme .hover\:text-white:hover { color: #09090b; }
+      html.light-theme .hover\:text-zinc-300:hover { color: #3f3f46; }
+      html.light-theme .hover\:text-zinc-400:hover { color: #52525b; }
+      html.light-theme .hover\:border-white:hover { border-color: #09090b; }
+      html.light-theme .hover\:border-white\/10:hover { border-color: rgba(0, 0, 0, 0.1); }
+      html.light-theme .hover\:border-white\/20:hover { border-color: rgba(0, 0, 0, 0.2); }
+      html.light-theme .hover\:border-white\/30:hover { border-color: rgba(0, 0, 0, 0.3); }
+      html.light-theme .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.05); }
+      html.light-theme .hover\:bg-white\/10:hover { background-color: rgba(0, 0, 0, 0.1); }
+      html.light-theme .hover\:bg-white\/\[0\.04\]:hover { background-color: rgba(0, 0, 0, 0.04); }
+      
+      html.light-theme .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); }
+      html.light-theme .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01); }
+      
+      html.light-theme .border-zinc-800 { border-color: #e4e4e7; }
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
