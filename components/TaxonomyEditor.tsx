@@ -12,6 +12,7 @@ import { TaxonomyNode, TaxonomySource, DEFAULT_TAXONOMY_STRING } from '../types'
 import { resolveNodeStyle, slugify, migrateLegacyTaxonomy, levelTaxonomy } from '../services/taxonomyService';
 import { parseTaxonomyWorkbook, downloadTaxonomyTemplate, TaxonomyImportError } from '../services/taxonomyImportService';
 import { generateId } from '../services/idUtils';
+import { titleCase } from '../services/textFormat';
 
 // Classes estáticas (o Tailwind só gera classes que aparecem por completo no
 // código-fonte; \`ml-${depth * 4}\` nunca funcionaria, pois é montada em tempo
@@ -220,10 +221,10 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                             </div>
                         ) : (
                             <div className="flex flex-col min-w-0 flex-1">
-                                <span className={`${isRoot ? 'text-[11px] md:text-xs' : 'text-[10px] md:text-[11px]'} font-bold text-zinc-200 uppercase tracking-tight leading-snug line-clamp-2 break-words`} title={node.name}>{node.name}</span>
+                                <span className={`${isRoot ? 'text-sm' : 'text-[13px]'} font-semibold text-zinc-100 leading-snug line-clamp-2 break-words`} title={node.name}>{titleCase(node.name)}</span>
                                 {isRoot && (
-                                    <span className="text-[8px] md:text-[7px] text-zinc-600 uppercase font-bold tracking-widest">
-                                        Nível {node.level} {isInherited && '• Herdado'}
+                                    <span className="text-xs text-zinc-500 font-medium">
+                                        Nível {node.level} {isInherited && '· herdado'}
                                     </span>
                                 )}
                             </div>
@@ -253,7 +254,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                             onChange={e => setNewNodeName(e.target.value.toUpperCase())}
                             onKeyDown={e => e.key === 'Enter' && handleAddNode(node.id, (node.level + 1) as any)}
                             placeholder={`Novo Nível ${node.level + 1}...`}
-                            className="bg-black border-b border-luxury-gold text-white px-2 py-1 text-[10px] focus:outline-none w-48"
+                            className="bg-black border-b border-luxury-gold text-white px-2 py-1 text-xs focus:outline-none w-48"
                         />
                         <button onClick={() => handleAddNode(node.id, (node.level + 1) as any)} className="text-emerald-500"><Check className="w-3.5 h-3.5" /></button>
                         <button onClick={() => setAddingToParentId(null)} className="text-zinc-500"><X className="w-3.5 h-3.5" /></button>
@@ -304,7 +305,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                                         if (e.key === 'Escape') setIsAddingMaster(false);
                                     }}
                                     placeholder="NOME DA NOVA CATEGORIA MESTRE..."
-                                    className="w-full bg-black border-b-2 border-luxury-gold text-white px-0 py-2 text-sm font-serif focus:outline-none placeholder:text-zinc-700 tracking-tighter"
+                                    className="w-full bg-black border-b-2 border-luxury-gold text-white px-0 py-2 text-sm font-sans focus:outline-none placeholder:text-zinc-700 tracking-tighter"
                                 />
                                 <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2">
                                     <button onClick={handleCreateMaster} className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-full transition-all">
@@ -322,7 +323,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                                 <Layers className="w-5 h-5 text-luxury-gold" /> Estrutura de Taxonomia
                             </h3>
                             <div className="flex items-center gap-4 mt-1">
-                                <p className="text-zinc-600 text-[9px] uppercase font-bold tracking-widest">Gestão de Níveis e Relacionamentos Financeiros</p>
+                                <p className="text-zinc-500 text-[11px] uppercase font-bold tracking-[0.08em]">Gestão de Níveis e Relacionamentos Financeiros</p>
                             </div>
                         </div>
                     )}
@@ -334,7 +335,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                             onClick={handleLevelWithDefault}
                             disabled={isLeveling}
                             title="Adiciona o que falta do padrão de fábrica, sem tocar no que você já tem"
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-zinc-300 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:border-luxury-gold/40 transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-zinc-300 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-50"
                         >
                             {isLeveling ? <Loader2 className="w-4 h-4 animate-spin" /> : <GitMerge className="w-4 h-4 text-luxury-gold" />} Nivelar Padrão
                         </button>
@@ -342,7 +343,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                             onClick={() => importInputRef.current?.click()}
                             disabled={isLeveling}
                             title="Importar uma planilha .xlsx e nivelar com o que você já tem"
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-zinc-300 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:border-luxury-gold/40 transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-zinc-300 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-50"
                         >
                             <FileSpreadsheet className="w-4 h-4 text-luxury-gold" /> Importar Planilha
                         </button>
@@ -362,7 +363,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                         />
                         <button 
                             onClick={() => setIsAddingMaster(true)}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-luxury-gold text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all shadow-lg shadow-luxury-gold/10"
+                            className="flex items-center gap-2 px-6 py-2.5 bg-luxury-gold text-black rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all shadow-lg shadow-luxury-gold/10"
                         >
                             <Plus className="w-4 h-4" /> Nova Mestre
                         </button>
@@ -371,7 +372,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
             </div>
 
             {levelFeedback && (
-                <div className="mx-8 mb-4 px-5 py-3 rounded-xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[11px] font-bold animate-in fade-in slide-in-from-top-2">
+                <div className="mx-8 mb-4 px-5 py-3 rounded-xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-xs font-bold animate-in fade-in slide-in-from-top-2">
                     {levelFeedback}
                 </div>
             )}
@@ -382,14 +383,14 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                 {l1Nodes.length === 0 && (
                     <div className="py-20 text-center flex flex-col items-center gap-4 opacity-30">
                         <Layers className="w-12 h-12" />
-                        <span className="text-xs font-serif uppercase tracking-[0.3em]">Taxonomia Vazia</span>
+                        <span className="text-xs font-sans uppercase tracking-[0.1em]">Taxonomia Vazia</span>
                     </div>
                 )}
             </div>
 
             <div className="p-6 bg-zinc-900/10 border-t border-white/5 flex items-center gap-3">
                 <Info className="w-4 h-4 text-zinc-600" />
-                <span className="text-[9px] text-zinc-600 uppercase font-bold tracking-widest leading-relaxed">
+                <span className="text-[11px] text-zinc-500 uppercase font-bold tracking-[0.08em] leading-relaxed">
                     A taxonomia inteligente usa herança visual. Se um nível inferior não tem ícone/cor, ele herda do pai.
                 </span>
             </div>

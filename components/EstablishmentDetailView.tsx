@@ -106,7 +106,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
       <div className="flex items-center gap-4 mb-8">
         <button onClick={onBack} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
         <div>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">
+            <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] block mb-1">
                 {isGlobalView ? 'Fluxo Financeiro Unificado' : 'Histórico da Loja'}
             </span>
             <h2 className="text-2xl font-serif text-white tracking-wide uppercase">{establishmentName}</h2>
@@ -122,8 +122,8 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
       <div className="mb-10 bg-black border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
              <div className="absolute top-0 right-0 w-64 h-64 bg-luxury-gold/5 blur-[80px] rounded-full pointer-events-none" />
              <div className="flex justify-between items-center mb-6 px-2">
-                 <h3 className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Evolução Mensal de Gastos</h3>
-                 <span className="text-[9px] border border-luxury-gold/20 text-luxury-gold px-2 py-0.5 rounded bg-luxury-gold/5 uppercase font-bold">Análise Temporal</span>
+                 <h3 className="text-xs text-zinc-500 uppercase tracking-[0.08em] font-bold">Evolução Mensal de Gastos</h3>
+                 <span className="text-[11px] border border-luxury-gold/20 text-luxury-gold px-2 py-0.5 rounded bg-luxury-gold/5 uppercase font-bold">Análise Temporal</span>
              </div>
              <div className="h-[250px] w-full">
                  <ResponsiveContainer width="100%" height="100%">
@@ -147,14 +147,14 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
         <div className="flex items-center justify-between mb-6 px-1">
              <div className="flex items-center gap-2">
                  <Clock className="w-4 h-4 text-zinc-500" />
-                 <h3 className="text-zinc-400 text-xs uppercase tracking-widest font-bold">Linha do Tempo de Compras</h3>
+                 <h3 className="text-zinc-400 text-xs uppercase tracking-[0.08em] font-bold">Linha do Tempo de Compras</h3>
              </div>
         </div>
 
         <div className="relative pl-4 border-l border-white/10 ml-2 space-y-8">
             {Object.entries(timelineGroups).sort((a, b) => b[0].localeCompare(a[0])).map(([year, months]) => (
                 <div key={year} className="relative">
-                    <div className="absolute -left-[35px] bg-black text-zinc-500 text-[9px] font-bold py-1 px-2 border border-white/10 rounded rotate-[-90deg] origin-center translate-y-4">
+                    <div className="absolute -left-[35px] bg-black text-zinc-500 text-xs font-bold py-1 px-2 border border-white/10 rounded rotate-[-90deg] origin-center translate-y-4">
                         {year}
                     </div>
                     {Object.entries(months).sort((a,b) => b[0].localeCompare(a[0])).map(([month, monthReceipts]) => (
@@ -168,7 +168,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
                                     <div key={receipt.id} onClick={() => onSelectReceipt(receipt)} className="group flex gap-4 cursor-pointer hover:bg-white/5 p-3 rounded-2xl transition-all -ml-2 border border-transparent hover:border-white/5">
                                         <div className="flex flex-col items-center justify-center w-12 border-r border-white/10 pr-4">
                                             <span className="text-xl font-bold text-white">{new Date(receipt.date + 'T12:00:00').getDate() || '?'}</span>
-                                            <span className="text-[9px] text-zinc-500 uppercase">{new Date(receipt.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.','') || '??'}</span>
+                                            <span className="text-[11px] text-zinc-500 uppercase">{new Date(receipt.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.','') || '??'}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center">
@@ -179,7 +179,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
                                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receipt.totalAmount)}
                                                 </span>
                                             </div>
-                                            <div className="mt-1 text-[10px] text-zinc-500 flex items-center gap-2">
+                                            <div className="mt-1 text-xs text-zinc-500 flex items-center gap-2">
                                                 <Clock className="w-3 h-3" /> {receipt.time || '--:--'}
                                                 <span>•</span>
                                                 <span className="truncate">{receipt.items.slice(0, 3).map(i => i.description).join(', ')}...</span>
@@ -201,7 +201,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
 const KPIBlock = ({ icon, label, value }: any) => (
   <div className="bg-[#121214] border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center group hover:border-white/20 transition-all shadow-lg">
       <div className="mb-2 group-hover:scale-110 transition-transform">{icon}</div>
-      <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold mb-1">{label}</span>
+      <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold mb-1">{label}</span>
       <span className="text-xl md:text-2xl font-serif font-bold text-white tracking-tight">{value}</span>
   </div>
 );

@@ -7,6 +7,7 @@ import InteractiveDonut from './InteractiveDonut';
 import ReceiptRow from './ReceiptRow';
 import PercentRing from './PercentRing';
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
+import { titleCase } from '../services/textFormat';
 
 interface CategoryDetailViewProps {
   categoryName: string;
@@ -25,9 +26,9 @@ const CustomTooltip = ({ active, payload }: any) => {
         const data = payload[0].payload;
         return (
             <div className="bg-zinc-950 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
-                <p className="text-luxury-gold text-[10px] font-bold uppercase tracking-widest mb-2 border-b border-white/5 pb-2">{data.name || data.label}</p>
+                <p className="text-luxury-gold text-[11px] font-bold uppercase tracking-[0.08em] mb-2 border-b border-white/5 pb-2">{data.name || data.label}</p>
                 <p className="text-white font-serif text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
-                {data.percentage && <p className="text-zinc-500 text-[9px] uppercase tracking-widest mt-1">{data.percentage.toFixed(1)}% do Depto.</p>}
+                {data.percentage && <p className="text-zinc-400 text-xs mt-1">{data.percentage.toFixed(1).replace('.', ',')}% do depto.</p>}
             </div>
         );
     }
@@ -104,7 +105,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
             <ChevronLeft className="w-7 h-7" />
         </button>
         <div>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold block mb-1">NÍVEL 2 • DIVISÕES DE DEPARTAMENTO</span>
+            <span className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold block mb-1">NÍVEL 2 • DIVISÕES DE DEPARTAMENTO</span>
             <h2 className="text-4xl font-serif text-white tracking-tighter uppercase">{categoryName}</h2>
         </div>
       </div>
@@ -112,8 +113,8 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-12">
           <div className="lg:col-span-7 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 min-h-[340px] md:min-h-[500px] shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
                <div className="absolute top-5 left-5 md:top-10 md:left-10 flex flex-col">
-                   <h3 className="text-[10px] text-zinc-400 uppercase tracking-[0.3em] font-bold mb-1">Concentração Divisória</h3>
-                   <span className="text-[9px] text-zinc-600 border border-white/10 px-4 py-1.5 rounded-full uppercase tracking-widest font-bold w-fit">Análise de Subgrupo</span>
+                   <h3 className="text-[11px] text-zinc-400 uppercase tracking-[0.1em] font-bold mb-1">Concentração Divisória</h3>
+                   <span className="text-[11px] text-zinc-500 border border-white/10 px-4 py-1.5 rounded-full uppercase tracking-[0.08em] font-bold w-fit">Análise de Subgrupo</span>
                </div>
                
                <div className="h-[280px] md:h-[400px] w-full relative mt-8 md:mt-0">
@@ -130,7 +131,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
           </div>
           
           <div className="lg:col-span-5 flex flex-col gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              <h3 className="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold px-4 mb-2">Ramificações</h3>
+              <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold px-4 mb-2">Ramificações</h3>
               {subCategoriesData.map((cat, idx) => {
                   const SubIcon = getCategoryIcon(cat.fullName);
                   return (
@@ -146,8 +147,8 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
                                 </div>
                             </PercentRing>
                             <div className="flex flex-col cursor-pointer min-w-0" onClick={() => onSelectSubCategory(cat.fullName)}>
-                                <span className="block text-xs font-bold text-zinc-100 uppercase tracking-widest truncate">{cat.name}</span>
-                                <span className="text-[8px] text-zinc-600 font-mono font-bold uppercase tracking-widest mt-1">{cat.percentage.toFixed(1)}% do Depto.</span>
+                                <span className="block text-sm font-semibold text-zinc-100 truncate">{titleCase(cat.name)}</span>
+                                <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{cat.percentage.toFixed(1).replace('.', ',')}% do depto.</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
@@ -162,11 +163,11 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
           </div>
       </div>
 
-      <div className="bg-black border border-white/10 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden group mb-12">
+      <div className="bg-black border border-white/10 rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative overflow-hidden group mb-12">
           <div className="absolute top-0 left-0 w-80 h-80 bg-luxury-gold/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 relative z-10">
               <div className="flex flex-col">
-                <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold mb-1 flex items-center gap-2">
+                <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
                     <Store className="w-3 h-3 text-luxury-gold" /> Establishment Matrix: {categoryName}
                 </h3>
                 <span className="text-2xl font-serif text-white tracking-tighter">Investimento por Unidade</span>
@@ -194,7 +195,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
       <div className="animate-in slide-in-from-bottom-8 duration-700">
           <div className="flex items-center gap-3 mb-8 px-1">
               <History className="w-5 h-5 text-luxury-gold" />
-              <h3 className="text-zinc-300 text-xs uppercase tracking-widest font-bold">Timeline de Aquisições: {categoryName}</h3>
+              <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Timeline de Aquisições: {categoryName}</h3>
           </div>
           <div className="space-y-2">
               {filteredReceipts.slice(0, 15).map((receipt) => {

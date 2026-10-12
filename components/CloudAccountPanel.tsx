@@ -102,23 +102,23 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, onOpenAlerts }) => {
       <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
         <div className="p-5 md:p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] md:rounded-[2.5rem]">
           <h3 className="text-xl font-serif text-white uppercase tracking-tight flex items-center gap-3"><UserRound className="w-5 h-5 text-luxury-gold" /> Conta na nuvem</h3>
-          <p className="text-zinc-600 text-[9px] uppercase font-bold mt-1 tracking-widest max-w-md">Opcional. Seus cupons continuam no aparelho.</p>
+          <p className="text-zinc-500 text-[11px] uppercase font-bold mt-1 tracking-[0.08em] max-w-md">Opcional. Seus cupons continuam no aparelho.</p>
 
           <button type="button" onClick={loginWithGoogle} disabled={googleBusy || working} data-testid="google-login"
-            className="mt-6 w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-white/5 border border-white/15 text-zinc-100 text-[11px] font-bold uppercase tracking-widest hover:border-luxury-gold/50 transition-all disabled:opacity-50">
+            className="mt-6 w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-white/5 border border-white/15 text-zinc-100 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/50 transition-all disabled:opacity-50">
             {googleBusy
               ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <span className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[11px] font-black leading-none" aria-hidden="true">G</span>}
+              : <span className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-xs font-black leading-none" aria-hidden="true">G</span>}
             Continuar com Google
           </button>
           {googleError && <div className="mt-3 px-5 py-4 rounded-xl bg-red-950/20 border border-red-900/30 text-red-300 text-xs" data-testid="google-error">{googleError}</div>}
 
-          <div className="flex items-center gap-3 mt-6 text-[9px] uppercase tracking-widest font-bold text-zinc-600"><span className="flex-1 h-px bg-white/5" />ou com e-mail<span className="flex-1 h-px bg-white/5" /></div>
+          <div className="flex items-center gap-3 mt-6 text-[11px] uppercase tracking-[0.08em] font-bold text-zinc-500"><span className="flex-1 h-px bg-white/5" />ou com e-mail<span className="flex-1 h-px bg-white/5" /></div>
 
           <div className="grid grid-cols-2 bg-black/40 p-1 rounded-2xl border border-white/5 my-6 gap-1">
             {(['in', 'up'] as const).map(m => (
               <button key={m} onClick={() => { setMode(m); setError(null); setInfo(null); }}
-                className={`py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mode === m ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
+                className={`py-3 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${mode === m ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
                 {m === 'in' ? 'Entrar' : 'Criar conta'}
               </button>
             ))}
@@ -137,7 +137,7 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, onOpenAlerts }) => {
             {error && <div className="px-5 py-4 rounded-xl bg-red-950/20 border border-red-900/30 text-red-300 text-xs">{error}</div>}
             {info && <div className="px-5 py-4 rounded-xl bg-emerald-950/20 border border-emerald-900/30 text-emerald-400 text-xs flex gap-3"><MailCheck className="w-4 h-4 shrink-0 mt-0.5" />{info}</div>}
             <button type="submit" disabled={working}
-              className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50">
+              className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all disabled:opacity-50">
               {working && <Loader2 className="w-4 h-4 animate-spin" />}{mode === 'in' ? 'Entrar' : 'Criar conta'}
             </button>
           </form>
@@ -165,13 +165,13 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, onOpenAlerts }) => {
               <div className="text-xs text-zinc-500 truncate" data-testid="account-email">{cloud.user.email}</div>
             </div>
           </div>
-          <button onClick={() => cloud.signOut()} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:border-red-500/40 hover:text-red-400 transition-all shrink-0">
+          <button onClick={() => cloud.signOut()} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-red-500/40 hover:text-red-400 transition-all shrink-0">
             <LogOut className="w-4 h-4" /> Sair
           </button>
         </div>
-        <button onClick={onOpenAlerts} className="mt-6 w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[11px] font-bold uppercase tracking-widest hover:bg-luxury-gold/20 transition-all">
+        <button onClick={onOpenAlerts} className="mt-6 w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-luxury-gold/20 transition-all">
           <span className="flex items-center gap-3"><Bell className="w-4 h-4" /> Avisos e alertas</span>
-          {cloud.unread > 0 && <span className="px-2.5 py-0.5 rounded-full bg-luxury-gold text-black text-[10px]">{cloud.unread} novo{cloud.unread > 1 ? 's' : ''}</span>}
+          {cloud.unread > 0 && <span className="px-2.5 py-0.5 rounded-full bg-luxury-gold text-black text-xs">{cloud.unread} novo{cloud.unread > 1 ? 's' : ''}</span>}
         </button>
       </div>
 
@@ -190,10 +190,10 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, onOpenAlerts }) => {
             <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Para comparar, seus cupons dos últimos 60 dias ficam guardados na nuvem, visíveis só para você. Desligar apaga essa cópia.</p>
             {p?.notify_cheaper_nearby && (
               <div className="mt-4 flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mr-1">Raio</span>
+                <span className="text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold mr-1">Raio</span>
                 {RADII.map(r => (
                   <button key={r} onClick={() => change({ suggest_radius_km: r })}
-                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${Number(p.suggest_radius_km) === r ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}>
+                    className={`px-3.5 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.08em] border transition-all ${Number(p.suggest_radius_km) === r ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}>
                     {r} km
                   </button>
                 ))}
@@ -215,7 +215,7 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, onOpenAlerts }) => {
             </p>
             {pending > 0 && (
               <button onClick={runShare} disabled={!!progress}
-                className="mt-4 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:border-luxury-gold/40 transition-all disabled:opacity-60">
+                className="mt-4 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-60">
                 {progress ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando {progress.done}/{progress.total}</> : <><Send className="w-4 h-4 text-luxury-gold" /> Enviar agora</>}
               </button>
             )}
@@ -226,7 +226,7 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, onOpenAlerts }) => {
 
       <div className="flex items-start gap-3 px-2">
         <Info className="w-4 h-4 text-zinc-600 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-zinc-600 leading-relaxed">Preços que fogem muito da faixa normal do produto são marcados e não geram sugestões nem alertas.</p>
+        <p className="text-xs text-zinc-500 leading-relaxed">Preços que fogem muito da faixa normal do produto são marcados e não geram sugestões nem alertas.</p>
       </div>
     </div>
   );

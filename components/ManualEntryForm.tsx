@@ -109,17 +109,17 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
   return (
     <div className="animate-in slide-in-from-bottom-8 duration-500 pb-20 max-w-4xl mx-auto">
       <form onSubmit={handleSubmit}>
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
               <div>
-                  <h2 className="text-4xl font-serif text-white mb-2 tracking-tight uppercase">Nova Nota</h2>
-                  <p className="text-zinc-500 font-sans font-light tracking-widest uppercase text-xs">Entrada de Auditoria Manual</p>
+                  <h2 className="text-3xl sm:text-4xl font-serif text-white mb-1.5 tracking-tight uppercase">Nova nota</h2>
+                  <p className="text-zinc-400 font-sans text-sm">Registre uma compra à mão</p>
               </div>
-              <div className="flex gap-3">
-                  <button type="button" onClick={onCancel} className="px-6 py-2.5 rounded-xl border border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 transition-colors uppercase text-[10px] font-bold tracking-widest">
+              <div className="grid grid-cols-2 sm:flex gap-3">
+                  <button type="button" onClick={onCancel} className="px-6 py-2.5 rounded-xl border border-white/10 text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-sm font-semibold text-center">
                       Cancelar
                   </button>
-                  <button type="submit" className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-luxury-gold hover:bg-[#B5952F] text-black font-bold uppercase tracking-widest shadow-lg shadow-luxury-gold/20 transition-all active:scale-95 text-[10px]">
-                      <Save className="w-4 h-4" /> Salvar Nota
+                  <button type="submit" className="flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 rounded-xl bg-luxury-gold hover:bg-[#B5952F] text-black font-bold shadow-lg shadow-luxury-gold/20 transition-all active:scale-95 text-sm">
+                      <Save className="w-4 h-4" /> Salvar nota
                   </button>
               </div>
           </div>
@@ -128,17 +128,17 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
               {isDataPrefilled && (
                   <div className="absolute top-4 right-8 flex items-center gap-2 text-luxury-gold animate-in fade-in slide-in-from-right-4">
                       <Sparkles className="w-4 h-4" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">Dados Recuperados</span>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.08em]">Dados Recuperados</span>
                   </div>
               )}
 
-              <h3 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-6 flex items-center gap-2">
+              <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-6 flex items-center gap-2">
                   <Store className="w-4 h-4 text-luxury-gold" /> Identificação e Localização
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="md:col-span-1">
-                      <label className="text-[9px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">CNPJ</label>
+                      <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">CNPJ</label>
                       <div className="relative">
                           <Hash className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                           <input 
@@ -154,7 +154,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                       </div>
                   </div>
                   <div className="md:col-span-2">
-                      <label className="text-[9px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Estabelecimento *</label>
+                      <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Estabelecimento *</label>
                       <div className="relative">
                           <Store className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                           <input 
@@ -165,7 +165,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                                   setFormData({...formData, establishmentName: e.target.value});
                                   performLookup(e.target.value, 'name');
                               }}
-                              className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-100 focus:border-luxury-gold outline-none transition-all font-serif"
+                              className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-100 focus:border-luxury-gold outline-none transition-all font-sans"
                               placeholder="NOME DA LOJA"
                           />
                           <datalist id="establishments-list-manual">
@@ -177,28 +177,28 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
                   <div className="md:col-span-3">
-                      <label className="text-[9px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Data</label>
+                      <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Data</label>
                       <div className="relative">
                           <Calendar className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                           <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-200 focus:border-luxury-gold outline-none" />
                       </div>
                   </div>
                   <div className="md:col-span-2">
-                      <label className="text-[9px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Hora</label>
+                      <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Hora</label>
                       <div className="relative">
                           <Clock className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                           <input type="time" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-200 focus:border-luxury-gold outline-none" />
                       </div>
                   </div>
                   <div className="md:col-span-5">
-                      <label className="text-[9px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Cidade</label>
+                      <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Cidade</label>
                       <div className="relative">
                           <MapPin className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                           <input type="text" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-200 focus:border-luxury-gold outline-none" placeholder="Cidade" />
                       </div>
                   </div>
                   <div className="md:col-span-2">
-                      <label className="text-[9px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">UF</label>
+                      <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">UF</label>
                       <div className="relative">
                           <Globe className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                           <input type="text" maxLength={2} value={formData.state} onChange={e => setFormData({...formData, state: e.target.value.toUpperCase()})} className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-center text-zinc-200 focus:border-luxury-gold outline-none uppercase" placeholder="UF" />
@@ -207,7 +207,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
               </div>
 
               <div>
-                  <label className="text-[9px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Endereço Completo</label>
+                  <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1.5 block ml-1">Endereço Completo</label>
                   <div className="relative">
                       <MapPin className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                       <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-200 focus:border-luxury-gold outline-none" placeholder="Rua, Número, Bairro..." />
@@ -217,9 +217,9 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
 
           <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl">
               <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold flex items-center gap-2">Itens da Transação</h3>
+                  <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold flex items-center gap-2">Itens da Transação</h3>
                   <div className="text-right">
-                      <span className="text-[9px] uppercase text-zinc-500 block mb-1">Total Calculado</span>
+                      <span className="text-[11px] uppercase text-zinc-500 block mb-1">Total Calculado</span>
                       <span className="text-3xl font-serif text-white font-bold tracking-tight">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.totalAmount)}</span>
                   </div>
               </div>
@@ -228,29 +228,29 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                   {items.map((item, index) => (
                       <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 rounded-2xl bg-black border border-white/5 items-start relative group hover:border-white/10 transition-all">
                           <div className="col-span-4">
-                              <label className="md:hidden text-[9px] text-zinc-500 font-bold block mb-1">Descrição</label>
+                              <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Descrição</label>
                               <input type="text" list="products-list-manual" value={item.description} onChange={e => updateItem(index, 'description', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-zinc-200 focus:border-luxury-gold outline-none" placeholder="Produto"/>
                           </div>
                           <div className="col-span-3">
-                              <label className="md:hidden text-[9px] text-zinc-500 font-bold block mb-1">Categoria</label>
+                              <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Categoria</label>
                               <select value={item.category} onChange={e => updateItem(index, 'category', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-3 text-xs text-zinc-400 focus:border-luxury-gold outline-none">
                                   {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                               </select>
                           </div>
                           <div className="col-span-1">
-                              <label className="md:hidden text-[9px] text-zinc-500 font-bold block mb-1">Qtd</label>
+                              <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Qtd</label>
                               <input type="number" value={item.quantity} onChange={e => updateItem(index, 'quantity', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-sm text-center text-zinc-200" />
                           </div>
                           <div className="col-span-1">
-                              <label className="md:hidden text-[9px] text-zinc-500 font-bold block mb-1">Un</label>
+                              <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Un</label>
                               <input type="text" value={item.unitType || 'UN'} onChange={e => updateItem(index, 'unitType', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-xs text-center text-zinc-200 uppercase" />
                           </div>
                           <div className="col-span-1">
-                              <label className="md:hidden text-[9px] text-zinc-500 font-bold block mb-1">Unitário</label>
+                              <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Unitário</label>
                               <input type="number" step="0.01" value={item.unitPrice} onChange={e => updateItem(index, 'unitPrice', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-sm text-right text-zinc-200" />
                           </div>
                           <div className="col-span-1">
-                              <label className="md:hidden text-[9px] text-zinc-500 font-bold block mb-1">Total</label>
+                              <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Total</label>
                               <input type="number" step="0.01" value={item.totalPrice} onChange={e => updateItem(index, 'totalPrice', Number(e.target.value))} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-sm text-right font-bold text-luxury-gold" />
                           </div>
                           <div className="col-span-1 flex justify-center pt-2">
@@ -262,7 +262,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                   ))}
               </div>
 
-              <button type="button" onClick={addItem} className="mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-luxury-gold hover:text-white transition-all bg-white/5 px-6 py-3 rounded-xl border border-white/5 hover:border-luxury-gold/30">
+              <button type="button" onClick={addItem} className="mt-6 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-luxury-gold hover:text-white transition-all bg-white/5 px-6 py-3 rounded-xl border border-white/5 hover:border-luxury-gold/30">
                   <Plus className="w-4 h-4" /> Adicionar Novo Item
               </button>
           </div>

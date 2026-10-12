@@ -462,23 +462,23 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                         <div className="relative mb-10">
                             <Loader2 className="w-16 h-16 text-luxury-gold animate-spin" />
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-[10px] font-bold text-white">{Math.round((progress ? progress.current / progress.total : 0) * 100)}%</span>
+                                <span className="text-xs font-bold text-white">{Math.round((progress ? progress.current / progress.total : 0) * 100)}%</span>
                             </div>
                         </div>
                         <div className="w-full bg-zinc-800 rounded-full h-1.5 mb-6 overflow-hidden">
                             <div className="bg-luxury-gold h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress ? (progress.current / progress.total) * 100 : 0}%` }} />
                         </div>
-                        <span className="text-zinc-300 text-[10px] tracking-[0.3em] uppercase animate-pulse mb-8 font-bold">
+                        <span className="text-zinc-300 text-[11px] tracking-[0.1em] uppercase animate-pulse mb-8 font-bold">
                             {isStopping ? "Finalizando Processo..." : `Sincronizando ${progress?.current}/${progress?.total}`}
                         </span>
-                        <button onClick={handleStopProcessing} disabled={isStopping} className="flex items-center gap-2 px-8 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-600 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">
+                        <button onClick={handleStopProcessing} disabled={isStopping} className="flex items-center gap-2 px-8 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-600 hover:text-white transition-all text-[11px] font-bold uppercase tracking-[0.08em] disabled:opacity-50">
                             <Ban className="w-4 h-4" /> Interromper
                         </button>
 
                         {/* Scanner Live Logs */}
                         <div className="mt-8 w-full max-w-md h-32 overflow-y-auto bg-black/50 border border-white/5 rounded-xl p-4 text-left custom-scrollbar">
                             {scannerLogs.map((log, i) => (
-                                <p key={i} className="text-[9px] text-zinc-500 font-mono mb-1 border-b border-white/5 pb-1 last:border-0">
+                                <p key={i} className="text-xs text-zinc-500 font-mono mb-1 border-b border-white/5 pb-1 last:border-0">
                                     {log}
                                 </p>
                             ))}
@@ -492,20 +492,20 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                                 <FileText className="w-8 h-8 text-luxury-gold" />
                             </div>
                             <h3 className="text-xl font-serif text-white mb-1 uppercase tracking-tight">Processamento Concluído</h3>
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Resultado do lote de cupons</p>
+                            <p className="text-[11px] text-zinc-500 uppercase tracking-[0.08em]">Resultado do lote de cupons</p>
                         </div>
 
                         {/* Summary Metrics */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-2xl p-4 text-center">
-                                <span className="text-[9px] uppercase tracking-wider text-emerald-500 font-bold block mb-1">Processados com Sucesso</span>
+                                <span className="text-[11px] uppercase tracking-wider text-emerald-500 font-bold block mb-1">Processados com Sucesso</span>
                                 <span className="text-2xl font-serif font-bold text-emerald-400">{tempReceipts.length}</span>
-                                <span className="text-[9px] text-zinc-500 block mt-1">cupons salvos</span>
+                                <span className="text-xs text-zinc-500 block mt-1">cupons salvos</span>
                             </div>
                             <div className="bg-red-950/20 border border-red-500/20 rounded-2xl p-4 text-center">
-                                <span className="text-[9px] uppercase tracking-wider text-red-500 font-bold block mb-1">Ocorrências / Falhas</span>
+                                <span className="text-[11px] uppercase tracking-wider text-red-500 font-bold block mb-1">Ocorrências / Falhas</span>
                                 <span className="text-2xl font-serif font-bold text-red-400">{failedItems.length}</span>
-                                <span className="text-[9px] text-zinc-500 block mt-1">não importados</span>
+                                <span className="text-xs text-zinc-500 block mt-1">não importados</span>
                             </div>
                         </div>
 
@@ -515,9 +515,9 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                                 <div className="flex items-start gap-3">
                                     <div className="mt-0.5 shrink-0">{getErrorIcon(batchStop.category)}</div>
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-widest font-bold text-red-400 mb-1">Lote interrompido</p>
-                                        <p className="text-[11px] text-zinc-300 leading-snug font-sans normal-case">{batchStop.message}</p>
-                                        <p className="text-[10px] text-zinc-500 leading-snug mt-2 font-sans normal-case">
+                                        <p className="text-[11px] uppercase tracking-[0.08em] font-bold text-red-400 mb-1">Lote interrompido</p>
+                                        <p className="text-xs text-zinc-300 leading-snug font-sans normal-case">{batchStop.message}</p>
+                                        <p className="text-xs text-zinc-500 leading-snug mt-2 font-sans normal-case">
                                             Os arquivos seguintes não foram enviados à IA. Corrija e toque em Tentar Recuperação para processar todos.
                                         </p>
                                     </div>
@@ -525,7 +525,7 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                                 {alternativeProviders.length > 0 && (
                                     <div className="flex flex-col gap-2 mt-4">
                                         {alternativeProviders.map(p => (
-                                            <button key={p} onClick={() => handleSwitchProviderAndRetry(p)} className="w-full bg-luxury-gold hover:bg-zinc-100 text-black font-bold py-3 rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+                                            <button key={p} onClick={() => handleSwitchProviderAndRetry(p)} className="w-full bg-luxury-gold hover:bg-zinc-100 text-black font-bold py-3 rounded-xl text-[11px] uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-all">
                                                 <RefreshCw className="w-4 h-4" /> Usar {PROVIDER_LABELS[p]} e reprocessar ({failedItems.length})
                                             </button>
                                         ))}
@@ -536,10 +536,10 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
 
                         {/* Title of Failures */}
                         <div className="flex items-center justify-between mb-3 px-1">
-                            <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">Detalhamento dos Erros ({failedItems.length})</span>
+                            <span className="text-[11px] uppercase tracking-[0.08em] text-zinc-400 font-bold">Detalhamento dos Erros ({failedItems.length})</span>
                             <button 
                                 onClick={handleDownloadErrorReport} 
-                                className="text-[9px] uppercase tracking-widest text-luxury-gold hover:text-white font-bold flex items-center gap-1.5 transition-all"
+                                className="text-[11px] uppercase tracking-[0.08em] text-luxury-gold hover:text-white font-bold flex items-center gap-1.5 transition-all"
                             >
                                 <Download className="w-3.5 h-3.5" /> Baixar Relatório
                             </button>
@@ -552,8 +552,8 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                                     <div className="flex items-start gap-3 overflow-hidden">
                                         <div className="mt-0.5 shrink-0">{getErrorIcon(item.error.category)}</div>
                                         <div className="text-left overflow-hidden">
-                                            <p className="text-[10px] text-zinc-300 truncate font-bold uppercase tracking-wider">{item.file.name}</p>
-                                            <p className="text-[9px] text-zinc-500 leading-snug mt-1 font-sans normal-case">{item.error.message}</p>
+                                            <p className="text-[11px] text-zinc-300 truncate font-bold uppercase tracking-wider">{item.file.name}</p>
+                                            <p className="text-xs text-zinc-500 leading-snug mt-1 font-sans normal-case">{item.error.message}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -563,11 +563,11 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                         {/* Action buttons */}
                         <div className="flex flex-col gap-3">
                             {retryableCount > 0 && (
-                                <button onClick={handleRetry} className="w-full bg-luxury-gold hover:bg-zinc-100 hover:text-zinc-900 text-black font-bold py-4 rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-xl shadow-luxury-gold/10">
+                                <button onClick={handleRetry} className="w-full bg-luxury-gold hover:bg-zinc-100 hover:text-zinc-900 text-black font-bold py-4 rounded-xl text-[11px] uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-all shadow-xl shadow-luxury-gold/10">
                                     <RefreshCw className="w-4 h-4" /> Tentar Recuperação ({retryableCount})
                                 </button>
                             )}
-                            <button onClick={handleFinishAndGoToHistory} className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-4 rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+                            <button onClick={handleFinishAndGoToHistory} className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-4 rounded-xl text-[11px] uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-all">
                                 <CheckCircle2 className="w-4 h-4" /> Concluir e Ir para Histórico
                             </button>
                         </div>
@@ -577,35 +577,35 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                         <div className="w-24 h-24 rounded-3xl bg-zinc-900/50 border border-white/5 flex items-center justify-center mb-10 shadow-inner group-hover:border-luxury-gold/50 transition-all duration-700">
                             <ScanLine className="w-10 h-10 text-luxury-gold" />
                         </div>
-                        <h3 className="text-2xl font-serif text-zinc-200 mb-2 uppercase tracking-[0.2em]">Importar Ativos</h3>
-                        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-10 font-bold">Selecione cupons para auditoria AI</p>
+                        <h3 className="text-2xl font-serif text-zinc-200 mb-2 uppercase tracking-[0.1em]">Importar Ativos</h3>
+                        <p className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] mb-10 font-bold">Selecione cupons para auditoria AI</p>
                         
                         <div className="flex flex-col gap-4 w-full max-w-sm mt-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <input type="file" ref={cameraInputRef} onChange={handleFileChange} accept="image/*" capture="environment" className="hidden" />
-                                <button onClick={handleCameraClick} disabled={!!nativeScanBusy} data-testid="camera-button" className="bg-luxury-gold hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-60 text-black font-bold text-[10px] uppercase tracking-widest py-5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-luxury-gold/10">
+                                <button onClick={handleCameraClick} disabled={!!nativeScanBusy} data-testid="camera-button" className="bg-luxury-gold hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-60 text-black font-bold text-[11px] uppercase tracking-[0.08em] py-5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-luxury-gold/10">
                                     {nativeScanBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} Câmera
                                 </button>
                                 
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" multiple className="hidden" />
-                                <button onClick={() => fileInputRef.current?.click()} className="bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 font-bold text-[10px] uppercase tracking-widest py-5 rounded-2xl transition-all flex items-center justify-center gap-2">
+                                <button onClick={() => fileInputRef.current?.click()} className="bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 font-bold text-[11px] uppercase tracking-[0.08em] py-5 rounded-2xl transition-all flex items-center justify-center gap-2">
                                     <ImageIcon className="w-4 h-4" /> Galeria
                                 </button>
                             </div>
 
                             {nativeScanBusy && (
-                                <p className="text-[10px] text-luxury-gold uppercase tracking-widest font-bold text-center" data-testid="native-scan-status">{nativeScanBusy}</p>
+                                <p className="text-[11px] text-luxury-gold uppercase tracking-[0.08em] font-bold text-center" data-testid="native-scan-status">{nativeScanBusy}</p>
                             )}
                             {nativeScanNotice && !nativeScanBusy && (
-                                <div className="px-4 py-3 rounded-xl bg-amber-950/20 border border-amber-900/30 text-amber-300 text-[11px] leading-relaxed" data-testid="native-scan-notice">{nativeScanNotice}</div>
+                                <div className="px-4 py-3 rounded-xl bg-amber-950/20 border border-amber-900/30 text-amber-300 text-xs leading-relaxed" data-testid="native-scan-notice">{nativeScanNotice}</div>
                             )}
                             {useNativeScanner && !nativeScanBusy && !nativeScanNotice && (
-                                <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold text-center leading-relaxed">
+                                <p className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold text-center leading-relaxed">
                                     A câmera usa o scanner de documentos: recorta só o cupom e deixa em preto e branco.
                                 </p>
                             )}
 
-                            <button onClick={onManualEntry} className="w-full bg-transparent hover:bg-white/5 border border-white/5 text-zinc-600 hover:text-white font-bold py-4 rounded-xl text-[9px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 transition-all mt-4">
+                            <button onClick={onManualEntry} className="w-full bg-transparent hover:bg-white/5 border border-white/5 text-zinc-500 hover:text-white font-bold py-4 rounded-xl text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 transition-all mt-4">
                                 <Keyboard className="w-4 h-4" /> Lançamento Manual
                             </button>
                         </div>
@@ -617,15 +617,15 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
         <div className="mt-12 flex items-center justify-center gap-8 opacity-40">
             <div className="flex flex-col items-center gap-2">
                 <FileJson className="w-5 h-5 text-zinc-500" />
-                <span className="text-[8px] uppercase font-bold tracking-widest">JSON Audit</span>
+                <span className="text-[11px] uppercase font-bold tracking-[0.08em]">JSON Audit</span>
             </div>
             <div className="flex flex-col items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-zinc-500" />
-                <span className="text-[8px] uppercase font-bold tracking-widest">Secure OCR</span>
+                <span className="text-[11px] uppercase font-bold tracking-[0.08em]">Secure OCR</span>
             </div>
             <div className="flex flex-col items-center gap-2">
                 <Clock className="w-5 h-5 text-zinc-500" />
-                <span className="text-[8px] uppercase font-bold tracking-widest">Real-time sync</span>
+                <span className="text-[11px] uppercase font-bold tracking-[0.08em]">Real-time sync</span>
             </div>
         </div>
       </div>

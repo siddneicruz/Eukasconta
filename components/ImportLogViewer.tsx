@@ -70,10 +70,10 @@ const ImportLogViewer: React.FC<ImportLogViewerProps> = ({ isOpen, onClose, logs
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between gap-4 mb-1">
                                             <span className="font-bold">{log.message}</span>
-                                            <span className="text-[10px] opacity-50 shrink-0">{log.timestamp}</span>
+                                            <span className="text-xs opacity-50 shrink-0">{log.timestamp}</span>
                                         </div>
                                         {log.details && (
-                                            <pre className="mt-2 p-2 bg-black/30 rounded text-[10px] overflow-x-auto whitespace-pre-wrap">
+                                            <pre className="mt-2 p-2 bg-black/30 rounded text-xs overflow-x-auto whitespace-pre-wrap">
                                                 {typeof log.details === 'string' ? log.details : JSON.stringify(log.details, null, 2)}
                                             </pre>
                                         )}

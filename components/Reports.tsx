@@ -10,6 +10,7 @@ import * as Recharts from 'recharts';
 import { calculateSimilarity, cleanDescriptionForMatching } from '../services/productMasterService';
 import ReportsPanorama from './ReportsPanorama';
 import { downloadFile } from '../services/nativeFiles';
+import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
 
 const { 
   XAxis, YAxis, Tooltip, ResponsiveContainer, 
@@ -766,7 +767,7 @@ const Reports: React.FC<ReportsProps> = ({
       if (active && payload && payload.length) {
           return (
               <div className="bg-zinc-950 border border-white/10 p-5 rounded-[1.5rem] shadow-2xl backdrop-blur-md">
-                  <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-3 border-b border-white/5 pb-2">Auditoria: {label}</p>
+                  <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-[0.1em] mb-3 border-b border-white/5 pb-2">Auditoria: {label}</p>
                   <div className="space-y-2">
                       {payload.map((p: any, idx: number) => {
                         const isDelta = p.dataKey === 'delta';
@@ -777,13 +778,13 @@ const Reports: React.FC<ReportsProps> = ({
                             <div key={idx} className="flex items-center justify-between gap-8">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill || '#D4AF37' }} />
-                                    <span className="text-[10px] font-bold text-zinc-300 uppercase">{p.name || p.dataKey}</span>
+                                    <span className="text-[11px] font-bold text-zinc-300 uppercase">{p.name || p.dataKey}</span>
                                 </div>
                                 <div className="flex flex-col items-end">
-                                    <span className={`text-xs font-serif font-bold ${isDelta ? (isPositiveDelta ? 'text-red-500' : 'text-emerald-500') : 'text-white'}`}>
+                                    <span className={`text-xs font-sans font-bold ${isDelta ? (isPositiveDelta ? 'text-red-500' : 'text-emerald-500') : 'text-white'}`}>
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.value)}
                                     </span>
-                                    {isDelta && <span className="text-[8px] uppercase font-bold text-zinc-600">{isPositiveDelta ? 'EXCEDENTE' : 'ECONOMIA'}</span>}
+                                    {isDelta && <span className="text-[11px] uppercase font-bold text-zinc-500">{isPositiveDelta ? 'EXCEDENTE' : 'ECONOMIA'}</span>}
                                 </div>
                             </div>
                         );
@@ -801,11 +802,11 @@ const Reports: React.FC<ReportsProps> = ({
         <div className="flex flex-col md:flex-row ls:flex-row md:items-center ls:items-center justify-between gap-6 ls:gap-4 mb-4 ls:mb-0">
             <div>
                 <h2 className="text-3xl ls:text-2xl md:text-5xl font-serif text-white mb-1 tracking-tight uppercase">Performance Matrix</h2>
-                <p className="text-zinc-500 font-sans text-[10px] tracking-[0.4em] uppercase opacity-70">Auditoria de Fluxo por Timeline</p>
+                <p className="text-zinc-400 font-sans text-sm">Auditoria de fluxo por período</p>
             </div>
             <div className="grid grid-cols-2 md:flex ls:flex items-center gap-3">
-                <button onClick={onAddManual} className="px-6 py-3 rounded-xl bg-luxury-gold text-black text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2 shadow-lg shadow-luxury-gold/10"><Plus className="w-4 h-4" /> Novo Lançamento</button>
-                <button onClick={onBack} className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Dashboard</button>
+                <button onClick={onAddManual} className="px-6 py-3 rounded-xl bg-luxury-gold text-black text-sm font-bold whitespace-nowrap justify-center hover:bg-white transition-all flex items-center gap-2 shadow-lg shadow-luxury-gold/10"><Plus className="w-4 h-4" /> Novo Lançamento</button>
+                <button onClick={onBack} className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-sm font-bold whitespace-nowrap justify-center hover:bg-white/10 transition-all flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Dashboard</button>
             </div>
         </div>
 
@@ -813,13 +814,13 @@ const Reports: React.FC<ReportsProps> = ({
             {config.quickFilter === 'custom' ? (
                 <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-6 animate-in slide-in-from-left-2">
                     <div className="relative flex-1 min-w-0">
-                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
-                        <input type="date" value={config.customStartDate} onChange={e => onConfigChange({...config, customStartDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-6 pr-1 text-[9px] text-zinc-300 outline-none focus:border-luxury-gold/40" />
+                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                        <input type="date" value={config.customStartDate} onChange={e => onConfigChange({...config, customStartDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
                     </div>
                     <span className="text-zinc-700 font-bold text-xs uppercase shrink-0">A</span>
                     <div className="relative flex-1 min-w-0">
-                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
-                        <input type="date" value={config.customEndDate} onChange={e => onConfigChange({...config, customEndDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-6 pr-1 text-[9px] text-zinc-300 outline-none focus:border-luxury-gold/40" />
+                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                        <input type="date" value={config.customEndDate} onChange={e => onConfigChange({...config, customEndDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
                     </div>
                 </div>
             ) : (
@@ -829,7 +830,7 @@ const Reports: React.FC<ReportsProps> = ({
                         <select 
                             value={config.year} 
                             onChange={(e) => onConfigChange({ ...config, year: Number(e.target.value) })} 
-                            className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-widest"
+                            className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-[0.08em]"
                         >
                             {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-black text-white">{y}</option>)}
                         </select>
@@ -837,12 +838,12 @@ const Reports: React.FC<ReportsProps> = ({
                     <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 flex items-center justify-start md:justify-between gap-1 px-2 md:px-4 overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => onConfigChange({ ...config, month: null, quickFilter: null })} 
-                            className={`px-4 py-2 rounded-full text-[10px] font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
                         >
                             ANUAL
                         </button>
                         {MONTHS_SHORT.map((m, idx) => (
-                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-3 py-2 rounded-full text-[10px] font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-600 hover:text-zinc-300'}`}>
+                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                 {m}
                             </button>
                         ))}
@@ -850,7 +851,7 @@ const Reports: React.FC<ReportsProps> = ({
                 </>
             )}
             <div className="order-2 md:order-4 ls:order-3 flex items-center gap-2 px-2 md:px-4 md:border-l ls:border-l border-white/10 shrink-0">
-                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-[9px] font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-600'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">FILTRAR </span>PERÍODO</button>
+                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">FILTRAR </span>PERÍODO</button>
                 {(config.category || config.month !== null || config.quickFilter) && (
                     <button
                         onClick={() => { onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null }); setSelectedCats([]); }}
@@ -873,7 +874,7 @@ const Reports: React.FC<ReportsProps> = ({
       {/* SELETOR DE SEÇÃO: transforma o que era uma rolagem longa com tudo
           empilhado em um dashboard por abas — cada seção só renderiza quando
           está ativa, então a tela mostra uma coisa de cada vez. */}
-      <div className="flex items-center gap-1 mb-8 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-fit max-w-full overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1 mb-8 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
           {[
               { id: 'panorama' as const, label: 'Panorama', icon: Sparkles },
               { id: 'overview' as const, label: 'Comparativo', icon: LucideLineChart },
@@ -883,9 +884,9 @@ const Reports: React.FC<ReportsProps> = ({
               <button
                   key={tab.id}
                   onClick={() => setActiveSection(tab.id)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeSection === tab.id ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/10' : 'text-zinc-500 hover:text-white'}`}
+                  className={`flex flex-1 sm:flex-none items-center justify-center gap-2 px-2 sm:px-5 py-2.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all whitespace-nowrap ${activeSection === tab.id ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/10' : 'text-zinc-400 hover:text-white'}`}
               >
-                  <tab.icon className="w-3.5 h-3.5" /> {tab.label}
+                  <tab.icon className="hidden sm:block w-3.5 h-3.5" /> {tab.label}
               </button>
           ))}
       </div>
@@ -893,7 +894,7 @@ const Reports: React.FC<ReportsProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           <div className={activeSection === 'catalog' || activeSection === 'panorama' ? 'hidden' : 'lg:col-span-3 space-y-4'}>
               <section className="bg-black/20 border border-white/5 rounded-2xl p-5 shadow-xl">
-                  <h4 className="text-[9px] uppercase tracking-[0.3em] text-zinc-500 font-bold mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5 text-luxury-gold" /> Filtros Expressos</h4>
+                  <h4 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5 text-luxury-gold" /> Filtros Expressos</h4>
                   <div className="grid grid-cols-1 gap-1.5">
                       <QuickFilterBtn label="7 DIAS" active={config.quickFilter === '7d'} onClick={() => setQuickRange('7d')} icon={Clock} />
                       <QuickFilterBtn label="30 DIAS" active={config.quickFilter === '30d'} onClick={() => setQuickRange('30d')} icon={CalendarDays} />
@@ -902,20 +903,20 @@ const Reports: React.FC<ReportsProps> = ({
                   </div>
                   <button 
                     onClick={() => { onConfigChange({ ...config, month: null, category: null, quickFilter: null, establishment: null }); setSelectedCats([]); }}
-                    className="w-full mt-3 py-2.5 rounded-xl bg-white/5 border border-white/5 text-[9px] font-bold text-zinc-600 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                    className="w-full mt-3 py-2.5 rounded-xl bg-white/5 border border-white/5 text-[11px] font-bold text-zinc-500 uppercase tracking-[0.08em] hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2"
                   >
                       <RotateCcw className="w-3.5 h-3.5" /> Limpar Filtros
                   </button>
               </section>
 
               <section className="bg-black/20 border border-white/5 rounded-2xl p-5 shadow-xl">
-                  <h4 className="text-[9px] uppercase tracking-[0.3em] text-zinc-500 font-bold mb-4 flex items-center gap-2"><Filter className="w-3.5 h-3.5 text-luxury-gold" /> Departamentos</h4>
+                  <h4 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-4 flex items-center gap-2"><Filter className="w-3.5 h-3.5 text-luxury-gold" /> Departamentos</h4>
                   <div className="space-y-1.5 max-h-[420px] overflow-y-auto custom-scrollbar pr-2">
                       {allCategories.map(name => {
                           const isSelected = selectedCats.includes(name);
                           return (
                               <button key={name} onClick={() => toggleCategory(name)} className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left ${isSelected ? 'bg-luxury-gold/10 border-luxury-gold/30 text-white' : 'bg-white/[0.01] border-white/5 text-zinc-600 hover:text-zinc-400'}`}>
-                                  <span className="text-[9px] font-bold uppercase tracking-wide truncate font-serif">{name}</span>
+                                  <span className="text-[11px] font-bold uppercase tracking-wide truncate font-sans">{name}</span>
                                   {isSelected ? <div className="w-3.5 h-3.5 shrink-0 rounded border border-luxury-gold flex items-center justify-center bg-luxury-gold"><Check className="w-2.5 h-2.5 text-black" /></div> : <div className="w-3.5 h-3.5 shrink-0 rounded border border-zinc-800" />}
                               </button>
                           );
@@ -942,7 +943,7 @@ const Reports: React.FC<ReportsProps> = ({
                   <div className="absolute top-0 right-0 w-96 h-96 bg-luxury-gold/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 relative z-10">
                       <div className="flex flex-col">
-                        <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold mb-1 flex items-center gap-2">
+                        <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
                             <LucideLineChart className="w-3 h-3 text-luxury-gold" /> Trend Matrix Comparativa
                         </h3>
                         <span className="text-2xl font-serif text-white tracking-tighter">Timeline de Fluxo</span>
@@ -950,12 +951,12 @@ const Reports: React.FC<ReportsProps> = ({
                   </div>
                   <div className="h-[240px] md:h-[350px] w-full relative z-10">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={comparativeData} margin={{ top: 10, right: 30, left: -10, bottom: 0 }}>
+                        <LineChart data={comparativeData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10, fontWeight: 'bold' }} dy={15} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10 }} tickFormatter={(val) => `R$${val}`} />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTickX} dy={15} />
+                            <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
                             <Tooltip content={<CustomTooltip />} />
-                            <Legend iconType="circle" verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '30px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }} />
+                            <Legend iconType="circle" verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '24px', fontSize: '12px', fontWeight: 600 }} />
                             {selectedCats.map((name, idx) => (
                                 <Line key={name} type="monotone" dataKey={name} stroke={CHART_COLORS[idx % CHART_COLORS.length]} strokeWidth={3} dot={{ r: 4, fill: '#000', stroke: CHART_COLORS[idx % CHART_COLORS.length], strokeWidth: 2 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} animationDuration={2000} />
                             ))}
@@ -970,20 +971,20 @@ const Reports: React.FC<ReportsProps> = ({
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 relative z-10">
                       <div className="flex items-center gap-3">
                         <Award className="w-5 h-5 text-emerald-500" />
-                        <h3 className="text-[10px] uppercase tracking-[0.4em] text-zinc-400 font-bold">Top 5 Estabelecimentos</h3>
+                        <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">Top 5 Estabelecimentos</h3>
                       </div>
                       <div className="flex gap-2 overflow-x-auto no-scrollbar max-w-full">
                           {selectedCats.map(cat => (
-                              <button key={cat} onClick={() => setRankingCat(cat)} className={`px-6 py-2 rounded-2xl text-[10px] font-bold uppercase transition-all tracking-widest whitespace-nowrap ${rankingCat === cat ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>{cat}</button>
+                              <button key={cat} onClick={() => setRankingCat(cat)} className={`px-6 py-2 rounded-2xl text-[11px] font-bold uppercase transition-all tracking-[0.08em] whitespace-nowrap ${rankingCat === cat ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-400'}`}>{cat}</button>
                           ))}
                       </div>
                   </div>
                   <div className="h-[240px] md:h-[350px] w-full relative z-10">
                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={establishmentRankData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                          <BarChart data={establishmentRankData} margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#a1a1aa', fontSize: 9, fontWeight: 'bold' }} angle={-25} textAnchor="end" height={60} />
-                              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10 }} tickFormatter={(val) => `R$${val}`} />
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#a1a1aa', fontSize: 11, fontWeight: 600 }} angle={-25} textAnchor="end" height={70} />
+                              <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
                               <Tooltip cursor={{fill: 'rgba(255,255,255,0.02)'}} content={<CustomTooltip />} />
                               {/* Fix: casting data to any when accessing realName to avoid TS error */}
                               <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={50} animationDuration={1500} onClick={(data) => data && onSelectEstablishment && onSelectEstablishment((data as any).realName)}>
@@ -1004,16 +1005,16 @@ const Reports: React.FC<ReportsProps> = ({
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 relative z-10">
                         <div className="flex items-center gap-3">
                             <Goal className="w-5 h-5 text-blue-400" />
-                            <h3 className="text-[10px] uppercase tracking-[0.4em] text-zinc-400 font-bold">Auditório de Metas</h3>
+                            <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">Auditório de Metas</h3>
                         </div>
                         <div className="flex flex-col md:flex-row items-center gap-3 flex-1 md:justify-end">
-                            <select value={goalItem} onChange={(e) => setGoalItem(e.target.value)} className="w-full md:w-64 bg-black/40 border border-white/5 rounded-2xl p-3 text-[10px] text-zinc-200 font-bold uppercase tracking-widest outline-none focus:border-luxury-gold/40 transition-all cursor-pointer">
+                            <select value={goalItem} onChange={(e) => setGoalItem(e.target.value)} className="w-full md:w-64 bg-black/40 border border-white/5 rounded-2xl p-3 text-[11px] text-zinc-200 font-bold uppercase tracking-[0.08em] outline-none focus:border-luxury-gold/40 transition-all cursor-pointer">
                                 <option value="">Selecione para auditar...</option>
                                 {taxonomyOptions.map(opt => <option key={opt} value={opt} className="bg-zinc-950">{opt}</option>)}
                             </select>
                             {goalItem && (
                                 <div className="flex gap-2 w-full md:w-auto">
-                                    <input type="number" value={tempGoalValue} onChange={(e) => setTempGoalValue(e.target.value)} placeholder="Teto..." className="w-full md:w-32 bg-black/60 border border-white/10 rounded-2xl px-4 py-3 text-[11px] text-luxury-gold font-bold outline-none focus:border-luxury-gold/40" />
+                                    <input type="number" value={tempGoalValue} onChange={(e) => setTempGoalValue(e.target.value)} placeholder="Teto..." className="w-full md:w-32 bg-black/60 border border-white/10 rounded-2xl px-4 py-3 text-xs text-luxury-gold font-bold outline-none focus:border-luxury-gold/40" />
                                     <button onClick={handleSaveGoal} className="p-3 bg-luxury-gold text-black rounded-xl hover:bg-white transition-all shadow-lg shadow-luxury-gold/10"><Save className="w-4 h-4" /></button>
                                 </div>
                             )}
@@ -1023,15 +1024,15 @@ const Reports: React.FC<ReportsProps> = ({
                         {goalItem ? (
                             <div className="h-[240px] md:h-[350px] w-full animate-in fade-in slide-in-from-top-2">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={goalPerfData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <AreaChart data={goalPerfData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorGoal" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.25}/><stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10, fontWeight: 'bold' }} dy={15} />
-                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10 }} tickFormatter={(val) => `R$${val}`} />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTickX} dy={15} />
+                                        <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
                                         <Tooltip content={<CustomTooltip />} />
                                         <ReferenceLine y={goals[goalItem] || 0} stroke="#D4AF37" strokeDasharray="8 8" strokeWidth={2} />
                                         <Area type="monotone" dataKey="value" name="REALIZADO" stroke="#D4AF37" strokeWidth={3} fillOpacity={1} fill="url(#colorGoal)" animationDuration={2000} dot={{ r: 4, fill: '#000', stroke: '#D4AF37', strokeWidth: 2 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} />
@@ -1042,7 +1043,7 @@ const Reports: React.FC<ReportsProps> = ({
                         ) : (
                             <div className="h-[200px] md:h-[300px] flex flex-col items-center justify-center opacity-20 gap-4">
                                 <PieChartIcon className="w-12 h-12" />
-                                <span className="text-[10px] uppercase tracking-widest font-bold">Selecione um departamento para auditar metas</span>
+                                <span className="text-[11px] uppercase tracking-[0.08em] font-bold">Selecione um departamento para auditar metas</span>
                             </div>
                         )}
                     </div>
@@ -1058,7 +1059,7 @@ const Reports: React.FC<ReportsProps> = ({
                         <div>
                             <div className="flex items-center gap-3 mb-1">
                                 <Package className="w-5 h-5 text-violet-400" />
-                                <h3 className="text-[10px] uppercase tracking-[0.4em] text-zinc-400 font-bold">Unificação & Consistência de Dados</h3>
+                                <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">Unificação & Consistência de Dados</h3>
                             </div>
                             <span className="text-2xl font-serif text-white tracking-tighter">Produtos do Banco de Dados</span>
                         </div>
@@ -1068,13 +1069,13 @@ const Reports: React.FC<ReportsProps> = ({
                             <div className="flex bg-black/60 border border-white/5 p-1 rounded-xl">
                                 <button
                                     onClick={() => setActiveCatalogTab('catalog')}
-                                    className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activeCatalogTab === 'catalog' ? 'bg-luxury-gold text-black' : 'text-zinc-400 hover:text-white'}`}
+                                    className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${activeCatalogTab === 'catalog' ? 'bg-luxury-gold text-black' : 'text-zinc-400 hover:text-white'}`}
                                 >
                                     Catálogo ({productsList.length})
                                 </button>
                                 <button
                                     onClick={() => setActiveCatalogTab('duplicates')}
-                                    className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${activeCatalogTab === 'duplicates' ? 'bg-red-500 text-white' : 'text-zinc-400 hover:text-red-400'}`}
+                                    className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${activeCatalogTab === 'duplicates' ? 'bg-red-500 text-white' : 'text-zinc-400 hover:text-red-400'}`}
                                 >
                                     Duplicidades {duplicatesState.status === 'done' ? `(${duplicatesState.pairs.length})` : ''}
                                 </button>
@@ -1099,7 +1100,7 @@ const Reports: React.FC<ReportsProps> = ({
                             <button 
                                 onClick={handleExportProductsCSV} 
                                 disabled={productsList.length === 0}
-                                className="px-6 py-3 rounded-xl bg-luxury-gold hover:bg-white text-black text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-luxury-gold/10 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
+                                className="px-6 py-3 rounded-xl bg-luxury-gold hover:bg-white text-black text-[11px] font-bold uppercase tracking-[0.08em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-luxury-gold/10 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
                             >
                                 <Download className="w-4 h-4" /> Exportar CSV
                             </button>
@@ -1114,21 +1115,21 @@ const Reports: React.FC<ReportsProps> = ({
                                         <table className="min-w-full border-collapse">
                                             <thead>
                                                 <tr className="border-b border-white/5">
-                                                    <th className="text-left py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Cód. Original</th>
-                                                    <th className="text-left py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Item Original (Recibo)</th>
-                                                    <th className="text-center py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Unid.</th>
-                                                    <th className="text-left py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Código Mãe</th>
-                                                    <th className="text-left py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Produto Mãe (Padrão)</th>
-                                                    <th className="text-left py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Departamento Central</th>
-                                                    <th className="text-right py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Último Preço</th>
-                                                    <th className="text-center py-4 px-4 text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Ações</th>
+                                                    <th className="text-left py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Cód. Original</th>
+                                                    <th className="text-left py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Item Original (Recibo)</th>
+                                                    <th className="text-center py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Unid.</th>
+                                                    <th className="text-left py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Código Mãe</th>
+                                                    <th className="text-left py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Produto Mãe (Padrão)</th>
+                                                    <th className="text-left py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Departamento Central</th>
+                                                    <th className="text-right py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Último Preço</th>
+                                                    <th className="text-center py-4 px-4 text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Ações</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {paginatedProducts.map((prod, idx) => (
                                                     <tr key={idx} className="border-b border-white/[0.02] last:border-0 hover:bg-white/[0.01] transition-colors group">
                                                         <td className="py-4 px-4">
-                                                            <span className="font-mono text-[10px] text-zinc-500 bg-white/5 px-2 py-0.5 rounded">
+                                                            <span className="font-mono text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded">
                                                                 {prod.code}
                                                             </span>
                                                         </td>
@@ -1138,7 +1139,7 @@ const Reports: React.FC<ReportsProps> = ({
                                                             </span>
                                                         </td>
                                                         <td className="py-4 px-4 text-center">
-                                                            <span className="font-mono text-[10px] text-zinc-400 font-bold px-2 py-1 bg-white/5 rounded">
+                                                            <span className="font-mono text-xs text-zinc-400 font-bold px-2 py-1 bg-white/5 rounded">
                                                                 {prod.unitType}
                                                             </span>
                                                         </td>
@@ -1153,7 +1154,7 @@ const Reports: React.FC<ReportsProps> = ({
                                                             </span>
                                                         </td>
                                                         <td className="py-4 px-4">
-                                                            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 block truncate max-w-[150px]">
+                                                            <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 block truncate max-w-[150px]">
                                                                 {prod.parentCategory}
                                                             </span>
                                                         </td>
@@ -1198,7 +1199,7 @@ const Reports: React.FC<ReportsProps> = ({
                                         {/* PAGINAÇÃO */}
                                         {totalProductPages > 1 && (
                                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-white/5">
-                                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">
+                                                <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-semibold">
                                                     Página {productPage} de {totalProductPages} • Exibindo {paginatedProducts.length} de {filteredProducts.length} itens
                                                 </span>
                                                 
@@ -1246,7 +1247,7 @@ const Reports: React.FC<ReportsProps> = ({
                                 ) : (
                                     <div className="h-[200px] flex flex-col items-center justify-center opacity-30 gap-3 py-10">
                                         <Package className="w-10 h-10 text-zinc-500" />
-                                        <span className="text-[10px] uppercase tracking-widest font-bold">Nenhum produto cadastrado</span>
+                                        <span className="text-[11px] uppercase tracking-[0.08em] font-bold">Nenhum produto cadastrado</span>
                                     </div>
                                 )}
                             </div>
@@ -1257,19 +1258,19 @@ const Reports: React.FC<ReportsProps> = ({
                                     <Zap className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
                                     <div>
                                         <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Detecção Inteligente de Duplicidades</h4>
-                                        <p className="text-[11px] text-zinc-400 mt-1">O motor de aprendizagem do sistema analisa variações de texto e unidades e sugere a unificação para manter seu banco de dados limpo e consistente de forma auto-sustentável.</p>
+                                        <p className="text-xs text-zinc-400 mt-1">O motor de aprendizagem do sistema analisa variações de texto e unidades e sugere a unificação para manter seu banco de dados limpo e consistente de forma auto-sustentável.</p>
                                     </div>
                                 </div>
 
                                 {duplicatesState.status === 'idle' && (
                                     <div className="h-[220px] flex flex-col items-center justify-center gap-4 border border-dashed border-white/10 rounded-3xl py-12">
-                                        <Zap className="w-8 h-8 text-zinc-600" />
-                                        <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 text-center max-w-xs">
+                                        <Zap className="w-8 h-8 text-zinc-500" />
+                                        <span className="text-[11px] uppercase tracking-[0.08em] font-bold text-zinc-500 text-center max-w-xs">
                                             A varredura roda sob demanda para não travar a tela com catálogos grandes.
                                         </span>
                                         <button
                                             onClick={runDuplicateDetection}
-                                            className="flex items-center gap-2 px-6 py-3 bg-luxury-gold text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all"
+                                            className="flex items-center gap-2 px-6 py-3 bg-luxury-gold text-black rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all"
                                         >
                                             <Zap className="w-4 h-4" /> Detectar Duplicidades
                                         </button>
@@ -1279,7 +1280,7 @@ const Reports: React.FC<ReportsProps> = ({
                                 {duplicatesState.status === 'running' && (
                                     <div className="h-[220px] flex flex-col items-center justify-center gap-4 border border-dashed border-white/10 rounded-3xl py-12">
                                         <Loader2 className="w-8 h-8 text-luxury-gold animate-spin" />
-                                        <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-400">Analisando catálogo… {duplicatesState.progress}%</span>
+                                        <span className="text-[11px] uppercase tracking-[0.08em] font-bold text-zinc-400">Analisando catálogo… {duplicatesState.progress}%</span>
                                         <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
                                             <div className="h-full bg-luxury-gold transition-all duration-200" style={{ width: `${duplicatesState.progress}%` }} />
                                         </div>
@@ -1288,10 +1289,10 @@ const Reports: React.FC<ReportsProps> = ({
 
                                 {duplicatesState.status === 'done' && duplicatesState.pairs.length > 0 && (
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                                        <span className="text-[11px] text-zinc-400 font-bold">{duplicatesState.pairs.length} possível(is) duplicidade(s) encontrada(s).</span>
+                                        <span className="text-xs text-zinc-400 font-bold">{duplicatesState.pairs.length} possível(is) duplicidade(s) encontrada(s).</span>
                                         <button
                                             onClick={handleUnifyAllDuplicates}
-                                            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-luxury-gold text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all shrink-0"
+                                            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-luxury-gold text-black rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all shrink-0"
                                         >
                                             <GitMerge className="w-4 h-4" /> Unificar Todas de Uma Vez
                                         </button>
@@ -1304,10 +1305,10 @@ const Reports: React.FC<ReportsProps> = ({
                                             <div key={dIdx} className="bg-zinc-950 border border-white/5 rounded-2xl p-6 flex flex-col justify-between hover:border-luxury-gold/30 transition-all">
                                                 <div>
                                                     <div className="flex justify-between items-start mb-4">
-                                                        <span className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+                                                        <span className="text-[11px] uppercase tracking-[0.08em] font-bold text-zinc-500 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
                                                             {Math.round(dup.similarity * 100)}% de Similaridade
                                                         </span>
-                                                        <span className="font-mono text-[10px] text-zinc-500">Duplicidade #{dIdx + 1}</span>
+                                                        <span className="font-mono text-xs text-zinc-500">Duplicidade #{dIdx + 1}</span>
                                                     </div>
                                                     
                                                     <div className="space-y-3">
@@ -1325,7 +1326,7 @@ const Reports: React.FC<ReportsProps> = ({
 
                                                 <button
                                                     onClick={() => handleMergeMastersCustom(dup.master1.code, dup.master2.code)}
-                                                    className="mt-6 w-full py-3 bg-luxury-gold/10 hover:bg-luxury-gold border border-luxury-gold/20 text-luxury-gold hover:text-black font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                                                    className="mt-6 w-full py-3 bg-luxury-gold/10 hover:bg-luxury-gold border border-luxury-gold/20 text-luxury-gold hover:text-black font-bold text-[11px] uppercase tracking-[0.08em] rounded-xl transition-all flex items-center justify-center gap-2"
                                                 >
                                                     <GitMerge className="w-4 h-4" /> Unificar Produtos
                                                 </button>
@@ -1335,7 +1336,7 @@ const Reports: React.FC<ReportsProps> = ({
                                 ) : duplicatesState.status === 'done' ? (
                                     <div className="h-[200px] flex flex-col items-center justify-center text-zinc-500 gap-3 border border-dashed border-white/10 rounded-3xl py-12">
                                         <Check className="w-8 h-8 text-emerald-500" />
-                                        <span className="text-[10px] uppercase tracking-widest font-bold">Parabéns! Nenhuma duplicidade detectada no momento.</span>
+                                        <span className="text-[11px] uppercase tracking-[0.08em] font-bold">Parabéns! Nenhuma duplicidade detectada no momento.</span>
                                     </div>
                                 ) : null}
                             </div>
@@ -1348,28 +1349,28 @@ const Reports: React.FC<ReportsProps> = ({
             {editingRawProduct && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
                     <div className="w-full max-w-2xl bg-[#0c0c0e] border border-luxury-gold/20 rounded-[3rem] overflow-hidden shadow-3xl shadow-luxury-gold/5">
-                        <div className="p-8 border-b border-white/5 bg-luxury-gold/5 flex justify-between items-center">
+                        <div className="p-5 sm:p-8 border-b border-white/5 bg-luxury-gold/5 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-luxury-gold text-black rounded-2xl"><Tag className="w-6 h-6" /></div>
                                 <div>
                                     <h3 className="text-xl font-serif text-white uppercase tracking-tighter">Vincular Produto Original</h3>
-                                    <p className="text-[9px] text-luxury-gold uppercase font-bold tracking-widest mt-1">Configuração de Vínculo com Cadastro Central (Mãe)</p>
+                                    <p className="text-[11px] text-luxury-gold uppercase font-bold tracking-[0.08em] mt-1">Configuração de Vínculo com Cadastro Central (Mãe)</p>
                                 </div>
                             </div>
                             <button onClick={() => setEditingRawProduct(null)} className="p-2 text-zinc-500 hover:text-white"><X className="w-6 h-6" /></button>
                         </div>
 
-                        <div className="p-8 space-y-6">
+                        <div className="p-5 sm:p-8 space-y-6">
                             {/* DADOS ORIGINAIS DE COMPRA - NÃO EDITÁVEIS */}
                             <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
-                                <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider block mb-2">Dados Originais de Compra (Inalteráveis)</span>
+                                <span className="text-[11px] text-zinc-500 uppercase font-bold tracking-wider block mb-2">Dados Originais de Compra (Inalteráveis)</span>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                        <span className="text-[10px] text-zinc-400 block mb-1">Código Original</span>
+                                        <span className="text-xs text-zinc-400 block mb-1">Código Original</span>
                                         <span className="text-xs font-mono font-bold text-zinc-300 bg-white/5 px-2 py-1 rounded">{editingRawProduct.code}</span>
                                     </div>
                                     <div className="md:col-span-2">
-                                        <span className="text-[10px] text-zinc-400 block mb-1">Descrição no Recibo</span>
+                                        <span className="text-xs text-zinc-400 block mb-1">Descrição no Recibo</span>
                                         <span className="text-xs font-bold text-zinc-200 bg-white/5 px-2 py-1 rounded block truncate">{editingRawProduct.description}</span>
                                     </div>
                                 </div>
@@ -1377,30 +1378,30 @@ const Reports: React.FC<ReportsProps> = ({
 
                             {/* SELEÇÃO DO VÍNCULO */}
                             <div className="space-y-4">
-                                <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block">Definir Relacionamento Mãe</label>
+                                <label className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold block">Definir Relacionamento Mãe</label>
                                 <div className="grid grid-cols-2 gap-4">
                                     <button
                                         type="button"
                                         onClick={() => setParentSelectionType('existing')}
                                         className={`p-4 rounded-xl border text-center transition-all ${parentSelectionType === 'existing' ? 'bg-luxury-gold/10 border-luxury-gold text-luxury-gold' : 'bg-black/40 border-white/5 text-zinc-400 hover:bg-white/5'}`}
                                     >
-                                        <span className="text-[10px] uppercase font-bold tracking-widest block">Mapear para Existente</span>
-                                        <span className="text-[9px] block text-zinc-500 mt-1">Agrupar com outro item já cadastrado</span>
+                                        <span className="text-[11px] uppercase font-bold tracking-[0.08em] block">Mapear para Existente</span>
+                                        <span className="text-xs block text-zinc-500 mt-1">Agrupar com outro item já cadastrado</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setParentSelectionType('new')}
                                         className={`p-4 rounded-xl border text-center transition-all ${parentSelectionType === 'new' ? 'bg-luxury-gold/10 border-luxury-gold text-luxury-gold' : 'bg-black/40 border-white/5 text-zinc-400 hover:bg-white/5'}`}
                                     >
-                                        <span className="text-[10px] uppercase font-bold tracking-widest block">Criar Novo Cadastro Mãe</span>
-                                        <span className="text-[9px] block text-zinc-500 mt-1">Este item será o padrão para este grupo</span>
+                                        <span className="text-[11px] uppercase font-bold tracking-[0.08em] block">Criar Novo Cadastro Mãe</span>
+                                        <span className="text-xs block text-zinc-500 mt-1">Este item será o padrão para este grupo</span>
                                     </button>
                                 </div>
                             </div>
 
                             {parentSelectionType === 'existing' ? (
                                 <div>
-                                    <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block mb-2">Selecionar Produto Mãe Destino</label>
+                                    <label className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold block mb-2">Selecionar Produto Mãe Destino</label>
                                     <select
                                         value={selectedExistingMasterCode}
                                         onChange={e => setSelectedExistingMasterCode(e.target.value)}
@@ -1418,7 +1419,7 @@ const Reports: React.FC<ReportsProps> = ({
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block mb-2">Nova Descrição Central (Padrão)</label>
+                                            <label className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold block mb-2">Nova Descrição Central (Padrão)</label>
                                             <input
                                                 type="text"
                                                 value={newMasterDesc}
@@ -1428,7 +1429,7 @@ const Reports: React.FC<ReportsProps> = ({
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block mb-2">Unidade Padrão</label>
+                                            <label className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold block mb-2">Unidade Padrão</label>
                                             <input
                                                 type="text"
                                                 value={newMasterUnit}
@@ -1439,7 +1440,7 @@ const Reports: React.FC<ReportsProps> = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block mb-2">Departamento Central</label>
+                                        <label className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold block mb-2">Departamento Central</label>
                                         <select
                                             value={newMasterCategory}
                                             onChange={e => setNewMasterCategory(e.target.value)}
@@ -1456,7 +1457,7 @@ const Reports: React.FC<ReportsProps> = ({
                             <button
                                 onClick={handleSaveRawProductLinkage}
                                 disabled={parentSelectionType === 'existing' ? !selectedExistingMasterCode : !newMasterDesc}
-                                className="w-full py-4 bg-luxury-gold hover:bg-white text-black disabled:opacity-30 disabled:pointer-events-none rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-luxury-gold/10"
+                                className="w-full py-4 bg-luxury-gold hover:bg-white text-black disabled:opacity-30 disabled:pointer-events-none rounded-xl font-bold text-[11px] uppercase tracking-[0.1em] transition-all shadow-xl shadow-luxury-gold/10"
                             >
                                 Salvar Vínculo Central
                             </button>
@@ -1469,26 +1470,26 @@ const Reports: React.FC<ReportsProps> = ({
             {mergeSource && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
                     <div className="w-full max-w-md bg-[#0c0c0e] border border-blue-500/20 rounded-[3rem] overflow-hidden shadow-3xl shadow-blue-500/5">
-                        <div className="p-8 border-b border-white/5 bg-blue-500/5 flex justify-between items-center">
+                        <div className="p-5 sm:p-8 border-b border-white/5 bg-blue-500/5 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-blue-500 text-black rounded-2xl"><GitMerge className="w-6 h-6" /></div>
                                 <div>
                                     <h3 className="text-xl font-serif text-white uppercase tracking-tighter">Unificação Manual</h3>
-                                    <p className="text-[9px] text-blue-400 uppercase font-bold tracking-widest mt-1">Consolidação Manual de cadastros</p>
+                                    <p className="text-[11px] text-blue-400 uppercase font-bold tracking-[0.08em] mt-1">Consolidação Manual de cadastros</p>
                                 </div>
                             </div>
                             <button onClick={() => setMergeSource(null)} className="p-2 text-zinc-500 hover:text-white"><X className="w-6 h-6" /></button>
                         </div>
 
-                        <div className="p-8 space-y-6">
+                        <div className="p-5 sm:p-8 space-y-6">
                             <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                                <span className="text-[9px] text-zinc-500 uppercase font-bold block mb-1">Item Original Selecionado:</span>
+                                <span className="text-[11px] text-zinc-500 uppercase font-bold block mb-1">Item Original Selecionado:</span>
                                 <span className="text-xs text-white font-bold uppercase block">{mergeSource.description}</span>
-                                <span className="text-[9px] text-zinc-500 mt-2 block">Vínculo Atual: {mergeSource.parentDescription} ({mergeSource.parentCode})</span>
+                                <span className="text-xs text-zinc-500 mt-2 block">Vínculo Atual: {mergeSource.parentDescription} ({mergeSource.parentCode})</span>
                             </div>
 
                             <div>
-                                <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block mb-2">Unificar sob o Produto Mãe:</label>
+                                <label className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold block mb-2">Unificar sob o Produto Mãe:</label>
                                 <select
                                     value={mergeTargetCode}
                                     onChange={e => setMergeTargetCode(e.target.value)}
@@ -1506,7 +1507,7 @@ const Reports: React.FC<ReportsProps> = ({
                             <button 
                                 onClick={() => handleMergeRawProductToMaster(mergeSource.description, mergeTargetCode)}
                                 disabled={!mergeTargetCode}
-                                className="w-full py-4 bg-blue-500 hover:bg-white text-black disabled:opacity-30 disabled:pointer-events-none rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-500/10"
+                                className="w-full py-4 bg-blue-500 hover:bg-white text-black disabled:opacity-30 disabled:pointer-events-none rounded-xl font-bold text-[11px] uppercase tracking-[0.1em] transition-all shadow-xl shadow-blue-500/10"
                             >
                                 Confirmar Unificação
                             </button>
@@ -1521,7 +1522,7 @@ const Reports: React.FC<ReportsProps> = ({
                     <div className="w-full max-w-md bg-[#0c0c0e] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
                         <div className="p-6 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
                             <HelpCircle className="w-5 h-5 text-luxury-gold" />
-                            <h3 className="text-sm font-serif text-white uppercase tracking-wider">{confirmModal.title}</h3>
+                            <h3 className="text-sm font-sans text-white uppercase tracking-wider">{confirmModal.title}</h3>
                         </div>
                         <div className="p-6">
                             <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">{confirmModal.message}</p>
@@ -1529,7 +1530,7 @@ const Reports: React.FC<ReportsProps> = ({
                         <div className="p-6 bg-white/[0.01] border-t border-white/5 flex items-center justify-end gap-3">
                             <button
                                 onClick={() => setConfirmModal(null)}
-                                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all"
                             >
                                 Cancelar
                             </button>
@@ -1538,7 +1539,7 @@ const Reports: React.FC<ReportsProps> = ({
                                     confirmModal.onConfirm();
                                     setConfirmModal(null);
                                 }}
-                                className="px-4 py-2 bg-luxury-gold text-black hover:bg-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                                className="px-4 py-2 bg-luxury-gold text-black hover:bg-white rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all"
                             >
                                 Confirmar
                             </button>
@@ -1569,7 +1570,7 @@ const QuickFilterBtn = ({ label, active, onClick, icon: Icon }: any) => (
         onClick={onClick}
         className={`flex items-center justify-between p-2.5 rounded-xl border transition-all text-left group ${active ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-white/[0.02] border-white/5 text-zinc-500 hover:bg-white/5'}`}
     >
-        <span className="text-[9px] font-bold uppercase tracking-wide">{label}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide">{label}</span>
         <Icon className={`w-3.5 h-3.5 ${active ? 'text-black' : 'text-zinc-700 group-hover:text-luxury-gold'}`} />
     </button>
 );
@@ -1589,7 +1590,7 @@ const KPIBlock = ({ icon: Icon, label, value, color }: any) => (
     <div className={`absolute top-0 left-0 right-0 h-[3px] ${KPI_ACCENT[color] || 'bg-zinc-600'} opacity-70`} />
     <div className={`p-3 md:p-3 rounded-xl bg-white/5 shrink-0 ${color}`}><Icon className="w-5 h-5 md:w-5 md:h-5" /></div>
     <div className="flex flex-col min-w-0">
-      <span className="text-[9px] md:text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-bold mb-1">{label}</span>
+      <span className="text-[11px] md:text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-1">{label}</span>
       <span className={`text-2xl md:text-3xl font-serif font-bold tracking-tighter ${color === 'text-luxury-gold' ? 'text-white' : color}`}>{value}</span>
     </div>
   </div>

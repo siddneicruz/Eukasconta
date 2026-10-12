@@ -119,7 +119,7 @@ const AISettingsPanel: React.FC = () => {
             <h3 className="text-xl font-serif text-white uppercase tracking-tight flex items-center gap-3">
               <KeyRound className="w-5 h-5 text-luxury-gold" /> Sua Chave de IA
             </h3>
-            <p className="text-zinc-600 text-[9px] uppercase font-bold mt-1 tracking-widest max-w-md">
+            <p className="text-zinc-500 text-[11px] uppercase font-bold mt-1 tracking-[0.08em] max-w-md">
               A leitura dos cupons roda com a sua própria conta de IA. A chave fica só neste dispositivo, nunca sai daqui.
             </p>
           </div>
@@ -131,7 +131,7 @@ const AISettingsPanel: React.FC = () => {
               key={p.id}
               onClick={() => p.available && setSelectedProvider(p.id)}
               disabled={!p.available}
-              className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap shrink-0
+              className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] transition-all whitespace-nowrap shrink-0
                 ${selectedProvider === p.id ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}
                 ${!p.available ? 'opacity-30 cursor-not-allowed' : ''}`}
             >
@@ -145,7 +145,7 @@ const AISettingsPanel: React.FC = () => {
             <div className="flex items-center gap-4">
               <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
               <div>
-                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Chave salva — {activeProvider.label}</div>
+                <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-[0.08em]">Chave salva — {activeProvider.label}</div>
                 <div className="font-mono text-xs text-zinc-400 mt-1">{maskKey(storedKeys[selectedProvider]!)}</div>
               </div>
             </div>
@@ -164,19 +164,19 @@ const AISettingsPanel: React.FC = () => {
             <button
               onClick={handleTest}
               disabled={testState.status === 'testing'}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:border-luxury-gold/40 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-50"
             >
               {testState.status === 'testing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-luxury-gold" />}
               Testar chave
             </button>
             {active === selectedProvider ? (
-              <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[10px] font-bold uppercase tracking-widest">
+              <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[11px] font-bold uppercase tracking-[0.08em]">
                 <CircleCheck className="w-4 h-4" /> Em uso para ler cupons
               </div>
             ) : (
               <button
                 onClick={handleMakeActive}
-                className="py-3 rounded-xl bg-luxury-gold text-black text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all"
+                className="py-3 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all"
               >
                 Usar {activeProvider.label}
               </button>
@@ -194,7 +194,7 @@ const AISettingsPanel: React.FC = () => {
         {selectedProvider === 'openrouter' && storedKeys.openrouter && (
           <div className="rounded-2xl border border-white/5 bg-black/20 p-5 mb-6 space-y-5">
             <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Modelo para ler cupons</label>
+              <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em] mb-2">Modelo para ler cupons</label>
               <input
                 list="or-vision-models"
                 value={visionModel}
@@ -215,7 +215,7 @@ const AISettingsPanel: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Modelo para auditoria e textos</label>
+              <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em] mb-2">Modelo para auditoria e textos</label>
               <input
                 list="or-text-models"
                 value={textModel}
@@ -234,7 +234,7 @@ const AISettingsPanel: React.FC = () => {
               <button
                 onClick={handleLoadCatalog}
                 disabled={catalogState.status === 'loading'}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:border-luxury-gold/40 transition-all disabled:opacity-50 shrink-0"
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-50 shrink-0"
               >
                 {catalogState.status === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 text-luxury-gold" />}
                 Buscar modelos grátis
@@ -275,7 +275,7 @@ const AISettingsPanel: React.FC = () => {
               <button
                 onClick={handleSave}
                 disabled={!keyInput.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-luxury-gold text-black text-[10px] font-bold uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-all"
               >
                 {savedFlash ? <Check className="w-4 h-4" /> : 'Salvar'}
               </button>
@@ -284,14 +284,14 @@ const AISettingsPanel: React.FC = () => {
               href={activeProvider.helpUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-zinc-500 hover:text-luxury-gold transition-colors"
+              className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] font-bold text-zinc-500 hover:text-luxury-gold transition-colors"
             >
               <ExternalLink className="w-3 h-3" /> Gerar chave em {activeProvider.label}
             </a>
           </div>
         )}
 
-        <div className="pt-6 border-t border-white/5 text-[9px] text-zinc-600 uppercase tracking-widest leading-relaxed">
+        <div className="pt-6 border-t border-white/5 text-[11px] text-zinc-500 uppercase tracking-[0.08em] leading-relaxed">
           Claude (Anthropic), Gemini (Google) e OpenRouter são cobrados pela conta de cada provedor. A Anthropic exige créditos pré-pagos no console; o Gemini tem cota gratuita diária; no OpenRouter, os modelos com final :free não têm custo.
         </div>
       </div>

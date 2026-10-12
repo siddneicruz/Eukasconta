@@ -420,9 +420,9 @@ const Card: React.FC<{ glow?: keyof typeof GLOW; className?: string; children: R
 );
 
 const CardTitle: React.FC<{ icon: React.ComponentType<{ className?: string }>; kicker: string; title: string; accent?: string; right?: React.ReactNode }> = ({ icon: Icon, kicker, title, accent = 'text-luxury-gold', right }) => (
-  <div className="flex items-start justify-between gap-3 mb-6">
+  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-3 mb-6">
     <div className="min-w-0">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold mb-1 flex items-center gap-2">
+      <h3 className="text-[11px] text-zinc-400 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
         <Icon className={`w-3 h-3 ${accent}`} /> {kicker}
       </h3>
       <span className="text-xl md:text-2xl font-serif text-white tracking-tight">{title}</span>
@@ -437,7 +437,7 @@ function Segmented<T extends string>({ value, onChange, options }: { value: T; o
       {options.map(o => (
         <button
           key={o.id} disabled={o.disabled} onClick={() => onChange(o.id)}
-          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed ${value === o.id ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/10' : 'text-zinc-500 hover:text-white'}`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed ${value === o.id ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/10' : 'text-zinc-400 hover:text-white'}`}
         >
           {o.label}
         </button>
@@ -463,15 +463,15 @@ const TipRow: React.FC<{ color: string; label: string; value: number; dashed?: b
   <div className="flex items-center justify-between gap-8">
     <div className="flex items-center gap-2">
       <span className="w-2 h-2 rounded-full" style={dashed ? { border: `1.5px dashed ${color}` } : { backgroundColor: color }} />
-      <span className="text-[10px] font-bold text-zinc-300 uppercase">{label}</span>
+      <span className="text-xs font-semibold text-zinc-300">{label}</span>
     </div>
-    <span className="text-xs font-serif font-bold text-white">{brl.format(value)}</span>
+    <span className="text-xs font-sans font-bold text-white">{brl.format(value)}</span>
   </div>
 );
 
 const TipBox: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="bg-zinc-950 border border-white/10 px-5 py-4 rounded-[1.5rem] shadow-2xl backdrop-blur-md min-w-[180px]">
-    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-3 border-b border-white/5 pb-2">{title}</p>
+    <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-[0.1em] mb-3 border-b border-white/5 pb-2">{title}</p>
     <div className="space-y-2">{children}</div>
   </div>
 );
@@ -528,11 +528,11 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
   ];
 
   const chipRow = (
-    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5 sm:gap-2">
       {chips.map(c => (
         <button
           key={c.id} onClick={() => onQuickRange(c.range)}
-          className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest whitespace-nowrap border transition-all duration-300 ${quickActive[c.id] ? 'bg-luxury-gold text-black border-luxury-gold shadow-lg shadow-luxury-gold/10' : 'bg-white/[0.03] border-white/5 text-zinc-500 hover:text-white hover:bg-white/5'}`}
+          className={`px-1 sm:px-4 py-2.5 sm:py-2 rounded-full text-xs font-semibold whitespace-nowrap border transition-all duration-300 ${quickActive[c.id] ? 'bg-luxury-gold text-black border-luxury-gold shadow-lg shadow-luxury-gold/10' : 'bg-white/[0.03] border-white/5 text-zinc-400 hover:text-white hover:bg-white/5'}`}
         >
           {c.label}
         </button>
@@ -550,7 +550,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
             <h3 className="text-2xl font-serif text-white tracking-tight">Sem compras em {a.rg.title}</h3>
             <p className="text-sm text-zinc-500 max-w-sm leading-relaxed">Escolha outro período acima ou registre uma compra para ver as análises aqui.</p>
             {onAddManual && (
-              <button onClick={onAddManual} className="mt-2 px-6 py-3 rounded-xl bg-luxury-gold text-black text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2 shadow-lg shadow-luxury-gold/10">
+              <button onClick={onAddManual} className="mt-2 px-6 py-3 rounded-xl bg-luxury-gold text-black text-sm font-bold hover:bg-white transition-all flex items-center gap-2 shadow-lg shadow-luxury-gold/10">
                 <Plus className="w-4 h-4" /> Novo lançamento
               </button>
             )}
@@ -581,9 +581,9 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
       {/* ── HERO ─────────────────────────────────────────────── */}
       <Reveal i={1}>
         <Card glow="gold">
-          <div className="flex items-start justify-between gap-3 mb-5">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-3 mb-5">
             <div className="min-w-0">
-              <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold mb-1 flex items-center gap-2">
+              <h3 className="text-[11px] text-zinc-400 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
                 <Zap className="w-3 h-3 text-luxury-gold" /> Gasto no período
               </h3>
               <p className="text-xs text-zinc-500">{a.rg.title}</p>
@@ -619,7 +619,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
             </ResponsiveContainer>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-2 text-[10px] text-zinc-500">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-2 text-xs text-zinc-500">
             <span className="inline-flex items-center gap-2"><span className="w-4 h-[2px] bg-luxury-gold rounded-full" /> Este período</span>
             <span className="inline-flex items-center gap-2"><span className="w-4 border-t-2 border-dashed border-zinc-500" /> {cap(a.rg.prevLabel)}</span>
             {mode === 'acum' && a.projection !== null && <span className="inline-flex items-center gap-2"><span className="w-4 border-t-2 border-dotted border-luxury-gold" /> Projeção</span>}
@@ -632,7 +632,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
               { label: 'Média por dia', value: brl.format(a.total / a.spanDays) },
             ].map((s, i) => (
               <div key={s.label} className={`min-w-0 ${i > 0 ? 'border-l border-white/5 pl-4' : ''}`}>
-                <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-bold mb-1 truncate">{s.label}</p>
+                <p className="text-xs text-zinc-400 font-medium mb-1 leading-tight">{s.label}</p>
                 <p className="text-base md:text-2xl font-serif font-bold text-white tracking-tight truncate">{s.value}</p>
               </div>
             ))}
@@ -690,9 +690,9 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-10">
-                  <span className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 font-bold max-w-full truncate">{focus ? focus.name : 'Total em itens'}</span>
+                  <span className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold max-w-full truncate">{focus ? focus.name : 'Total em itens'}</span>
                   <span className="text-lg font-serif font-bold text-white tracking-tight">{brl0.format(focus ? focus.value : a.deptTotal)}</span>
-                  {focus && <span className="text-[10px] text-zinc-500 font-bold">{Math.round(focus.share)}% do total</span>}
+                  {focus && <span className="text-xs text-zinc-500 font-bold">{Math.round(focus.share)}% do total</span>}
                 </div>
               </div>
 
@@ -707,13 +707,13 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                     <div className="flex items-center justify-between gap-3 mb-1.5">
                       <span className="flex items-center gap-2 min-w-0">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                        <span className="text-xs font-serif font-bold text-white uppercase tracking-wide truncate">{d.name}</span>
+                        <span className="text-xs font-sans font-bold text-white uppercase tracking-wide truncate">{d.name}</span>
                       </span>
                       <span className="flex items-center gap-2 shrink-0">
                         {d.delta !== null && Math.abs(d.delta) >= 5 && (
-                          <span className={`text-[10px] font-bold ${d.delta > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{d.delta > 0 ? '▲' : '▼'} {Math.abs(Math.round(d.delta))}%</span>
+                          <span className={`text-xs font-bold ${d.delta > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{d.delta > 0 ? '▲' : '▼'} {Math.abs(Math.round(d.delta))}%</span>
                         )}
-                        <span className="text-xs font-serif font-bold text-white">{brl0.format(d.value)}</span>
+                        <span className="text-xs font-sans font-bold text-white">{brl0.format(d.value)}</span>
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
@@ -744,7 +744,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                     content={(p: any) => p.active && p.payload?.length ? (
                       <TipBox title={cap(p.payload[0].payload.long)}>
                         <TipRow color="#D4AF37" label="Gasto" value={p.payload[0].payload.value} />
-                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{p.payload[0].payload.count} {p.payload[0].payload.count === 1 ? 'compra' : 'compras'}</p>
+                        <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-[0.08em]">{p.payload[0].payload.count} {p.payload[0].payload.count === 1 ? 'compra' : 'compras'}</p>
                       </TipBox>
                     ) : null}
                   />
@@ -771,13 +771,13 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                     style={{ width: 'calc(100% + 1.5rem)' }}
                   >
                     <div className="flex items-center justify-between gap-3 mb-1">
-                      <span className="text-sm font-semibold text-white truncate capitalize">{nice(s.name).toLowerCase()}</span>
+                      <span className="text-sm font-semibold text-white line-clamp-2 break-words leading-snug capitalize">{nice(s.name).toLowerCase()}</span>
                       <span className="flex items-center gap-1 shrink-0">
-                        <span className="text-sm font-serif font-bold text-white">{brl.format(s.total)}</span>
+                        <span className="text-sm font-sans font-bold text-white">{brl.format(s.total)}</span>
                         <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-luxury-gold group-hover:translate-x-0.5 transition-all" />
                       </span>
                     </div>
-                    <p className="text-[11px] text-zinc-500 mb-2">{s.n} {s.n === 1 ? 'compra' : 'compras'} · ticket {brl.format(s.ticket)} · {Math.round(s.share)}% do gasto</p>
+                    <p className="text-xs text-zinc-500 mb-2">{s.n} {s.n === 1 ? 'compra' : 'compras'} · ticket {brl.format(s.ticket)} · {Math.round(s.share)}% do gasto</p>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                       <div className="h-full rounded-full bg-blue-500 transition-[width] duration-1000 ease-out" style={{ width: ready ? `${(s.total / maxStore) * 100}%` : '0%', transitionDelay: `${i * 70}ms` }} />
                     </div>
@@ -785,7 +785,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                 </li>
               ))}
             </ul>
-            {a.storesAll > a.stores.length && <p className="mt-3 text-[11px] text-zinc-500">e mais {a.storesAll - a.stores.length} {a.storesAll - a.stores.length === 1 ? 'lugar' : 'lugares'}</p>}
+            {a.storesAll > a.stores.length && <p className="mt-3 text-xs text-zinc-500">e mais {a.storesAll - a.stores.length} {a.storesAll - a.stores.length === 1 ? 'lugar' : 'lugares'}</p>}
           </Card>
         </Reveal>
 
@@ -801,7 +801,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
               <div className="space-y-6">
                 {[{ title: 'Subiram', list: a.rose, up: true }, { title: 'Caíram', list: a.fell, up: false }].filter(g => g.list.length > 0).map(g => (
                   <div key={g.title}>
-                    <p className={`text-[10px] font-bold uppercase tracking-[0.3em] mb-3 flex items-center gap-2 ${g.up ? 'text-red-500' : 'text-emerald-500'}`}>
+                    <p className={`text-[11px] font-bold uppercase tracking-[0.1em] mb-3 flex items-center gap-2 ${g.up ? 'text-red-500' : 'text-emerald-500'}`}>
                       {g.up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />} {g.title}
                     </p>
                     <ul className="space-y-2">
@@ -809,7 +809,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                         <li key={m.desc + m.store} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-white truncate capitalize">{m.desc.toLowerCase()}</p>
-                            <p className="text-[11px] text-zinc-500 truncate"><span className="capitalize">{nice(m.store).toLowerCase()}</span> · {brl.format(m.from)} para {brl.format(m.to)}</p>
+                            <p className="text-xs text-zinc-500 truncate"><span className="capitalize">{nice(m.store).toLowerCase()}</span> · {brl.format(m.from)} para {brl.format(m.to)}</p>
                           </div>
                           <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${g.up ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
                             {g.up ? '+' : '−'}{Math.abs(Math.round(m.pct))}%

@@ -99,13 +99,13 @@ const EstablishmentsMapView: React.FC<EstablishmentsMapViewProps> = ({
           <ChevronLeft className="w-6 h-6 md:w-7 md:h-7" />
         </button>
         <div className="min-w-0">
-          <span className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold block mb-1">Geolocalização</span>
+          <span className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold block mb-1">Geolocalização</span>
           <h2 className="text-2xl md:text-4xl font-serif text-white tracking-tighter uppercase truncate">Mapa de Compras</h2>
         </div>
       </div>
 
       {isGeocoding && (
-        <div className="flex items-center gap-3 mb-4 px-5 py-3 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/20 text-luxury-gold text-[11px] font-bold">
+        <div className="flex items-center gap-3 mb-4 px-5 py-3 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/20 text-luxury-gold text-xs font-bold">
           <Loader2 className="w-4 h-4 animate-spin shrink-0" />
           Localizando estabelecimentos ({progress.done}/{progress.total})… um por vez, para respeitar o serviço gratuito do OpenStreetMap.
         </div>
@@ -147,7 +147,7 @@ const EstablishmentsMapView: React.FC<EstablishmentsMapViewProps> = ({
       </div>
 
       <div className="mt-6 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-        <div className="flex items-center gap-2 text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
+        <div className="flex items-center gap-2 text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold">
           <MapPin className="w-3.5 h-3.5 text-luxury-gold" /> {located.length} localizado(s)
           {notFound.length > 0 && <span className="text-zinc-700">· {notFound.length} sem endereço reconhecido</span>}
         </div>
@@ -160,7 +160,7 @@ const EstablishmentsMapView: React.FC<EstablishmentsMapViewProps> = ({
               setTimeout(runGeocoding, 0);
             }}
             disabled={isGeocoding}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:border-luxury-gold/40 transition-all disabled:opacity-40"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-40"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isGeocoding ? 'animate-spin' : ''}`} /> Tentar localizar novamente
           </button>
@@ -169,10 +169,10 @@ const EstablishmentsMapView: React.FC<EstablishmentsMapViewProps> = ({
 
       {notFound.length > 0 && (
         <div className="mt-6 p-5 rounded-2xl bg-white/[0.02] border border-white/5">
-          <h4 className="text-[9px] uppercase tracking-[0.3em] text-zinc-600 font-bold mb-3">Sem localização encontrada</h4>
+          <h4 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-3">Sem localização encontrada</h4>
           <div className="flex flex-wrap gap-2">
             {notFound.map(e => (
-              <span key={e.cnpj} className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 text-[10px] text-zinc-400 font-bold uppercase truncate max-w-[220px]">
+              <span key={e.cnpj} className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 text-[11px] text-zinc-400 font-bold uppercase truncate max-w-[220px]">
                 {e.aliasName || e.originalName}
               </span>
             ))}

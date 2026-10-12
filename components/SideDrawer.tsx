@@ -62,8 +62,8 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView,
               <span className="font-serif font-bold text-black text-lg">PD</span>
             </div>
             <div className="min-w-0">
-              <h2 className="font-serif text-base font-bold text-white truncate">Eukasconta</h2>
-              <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+              <h2 className="font-sans text-base font-bold text-white truncate">Eukasconta</h2>
+              <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-400">
                 <Sparkles className="w-2.5 h-2.5 text-luxury-gold" /> {PROVIDER_LABEL[activeProvider] || activeProvider}
               </span>
             </div>
@@ -76,7 +76,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView,
         <nav className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
           {SECTIONS.map(section => (
             <div key={section.title}>
-              <h3 className="px-3 mb-2 text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">{section.title}</h3>
+              <h3 className="px-3 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500">{section.title}</h3>
               <div className="space-y-1">
                 {section.items.map(item => {
                   const isActive = view === item.id;

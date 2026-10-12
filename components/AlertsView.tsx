@@ -149,7 +149,7 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
       <button onClick={onBack} className="p-2 -ml-2 rounded-xl text-zinc-500 hover:text-luxury-gold transition-colors" aria-label="Voltar"><ChevronLeft className="w-5 h-5" /></button>
       <div>
         <h2 className="text-3xl md:text-5xl font-serif text-white tracking-tighter uppercase">Avisos</h2>
-        <p className="text-zinc-500 text-[10px] tracking-[0.3em] uppercase opacity-70 mt-1">Preços menores perto de você</p>
+        <p className="text-zinc-500 text-[11px] tracking-[0.1em] uppercase opacity-70 mt-1">Preços menores perto de você</p>
       </div>
     </div>
   );
@@ -158,11 +158,11 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
     return (
       <div className="animate-in fade-in duration-500 max-w-3xl mx-auto pb-20">
         {header}
-        <div className="p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] text-center space-y-5">
+        <div className="p-5 sm:p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] text-center space-y-5">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center"><Bell className="w-6 h-6 text-luxury-gold" /></div>
           <p className="text-sm text-zinc-400 leading-relaxed max-w-sm mx-auto">Entre na sua conta para receber avisos quando alguém comprar mais barato perto de você, e para criar alertas de preço.</p>
           {cloud.available && (
-            <button onClick={onGoToAccount} className="inline-flex items-center gap-2 px-6 py-4 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-widest hover:bg-white transition-all">
+            <button onClick={onGoToAccount} className="inline-flex items-center gap-2 px-6 py-4 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all">
               <UserRound className="w-4 h-4" /> Entrar ou criar conta
             </button>
           )}
@@ -177,26 +177,26 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
 
       <div className="grid grid-cols-2 bg-white/5 p-1 rounded-2xl border border-white/5 mb-6 gap-1">
         <button onClick={() => setTab('avisos')} data-testid="tab-avisos"
-          className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${tab === 'avisos' ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
-          <Bell className="w-4 h-4" /> Avisos{cloud.unread > 0 && <span className={`px-2 py-0.5 rounded-full text-[9px] ${tab === 'avisos' ? 'bg-black text-luxury-gold' : 'bg-luxury-gold text-black'}`}>{cloud.unread}</span>}
+          className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${tab === 'avisos' ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
+          <Bell className="w-4 h-4" /> Avisos{cloud.unread > 0 && <span className={`px-2 py-0.5 rounded-full text-xs ${tab === 'avisos' ? 'bg-black text-luxury-gold' : 'bg-luxury-gold text-black'}`}>{cloud.unread}</span>}
         </button>
         <button onClick={() => setTab('alertas')} data-testid="tab-alertas"
-          className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${tab === 'alertas' ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
-          <BellRing className="w-4 h-4" /> Meus alertas{cloud.alerts.length > 0 && <span className={`px-2 py-0.5 rounded-full text-[9px] ${tab === 'alertas' ? 'bg-black text-luxury-gold' : 'bg-white/10 text-zinc-300'}`}>{cloud.alerts.length}</span>}
+          className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${tab === 'alertas' ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
+          <BellRing className="w-4 h-4" /> Meus alertas{cloud.alerts.length > 0 && <span className={`px-2 py-0.5 rounded-full text-xs ${tab === 'alertas' ? 'bg-black text-luxury-gold' : 'bg-white/10 text-zinc-300'}`}>{cloud.alerts.length}</span>}
         </button>
       </div>
 
       {tab === 'avisos' && (
         <div className="space-y-3" data-testid="notifications">
           {cloud.notifications.length === 0 ? (
-            <div className="p-10 text-center bg-white/[0.02] border border-white/5 rounded-[2rem]">
+            <div className="p-6 sm:p-10 text-center bg-white/[0.02] border border-white/5 rounded-[2rem]">
               <p className="text-sm text-zinc-500 leading-relaxed">Nenhum aviso ainda. Quando alguém comprar mais barato perto de onde você compra — ou um alerta seu bater — aparece aqui.</p>
             </div>
           ) : (
             <>
               {unreadIds.length > 0 && (
                 <div className="flex justify-end">
-                  <button onClick={() => cloud.markRead()} className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-zinc-500 hover:text-luxury-gold transition-colors"><Check className="w-3.5 h-3.5" /> Marcar todos como lidos</button>
+                  <button onClick={() => cloud.markRead()} className="flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] font-bold text-zinc-500 hover:text-luxury-gold transition-colors"><Check className="w-3.5 h-3.5" /> Marcar todos como lidos</button>
                 </div>
               )}
               {cloud.notifications.map((n: CloudNotification) => {
@@ -214,10 +214,10 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
                       </div>
                       <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">{n.body}</p>
                       {(n.payload?.address || n.payload?.city) && (
-                        <p className="text-[11px] text-zinc-600 mt-1.5 flex items-start gap-1.5"><MapPin className="w-3 h-3 shrink-0 mt-0.5" />{[n.payload.address, n.payload.city].filter(Boolean).join(' · ')}</p>
+                        <p className="text-xs text-zinc-500 mt-1.5 flex items-start gap-1.5"><MapPin className="w-3 h-3 shrink-0 mt-0.5" />{[n.payload.address, n.payload.city].filter(Boolean).join(' · ')}</p>
                       )}
                       <div className="flex items-center justify-between mt-3">
-                        <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">{timeAgo(n.created_at)}</span>
+                        <span className="text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">{timeAgo(n.created_at)}</span>
                         <button onClick={ev => { ev.stopPropagation(); cloud.removeNotification(n.id); }} className="p-1.5 text-zinc-600 hover:text-red-400 transition-colors" aria-label="Apagar aviso"><X className="w-4 h-4" /></button>
                       </div>
                     </div>
@@ -233,7 +233,7 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
         <div className="space-y-4">
           {!formOpen && (
             <button onClick={() => { resetForm(); setFormOpen(true); }} data-testid="new-alert"
-              className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-widest hover:bg-white transition-all">
+              className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all">
               <Plus className="w-4 h-4" /> Novo alerta
             </button>
           )}
@@ -246,7 +246,7 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Produto</label>
+                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em] mb-2">Produto</label>
                 {product ? (
                   <div className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl bg-luxury-gold/10 border border-luxury-gold/30">
                     <span className="text-sm text-white font-bold truncate" data-testid="picked-product">{titleCase(product.label)}</span>
@@ -266,13 +266,13 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
                           <button key={h.id} type="button" onClick={() => { setProduct({ id: h.id, label: h.description, unit: h.unit_type }); setUnit(h.unit_type || 'UN'); setHits([]); }}
                             className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left bg-black/30 hover:bg-white/5 transition-colors">
                             <span className="text-sm text-zinc-200 truncate">{titleCase(h.description)}</span>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 shrink-0">{h.unit_type}</span>
+                            <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-500 shrink-0">{h.unit_type}</span>
                           </button>
                         ))}
                       </div>
                     )}
                     {!searching && query.trim().length >= 2 && hits.length === 0 && (
-                      <p className="text-xs text-zinc-600 mt-2">Nada encontrado no cadastro comum ainda. Ele cresce a cada cupom escaneado.</p>
+                      <p className="text-xs text-zinc-500 mt-2">Nada encontrado no cadastro comum ainda. Ele cresce a cada cupom escaneado.</p>
                     )}
                   </>
                 )}
@@ -280,35 +280,35 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Unidade</label>
+                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em] mb-2">Unidade</label>
                   <select value={unit} onChange={e => setUnit(e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl py-4 px-3 text-sm text-zinc-100 focus:border-luxury-gold/50 outline-none">
                     {Array.from(new Set([unit, ...UNITS])).map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Até (R$)</label>
+                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em] mb-2">Até (R$)</label>
                   <input value={maxP} onChange={e => setMaxP(e.target.value)} inputMode="decimal" placeholder="22,00" data-testid="max-price"
                     className="w-full bg-black/60 border border-white/10 rounded-xl py-4 px-3 text-sm text-zinc-100 focus:border-luxury-gold/50 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">De (R$)</label>
+                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em] mb-2">De (R$)</label>
                   <input value={minP} onChange={e => setMinP(e.target.value)} inputMode="decimal" placeholder="opcional" data-testid="min-price"
                     className="w-full bg-black/60 border border-white/10 rounded-xl py-4 px-3 text-sm text-zinc-100 focus:border-luxury-gold/50 outline-none" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Onde</label>
+                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em] mb-2">Onde</label>
                 <div className="grid grid-cols-2 bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
-                  <button type="button" onClick={() => setWhere('any')} className={`py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${where === 'any' ? 'bg-luxury-gold text-black' : 'text-zinc-500 hover:text-white'}`}>Qualquer lugar</button>
-                  <button type="button" onClick={() => setWhere('near')} data-testid="where-near" className={`flex items-center justify-center gap-1.5 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${where === 'near' ? 'bg-luxury-gold text-black' : 'text-zinc-500 hover:text-white'}`}><MapPin className="w-3.5 h-3.5" /> Perto de mim</button>
+                  <button type="button" onClick={() => setWhere('any')} className={`py-3 rounded-lg text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${where === 'any' ? 'bg-luxury-gold text-black' : 'text-zinc-500 hover:text-white'}`}>Qualquer lugar</button>
+                  <button type="button" onClick={() => setWhere('near')} data-testid="where-near" className={`flex items-center justify-center gap-1.5 py-3 rounded-lg text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${where === 'near' ? 'bg-luxury-gold text-black' : 'text-zinc-500 hover:text-white'}`}><MapPin className="w-3.5 h-3.5" /> Perto de mim</button>
                 </div>
                 {where === 'near' && (
                   <div className="mt-3 flex items-center gap-2 flex-wrap">
                     {RADII.map(r => (
-                      <button type="button" key={r} onClick={() => setRadius(r)} className={`px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${radius === r ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}>{r} km</button>
+                      <button type="button" key={r} onClick={() => setRadius(r)} className={`px-3.5 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.08em] border transition-all ${radius === r ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}>{r} km</button>
                     ))}
-                    <p className="w-full text-[11px] text-zinc-600 mt-1">Usa a localização de agora como centro do raio.</p>
+                    <p className="w-full text-xs text-zinc-500 mt-1">Usa a localização de agora como centro do raio.</p>
                   </div>
                 )}
               </div>
@@ -316,14 +316,14 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
               {formErr && <div className="px-5 py-4 rounded-xl bg-red-950/20 border border-red-900/30 text-red-300 text-xs" data-testid="alert-error">{formErr}</div>}
 
               <button type="submit" disabled={saving} data-testid="save-alert"
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50">
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all disabled:opacity-50">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />} Criar alerta
               </button>
             </form>
           )}
 
           {cloud.alerts.length === 0 && !formOpen ? (
-            <div className="p-10 text-center bg-white/[0.02] border border-white/5 rounded-[2rem]">
+            <div className="p-6 sm:p-10 text-center bg-white/[0.02] border border-white/5 rounded-[2rem]">
               <p className="text-sm text-zinc-500 leading-relaxed">Você ainda não tem alertas. Crie um para ser avisado quando alguém comprar um produto no preço que você quer.</p>
             </div>
           ) : (
@@ -333,7 +333,7 @@ const AlertsView: React.FC<Props> = ({ cloud, draft, onDraftConsumed, onGoToAcco
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-bold text-white truncate">{titleCase(a.label || 'Produto')}</div>
                     <div className="text-xs text-luxury-gold font-bold mt-1">{alertSummary(a)}</div>
-                    <div className="text-[11px] text-zinc-600 mt-1 flex items-center gap-1.5">
+                    <div className="text-xs text-zinc-500 mt-1 flex items-center gap-1.5">
                       <MapPin className="w-3 h-3" />{a.radius_km ? `raio de ${String(a.radius_km).replace('.', ',')} km de onde você criou o alerta` : 'qualquer lugar'}
                       {a.last_triggered_at && <span className="ml-2">· último aviso {timeAgo(a.last_triggered_at)}</span>}
                     </div>

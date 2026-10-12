@@ -68,9 +68,9 @@ const PinnedLabels: React.FC<PinnedProps> = ({ points, pins, avg, light }) => {
             <line x1={cx} x2={cx} y1={above ? cy - 6 : cy + 6} y2={above ? by + boxH : by} stroke="#D4AF37" strokeOpacity={0.6} strokeWidth={1} />
             <circle cx={cx} cy={cy} r={6} fill={bg} stroke="#D4AF37" strokeWidth={2.25} />
             <rect x={bx} y={by} width={boxW} height={boxH} rx={10} fill={bg} stroke={stroke} />
-            <text x={bx + 10} y={by + 15} fontSize={9} fontWeight={700} letterSpacing="0.06em" fill={sub}>{shortDate(p.date)}</text>
+            <text x={bx + 10} y={by + 15} fontSize={10} fontWeight={700} letterSpacing="0.04em" fill={sub}>{shortDate(p.date)}</text>
             <text x={bx + 10} y={by + 32} fontSize={14} fontWeight={700} fill="#D4AF37" fontFamily="ui-serif, Georgia, serif">{brl.format(p.price)}</text>
-            <text x={bx + 10} y={by + 44} fontSize={9} fontWeight={700} fill={pctColor(d, light)}>{fmtPct(d)} vs média</text>
+            <text x={bx + 10} y={by + 44} fontSize={10} fontWeight={700} fill={pctColor(d, light)}>{fmtPct(d)} vs média</text>
           </g>
         );
       })}
@@ -107,10 +107,10 @@ const HoverTip = ({ active, payload, pins, avg, unit }: any) => {
   const d = pctVsAvg(p.price, avg);
   return (
     <div className="bg-zinc-950 border border-white/10 px-3 py-2 rounded-xl shadow-2xl backdrop-blur-md min-w-[120px] pointer-events-none">
-      <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-[0.18em] mb-1">{shortDate(p.date)}</p>
-      <p className="text-luxury-gold font-serif text-base leading-none">{brl.format(p.price)}<span className="text-[9px] text-zinc-500 font-sans ml-1">/{unit}</span></p>
-      <p className="text-[9px] mt-1 font-bold" style={{ color: pctColor(d, false) }}>{fmtPct(d)} vs média</p>
-      <p className="text-[9px] text-zinc-500 mt-1">{num.format(p.qty)} {unit}{p.count > 1 ? ` · ${p.count} compras` : ''}</p>
+      <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-[0.1em] mb-1">{shortDate(p.date)}</p>
+      <p className="text-luxury-gold font-sans text-base leading-none">{brl.format(p.price)}<span className="text-xs text-zinc-500 font-sans ml-1">/{unit}</span></p>
+      <p className="text-xs mt-1 font-bold" style={{ color: pctColor(d, false) }}>{fmtPct(d)} vs média</p>
+      <p className="text-xs text-zinc-500 mt-1">{num.format(p.qty)} {unit}{p.count > 1 ? ` · ${p.count} compras` : ''}</p>
     </div>
   );
 };
@@ -186,14 +186,14 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
-            <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.35em] font-bold mb-1">Preço pago no período</h3>
+            <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1">Preço pago no período</h3>
             <p className="text-xs text-zinc-500 truncate">{periodTitle}</p>
           </div>
           {units.length > 1 && (
             <div className="shrink-0 inline-flex p-0.5 rounded-full bg-white/5 border border-white/10">
               {units.map(u => (
                 <button key={u} onClick={() => onUnitChange && onUnitChange(u)}
-                  className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest transition-colors ${u === unit ? 'bg-luxury-gold text-black' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${u === unit ? 'bg-luxury-gold text-black' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   {u}
                 </button>
               ))}
@@ -207,9 +207,9 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
           <>
             <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mb-4">
               <span className="text-3xl md:text-4xl font-serif font-bold tracking-tighter text-white leading-none">{brl.format(avg)}</span>
-              <span className="text-[10px] text-zinc-500 uppercase tracking-widest pb-0.5">média paga / {unit}</span>
+              <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] pb-0.5">média paga / {unit}</span>
               {points.length > 1 && last && (
-                <span className="text-[10px] font-bold pb-0.5" style={{ color: pctColor(lastDelta, light) }}>
+                <span className="text-xs font-bold pb-0.5" style={{ color: pctColor(lastDelta, light) }}>
                   última compra {fmtPct(lastDelta)} vs média
                 </span>
               )}
@@ -227,9 +227,9 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                   <XAxis dataKey="t" type="number" scale="time" domain={[view.xLo, view.xHi]} ticks={view.ticks}
                     tickFormatter={view.fmtX} axisLine={false} tickLine={false}
-                    tick={{ fill: '#71717a', fontSize: 10, fontWeight: 600 }} dy={8} />
+                    tick={{ fill: '#a1a1aa', fontSize: 11, fontWeight: 600 }} dy={8} />
                   <YAxis domain={[view.yLo, view.yHi]} ticks={view.yTicks} axisLine={false} tickLine={false} width={46}
-                    tick={{ fill: '#71717a', fontSize: 10 }}
+                    tick={{ fill: '#8b8b95', fontSize: 11 }}
                     tickFormatter={(v: number) => (v >= 100 ? String(Math.round(v)) : Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ','))} />
                   <Tooltip cursor={{ stroke: '#D4AF37', strokeOpacity: 0.35, strokeDasharray: '3 3' }} wrapperStyle={{ pointerEvents: 'none', zIndex: 20 }}
                     content={(p: any) => <HoverTip {...p} pins={pins} avg={avg} unit={unit} />} />
@@ -247,13 +247,13 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
               </ResponsiveContainer>
             </div>
 
-            <div className="flex items-center justify-between gap-3 mt-3 text-[10px] text-zinc-500">
+            <div className="flex items-center justify-between gap-3 mt-3 text-xs text-zinc-500">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="inline-flex items-center gap-2"><span className="w-4 h-[2px] bg-luxury-gold rounded-full" /> Preço pago</span>
                 <span className="inline-flex items-center gap-2"><span className="w-4 border-t-2 border-dashed" style={{ borderColor: light ? '#15803d' : '#34d399' }} /> Média do período</span>
               </div>
               {pins.length > 0 ? (
-                <button onClick={() => setPins([])} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-zinc-300 font-bold uppercase tracking-widest text-[9px] hover:border-luxury-gold/40 hover:text-luxury-gold transition-colors">
+                <button onClick={() => setPins([])} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-zinc-300 font-bold uppercase tracking-[0.08em] text-[11px] hover:border-luxury-gold/40 hover:text-luxury-gold transition-colors">
                   <X className="w-3 h-3" /> Limpar rótulos ({pins.length})
                 </button>
               ) : (

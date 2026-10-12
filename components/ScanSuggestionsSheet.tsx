@@ -30,7 +30,7 @@ const ScanSuggestionsSheet: React.FC<Props> = ({ groups, onClose, onCreateAlert 
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0"><TrendingDown className="w-5 h-5" /></div>
             <div>
               <h3 className="text-base font-bold text-white leading-tight">Dá para pagar menos aqui perto</h3>
-              <p className="text-[11px] text-zinc-500 mt-1">Preços de outras lojas, vistos nos últimos 45 dias.</p>
+              <p className="text-xs text-zinc-500 mt-1">Preços de outras lojas, vistos nos últimos 45 dias.</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 -mr-2 text-zinc-500 hover:text-white shrink-0" aria-label="Fechar"><X className="w-5 h-5" /></button>
@@ -41,24 +41,24 @@ const ScanSuggestionsSheet: React.FC<Props> = ({ groups, onClose, onCreateAlert 
             <div key={`${r.master_product_id}-${r.establishment_id}-${i}`} data-suggestion className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
               <div className="flex items-start justify-between gap-3">
                 <div className="text-sm font-bold text-white leading-snug min-w-0">{titleCase(cleanName(r.description))}</div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold shrink-0">-{r.savings_pct}%</span>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold shrink-0">-{r.savings_pct}%</span>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <div className="text-[9px] uppercase tracking-widest text-zinc-600 font-bold">Você pagou</div>
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-zinc-500 font-bold">Você pagou</div>
                   <div className="text-zinc-300 mt-1 line-through decoration-zinc-600">{brl.format(r.paid_price)}<span className="text-zinc-600">/{r.unit_type}</span></div>
-                  <div className="text-zinc-600 text-[11px] mt-0.5 truncate">{titleCase(r.store)}</div>
+                  <div className="text-zinc-500 text-xs mt-0.5 truncate">{titleCase(r.store)}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-widest text-emerald-500 font-bold">Achei por</div>
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-emerald-500 font-bold">Achei por</div>
                   <div className="text-emerald-400 font-bold mt-1">{brl.format(r.cheaper_price)}<span className="text-emerald-700 font-normal">/{r.unit_type}</span></div>
-                  <div className="text-zinc-500 text-[11px] mt-0.5 truncate">{titleCase(r.establishment_name)} · {dayMonth(r.observed_on)}</div>
+                  <div className="text-zinc-500 text-xs mt-0.5 truncate">{titleCase(r.establishment_name)} · {dayMonth(r.observed_on)}</div>
                 </div>
               </div>
               <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-white/5">
-                <span className="text-[11px] text-zinc-500 flex items-center gap-1.5 min-w-0"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{String(r.distance_km).replace('.', ',')} km{r.address ? ` · ${r.address}` : ''}</span></span>
+                <span className="text-xs text-zinc-500 flex items-center gap-1.5 min-w-0"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{String(r.distance_km).replace('.', ',')} km{r.address ? ` · ${r.address}` : ''}</span></span>
                 <button onClick={() => onCreateAlert({ master_product_id: r.master_product_id, label: cleanName(r.description), unit_type: r.unit_type, max_price: r.cheaper_price })}
-                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold text-luxury-gold hover:text-white transition-colors shrink-0">
+                  className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] font-bold text-luxury-gold hover:text-white transition-colors shrink-0">
                   <BellPlus className="w-3.5 h-3.5" /> Avisar
                 </button>
               </div>
@@ -66,7 +66,7 @@ const ScanSuggestionsSheet: React.FC<Props> = ({ groups, onClose, onCreateAlert 
           ))}
         </div>
         <div className="px-5 pb-5">
-          <button onClick={onClose} className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-widest hover:border-luxury-gold/40 transition-all">Entendi</button>
+          <button onClick={onClose} className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all">Entendi</button>
         </div>
       </div>
     </div>

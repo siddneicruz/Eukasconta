@@ -42,13 +42,13 @@ const AILearningManager: React.FC<AILearningManagerProps> = ({ learning, taxonom
     };
 
     return (
-        <div className="bg-black/40 border border-white/5 rounded-[2.5rem] p-8 shadow-2xl relative mt-8">
+        <div className="bg-black/40 border border-white/5 rounded-[2.5rem] p-5 sm:p-8 shadow-2xl relative mt-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
                     <h3 className="text-xl font-serif text-white uppercase tracking-tight flex items-center gap-3">
                         <BrainCircuit className="w-5 h-5 text-luxury-gold" /> AI Learning Vault
                     </h3>
-                    <p className="text-zinc-600 text-[9px] uppercase font-bold mt-1 tracking-widest">Base de conhecimento acumulada pela IA</p>
+                    <p className="text-zinc-500 text-[11px] uppercase font-bold mt-1 tracking-[0.08em]">Base de conhecimento acumulada pela IA</p>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -59,7 +59,7 @@ const AILearningManager: React.FC<AILearningManagerProps> = ({ learning, taxonom
                             placeholder="BUSCAR TERMO..." 
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-12 pr-6 text-[10px] text-zinc-300 focus:border-luxury-gold/40 outline-none uppercase tracking-widest font-bold"
+                            className="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-12 pr-6 text-[11px] text-zinc-300 focus:border-luxury-gold/40 outline-none uppercase tracking-[0.08em] font-bold"
                         />
                     </div>
                     <button 
@@ -76,14 +76,14 @@ const AILearningManager: React.FC<AILearningManagerProps> = ({ learning, taxonom
                 {filteredLearning.length === 0 ? (
                     <div className="col-span-full py-12 border border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center text-zinc-700 gap-3">
                         <BrainCircuit className="w-8 h-8 opacity-20" />
-                        <span className="text-[10px] uppercase tracking-widest font-bold">Nenhum aprendizado registrado</span>
+                        <span className="text-[11px] uppercase tracking-[0.08em] font-bold">Nenhum aprendizado registrado</span>
                     </div>
                 ) : (
                     filteredLearning.map((entry) => (
                         <div key={entry.keyword} className="bg-zinc-900/40 border border-white/5 p-5 rounded-2xl group hover:border-luxury-gold/30 transition-all flex flex-col justify-between">
                             <div>
                                 <div className="flex justify-between items-start mb-3">
-                                    <span className="text-xs font-bold text-zinc-200 uppercase tracking-tight font-serif">{entry.keyword}</span>
+                                    <span className="text-xs font-bold text-zinc-200 uppercase tracking-tight font-sans">{entry.keyword}</span>
                                     <button 
                                         onClick={() => handleDelete(entry.keyword)}
                                         className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-red-500 transition-all"
@@ -93,13 +93,13 @@ const AILearningManager: React.FC<AILearningManagerProps> = ({ learning, taxonom
                                 </div>
                                 <div className="flex items-center gap-2 mb-4">
                                     <Tag className="w-3 h-3 text-luxury-gold" />
-                                    <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest truncate">{getCategoryName(entry.targetNodeId)}</span>
+                                    <span className="text-[11px] text-zinc-500 uppercase font-bold tracking-[0.08em] truncate">{getCategoryName(entry.targetNodeId)}</span>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between pt-4 border-t border-white/5">
                                 <div className="flex items-center gap-2">
                                     <TrendingUp className="w-3 h-3 text-emerald-500" />
-                                    <span className="text-[10px] font-mono font-bold text-zinc-400">{entry.hitCount} acertos</span>
+                                    <span className="text-xs font-mono font-bold text-zinc-400">{entry.hitCount} acertos</span>
                                 </div>
                                 <div className="w-2 h-2 rounded-full bg-luxury-gold/20 group-hover:bg-luxury-gold transition-colors" />
                             </div>

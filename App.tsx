@@ -828,7 +828,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
             <div className="flex flex-col items-center">
                 <Loader2 className="w-12 h-12 text-luxury-gold animate-spin mb-4" />
-                <span className="text-[10px] uppercase tracking-[0.3em] text-zinc-400 font-bold">{loadingText}</span>
+                <span className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">{loadingText}</span>
             </div>
         </div>
       )}
@@ -844,7 +844,7 @@ const App: React.FC = () => {
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded bg-luxury-gold flex items-center justify-center shadow-lg"><span className="font-serif font-bold text-black text-sm md:text-lg">PD</span></div>
                 <div className="flex flex-col">
                     <h1 className="font-serif text-base md:text-lg font-bold tracking-tight">Eukasconta</h1>
-                    <span className="text-[9px] text-luxury-gold uppercase tracking-[0.2em]">Design Studio</span>
+                    <span className="text-[11px] text-luxury-gold uppercase tracking-[0.1em]">Design Studio</span>
                 </div>
             </div>
             <nav className="hidden md:flex gap-2 items-center">
@@ -996,7 +996,7 @@ const App: React.FC = () => {
                   <span className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-luxury-gold/20 border-4 border-black ${view === 'scanner' ? 'bg-white' : 'bg-luxury-gold'}`}>
                       <ScanLine className="w-6 h-6 text-black" />
                   </span>
-                  <span className={`text-[9px] font-bold uppercase tracking-wider mt-1 ${view === 'scanner' ? 'text-luxury-gold' : 'text-zinc-500'}`}>Escanear</span>
+                  <span className={`text-[11px] font-semibold mt-1 ${view === 'scanner' ? 'text-luxury-gold' : 'text-zinc-400'}`}>Escanear</span>
               </button>
               <MobileTab id="reports" label="Relatórios" icon={BarChart3} view={view} setView={setView} />
               <MobileTab id="settings" label="Config" icon={Settings} view={view} setView={setView} />
@@ -1010,12 +1010,12 @@ const App: React.FC = () => {
                   <div className="p-8 border-b border-white/5 flex flex-col md:flex-row gap-8 justify-between items-center bg-black/40">
                       <div>
                           <h3 className="text-2xl font-serif text-white uppercase tracking-tighter truncate max-w-[300px]">{selectedCategoryForIcon}</h3>
-                          <p className="text-luxury-gold text-[9px] font-bold uppercase tracking-[0.4em] mt-2">Personalização Expressa • Studio Audit</p>
+                          <p className="text-luxury-gold text-[11px] font-bold uppercase tracking-[0.1em] mt-2">Personalização Expressa • Studio Audit</p>
                       </div>
                       <div className="flex gap-4 items-center w-full md:w-auto">
                           <div className="relative flex-1 md:w-96">
                               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                              <input type="text" placeholder="Ex: carne, comida, carro, banco..." value={iconSearch} onChange={e => setIconSearch(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl py-4 pl-12 pr-6 text-xs text-zinc-200 outline-none focus:border-luxury-gold/40 uppercase tracking-widest font-bold" />
+                              <input type="text" placeholder="Ex: carne, comida, carro, banco..." value={iconSearch} onChange={e => setIconSearch(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl py-4 pl-12 pr-6 text-xs text-zinc-200 outline-none focus:border-luxury-gold/40 uppercase tracking-[0.08em] font-bold" />
                           </div>
                           <button onClick={() => { setSelectedCategoryForIcon(null); setIconSearch(''); }} className="p-4 bg-white/5 rounded-full text-zinc-400 hover:text-white transition-all"><X className="w-6 h-6" /></button>
                       </div>
@@ -1023,7 +1023,7 @@ const App: React.FC = () => {
                   
                   <div className="flex-1 overflow-y-auto p-10 custom-scrollbar space-y-12">
                       <section>
-                          <h4 className="text-[10px] uppercase tracking-[0.5em] text-zinc-600 font-bold mb-6 border-b border-white/5 pb-3">Cores de Acabamento</h4>
+                          <h4 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-6 border-b border-white/5 pb-3">Cores de Acabamento</h4>
                           <div className="flex flex-wrap gap-3">
                               {LUXURY_COLORS.map(color => (
                                   <button key={color.hex} onClick={() => handleUpdateMeta(selectedCategoryForIcon, { color: color.hex })} className={`w-10 h-10 rounded-xl border-2 transition-all hover:scale-110 shadow-lg ${getActiveMeta(selectedCategoryForIcon).color === color.hex ? 'border-white' : 'border-transparent'}`} style={{ backgroundColor: color.hex }} />
@@ -1039,7 +1039,7 @@ const App: React.FC = () => {
                                   return (
                                     <button key={name} onClick={() => handleUpdateMeta(selectedCategoryForIcon, { icon: name })} className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${getActiveMeta(selectedCategoryForIcon).icon === name ? 'border-luxury-gold bg-luxury-gold/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}>
                                         <IconComp className={`w-6 h-6 ${getActiveMeta(selectedCategoryForIcon).icon === name ? 'text-luxury-gold' : 'text-zinc-600'}`} />
-                                        <span className="text-[7px] text-zinc-700 uppercase truncate w-full text-center font-bold tracking-tighter">{name}</span>
+                                        <span className="text-[11px] text-zinc-700 uppercase truncate w-full text-center font-bold tracking-tighter">{name}</span>
                                     </button>
                                   );
                               })}
@@ -1048,7 +1048,7 @@ const App: React.FC = () => {
                           <div className="space-y-10">
                               {ICON_GROUPS.map(group => (
                                   <div key={group.name}>
-                                      <h5 className="text-[9px] uppercase tracking-[0.3em] text-zinc-500 font-bold mb-4 flex items-center gap-2">
+                                      <h5 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-4 flex items-center gap-2">
                                           <div className="w-1 h-1 rounded-full bg-luxury-gold" /> {group.name}
                                       </h5>
                                       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
@@ -1058,7 +1058,7 @@ const App: React.FC = () => {
                                               return (
                                                 <button key={name} onClick={() => handleUpdateMeta(selectedCategoryForIcon, { icon: name })} className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${getActiveMeta(selectedCategoryForIcon).icon === name ? 'border-luxury-gold bg-luxury-gold/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}>
                                                     <IconComp className={`w-6 h-6 ${getActiveMeta(selectedCategoryForIcon).icon === name ? 'text-luxury-gold' : 'text-zinc-600'}`} />
-                                                    <span className="text-[7px] text-zinc-700 uppercase truncate w-full text-center font-bold tracking-tighter">{name}</span>
+                                                    <span className="text-[11px] text-zinc-700 uppercase truncate w-full text-center font-bold tracking-tighter">{name}</span>
                                                 </button>
                                               );
                                           })}
@@ -1088,19 +1088,19 @@ const App: React.FC = () => {
 const BellButton = ({ count, active, onClick, className }: { count: number; active: boolean; onClick: () => void; className: string }) => (
     <button onClick={onClick} className={`relative ${className} transition-colors ${active ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold hover:text-luxury-gold'}`} aria-label={count > 0 ? `Avisos (${count} novos)` : 'Avisos'} data-testid="bell">
         <Bell className="w-5 h-5 md:w-4 md:h-4" />
-        {count > 0 && <span className="absolute top-1.5 right-1.5 md:top-0.5 md:right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-luxury-gold text-black text-[9px] font-bold flex items-center justify-center leading-none" data-testid="bell-count">{count > 9 ? '9+' : count}</span>}
+        {count > 0 && <span className="absolute top-1.5 right-1.5 md:top-0.5 md:right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-luxury-gold text-black text-xs font-bold flex items-center justify-center leading-none" data-testid="bell-count">{count > 9 ? '9+' : count}</span>}
     </button>
 );
 
 const MobileTab = ({ id, label, icon: Icon, view, setView }: any) => (
     <button onClick={() => setView(id)} className="flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition-transform" aria-label={label}>
-        <Icon className={`w-5 h-5 ${view === id ? 'text-luxury-gold' : 'text-zinc-500'}`} />
-        <span className={`text-[9px] font-bold uppercase tracking-wider ${view === id ? 'text-luxury-gold' : 'text-zinc-500'}`}>{label}</span>
+        <Icon className={`w-[22px] h-[22px] ${view === id ? 'text-luxury-gold' : 'text-zinc-400'}`} />
+        <span className={`text-[11px] font-semibold leading-none ${view === id ? 'text-luxury-gold' : 'text-zinc-400'}`}>{label}</span>
     </button>
 );
 
 const NavItem = ({ id, label, icon: Icon, view, setView }: any) => (
-    <button onClick={() => setView(id)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase font-bold tracking-widest transition-all ${view === id ? 'text-luxury-gold bg-luxury-gold/10 border border-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}><Icon className="w-3.5 h-3.5" /> {label}</button>
+    <button onClick={() => setView(id)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-semibold transition-all ${view === id ? 'text-luxury-gold bg-luxury-gold/10 border border-luxury-gold/20' : 'text-zinc-400 hover:text-white'}`}><Icon className="w-4 h-4" /> {label}</button>
 );
 
 export default App;

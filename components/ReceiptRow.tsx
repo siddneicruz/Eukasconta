@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
+import { titleCase } from '../services/textFormat';
 
 interface ReceiptRowProps {
   receipt: Receipt;
@@ -24,16 +25,16 @@ const ReceiptRow: React.FC<ReceiptRowProps> = ({ receipt, onClick, amountOverrid
       <Calendar className="w-4 h-4" />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[11px] text-zinc-200 font-bold uppercase tracking-wide truncate group-hover:text-luxury-gold transition-colors font-serif leading-tight">
-        {receipt.establishmentName}
+      <p className="text-sm text-zinc-100 font-semibold line-clamp-2 break-words group-hover:text-luxury-gold transition-colors font-sans leading-snug">
+        {titleCase(receipt.establishmentName)}
       </p>
-      <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">
+      <span className="text-xs text-zinc-500 tabular-nums">
         {receipt.date.split('-').reverse().join('/')} · {receipt.time || '12:00'}
-        {amountSubLabel && <span className="text-zinc-700"> · {amountSubLabel}</span>}
+        {amountSubLabel && <span className="text-zinc-400 hidden sm:inline"> · {amountSubLabel}</span>}
       </span>
     </div>
     <div className="flex items-center gap-1 shrink-0">
-      <span className="text-xs font-serif font-bold text-white">
+      <span className="text-sm font-sans font-bold text-white tabular-nums">
         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amountOverride ?? receipt.totalAmount)}
       </span>
       <ChevronRight className="w-3.5 h-3.5 text-zinc-700 group-hover:text-luxury-gold transition-colors" />

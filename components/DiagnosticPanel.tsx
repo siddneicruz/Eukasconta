@@ -40,7 +40,7 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-500 font-mono text-[10px] uppercase tracking-widest border-l border-white/10">
+        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-500 font-mono text-[11px] uppercase tracking-[0.08em] border-l border-white/10">
             
             {/* HEADER */}
             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-900/50">
@@ -52,8 +52,8 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <h2 className="text-xl font-serif text-white tracking-tight normal-case">Black Box Console</h2>
                         <div className="flex items-center gap-2 mt-0.5">
                             <div className={`w-1.5 h-1.5 rounded-full animate-pulse bg-current ${getStatusColor()}`} />
-                            <span className="text-zinc-500 text-[8px]">System Integrity: </span>
-                            <span className={`text-[8px] font-bold ${getStatusColor()}`}>
+                            <span className="text-zinc-500 text-xs">System Integrity: </span>
+                            <span className={`text-xs font-bold ${getStatusColor()}`}>
                                 {report.errorRate > 15 ? 'CRITICAL' : report.errorRate > 5 ? 'DEGRADED' : 'NOMINAL'}
                             </span>
                         </div>
@@ -112,16 +112,16 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                         }`} />
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center mb-0.5">
-                                                <span className={`text-[9px] font-bold tracking-tighter ${
+                                                <span className={`text-xs font-bold tracking-tighter ${
                                                     log.type === 'SYSTEM_ERROR' ? 'text-red-400' : 
                                                     log.type === 'API_CALL' ? 'text-blue-400' : 'text-zinc-500'
                                                 }`}>{log.type}</span>
-                                                <span className="text-zinc-700 text-[7px]">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                                                <span className="text-zinc-700 text-xs">{new Date(log.timestamp).toLocaleTimeString()}</span>
                                             </div>
-                                            <p className="text-zinc-400 normal-case leading-relaxed text-[11px] font-sans">{log.description}</p>
+                                            <p className="text-zinc-400 normal-case leading-relaxed text-xs font-sans">{log.description}</p>
                                             {log.executionTime && (
                                                 <div className="flex items-center gap-2 mt-1.5">
-                                                    <span className="text-luxury-gold bg-luxury-gold/10 px-1.5 py-0.5 rounded-[4px] text-[7px] font-bold">LATENCY: {log.executionTime}ms</span>
+                                                    <span className="text-luxury-gold bg-luxury-gold/10 px-1.5 py-0.5 rounded-[4px] text-xs font-bold">LATENCY: {log.executionTime}ms</span>
                                                 </div>
                                             )}
                                         </div>
@@ -142,7 +142,7 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
                         {/* CHARTS */}
                         <div className="bg-black/40 border border-white/5 rounded-2xl p-6">
-                            <h3 className="text-[10px] text-zinc-500 mb-6 flex items-center gap-2 uppercase tracking-[0.2em] font-bold">
+                            <h3 className="text-[11px] text-zinc-500 mb-6 flex items-center gap-2 uppercase tracking-[0.1em] font-bold">
                                 <Activity className="w-3 h-3" /> Latency Telemetry (Last 15 Calls)
                             </h3>
                             <div className="h-[200px] w-full">
@@ -172,7 +172,7 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             
             <div className="p-4 bg-black/40 border-t border-white/5 text-center">
-                <p className="text-[7px] text-zinc-600 uppercase tracking-[0.3em]">Encrypted Log Stream • Authorized Access Only</p>
+                <p className="text-[11px] text-zinc-500 uppercase tracking-[0.1em]">Encrypted Log Stream • Authorized Access Only</p>
             </div>
         </div>
     );
@@ -181,7 +181,7 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 const KPIBox = ({ icon, label, value, color }: any) => (
     <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl p-5 flex flex-col items-center justify-center text-center group hover:bg-white/[0.06] transition-all">
         <div className={`mb-3 ${color} group-hover:scale-110 transition-transform`}>{icon}</div>
-        <span className="text-[7px] text-zinc-600 mb-1 uppercase tracking-widest font-bold">{label}</span>
+        <span className="text-[11px] text-zinc-500 mb-1 uppercase tracking-[0.08em] font-bold">{label}</span>
         <span className={`text-base font-bold ${color} tracking-tighter`}>{value}</span>
     </div>
 );

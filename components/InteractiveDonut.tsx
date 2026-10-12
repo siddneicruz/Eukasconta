@@ -34,19 +34,47 @@ const RADIAN = Math.PI / 180;
 
 // Rótulo com linha-guia, no estilo "budge": nome (só a primeira palavra —
 // nomes inteiros de departamento não cabem ao redor do anel) fora da fatia,
-// ligado por um traço fino. Fatias muito pequenas não recebem rótulo, pra
-// não virar uma poluição visual de texto grudado.
-const renderOuterLabel = (props: any) => {
-  const { cx, cy, midAngle, outerRadius, percent, name } = props;
-  if (percent < 0.035) return null;
-  const radius = Number(outerRadius) + 16;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  const firstWord = String(name).trim().split(' ')[0];
+// ligado por um traço fino. Só ganham rótulo as fatias grandes e afastadas
+// umas das outras (ver pickLabeled): rótulo grudado em rótulo não dá pra ler.
+const shortName = (name: string) => {
+  const w = String(name).trim().split(/\s+/)[0] || '';
+  return w.length > 11 ? w.slice(0, 10) + '…' : w;
+};
+
+// Escolhe quais fatias recebem nome: maiores primeiro, mínimo de 5% e ao menos
+// ~17° de distância angular entre dois rótulos escolhidos.
+const pickLabeled = (data: DonutSlice[]): Set<number> => {
+  const total = data.reduce((a, d) => a + (d.value > 0 ? d.value : 0), 0);
+  const chosen = new Set<number>();
+  if (total <= 0) return chosen;
+  let acc = 0;
+  const mids = data.map(d => { const v = d.value > 0 ? d.value : 0; const mid = ((acc + v / 2) / total) * 360; acc += v; return mid; });
+  const order = data.map((_, i) => i).sort((a, b) => data[b].value - data[a].value);
+  for (const i of order) {
+    if (data[i].value / total < 0.05) break;
+    const far = [...chosen].every(j => { const d = Math.abs(mids[i] - mids[j]) % 360; return Math.min(d, 360 - d) >= 17; });
+    if (far) chosen.add(i);
+  }
+  return chosen;
+};
+
+const makeOuterLabel = (chosen: Set<number>) => (props: any) => {
+  const { cx, cy, midAngle, outerRadius, index, name } = props;
+  if (!chosen.has(index)) return null;
+  const cos = Math.cos(-midAngle * RADIAN);
+  const sin = Math.sin(-midAngle * RADIAN);
+  const r0 = Number(outerRadius) + 3;
+  const r1 = Number(outerRadius) + 12;
+  const x1 = cx + r1 * cos;
+  const y1 = cy + r1 * sin;
+  const right = cos >= 0;
   return (
-    <text x={x} y={y} fill="#a1a1aa" fontSize={10} fontWeight={600} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="pointer-events-none tracking-tight">
-      {firstWord}
-    </text>
+    <g className="pointer-events-none">
+      <polyline points={`${cx + r0 * cos},${cy + r0 * sin} ${x1},${y1} ${x1 + (right ? 6 : -6)},${y1}`} fill="none" stroke="#71717a" strokeWidth={1} />
+      <text x={x1 + (right ? 9 : -9)} y={y1} fill="#d4d4d8" fontSize={11} fontWeight={600} textAnchor={right ? 'start' : 'end'} dominantBaseline="central">
+        {shortName(name)}
+      </text>
+    </g>
   );
 };
 
@@ -63,6 +91,7 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
   const [showLabels, setShowLabels] = useState(false);
   const dragState = useRef<{ startX: number; startY: number; startRotation: number; moved: boolean; centerX: number; centerY: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const labelRenderer = React.useMemo(() => makeOuterLabel(pickLabeled(data)), [data]);
 
   const angleAt = (clientX: number, clientY: number, cx: number, cy: number) =>
     (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
@@ -116,15 +145,15 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
       <button
         onClick={(e) => { e.stopPropagation(); setShowLabels(s => !s); }}
         title={showLabels ? 'Ocultar nomes' : 'Mostrar nomes'}
-        className="absolute top-0 right-0 z-20 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-500 hover:text-luxury-gold transition-all"
+        className="absolute top-0 right-0 z-20 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-luxury-gold transition-all"
       >
-        {showLabels ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        {showLabels ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
       {(centerLabel || centerValue) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-          {centerLabel && <span className="text-[9px] uppercase tracking-[0.4em] text-zinc-500 font-bold mb-2">{centerLabel}</span>}
-          {centerValue && <span className="text-3xl md:text-4xl font-serif text-white tracking-tighter">{centerValue}</span>}
-          <div className="h-1 w-12 bg-luxury-gold/30 mt-4 rounded-full" />
+          {centerLabel && <span className="text-xs tracking-wide text-zinc-400 font-medium mb-1.5">{centerLabel}</span>}
+          {centerValue && <span className="text-2xl sm:text-3xl md:text-4xl font-serif text-white tracking-tight">{centerValue}</span>}
+          <div className="h-1 w-10 bg-luxury-gold/30 mt-3 rounded-full" />
         </div>
       )}
       <ResponsiveContainer width="100%" height="100%" className="z-10 relative">
@@ -133,8 +162,8 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={innerRadius}
-            outerRadius={outerRadius}
+            innerRadius={showLabels ? '52%' : innerRadius}
+            outerRadius={showLabels ? '68%' : outerRadius}
             paddingAngle={0}
             dataKey="value"
             stroke="none"
@@ -144,8 +173,8 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
             animationDuration={600}
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
-            label={showLabels ? renderOuterLabel : false}
-            labelLine={showLabels ? { stroke: '#52525b', strokeWidth: 1 } : false}
+            label={showLabels ? labelRenderer : false}
+            labelLine={false}
             onMouseEnter={(_, idx) => setActiveIndex(idx)}
             onMouseLeave={() => setActiveIndex(undefined)}
             onClick={(entry) => handleSliceClick(entry)}

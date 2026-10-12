@@ -28,6 +28,8 @@ import {
     Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
+import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
+import { titleCase } from '../services/textFormat';
 
 interface DashboardProps {
   receipts: Receipt[];
@@ -364,9 +366,9 @@ const CustomTooltip = ({ active, payload }: any) => {
         const data = payload[0].payload;
         return (
             <div className="bg-zinc-950 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
-                <p className="text-luxury-gold text-[10px] font-bold uppercase tracking-widest mb-2 border-b border-white/5 pb-2">{data.name || data.label}</p>
+                <p className="text-luxury-gold text-xs font-bold mb-2 border-b border-white/5 pb-2">{data.name || data.label}</p>
                 <p className="text-white font-serif text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
-                {data.percentage && <p className="text-zinc-500 text-[9px] uppercase tracking-widest mt-1">{data.percentage.toFixed(1)}% do Capital</p>}
+                {data.percentage && <p className="text-zinc-400 text-xs mt-1">{data.percentage.toFixed(1).replace('.', ',')}% do total</p>}
             </div>
         );
     }
@@ -519,7 +521,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 <select 
                     value={config.category || ''} 
                     onChange={(e) => onConfigChange({ ...config, category: e.target.value || null })} 
-                    className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-widest w-full md:w-auto md:max-w-[150px] ls:w-auto ls:max-w-[130px] truncate"
+                    className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-[0.08em] w-full md:w-auto md:max-w-[150px] ls:w-auto ls:max-w-[130px] truncate"
                 >
                     <option value="" className="bg-black">TODAS CATEGORIAS</option>
                     {availableMasterCategories.map(cat => <option key={cat} value={cat} className="bg-black text-white">{cat}</option>)}
@@ -530,12 +532,12 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 <div className="order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-4 animate-in slide-in-from-left-2">
                     <div className="relative flex-1 min-w-0">
                         <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
-                        <input type="date" value={config.customStartDate} onChange={e => onConfigChange({...config, customStartDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-6 pr-1 text-[9px] text-zinc-300 outline-none focus:border-luxury-gold/40" />
+                        <input type="date" value={config.customStartDate} onChange={e => onConfigChange({...config, customStartDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
                     </div>
                     <span className="text-zinc-700 font-bold text-xs shrink-0">A</span>
                     <div className="relative flex-1 min-w-0">
                         <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
-                        <input type="date" value={config.customEndDate} onChange={e => onConfigChange({...config, customEndDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-6 pr-1 text-[9px] text-zinc-300 outline-none focus:border-luxury-gold/40" />
+                        <input type="date" value={config.customEndDate} onChange={e => onConfigChange({...config, customEndDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
                     </div>
                 </div>
             ) : (
@@ -545,7 +547,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                         <select 
                             value={config.year} 
                             onChange={(e) => onConfigChange({ ...config, year: Number(e.target.value) })} 
-                            className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-widest"
+                            className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-[0.08em]"
                         >
                             {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-black text-white">{y}</option>)}
                         </select>
@@ -553,12 +555,12 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                     <div className="order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 flex items-center justify-start md:justify-between gap-1 px-2 md:px-4 overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => onConfigChange({ ...config, month: null, quickFilter: null })} 
-                            className={`px-4 py-2 rounded-full text-[10px] font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
                         >
                             ANUAL
                         </button>
                         {MONTHS_SHORT.map((m, idx) => (
-                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-3 py-2 rounded-full text-[10px] font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-600 hover:text-zinc-300'}`}>
+                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                 {m}
                             </button>
                         ))}
@@ -567,8 +569,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
             )}
 
             <div className="order-3 md:order-4 ls:order-4 flex items-center gap-2 px-2 md:px-4 md:border-l ls:border-l border-white/10 shrink-0">
-                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === '7d' ? null : '7d', month: null })} className={`px-4 py-2 rounded-xl text-[9px] font-bold border transition-all ${config.quickFilter === '7d' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'border-white/5 text-zinc-600'}`}>7 DIAS</button>
-                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-[9px] font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-600'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">PERÍODO</span></button>
+                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === '7d' ? null : '7d', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${config.quickFilter === '7d' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'border-white/5 text-zinc-500'}`}>7 DIAS</button>
+                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">PERÍODO</span></button>
                 {(config.category || config.month !== null || config.quickFilter) && (
                     <button
                         onClick={() => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null })}
@@ -594,23 +596,23 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           <div className="absolute top-0 right-0 w-96 h-96 bg-luxury-gold/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
           <div className="flex justify-between items-center mb-4 md:mb-8 relative z-10">
               <div className="flex flex-col">
-                  <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold mb-1 flex items-center gap-2">
+                  <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
                       <LineChart className="w-3 h-3 text-luxury-gold" /> Evolução de Gastos
                   </h3>
                   <span className="text-2xl font-serif text-white tracking-tighter">Timeline do Estúdio</span>
               </div>
           </div>
-          <div className="h-[170px] md:h-[280px] w-full relative z-10">
+          <div className="h-[200px] md:h-[280px] w-full relative z-10">
               <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={evolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <AreaChart data={evolutionData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                       <defs>
                           <linearGradient id="colorDashboard" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.25}/><stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/>
                           </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10, fontWeight: 'bold' }} dy={15} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10 }} tickFormatter={(val) => `R$${val}`} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTickX} dy={8} />
+                      <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
                       <Tooltip content={<CustomTooltip />} />
                       <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={3} fillOpacity={1} fill="url(#colorDashboard)" animationDuration={2000} dot={{ r: 4, fill: '#000', stroke: '#D4AF37', strokeWidth: 2 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} />
                   </AreaChart>
@@ -642,7 +644,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               {config.establishment && (
                   <button
                     onClick={() => onConfigChange({ ...config, establishment: null })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[9px] font-bold uppercase tracking-wide hover:bg-luxury-gold/20 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[11px] font-bold uppercase tracking-wide hover:bg-luxury-gold/20 transition-all"
                   >
                       {cleanEstablishmentLabel(config.establishment)} <span className="opacity-60">✕</span>
                   </button>
@@ -654,7 +656,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                   <BarChart
                       data={establishmentData.slice(0, 8)}
                       layout="vertical"
-                      margin={{ top: 0, right: 24, left: 0, bottom: 0 }}
+                      margin={{ top: 0, right: 64, left: 0, bottom: 0 }}
                       barCategoryGap={6}
                   >
                       <XAxis type="number" hide />
@@ -674,30 +676,28 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                               <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer transition-all" style={{ filter: hoveredEstIdx === index ? 'brightness(1.15)' : undefined }} />
                           ))}
                           <LabelList
-                              dataKey="name"
-                              position="insideLeft"
-                              content={({ x, y, width, height, value, index }: any) => (
-                                  // Sobretom sutil (branco a 20% de opacidade) sobre a própria cor da
-                                  // barra — quase invisível em repouso, e ganha destaque no hover.
-                                  <text
-                                      x={Number(x) + 10}
-                                      y={Number(y) + Number(height) / 2}
-                                      dy={4}
-                                      fill="#fff"
-                                      fillOpacity={hoveredEstIdx === index ? 0.95 : 0.2}
-                                      fontSize={11}
-                                      fontWeight={600}
-                                      className="tracking-tight transition-opacity duration-200 pointer-events-none"
-                                  >
-                                      {cleanEstablishmentLabel(String(value))}
-                                  </text>
-                              )}
-                          />
-                          <LabelList
                               dataKey="value"
-                              position="right"
-                              formatter={(v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)}
-                              style={{ fill: '#a1a1aa', fontSize: 10, fontWeight: 700 }}
+                              content={({ x, y, width, height, value, index }: any) => {
+                                  const name = titleCase(cleanEstablishmentLabel(String(establishmentData[index]?.name ?? '')));
+                                  const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value));
+                                  const bx = Number(x), bw = Number(width), cy = Number(y) + Number(height) / 2;
+                                  const fits = bw >= name.length * 7 + 22;
+                                  return (
+                                      <g className="pointer-events-none">
+                                          {fits ? (
+                                              <>
+                                                  <text x={bx + 10} y={cy} dy={4} fill="#0a0a0a" fontSize={12} fontWeight={700}>{name}</text>
+                                                  <text x={bx + bw + 8} y={cy} dy={4} fill="#d4d4d8" fontSize={12} fontWeight={600}>{money}</text>
+                                              </>
+                                          ) : (
+                                              <text x={bx + bw + 8} y={cy} dy={4} fontSize={12}>
+                                                  <tspan fill="#e4e4e7" fontWeight={700}>{name}</tspan>
+                                                  <tspan fill="#a1a1aa" fontWeight={600} dx={6}>{money}</tspan>
+                                              </text>
+                                          )}
+                                      </g>
+                                  );
+                              }}
                           />
                       </Bar>
                   </BarChart>
@@ -708,7 +708,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
 
           <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3 mb-10">
-              <h3 className="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold px-1 mb-1 md:col-span-2">Departamentos</h3>
+              <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold px-1 mb-1 md:col-span-2">Departamentos</h3>
               {chartData.map((cat, idx) => {
                   const Icon = getCategoryIcon(cat.name);
                   return (
@@ -725,10 +725,10 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                               </PercentRing>
                               <div className="flex flex-col cursor-pointer min-w-0" onClick={() => onCategoryClick && onCategoryClick(cat.name)}>
                                   <span className="block text-[13px] font-semibold text-zinc-100 tracking-tight truncate" title={cat.name}>{firstWordLabel(cat.name)}</span>
-                                  <span className="text-[9px] text-zinc-600 font-mono font-bold uppercase tracking-widest mt-0.5">{cat.percentage.toFixed(1)}% do total</span>
+                                  <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{cat.percentage.toFixed(1).replace('.', ',')}% do total</span>
                               </div>
                           </div>
-                          <span className="text-sm md:text-base font-serif font-bold text-white tracking-tight z-10 shrink-0 pl-2">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(cat.value)}</span>
+                          <span className="text-sm md:text-base font-sans font-bold text-white tracking-tight z-10 shrink-0 pl-2">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(cat.value)}</span>
                       </div>
                   );
               })}
@@ -738,7 +738,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       <div className="animate-in slide-in-from-bottom-8 duration-700">
           <div className="flex items-center gap-3 mb-8 px-1">
               <History className="w-5 h-5 text-luxury-gold" />
-              <h3 className="text-zinc-300 text-xs uppercase tracking-widest font-bold">Relação de Aquisições por Fluxo</h3>
+              <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Relação de Aquisições por Fluxo</h3>
           </div>
           <div className="space-y-2">
               {filteredReceipts.slice(0, 12).map((receipt) => (
@@ -746,7 +746,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               ))}
           </div>
           {filteredReceipts.length > 12 && (
-              <button onClick={onHistoryClick} className="w-full mt-8 py-4 border border-dashed border-white/10 rounded-2xl text-[10px] font-bold text-zinc-600 uppercase tracking-[0.3em] hover:text-luxury-gold hover:border-luxury-gold/30 transition-all">
+              <button onClick={onHistoryClick} className="w-full mt-8 py-4 border border-dashed border-white/10 rounded-2xl text-[11px] font-bold text-zinc-500 uppercase tracking-[0.1em] hover:text-luxury-gold hover:border-luxury-gold/30 transition-all">
                   Ver todo o histórico auditado ({filteredReceipts.length} registros)
               </button>
           )}
@@ -756,9 +756,9 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 };
 
 const ActionButton = ({ onClick, icon: Icon, label, primary }: any) => (
-    <button onClick={onClick} className={`group flex flex-col items-center justify-center gap-4 p-8 rounded-[2.5rem] border transition-all duration-500 shadow-xl ${primary ? 'bg-luxury-gold text-black border-luxury-gold shadow-luxury-gold/10' : 'bg-white/[0.02] border-white/10 text-zinc-500 hover:text-white hover:border-white/30'}`}>
+    <button onClick={onClick} className={`group flex flex-col items-center justify-center gap-4 p-5 sm:p-8 rounded-[2.5rem] border transition-all duration-500 shadow-xl ${primary ? 'bg-luxury-gold text-black border-luxury-gold shadow-luxury-gold/10' : 'bg-white/[0.02] border-white/10 text-zinc-500 hover:text-white hover:border-white/30'}`}>
         <div className={`p-4 rounded-2xl ${primary ? 'bg-black/10' : 'bg-white/5 group-hover:bg-white/10'}`}><Icon className="w-7 h-7" /></div>
-        <span className="text-[11px] font-bold uppercase tracking-[0.4em]">{label}</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.1em]">{label}</span>
     </button>
 );
 

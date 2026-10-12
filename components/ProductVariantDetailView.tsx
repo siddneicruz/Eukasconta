@@ -50,7 +50,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         const data = payload[0].payload;
         return (
             <div className="bg-zinc-950/95 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-md z-[100]">
-                <p className="text-luxury-gold text-[10px] font-bold uppercase tracking-widest mb-2 border-b border-white/5 pb-2">
+                <p className="text-luxury-gold text-[11px] font-bold uppercase tracking-[0.08em] mb-2 border-b border-white/5 pb-2">
                     {data.name || label}
                 </p>
                 <div className="flex flex-col gap-1">
@@ -58,7 +58,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                         {brl.format(data.value)}
                     </span>
                     {data.percentage && (
-                        <span className="text-zinc-500 text-[9px] uppercase tracking-widest">
+                        <span className="text-zinc-500 text-[11px] uppercase tracking-[0.08em]">
                             {data.percentage.toFixed(1)}% do Ativo
                         </span>
                     )}
@@ -168,7 +168,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                 {React.createElement(productIcon, { className: "w-7 h-7 group-hover/headericon:scale-110 transition-transform" })}
             </div>
             <div>
-                <span className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold block mb-1">
+                <span className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold block mb-1">
                     NÍVEL 4 • PERFORMANCE DE ATIVO
                 </span>
                 <h2 className="text-4xl font-serif text-white tracking-tighter uppercase">
@@ -190,7 +190,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                   value={brl.format(priceStats.max)} sub={priceStats.maxObs ? shortDate(priceStats.maxObs.date) : ''}
                   title={priceStats.maxObs ? `${priceStats.maxObs.establishment} · ${priceStats.maxObs.unitType}` : ''} />
           </div>
-          <p className="text-[9px] text-zinc-600 text-center tracking-widest uppercase mt-2">Menor, médio e teto de todo o histórico</p>
+          <p className="text-[11px] text-zinc-500 text-center tracking-[0.08em] uppercase mt-2">Menor, médio e teto de todo o histórico</p>
       </div>
 
       {/* Evolução do preço pago, com a média do período */}
@@ -208,7 +208,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
           <div className="absolute top-0 right-0 w-80 h-80 bg-luxury-gold/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 relative z-10">
               <div className="flex flex-col">
-                <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.4em] font-bold mb-1 flex items-center gap-2">
+                <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
                     <BarChart3 className="w-3 h-3 text-luxury-gold" /> Unit Flow Intelligence
                 </h3>
                 <span className="text-2xl font-serif text-white tracking-tighter">Comparativo de Unidades</span>
@@ -238,12 +238,12 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
            <div className="flex items-center justify-between gap-3 mb-3 px-1">
               <div className="flex items-center gap-2.5 min-w-0">
                   <LayoutList className="w-4 h-4 text-luxury-gold shrink-0" />
-                  <h3 className="text-zinc-300 text-xs uppercase tracking-widest font-bold">Compras no período</h3>
+                  <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Compras no período</h3>
               </div>
-              <span className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase shrink-0">{periodRows.length} {periodRows.length === 1 ? 'compra' : 'compras'}</span>
+              <span className="text-[11px] text-zinc-500 font-bold tracking-[0.08em] uppercase shrink-0">{periodRows.length} {periodRows.length === 1 ? 'compra' : 'compras'}</span>
           </div>
           {singleStore && (
-              <p className="flex items-center gap-1.5 px-1 mb-3 text-[10px] text-zinc-500 uppercase tracking-wider">
+              <p className="flex items-center gap-1.5 px-1 mb-3 text-[11px] text-zinc-500 uppercase tracking-wider">
                   <MapPin className="w-3 h-3 text-zinc-600 shrink-0" /> <span className="truncate">Todas em {stores[0]}</span>
               </p>
           )}
@@ -258,8 +258,8 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                       return (
                           <div key={ym}>
                               <div className="flex items-center justify-between gap-3 px-4 py-2 bg-white/[0.03] border-b border-white/5">
-                                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.25em]">{monthNamePt(Number(ym.slice(5, 7)) - 1)} {ym.slice(0, 4)}</span>
-                                  <span className="text-[10px] text-zinc-500 tabular-nums">
+                                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.1em]">{monthNamePt(Number(ym.slice(5, 7)) - 1)} {ym.slice(0, 4)}</span>
+                                  <span className="text-xs text-zinc-500 tabular-nums">
                                       {rows.length} {rows.length === 1 ? 'compra' : 'compras'}{avg > 0 ? ` · média ${brl.format(avg)}` : ''}
                                   </span>
                               </div>
@@ -273,27 +273,27 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                                           className="w-full flex items-center gap-3 px-4 py-2.5 text-left border-b border-white/5 last:border-b-0 hover:bg-white/[0.04] transition-colors">
                                           <div className="w-9 shrink-0 text-center leading-none">
                                               <span className="block text-sm font-mono font-bold text-zinc-200">{r.date.slice(8, 10)}</span>
-                                              <span className="block mt-1 text-[8px] uppercase tracking-widest text-zinc-600">{weekday(r.date)}</span>
+                                              <span className="block mt-1 text-[11px] uppercase tracking-[0.08em] text-zinc-500">{weekday(r.date)}</span>
                                           </div>
                                           <div className="flex-1 min-w-0">
                                               <p className="text-xs text-zinc-300 font-mono tabular-nums truncate">
                                                   {qtyFmt.format(r.quantity)} {u} <span className="text-zinc-600">·</span> {brl.format(r.totalPrice)}
                                               </p>
-                                              {!singleStore && <p className="text-[10px] text-zinc-600 truncate mt-0.5">{r.establishment}</p>}
+                                              {!singleStore && <p className="text-xs text-zinc-500 truncate mt-0.5">{r.establishment}</p>}
                                           </div>
                                           {(isMin || isMax) && (
-                                              <span className={`shrink-0 text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${isMin ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' : 'text-red-500 border-red-500/30 bg-red-500/10'}`}>
+                                              <span className={`shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full border ${isMin ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' : 'text-red-500 border-red-500/30 bg-red-500/10'}`}>
                                                   {isMin ? 'menor' : 'teto'}
                                               </span>
                                           )}
                                           <div className="text-right shrink-0 min-w-[74px]">
                                               <span className={`block text-sm font-mono font-bold tabular-nums ${isMin ? 'text-emerald-500' : isMax ? 'text-red-500' : 'text-white'}`}>{brl.format(r.unitPrice)}</span>
                                               {d === null || d === undefined ? (
-                                                  <span className="block text-[10px] text-zinc-700 mt-0.5">—</span>
+                                                  <span className="block text-xs text-zinc-700 mt-0.5">—</span>
                                               ) : Math.abs(d) < 0.5 ? (
-                                                  <span className="block text-[10px] text-zinc-500 mt-0.5">= igual</span>
+                                                  <span className="block text-xs text-zinc-500 mt-0.5">= igual</span>
                                               ) : (
-                                                  <span className={`inline-flex items-center justify-end gap-0.5 text-[10px] font-bold mt-0.5 ${d > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                  <span className={`inline-flex items-center justify-end gap-0.5 text-xs font-bold mt-0.5 ${d > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                                                       {d > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}{fmtDelta(d)}
                                                   </span>
                                               )}
@@ -306,7 +306,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                   })}
                   {periodRows.length > INITIAL_ROWS && (
                       <button onClick={() => setShowAll(v => !v)} data-testid="toggle-rows"
-                          className="w-full flex items-center justify-center gap-2 py-3 border-t border-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-luxury-gold hover:bg-white/[0.03] transition-colors">
+                          className="w-full flex items-center justify-center gap-2 py-3 border-t border-white/5 text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-400 hover:text-luxury-gold hover:bg-white/[0.03] transition-colors">
                           {showAll ? 'Mostrar menos' : `Mostrar mais ${periodRows.length - INITIAL_ROWS}`}
                           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAll ? 'rotate-180' : ''}`} />
                       </button>
@@ -322,10 +322,10 @@ const StripCell = ({ icon: Icon, label, value, sub, color, title }: any) => (
     <div className="px-2 py-4 text-center min-w-0" title={title || undefined}>
         <div className="flex items-center justify-center gap-1.5 mb-1.5">
             <Icon className={`w-3.5 h-3.5 ${color}`} />
-            <span className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 font-bold">{label}</span>
+            <span className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold">{label}</span>
         </div>
         <h3 className="text-lg md:text-2xl font-serif text-white leading-none">{value}</h3>
-        {sub ? <span className="text-[9px] text-zinc-500 tracking-wide block mt-1.5 truncate">{sub}</span> : null}
+        {sub ? <span className="text-xs text-zinc-500 tracking-wide block mt-1.5 truncate">{sub}</span> : null}
     </div>
 );
 
