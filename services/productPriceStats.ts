@@ -24,6 +24,24 @@ export interface PriceStats {
 export const stripAccentsUpper = (s: string): string =>
   (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
 
+// Cada mercado escreve a unidade de um jeito ("UN", "UNID", "UND", "UNIDADE"...). Para os
+// gráficos e comparações de preço isso é a mesma coisa, então a unidade é unificada na
+// LEITURA; os cupons salvos continuam exatamente como vieram.
+const UNIT_ALIASES: Record<string, string> = {
+  UN: 'UN', UND: 'UN', UNID: 'UN', UNI: 'UN', UNT: 'UN', UNIT: 'UN', UNIDADE: 'UN', UNIDADES: 'UN',
+  KG: 'KG', KGS: 'KG', KILO: 'KG', KILOS: 'KG', QUILO: 'KG', QUILOS: 'KG', QUILOGRAMA: 'KG',
+  G: 'G', GR: 'G', GRS: 'G', GRAMA: 'G', GRAMAS: 'G',
+  L: 'L', LT: 'L', LTS: 'L', LITRO: 'L', LITROS: 'L',
+  ML: 'ML', MILILITRO: 'ML', MILILITROS: 'ML',
+  PCT: 'PCT', PACOTE: 'PCT', PACOTES: 'PCT',
+  CX: 'CX', CAIXA: 'CX', CAIXAS: 'CX',
+};
+export const normalizeUnit = (raw?: string | null): string => {
+  const k = stripAccentsUpper(String(raw || '')).replace(/[^A-Z0-9]/g, '');
+  if (!k) return 'UN';
+  return UNIT_ALIASES[k] || k;
+};
+
 // normalizeProductName monta várias expressões a cada chamada; as descrições se repetem muito entre cupons.
 const genericCache = new Map<string, string>();
 const genericOf = (description: string): string => {
@@ -56,7 +74,7 @@ export const collectPriceObservations = (receipts: Receipt[], genericName: strin
       if (!(p > 0)) return;
       out.push({
         unitPrice: p,
-        unitType: (item.unitType || 'UN').toUpperCase(),
+        unitType: normalizeUnit(item.unitType),
         date: r.date,
         establishment: r.establishmentName,
         description: item.description,
@@ -160,10 +178,11 @@ const qtyOf = (i: { quantity: number }) => (Number(i.quantity) > 0 ? Number(i.qu
 export const buildPriceSeries = (items: HistoryItem[], unit?: string): PriceSeries => {
   const valid = items.filter(i => Number(i.unitPrice) > 0);
   const counts = new Map<string, number>();
-  valid.forEach(i => { const u = (i.unitType || 'UN').toUpperCase(); counts.set(u, (counts.get(u) || 0) + 1); });
+  valid.forEach(i => { const u = normalizeUnit(i.unitType); counts.set(u, (counts.get(u) || 0) + 1); });
   const units = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).map(e => e[0]);
-  const chosen = unit && counts.has(unit) ? unit : (units[0] || 'UN');
-  const sel = valid.filter(i => (i.unitType || 'UN').toUpperCase() === chosen);
+  const wanted = unit ? normalizeUnit(unit) : '';
+  const chosen = wanted && counts.has(wanted) ? wanted : (units[0] || 'UN');
+  const sel = valid.filter(i => normalizeUnit(i.unitType) === chosen);
 
   const byDay = new Map<string, { money: number; qty: number; count: number; stores: Set<string> }>();
   let money = 0, qtySum = 0;
@@ -198,7 +217,7 @@ export const computeDeltas = (items: HistoryItem[]): Map<string, number | null> 
   const last = new Map<string, number>();
   const out = new Map<string, number | null>();
   asc.forEach(i => {
-    const u = (i.unitType || 'UN').toUpperCase();
+    const u = normalizeUnit(i.unitType);
     const prev = last.get(u);
     out.set(i.key, prev && prev > 0 && i.unitPrice > 0 ? ((i.unitPrice - prev) / prev) * 100 : null);
     if (i.unitPrice > 0) last.set(u, i.unitPrice);

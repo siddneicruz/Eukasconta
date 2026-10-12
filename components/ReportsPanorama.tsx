@@ -8,6 +8,7 @@ import {
   Plus, ShoppingBag, Sparkles, Store, Tag, TrendingDown, TrendingUp, Zap,
 } from 'lucide-react';
 import { DashboardConfig, Receipt } from '../types';
+import { normalizeUnit } from '../services/productPriceStats';
 
 /* ────────────────────────────────────────────────────────────────────────────
    PANORAMA — leitura analítica do período.
@@ -283,7 +284,7 @@ function analyse(receipts: Receipt[], config: DashboardConfig, displayName: Prop
       const p = it.unitPrice || 0;
       const desc = (it.description || '').trim();
       if (!desc || p <= 0) return;
-      const k = `${desc.toUpperCase()}||${(it.unitType || 'UN').toUpperCase()}||${r.cnpj || r.establishmentName}`;
+      const k = `${desc.toUpperCase()}||${normalizeUnit(it.unitType)}||${r.cnpj || r.establishmentName}`;
       const o = obs.get(k) || { desc, store: fullName(r.establishmentName, displayName(r.establishmentName, r.cnpj)), pts: [] };
       o.pts.push({ d: r.date, p }); obs.set(k, o);
     });

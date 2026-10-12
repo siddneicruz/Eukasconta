@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Receipt, DashboardConfig } from '../types';
-import { ChevronLeft, TrendingUp, TrendingDown, DollarSign, BarChart3, MapPin, LayoutList, ArrowUpRight, ArrowDownRight, ChevronDown } from 'lucide-react';
+import { ChevronLeft, TrendingUp, TrendingDown, DollarSign, BarChart3, MapPin, LayoutList, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import * as Recharts from 'recharts';
 
 const {
@@ -15,7 +15,7 @@ import type { CloudApi } from '../services/useCloud';
 import type { AlertDraft } from './AlertsView';
 import {
   itemBelongsToProduct, collectPriceObservations, computePriceStats,
-  isDateInPeriod, periodLabel, buildPriceSeries, computeDeltas, weightedAverage, monthNamePt, HistoryItem,
+  isDateInPeriod, periodLabel, buildPriceSeries, computeDeltas, weightedAverage, monthNamePt, normalizeUnit, HistoryItem,
 } from '../services/productPriceStats';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -71,7 +71,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ genericName, subCategoryName, receipts, onBack, onSelectReceipt, config, onEditIcon, cloud, onCreateAlert, onGoToAccount }) => {
   const [unit, setUnit] = useState<string | undefined>(undefined);
-  const [showAll, setShowAll] = useState(false);
+  // Meses recolhidos na lista de compras (chave AAAA-MM). null = automático: os meses mais recentes
+  // abrem e os mais antigos começam fechados; depois que a pessoa mexe, vale o que ela escolheu.
+  const [manualCollapsed, setManualCollapsed] = useState<Set<string> | null>(null);
 
   const productIcon = useMemo(() => getCategoryIcon(genericName), [genericName]);
   const productColor = useMemo(() => getCategoryColor(genericName), [genericName]);
@@ -139,17 +141,42 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
   const singleStore = stores.length === 1;
   const hasRange = priceStats.count > 1 && priceStats.min !== priceStats.max;
 
-  // Agrupa por mês, só com as linhas visíveis.
-  const visible = showAll ? periodRows : periodRows.slice(0, INITIAL_ROWS);
+  // Agrupa por mês (do mais recente para o mais antigo); cada mês sabe sua contagem e média.
   const groups = useMemo(() => {
       const map = new Map<string, HistRow[]>();
-      visible.forEach(r => {
+      periodRows.forEach(r => {
           const k = r.date.slice(0, 7);
           if (!map.has(k)) map.set(k, []);
           map.get(k)!.push(r);
       });
-      return Array.from(map.entries());
-  }, [visible]);
+      return Array.from(map.entries()).map(([ym, rows]) => {
+          const units = new Set(rows.map(r => normalizeUnit(r.unitType)));
+          return { ym, rows, avg: units.size === 1 ? weightedAverage(rows) : 0 };
+      });
+  }, [periodRows]);
+
+  // Automático: abre os meses até juntar INITIAL_ROWS compras; o resto começa recolhido (o título do mês continua à vista).
+  const autoCollapsed = useMemo(() => {
+      const set = new Set<string>();
+      let shown = 0;
+      groups.forEach(g => {
+          if (shown >= INITIAL_ROWS) set.add(g.ym); else shown += g.rows.length;
+      });
+      return set;
+  }, [groups]);
+  const collapsed = manualCollapsed ?? autoCollapsed;
+
+  // trocar de produto ou de período volta ao automático
+  useEffect(() => { setManualCollapsed(null); },
+      [genericName, subCategoryName, config.year, config.month, config.quickFilter, config.customStartDate, config.customEndDate]);
+
+  const toggleMonth = (ym: string) => {
+      const next = new Set(collapsed);
+      if (next.has(ym)) next.delete(ym); else next.add(ym);
+      setManualCollapsed(next);
+  };
+  const allCollapsed = groups.length > 0 && groups.every(g => collapsed.has(g.ym));
+  const toggleAllMonths = () => setManualCollapsed(allCollapsed ? new Set() : new Set(groups.map(g => g.ym)));
 
   const fmtDelta = (d: number) => `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: Math.abs(d) >= 10 ? 0 : 1 }).format(Math.abs(d))}%`;
 
@@ -240,7 +267,17 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                   <LayoutList className="w-4 h-4 text-luxury-gold shrink-0" />
                   <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Compras no período</h3>
               </div>
-              <span className="text-[11px] text-zinc-500 font-bold tracking-[0.08em] uppercase shrink-0">{periodRows.length} {periodRows.length === 1 ? 'compra' : 'compras'}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] text-zinc-500 font-bold tracking-[0.08em] uppercase">{periodRows.length} {periodRows.length === 1 ? 'compra' : 'compras'}</span>
+                  {groups.length > 1 && (
+                      <button onClick={toggleAllMonths} data-testid="toggle-months"
+                          aria-label={allCollapsed ? 'Expandir todos os meses' : 'Recolher todos os meses'}
+                          title={allCollapsed ? 'Expandir todos os meses' : 'Recolher todos os meses'}
+                          className="w-9 h-9 -my-1 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-zinc-400 hover:text-luxury-gold hover:border-luxury-gold/30 transition-colors">
+                          {allCollapsed ? <ChevronsUpDown className="w-4 h-4" /> : <ChevronsDownUp className="w-4 h-4" />}
+                      </button>
+                  )}
+              </div>
           </div>
           {singleStore && (
               <p className="flex items-center gap-1.5 px-1 mb-3 text-[11px] text-zinc-500 uppercase tracking-wider">
@@ -252,19 +289,23 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
               <p className="text-xs text-zinc-500 px-1 py-6 text-center">Nenhuma compra deste item no período selecionado.</p>
           ) : (
               <div className="bg-black/60 border border-white/10 rounded-2xl overflow-hidden">
-                  {groups.map(([ym, rows]) => {
-                      const units = new Set(rows.map(r => (r.unitType || 'UN').toUpperCase()));
-                      const avg = units.size === 1 ? weightedAverage(rows) : 0;
+                  {groups.map(({ ym, rows, avg }) => {
+                      const info = { count: rows.length, avg };
+                      const isCollapsed = collapsed.has(ym);
                       return (
-                          <div key={ym}>
-                              <div className="flex items-center justify-between gap-3 px-4 py-2 bg-white/[0.03] border-b border-white/5">
-                                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.1em]">{monthNamePt(Number(ym.slice(5, 7)) - 1)} {ym.slice(0, 4)}</span>
-                                  <span className="text-xs text-zinc-500 tabular-nums">
-                                      {rows.length} {rows.length === 1 ? 'compra' : 'compras'}{avg > 0 ? ` · média ${brl.format(avg)}` : ''}
+                          <div key={ym} data-month={ym}>
+                              <button type="button" onClick={() => toggleMonth(ym)} aria-expanded={!isCollapsed}
+                                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-white/[0.03] border-b border-white/5 text-left hover:bg-white/[0.06] transition-colors">
+                                  <span className="flex items-center gap-2 min-w-0">
+                                      <ChevronDown className={`w-4 h-4 text-zinc-500 shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                                      <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.1em]">{monthNamePt(Number(ym.slice(5, 7)) - 1)} {ym.slice(0, 4)}</span>
                                   </span>
-                              </div>
-                              {rows.map(r => {
-                                  const u = (r.unitType || 'UN').toUpperCase();
+                                  <span className="text-xs text-zinc-500 tabular-nums text-right">
+                                      {info.count} {info.count === 1 ? 'compra' : 'compras'}{info.avg > 0 ? ` · média ${brl.format(info.avg)}` : ''}
+                                  </span>
+                              </button>
+                              {!isCollapsed && rows.map(r => {
+                                  const u = normalizeUnit(r.unitType);
                                   const d = deltas.get(r.key);
                                   const isMin = hasRange && r.unitPrice === priceStats.min;
                                   const isMax = hasRange && r.unitPrice === priceStats.max;
@@ -304,13 +345,6 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                           </div>
                       );
                   })}
-                  {periodRows.length > INITIAL_ROWS && (
-                      <button onClick={() => setShowAll(v => !v)} data-testid="toggle-rows"
-                          className="w-full flex items-center justify-center gap-2 py-3 border-t border-white/5 text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-400 hover:text-luxury-gold hover:bg-white/[0.03] transition-colors">
-                          {showAll ? 'Mostrar menos' : `Mostrar mais ${periodRows.length - INITIAL_ROWS}`}
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAll ? 'rotate-180' : ''}`} />
-                      </button>
-                  )}
               </div>
           )}
       </div>
