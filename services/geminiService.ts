@@ -242,3 +242,35 @@ Retorne apenas o JSON, sem markdown.
     return [];
   }
 };
+
+// Pergunta de texto ao provedor que a pessoa escolheu (Claude, OpenRouter ou Gemini) e devolve o JSON lido.
+// Aqui os erros sobem (chave faltando, limite, rede): quem chama mostra a mensagem em vez de fingir que não houve resposta.
+// A pergunta deve pedir um OBJETO JSON (e não uma lista solta), porque é o formato que todos os provedores devolvem bem.
+export const askAiForJson = async (prompt: string): Promise<any> => {
+  const claudeKey = resolveClaudeKey();
+  if (claudeKey) {
+    try {
+      return JSON.parse((await askClaudeForJson(claudeKey, prompt)) || '{}');
+    } catch (error: any) {
+      if (error instanceof GeminiError) throw error;
+      throw new GeminiError(`O Claude não devolveu uma resposta válida (${String(error?.message || error).slice(0, 120)}).`, 'PARSING', true, error);
+    }
+  }
+
+  const openRouterKey = resolveOpenRouterKey();
+  if (openRouterKey) return JSON.parse(await askOpenRouterForJson(openRouterKey, prompt));
+
+  const apiKey = resolveGeminiApiKey();
+  if (!apiKey) throw new GeminiError('Chave de IA não configurada. Adicione a sua em Config > Chave IA.', 'AUTH', false);
+  const ai = new GoogleGenAI({ apiKey });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { parts: [{ text: prompt }] },
+      config: { responseMimeType: 'application/json', temperature: 0.2 },
+    });
+    return JSON.parse(response.text || '{}');
+  } catch (error: any) {
+    throw classifyGeminiError(error);
+  }
+};

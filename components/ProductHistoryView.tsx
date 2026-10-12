@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { Receipt, DashboardConfig } from '../types';
 import { ChevronLeft, ShoppingBag, ArrowRight, Store, History, Calendar, Clock, ChevronRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useStoreNames } from './StoreNamesContext';
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
 import ReceiptRow from './ReceiptRow';
 import InteractiveDonut from './InteractiveDonut';
@@ -36,6 +37,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName, receipts, onBack, onSelectVariant, config, onSelectReceipt, onEditIcon }) => {
+  const { nameOf } = useStoreNames();
   const filteredContextReceipts = useMemo(() => {
     return receipts.filter(r => {
         const rDate = new Date(r.date + 'T12:00:00');
@@ -86,7 +88,8 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
       filteredContextReceipts.forEach(r => {
           r.items.forEach(item => {
               if (item.category === subCategoryName) {
-                  agg[r.establishmentName] = (agg[r.establishmentName] || 0) + item.totalPrice;
+                  const store = nameOf(r.establishmentName, r.cnpj);
+                  agg[store] = (agg[store] || 0) + item.totalPrice;
               }
           });
       });
@@ -94,7 +97,7 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 15);
-  }, [filteredContextReceipts, subCategoryName]);
+  }, [filteredContextReceipts, subCategoryName, nameOf]);
 
   const stats = useMemo(() => {
     const total = productsData.reduce((acc, p) => acc + p.value, 0);

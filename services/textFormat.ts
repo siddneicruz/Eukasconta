@@ -11,7 +11,7 @@ const fixWord = (w: string, keep: Set<string> = KEEP_UPPER): string => {
   if (keep.has(up) || UNIT_TOKEN.test(w)) return up;
   const lower = w.toLowerCase();
   // primeira letra de cada pedaço separado por hífen, barra ou ponto ("LTDA-F01" -> "Ltda-F01")
-  return lower.replace(/(^|[-/.])([a-zà-ú])/g, (_m, sep, ch) => sep + ch.toUpperCase());
+  return lower.replace(/(^|[-/.&])([a-zà-ú])/g, (_m, sep, ch) => sep + ch.toUpperCase());
 };
 
 // Iniciais maiúsculas e o resto minúsculo, qualquer que seja a caixa de entrada

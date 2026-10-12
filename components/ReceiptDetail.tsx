@@ -7,6 +7,7 @@ import { formatCNPJ } from '../services/productNormalization';
 import JSZip from 'jszip';
 import { downloadFile } from '../services/nativeFiles';
 import { titleCase } from '../services/textFormat';
+import { useStoreNames } from './StoreNamesContext';
 import { generateReceiptText } from '../services/receiptText';
 
 interface ReceiptDetailProps {
@@ -242,6 +243,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
 };
 
 const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [] }) => {
+  const { aliasOf } = useStoreNames();
   const [viewMode, setViewMode] = useState<'cards' | 'thermal'>('thermal'); // abre no cupom em TXT; o Estruturado fica na aba da direita
   const [isEditing, setIsEditing] = useState(false);
   const [editedReceipt, setEditedReceipt] = useState<Receipt>(receipt);
@@ -365,7 +367,14 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                  </div>
              ) : (
                 <>
-                    <h2 className="text-xl md:text-2xl font-serif text-zinc-100 font-medium line-clamp-3 break-words leading-snug">{receipt.establishmentName}</h2>
+                    {aliasOf(receipt.establishmentName, receipt.cnpj) ? (
+                        <>
+                            <h2 className="text-xl md:text-2xl font-serif text-zinc-100 font-medium line-clamp-3 break-words leading-snug" data-testid="receipt-store-alias">{aliasOf(receipt.establishmentName, receipt.cnpj)}</h2>
+                            <p className="text-xs text-zinc-500 mt-1 break-words" title="Nome como veio no cupom">{titleCase(receipt.establishmentName)}</p>
+                        </>
+                    ) : (
+                        <h2 className="text-xl md:text-2xl font-serif text-zinc-100 font-medium line-clamp-3 break-words leading-snug">{receipt.establishmentName}</h2>
+                    )}
                     <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-xs text-zinc-500 uppercase tracking-wide">
                         <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{receipt.date.split('-').reverse().join('/')}<span className="text-zinc-700 mx-1">|</span>{receipt.time || '--:--'}</div>
                         <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{receipt.city}{receipt.state ? ` - ${receipt.state}` : ''}</div>

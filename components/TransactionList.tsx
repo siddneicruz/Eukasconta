@@ -8,6 +8,7 @@ import PeriodPicker from './PeriodPicker';
 import ConfirmDialog from './ConfirmDialog';
 import ItemSearchBox from './ItemSearchBox';
 import ItemPriceInsight from './ItemPriceInsight';
+import { useStoreNames } from './StoreNamesContext';
 import { makeItemMatcher, textFilter, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel, normalizeUnit } from '../services/productPriceStats';
 
@@ -39,6 +40,7 @@ const PRESS_SLOP_PX = 8;     // mexer o dedo mais que isso é rolagem, não um "
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config, masterProducts = [], onConfigChange }) => {
+  const { nameOf } = useStoreNames();
   const [searchTerm, setSearchTerm] = useState('');
   const [establishmentFilter, setEstablishmentFilter] = useState('');
   // Item escolhido no autocompletar: vive na config (compartilhado com o Início); sem config, fica só aqui
@@ -114,7 +116,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
     
     return receipts.filter(r => {
         if (itemMatch && !r.items.some(itemMatch)) return false;
-        const matchesSearch = normalizeText(r.establishmentName).includes(term) || 
+        const matchesSearch = normalizeText(r.establishmentName).includes(term) || normalizeText(nameOf(r.establishmentName, r.cnpj)).includes(term) || 
                               r.totalAmount.toString().includes(term) ||
                               r.items.some(item => normalizeText(item.description).includes(term));
         const matchesEstablishment = establishmentFilter ? normalizeText(r.establishmentName).includes(normalizeText(establishmentFilter)) : true;
@@ -147,7 +149,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
         }
         return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount;
     });
-  }, [receipts, searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config, itemFilter]);
+  }, [receipts, searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config, itemFilter, nameOf]);
 
   // Agrupamento para exibição por mês (Timeline)
   const groupedReceipts = useMemo(() => {
@@ -180,7 +182,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
       });
       return m;
   }, [filteredReceipts, searchMatcher]);
-  const priceItems = useMemo(() => (searchMatcher ? toHistoryItems(filteredReceipts, searchMatcher) : []), [filteredReceipts, searchMatcher]);
+  const priceItems = useMemo(() => (searchMatcher ? toHistoryItems(filteredReceipts, searchMatcher, nameOf) : []), [filteredReceipts, searchMatcher, nameOf]);
   const priceFor = (r: Receipt) => (itemFilter && rowInfo.get(r.id) ? rowInfo.get(r.id)!.subtotal : (Number(r.totalAmount) || 0));
   const itemPeriodTitle = useMemo(() => {
       if (startDate || endDate) return periodLabel({ year: config?.year ?? new Date().getFullYear(), month: null, quickFilter: 'custom', customStartDate: startDate, customEndDate: endDate });
@@ -367,7 +369,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                                         <span className="text-[11px] text-zinc-400 font-semibold mt-0.5 md:mt-1">{dayName}</span>
                                     </div>
                                     <div className="min-w-0">
-                                        <h4 className="text-zinc-100 font-sans font-semibold text-[15px] md:text-lg leading-snug line-clamp-2 break-words pr-1">{titleCase(receipt.establishmentName)}</h4>
+                                        <h4 className="text-zinc-100 font-sans font-semibold text-[15px] md:text-lg leading-snug line-clamp-2 break-words pr-1">{nameOf(receipt.establishmentName, receipt.cnpj)}</h4>
                                         <div className="flex items-center gap-2 md:gap-3 text-xs text-zinc-500 mt-0.5 md:mt-1 min-w-0">
                                             <span className="flex items-center gap-1 shrink-0 tabular-nums"><Clock className="w-3 h-3" />{receipt.time || '12:00'}</span>
                                             {rowInfo.get(receipt.id) ? (

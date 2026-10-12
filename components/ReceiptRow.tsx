@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
-import { titleCase } from '../services/textFormat';
+import { useStoreNames } from './StoreNamesContext';
 
 interface ReceiptRowProps {
   receipt: Receipt;
@@ -16,7 +16,9 @@ interface ReceiptRowProps {
 // O objetivo é caber bem mais linhas por tela no celular, sem perder nenhuma
 // informação que já era mostrada. `amountOverride` permite mostrar o valor
 // só daquela categoria/produto dentro do cupom, em vez do total do cupom.
-const ReceiptRow: React.FC<ReceiptRowProps> = ({ receipt, onClick, amountOverride, amountSubLabel }) => (
+const ReceiptRow: React.FC<ReceiptRowProps> = ({ receipt, onClick, amountOverride, amountSubLabel }) => {
+  const { nameOf } = useStoreNames();
+  return (
   <div
     onClick={() => onClick?.(receipt)}
     className="flex items-center gap-3 px-4 py-3 bg-black/60 border border-white/10 rounded-xl hover:border-luxury-gold/30 transition-all cursor-pointer group"
@@ -26,7 +28,7 @@ const ReceiptRow: React.FC<ReceiptRowProps> = ({ receipt, onClick, amountOverrid
     </div>
     <div className="flex-1 min-w-0">
       <p className="text-sm text-zinc-100 font-semibold line-clamp-2 break-words group-hover:text-luxury-gold transition-colors font-sans leading-snug">
-        {titleCase(receipt.establishmentName)}
+        {nameOf(receipt.establishmentName, receipt.cnpj)}
       </p>
       <span className="text-xs text-zinc-500 tabular-nums">
         {receipt.date.split('-').reverse().join('/')} · {receipt.time || '12:00'}
@@ -40,6 +42,7 @@ const ReceiptRow: React.FC<ReceiptRowProps> = ({ receipt, onClick, amountOverrid
       <ChevronRight className="w-3.5 h-3.5 text-zinc-700 group-hover:text-luxury-gold transition-colors" />
     </div>
   </div>
-);
+  );
+};
 
 export default ReceiptRow;

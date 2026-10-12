@@ -19,6 +19,7 @@ import type { BackupApi } from '../services/useCloudBackup';
 import { formatCNPJ } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import { AppMark, PDLogo } from './Brand';
+import NicknameSuggestSheet from './NicknameSuggestSheet';
 
 interface SettingsViewProps {
   taxonomy: TaxonomyNode[];
@@ -37,6 +38,8 @@ interface SettingsViewProps {
   receipts?: Receipt[];
   establishments: Establishment[];
   onUpdateEstablishment: (est: Establishment) => void;
+  // Vários apelidos de uma vez (sugestões da IA já revisadas)
+  onApplyAliases?: (list: { cnpj: string; originalName: string; aliasName: string }[]) => void;
   snapshots: SystemSnapshot[];
   onCreateSnapshot: (name: string) => void;
   onRestoreSnapshot: (id: string) => void;
@@ -107,7 +110,7 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 const SettingsView: React.FC<SettingsViewProps> = ({ 
   taxonomy, onUpdateTaxonomy, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
-  receipts = [], establishments = [], onUpdateEstablishment, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
+  receipts = [], establishments = [], onUpdateEstablishment, onApplyAliases, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -117,6 +120,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account'>((initialTab as any) || 'taxonomy');
   const [expandedAesthetics, setExpandedAesthetics] = useState<string[]>([]);
   const [estSearchTerm, setEstSearchTerm] = useState('');
+  const [nickOpen, setNickOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredSearchIcons = useMemo(() => {
@@ -203,6 +207,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                           <p className="text-zinc-400 text-xs mt-1.5">Dê um apelido às lojas para reconhecer cada uma com facilidade.</p>
                       </div>
                       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4 w-full md:w-auto">
+                          {onApplyAliases && (
+                              <button onClick={() => setNickOpen(true)} data-testid="nick-open" className="flex items-center gap-3 bg-luxury-gold/10 text-luxury-gold px-6 py-3 rounded-2xl font-semibold text-sm hover:bg-luxury-gold hover:text-black transition-all border border-luxury-gold/30 whitespace-nowrap justify-center">
+                                  <Sparkles className="w-4 h-4" /> Sugerir apelidos com IA
+                              </button>
+                          )}
                           {onUnifyEstablishments && (
                               <button onClick={onUnifyEstablishments} className="flex items-center gap-3 bg-white/5 text-zinc-400 px-6 py-3 rounded-2xl font-semibold text-sm hover:bg-luxury-gold hover:text-black transition-all border border-white/5 whitespace-nowrap justify-center">
                                   <RefreshCw className="w-4 h-4" /> Unificar lojas
@@ -221,8 +230,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                   {/* Celular: um cartão por loja */}
                   <div className="md:hidden space-y-2.5">
-                      {filteredEstablishments.map((est, idx) => (
-                          <div key={idx} className="rounded-2xl border border-white/5 bg-zinc-900/30 p-4">
+                      {filteredEstablishments.map((est) => (
+                          <div key={`${(est.cnpj || '').replace(/\D/g, '')}|${est.originalName}`} className="rounded-2xl border border-white/5 bg-zinc-900/30 p-4">
                               <p className="text-sm font-semibold text-zinc-100 leading-snug break-words">{titleCase(est.originalName)}</p>
                               <p className="text-xs text-zinc-500 mt-1 break-words">
                                   <span className="tabular-nums">{formatCNPJ(est.cnpj) || 'Pessoa física'}</span>
@@ -233,7 +242,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                   <input
                                     type="text"
                                     value={est.aliasName || ''}
-                                    onChange={e => onUpdateEstablishment({...est, aliasName: e.target.value.toUpperCase()})}
+                                    onChange={e => onUpdateEstablishment({...est, aliasName: e.target.value})}
                                     placeholder="Como você chama esta loja"
                                     className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold placeholder:text-zinc-600 placeholder:font-normal"
                                   />
@@ -253,8 +262,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
-                              {filteredEstablishments.map((est, idx) => (
-                                  <tr key={idx} className="group hover:bg-white/[0.02] transition-colors">
+                              {filteredEstablishments.map((est) => (
+                                  <tr key={`${(est.cnpj || '').replace(/\D/g, '')}|${est.originalName}`} className="group hover:bg-white/[0.02] transition-colors">
                                       <td className="px-6 py-4">
                                           <div className="flex flex-col">
                                               <span className="text-xs font-mono font-semibold text-zinc-300 tabular-nums">{formatCNPJ(est.cnpj) || 'Pessoa física'}</span>
@@ -269,7 +278,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                               <input 
                                                 type="text" 
                                                 value={est.aliasName || ''} 
-                                                onChange={e => onUpdateEstablishment({...est, aliasName: e.target.value.toUpperCase()})}
+                                                onChange={e => onUpdateEstablishment({...est, aliasName: e.target.value})}
                                                 placeholder="Definir apelido"
                                                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold placeholder:text-zinc-600 placeholder:font-normal"
                                               />
@@ -283,6 +292,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
               </div>
           </div>
+      )}
+
+      {nickOpen && onApplyAliases && (
+          <NicknameSuggestSheet establishments={establishments} receipts={receipts} onApply={onApplyAliases} onClose={() => setNickOpen(false)} />
       )}
 
       {settingsTab === 'intelligence' && onUpdateBatchMapping && (

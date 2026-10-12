@@ -10,6 +10,7 @@ const {
 
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
 import ProductPriceChart from './ProductPriceChart';
+import { useStoreNames } from './StoreNamesContext';
 import NearbyPricesCard, { NearbySample } from './NearbyPricesCard';
 import type { CloudApi } from '../services/useCloud';
 import type { AlertDraft } from './AlertsView';
@@ -70,6 +71,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ genericName, subCategoryName, receipts, onBack, onSelectReceipt, config, onEditIcon, cloud, onCreateAlert, onGoToAccount }) => {
+  const { nameOf } = useStoreNames();
   const [unit, setUnit] = useState<string | undefined>(undefined);
   // Meses recolhidos na lista de compras (chave AAAA-MM). null = automático: os meses mais recentes
   // abrem e os mais antigos começam fechados; depois que a pessoa mexe, vale o que ela escolheu.
@@ -92,13 +94,13 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                   totalPrice: Number(item.totalPrice) || 0,
                   unitType: item.unitType,
                   date: r.date,
-                  establishment: r.establishmentName,
+                  establishment: nameOf(r.establishmentName, r.cnpj),
                   receipt: r,
               });
           });
       });
       return rows;
-  }, [receipts, genericName, subCategoryName]);
+  }, [receipts, genericName, subCategoryName, nameOf]);
 
   // Compras dentro do período escolhido, da mais recente para a mais antiga.
   const periodRows = useMemo(

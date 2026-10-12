@@ -62,7 +62,7 @@ export const projectReceipts = (receipts: Receipt[], f: ItemFilter | null | unde
 };
 
 // Linhas de compra do item, prontas para o gráfico de preço.
-export const toHistoryItems = (receipts: Receipt[], match: (item: ReceiptItem) => boolean): HistoryItem[] => {
+export const toHistoryItems = (receipts: Receipt[], match: (item: ReceiptItem) => boolean, nameOf?: (name: string, cnpj?: string) => string): HistoryItem[] => {
   const out: HistoryItem[] = [];
   receipts.forEach(r => {
     (r.items || []).forEach((item, idx) => {
@@ -76,7 +76,7 @@ export const toHistoryItems = (receipts: Receipt[], match: (item: ReceiptItem) =
         totalPrice: Number(item.totalPrice) || unitPrice,
         unitType: item.unitType,
         date: r.date,
-        establishment: r.establishmentName,
+        establishment: nameOf ? nameOf(r.establishmentName, r.cnpj) : r.establishmentName,
       });
     });
   });

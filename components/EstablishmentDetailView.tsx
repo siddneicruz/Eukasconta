@@ -5,6 +5,7 @@ import { ChevronLeft, Calendar, Clock, MapPin, ArrowUpRight, Hash, TrendingUp, D
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, ReferenceDot, Label } from 'recharts';
 import { getCategoryColor } from './Dashboard';
 import { deptKey, sameDept, masterOf, properCase } from '../services/textFormat';
+import { useStoreNames } from './StoreNamesContext';
 
 interface EstablishmentDetailViewProps {
   establishmentName: string; // 'TODOS' ou Nome Específico
@@ -16,13 +17,18 @@ interface EstablishmentDetailViewProps {
 const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ establishmentName, receipts, onBack, onSelectReceipt }) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  const { nameOf, keyOf } = useStoreNames();
   const isGlobalView = establishmentName === 'TODOS';
+  // a loja é reconhecida pelo apelido: filiais e nomes lidos de formas diferentes entram juntos
+  const targetKey = useMemo(
+      () => keyOf(establishmentName, receipts.find(r => r.establishmentName === establishmentName)?.cnpj),
+      [establishmentName, receipts, keyOf]);
 
   const relevantReceipts = useMemo(() => {
     return receipts
-        .filter(r => isGlobalView ? true : r.establishmentName === establishmentName)
+        .filter(r => isGlobalView ? true : keyOf(r.establishmentName, r.cnpj) === targetKey)
         .sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime());
-  }, [receipts, establishmentName, isGlobalView]);
+  }, [receipts, targetKey, isGlobalView, keyOf]);
 
   const stats = useMemo(() => {
     const total = relevantReceipts.reduce((acc, r) => acc + r.totalAmount, 0);
@@ -149,7 +155,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
             <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] block mb-1">
                 {isGlobalView ? 'Fluxo Financeiro Unificado' : 'Histórico da Loja'}
             </span>
-            <h2 className="text-2xl font-serif text-white tracking-wide uppercase">{establishmentName}</h2>
+            <h2 className="text-2xl font-serif text-white tracking-wide uppercase">{isGlobalView ? establishmentName : nameOf(establishmentName, receipts.find(r => r.establishmentName === establishmentName)?.cnpj)}</h2>
         </div>
       </div>
 
@@ -231,7 +237,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-zinc-200 font-bold text-sm group-hover:text-luxury-gold transition-colors truncate">
-                                                    {isGlobalView ? receipt.establishmentName : `${receipt.items.length} itens`}
+                                                    {isGlobalView ? nameOf(receipt.establishmentName, receipt.cnpj) : `${receipt.items.length} itens`}
                                                 </span>
                                                 <span className="text-white font-bold text-sm shrink-0 ml-2">
                                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receipt.totalAmount)}

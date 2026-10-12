@@ -28,6 +28,7 @@ import { useCloudBackup } from './services/useCloudBackup';
 import { deleteCloudReceipt } from './services/cloudService';
 import ConfirmDialog from './components/ConfirmDialog';
 import { titleCase } from './services/textFormat';
+import { StoreNamesProvider } from './components/StoreNamesContext';
 
 import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, SystemSnapshot, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
 import { diagnostics } from './services/diagnosticService';
@@ -328,12 +329,22 @@ const App: React.FC = () => {
       });
   };
 
+  // O apelido é gravado a cada letra digitada: sem aviso a cada toque (o campo já mostra o que ficou).
   const handleUpdateEstablishment = (updated: Establishment) => {
       setEstablishments(prev => prev.map(e => {
           const isMatch = (cleanCNPJ(e.cnpj) === cleanCNPJ(updated.cnpj) && e.originalName === updated.originalName);
           return isMatch ? { ...updated, cnpj: cleanCNPJ(updated.cnpj) } : e;
       }));
-      showNotification("Loja atualizada.");
+  };
+
+  // Vários apelidos de uma vez (sugestões da IA já revisadas pela pessoa)
+  const handleApplyAliases = (list: { cnpj: string; originalName: string; aliasName: string }[]) => {
+      const byKey = new Map(list.map(a => [`${cleanCNPJ(a.cnpj)}|${a.originalName}`, a.aliasName] as [string, string]));
+      setEstablishments(prev => prev.map(e => {
+          const alias = byKey.get(`${cleanCNPJ(e.cnpj)}|${e.originalName}`);
+          return alias === undefined ? e : { ...e, cnpj: cleanCNPJ(e.cnpj), aliasName: alias };
+      }));
+      showNotification(list.length === 1 ? "1 apelido atualizado." : `${list.length} apelidos atualizados.`);
   };
 
   const handleUnifyEstablishments = () => {
@@ -898,6 +909,7 @@ const App: React.FC = () => {
   const isInsideEmulator = new URLSearchParams(window.location.search).has('frame');
 
   return (
+    <StoreNamesProvider establishments={establishments}>
     <div className="flex flex-col h-[100dvh] bg-black text-zinc-100 font-sans overflow-hidden">
       {globalLoading && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
@@ -1067,6 +1079,7 @@ const App: React.FC = () => {
                         snapshots={snapshots} 
                         establishments={establishments}
                         onUpdateEstablishment={handleUpdateEstablishment}
+                        onApplyAliases={handleApplyAliases}
                         onClearData={() => {
                             // Hard Reset também apaga a cópia da conta; senão ela voltaria no próximo login
                             const wipe = () => { localStorage.clear(); setReceipts([]); setTaxonomy([]); setSnapshots([]); setEstablishments([]); showNotification("Hard Reset concluído."); };
@@ -1203,6 +1216,7 @@ const App: React.FC = () => {
           logs={importLogs} 
       />
     </div>
+    </StoreNamesProvider>
   );
 };
 

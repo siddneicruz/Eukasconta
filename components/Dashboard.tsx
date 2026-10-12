@@ -8,6 +8,7 @@ import PeriodPicker from './PeriodPicker';
 import ReceiptRow from './ReceiptRow';
 import ItemSearchBox from './ItemSearchBox';
 import ItemPriceInsight from './ItemPriceInsight';
+import { useStoreNames } from './StoreNamesContext';
 import { 
     Calendar, Fuel, Home, Shirt, ShoppingCart, ScanLine, History, 
     BarChart3, Settings, Filter, CalendarDays, RotateCcw, 
@@ -407,6 +408,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [] }) => {
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
+  const { aliasOf, nameOf, keyOf } = useStoreNames();
   const availableMasterCategories = useMemo(() => {
       return taxonomy
         .filter(n => n.level === 1)
@@ -424,7 +426,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         let rDate = new Date(r.date + 'T12:00:00');
         if (isNaN(rDate.getTime())) rDate = new Date();
         
-        if (config.establishment && r.establishmentName !== config.establishment) return false;
+        if (config.establishment && keyOf(r.establishmentName, r.cnpj) !== config.establishment) return false;
 
         if (config.category) {
             const hasCategory = r.items.some(item => sameDept(item.category, config.category));
@@ -447,7 +449,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         if (config.month !== null && rDate.getMonth() !== config.month) return false;
         return true;
     }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [itemReceipts, config]);
+  }, [itemReceipts, config, keyOf]);
 
   // Resumo do item escolhido no período, e as compras dele para o gráfico de preço
   const itemSummary = useMemo(() => {
@@ -457,8 +459,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
     return { lines, total };
   }, [config.item, filteredReceipts]);
   const itemHistory = useMemo(
-    () => (config.item ? toHistoryItems(filteredReceipts, makeItemMatcher(config.item)) : []),
-    [config.item, filteredReceipts]);
+    () => (config.item ? toHistoryItems(filteredReceipts, makeItemMatcher(config.item), nameOf) : []),
+    [config.item, filteredReceipts, nameOf]);
   const openOriginal = (r: Receipt) => onSelectReceipt?.(receiptsById.get(r.id) || r);
 
   // Departamentos: "HORTIFRUTI", "Hortifruti" e "hortifruti" (ou com/sem acento) viram um só.
@@ -489,24 +491,49 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
     return { chartData: rows.sort((a, b) => b.value - a.value), totalSpent: total };
   }, [filteredReceipts, config.category, availableMasterCategories]);
 
+  // Lojas: o mesmo apelido (ou o mesmo nome) vira uma barra só. `name` é a identidade usada no filtro;
+  // `raw` é o nome do cupom que mais gastou, para quando a loja não tem apelido.
   const establishmentData = useMemo(() => {
-    const agg: Record<string, number> = {};
+    const agg = new Map<string, { value: number; alias: string | null; raws: Map<string, number> }>();
     filteredReceipts.forEach(r => {
-        agg[r.establishmentName] = (agg[r.establishmentName] || 0) + r.totalAmount;
+        const key = keyOf(r.establishmentName, r.cnpj);
+        let g = agg.get(key);
+        if (!g) { g = { value: 0, alias: aliasOf(r.establishmentName, r.cnpj), raws: new Map() }; agg.set(key, g); }
+        g.value += r.totalAmount;
+        g.raws.set(r.establishmentName, (g.raws.get(r.establishmentName) || 0) + r.totalAmount);
     });
-    return Object.entries(agg)
-        .map(([name, value]) => ({ name, value }))
+    return Array.from(agg.entries())
+        .map(([name, g]) => ({ name, alias: g.alias, raw: Array.from(g.raws.entries()).sort((a, b) => b[1] - a[1])[0][0], value: g.value }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 15); // Top 15 para manter a estética limpa
-  }, [filteredReceipts]);
+  }, [filteredReceipts, keyOf, aliasOf]);
 
-  // Rótulos curtos dos gráficos: primeira palavra, e mais palavras só quando dois nomes ficariam iguais.
+  // Nome para mostrar de cada loja (por identidade), também para as lojas que o filtro escondeu
+  const storeLabels = useMemo(() => {
+    const m = new Map<string, string>();
+    receipts.forEach(r => {
+        const key = keyOf(r.establishmentName, r.cnpj);
+        if (m.has(key)) return;
+        const alias = aliasOf(r.establishmentName, r.cnpj);
+        m.set(key, alias || (isUnidentifiedName(r.establishmentName) ? UNIDENTIFIED_LABEL : titleCase(cleanEstablishmentName(r.establishmentName))));
+    });
+    return m;
+  }, [receipts, keyOf, aliasOf]);
+  const storeLabel = (key: string) => storeLabels.get(key) || '';
+
+  // Rótulos curtos dos gráficos: o apelido quando existe; senão a primeira palavra do nome, e mais palavras só quando dois nomes ficariam iguais.
   const establishmentLabels = useMemo(() => {
     // "Sem identificação" fica de fora: é uma etiqueta inteira, não um nome para encurtar.
-    const known = establishmentData.filter(e => !isUnidentifiedName(e.name));
-    const shortened = shortLabels(known.map(k => cleanEstablishmentName(k.name)));
+    const known = establishmentData.filter(e => !e.alias && !isUnidentifiedName(e.raw));
+    const shortened = shortLabels(known.map(k => cleanEstablishmentName(k.raw)));
     const short = new Map<string, string>(known.map((e, i) => [e.name, shortened[i]] as [string, string]));
-    return establishmentData.map(e => isUnidentifiedName(e.name) ? UNIDENTIFIED_LABEL : clip(titleCase(short.get(e.name) || ''), 18));
+    // sigla de 1 ou 2 letras ("SC", "AB") sozinha não diz qual é a loja: nesse caso vale o nome inteiro
+    return establishmentData.map(e => {
+        if (e.alias) return clip(e.alias, 24);
+        if (isUnidentifiedName(e.raw)) return UNIDENTIFIED_LABEL;
+        const s = short.get(e.name) || '';
+        return clip(titleCase(s.replace(/[^A-Za-zÀ-ú0-9]/g, '').length <= 2 ? cleanEstablishmentName(e.raw) : s), 18);
+    });
   }, [establishmentData]);
 
   // Timeline: escala (dia, mês ou trimestre) e poucos rótulos no eixo, conforme o período e a largura da tela
@@ -624,7 +651,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         {config.establishment && (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2" data-testid="est-filter-banner">
                 <span className="text-[13px] text-zinc-200 min-w-0 truncate">
-                    Mostrando só <b className="font-semibold text-luxury-gold">{isUnidentifiedName(config.establishment) ? UNIDENTIFIED_LABEL : titleCase(cleanEstablishmentName(config.establishment))}</b>
+                    Mostrando só <b className="font-semibold text-luxury-gold">{storeLabel(config.establishment)}</b>
                 </span>
                 <button
                     onClick={() => onConfigChange({ ...config, establishment: null })}
@@ -713,7 +740,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                     onClick={() => onConfigChange({ ...config, establishment: null })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[11px] font-bold uppercase tracking-wide hover:bg-luxury-gold/20 transition-all"
                   >
-                      {clip(titleCase(cleanEstablishmentName(config.establishment)), 22)} <span className="opacity-60">✕</span>
+                      {clip(storeLabel(config.establishment), 22)} <span className="opacity-60">✕</span>
                   </button>
               )}
           </div>
@@ -739,7 +766,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                           className="cursor-pointer"
                       >
                           {establishmentData.slice(0, 8).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={isUnidentifiedName(entry.name) ? '#71717a' : CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer transition-all" style={{ filter: hoveredEstIdx === index ? 'brightness(1.15)' : undefined }} />
+                              <Cell key={`cell-${index}`} fill={!entry.alias && isUnidentifiedName(entry.raw) ? '#71717a' : CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer transition-all" style={{ filter: hoveredEstIdx === index ? 'brightness(1.15)' : undefined }} />
                           ))}
                           <LabelList
                               dataKey="value"

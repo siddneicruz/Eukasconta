@@ -8,6 +8,7 @@ import PercentRing from './PercentRing';
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
 import { properCase, sameDept, catKey } from '../services/textFormat';
 import { projectReceipts, itemFilterTitle } from '../services/itemSearch';
+import { useStoreNames } from './StoreNamesContext';
 
 interface CategoryDetailViewProps {
   categoryName: string;
@@ -24,6 +25,7 @@ const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, receipts, onBack, onSelectSubCategory, config, onEditIcon, onSelectReceipt }) => {
+  const { nameOf, keyOf } = useStoreNames();
   // Com um item escolhido na busca do Início, só as linhas dele entram aqui também
   const baseReceipts = useMemo(() => projectReceipts(receipts, config.item), [receipts, config.item]);
   const filteredReceipts = useMemo(() => {
@@ -78,18 +80,22 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
   }, [filteredReceipts, categoryName]);
 
   const establishmentData = useMemo(() => {
-      const agg: Record<string, number> = {};
+      // mesmo apelido (ou mesmo nome) = uma loja só
+      const agg = new Map<string, { label: string; value: number }>();
       filteredReceipts.forEach(r => {
           r.items.forEach(item => {
               if (sameDept(item.category, categoryName)) {
-                  agg[r.establishmentName] = (agg[r.establishmentName] || 0) + item.totalPrice;
+                  const key = keyOf(r.establishmentName, r.cnpj);
+                  const g = agg.get(key) || { label: nameOf(r.establishmentName, r.cnpj), value: 0 };
+                  g.value += item.totalPrice;
+                  agg.set(key, g);
               }
           });
       });
-      return Object.entries(agg)
-        .map(([name, value]) => ({ name, value }))
+      return Array.from(agg.entries())
+        .map(([key, g]) => ({ name: key, label: g.label, value: g.value }))
         .sort((a, b) => b.value - a.value);
-  }, [filteredReceipts, categoryName]);
+  }, [filteredReceipts, categoryName, keyOf, nameOf]);
 
   const [showAllStores, setShowAllStores] = useState(false);
   const storesTotal = useMemo(() => establishmentData.reduce((a, e) => a + e.value, 0), [establishmentData]);
@@ -195,7 +201,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
                               <div className="flex items-baseline justify-between gap-3">
                                   <span className="flex items-center gap-2 min-w-0">
                                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                                      <span className="text-sm text-zinc-100 truncate" title={e.name}>{properCase(e.name)}</span>
+                                      <span className="text-sm text-zinc-100 truncate" title={e.label}>{e.label}</span>
                                   </span>
                                   <span className="shrink-0 tabular-nums">
                                       <span className="text-sm font-serif font-bold text-white">{brl(e.value)}</span>

@@ -288,6 +288,7 @@ const runWithFallback = async <T>(
   candidates: string[],
   build: (model: string) => Omit<CallOptions, 'model' | 'timeoutMs'>,
   accept: (text: string) => T | null,
+  task = 'ler este cupom',
 ): Promise<{ value: T; model: string }> => {
   const started = Date.now();
   const failures: Fail[] = [];
@@ -327,7 +328,7 @@ const runWithFallback = async <T>(
   const last = failures[failures.length - 1];
   const what = failures.length > 0 ? failures.map(f => f.error.message).join(' | ') : 'tempo esgotado antes de tentar.';
   throw new GeminiError(
-    `Nenhum modelo do OpenRouter conseguiu ler este cupom (${failures.length} de ${list.length} tentado(s)). ${what}`,
+    `Nenhum modelo do OpenRouter conseguiu ${task} (${failures.length} de ${list.length} tentado(s)). ${what}`,
     last?.error.category || 'NETWORK', true, last?.error,
   );
 };
@@ -382,6 +383,7 @@ export const askOpenRouterForJson = async (apiKey: string, prompt: string): Prom
       const parsed = extractJson(text);
       return parsed === null ? null : JSON.stringify(parsed);
     },
+    'responder',
   );
 
   diagnostics.log('API_CALL', `Texto via OpenRouter (${model})`, performance.now() - startTime);
