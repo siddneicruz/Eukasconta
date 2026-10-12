@@ -1,19 +1,25 @@
 import React, { useId } from 'react';
-import { APP_MARK_PATH, APP_MARK_VIEWBOX, PD_MARK, PD_LOGO } from './brandPaths';
+import { TICKET, APP_MARK_VIEWBOX, PD_MARK, PD_LOGO } from './brandPaths';
 
-// Símbolo do Eu Kasconta: cupom dourado (borda serrilhada) com um "K" em estêncil vazado.
+// Símbolo do Eu Kasconta: ticket dourado com cantos vazados, moldura, "K", picote e código de barras.
+// Sem fundo: o ticket vale sozinho, em qualquer cor de tela.
 export const AppMark: React.FC<{ className?: string; title?: string }> = ({ className = '', title }) => {
   const id = useId().replace(/:/g, '');
+  const f = TICKET.frame;
   return (
     <svg viewBox={APP_MARK_VIEWBOX} className={className} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
       <defs>
-        <linearGradient id={`ek-${id}`} x1="0.15" y1="0" x2="0.85" y2="1">
-          <stop offset="0" stopColor="#F3D676" />
-          <stop offset="0.55" stopColor="#D4AF37" />
+        <linearGradient id={`ek-${id}`} x1="0.12" y1="0" x2="0.88" y2="1">
+          <stop offset="0" stopColor="#F7DE86" />
+          <stop offset="0.5" stopColor="#D4AF37" />
           <stop offset="1" stopColor="#A9812A" />
         </linearGradient>
       </defs>
-      <path d={APP_MARK_PATH} fill={`url(#ek-${id})`} fillRule="evenodd" />
+      <path d={TICKET.body} fill={`url(#ek-${id})`} />
+      <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.r} fill="none" stroke={TICKET.cream} strokeWidth={f.sw} />
+      <path d={TICKET.k} fill={TICKET.dark} />
+      <line x1={TICKET.perf.x1} y1={TICKET.perf.y} x2={TICKET.perf.x2} y2={TICKET.perf.y} stroke={TICKET.cream} strokeWidth={4.5} strokeDasharray="11 8" strokeLinecap="round" />
+      <path d={TICKET.bars} fill={TICKET.dark} />
     </svg>
   );
 };
