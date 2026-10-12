@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, TaxonomyNode } from '../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from 'recharts';
 import InteractiveDonut from './InteractiveDonut';
@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
+import { buildEvolution } from '../services/evolutionSeries';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 
 interface DashboardProps {
@@ -358,12 +359,39 @@ const cleanEstablishmentName = (name: string): string => {
 const clip = (text: string, maxLen: number): string =>
   text.length > maxLen ? `${text.slice(0, maxLen - 1).trim()}…` : text;
 
+// Largura do gráfico em px (acompanha girar o celular e mudar o tamanho da janela).
+const useElementWidth = (ref: React.RefObject<HTMLElement | null>, fallback = 300): number => {
+  const [w, setW] = useState(fallback);
+  useEffect(() => {
+      const el = ref.current;
+      if (!el) return;
+      const read = () => setW(Math.round(el.clientWidth) || fallback);
+      read();
+      const ro = new ResizeObserver(read);
+      ro.observe(el);
+      return () => ro.disconnect();
+  }, [ref, fallback]);
+  return w;
+};
+
+const TIMELINE_MARGIN_RIGHT = 22;
+
+// Rótulo do eixo X, centrado no ponto (a margem direita do gráfico deixa o último inteiro dentro do card).
+const renderTimelineTick = (props: any) => {
+  const { x, y, payload } = props;
+  return (
+      <text x={Number(x)} y={Number(y)} dy={14} textAnchor="middle" fill={axisTickX.fill} fontSize={axisTickX.fontSize} fontWeight={axisTickX.fontWeight}>
+          {String(payload?.value ?? '')}
+      </text>
+  );
+};
+
 const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload;
         return (
             <div className="bg-zinc-950 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
-                <p className="text-luxury-gold text-xs font-bold mb-2 border-b border-white/5 pb-2">{data.name || data.label}</p>
+                <p className="text-luxury-gold text-xs font-bold mb-2 border-b border-white/5 pb-2">{data.label || data.name}</p>
                 <p className="text-white font-serif text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
                 {data.percentage && <p className="text-zinc-400 text-xs mt-1">{data.percentage.toFixed(1).replace('.', ',')}% do total</p>}
             </div>
@@ -459,76 +487,26 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
     return establishmentData.map(e => isUnidentifiedName(e.name) ? UNIDENTIFIED_LABEL : clip(titleCase(short.get(e.name) || ''), 18));
   }, [establishmentData]);
 
-  const evolutionData = useMemo(() => {
-      const agg: Record<string, number> = {};
-      
-      if (config.quickFilter === 'custom' && config.customStartDate && config.customEndDate) {
-          const start = new Date(config.customStartDate + 'T12:00:00');
-          const end = new Date(config.customEndDate + 'T12:00:00');
-          const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
-          const isMultiYear = start.getFullYear() !== end.getFullYear();
-
-          if (diffMonths <= 1 && !isMultiYear) {
-              // Range pequeno: Agrupa por dia
-              filteredReceipts.forEach(r => {
-                  const d = new Date(r.date + 'T12:00:00');
-                  const day = d.getDate().toString().padStart(2, '0');
-                  agg[day] = (agg[day] || 0) + r.totalAmount;
-              });
-              return Array.from({ length: 31 }, (_, i) => {
-                  const day = (i + 1).toString().padStart(2, '0');
-                  return { name: day, value: agg[day] || 0 };
-              }).filter(d => d.value > 0 || Number(d.name) <= end.getDate());
-          } else {
-              // Range longo: Agrupa por mês (Máximo 24 meses)
-              const dataPoints = [];
-              const curr = new Date(start);
-              curr.setDate(1);
-              let safety = 0;
-              while (curr <= end && safety < 24) {
-                  const mKey = `${curr.getFullYear()}-${curr.getMonth()}`;
-                  let mTotal = 0;
-                  filteredReceipts.forEach(r => {
-                      const rd = new Date(r.date + 'T12:00:00');
-                      if (rd.getFullYear() === curr.getFullYear() && rd.getMonth() === curr.getMonth()) {
-                          mTotal += r.totalAmount;
-                      }
-                  });
-                  const label = isMultiYear 
-                    ? `${MONTHS_SHORT[curr.getMonth()]} ${curr.getFullYear().toString().slice(-2)}`
-                    : MONTHS_SHORT[curr.getMonth()];
-                  
-                  dataPoints.push({ name: label, value: mTotal });
-                  curr.setMonth(curr.getMonth() + 1);
-                  safety++;
-              }
-              return dataPoints;
-          }
-      }
-
-      if (config.month !== null) {
-          filteredReceipts.forEach(r => {
-              const d = new Date(r.date + 'T12:00:00');
-              const day = d.getDate().toString().padStart(2, '0');
-              agg[day] = (agg[day] || 0) + r.totalAmount;
-          });
-          // mês corrente: até hoje; mês passado: o mês inteiro (antes cortava no "dia de hoje" também nos meses antigos)
-          const now = new Date();
-          const isCurrent = config.year === now.getFullYear() && config.month === now.getMonth();
-          const lastDay = isCurrent ? now.getDate() : new Date(config.year, (config.month as number) + 1, 0).getDate();
-          return Array.from({ length: 31 }, (_, i) => {
-              const day = (i + 1).toString().padStart(2, '0');
-              return { name: day, value: agg[day] || 0 };
-          }).filter(d => d.value > 0 || Number(d.name) <= lastDay);
-      } else {
-          filteredReceipts.forEach(r => {
-              const d = new Date(r.date + 'T12:00:00');
-              const month = MONTHS_SHORT[d.getMonth()];
-              agg[month] = (agg[month] || 0) + r.totalAmount;
-          });
-          return MONTHS_SHORT.map(m => ({ name: m, value: agg[m] || 0 }));
-      }
-  }, [filteredReceipts, config]);
+  // Timeline: escala (dia, mês ou trimestre) e poucos rótulos no eixo, conforme o período e a largura da tela
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const timelineWidth = useElementWidth(timelineRef);
+  const plotWidth = Math.max(120, timelineWidth - AXIS_Y_WIDTH - TIMELINE_MARGIN_RIGHT);
+  const series = useMemo(() => buildEvolution(filteredReceipts, config, plotWidth), [filteredReceipts, config, plotWidth]);
+  const evolutionData = series.points;
+  const peakIdx = useMemo(() => {
+      let best = -1;
+      evolutionData.forEach((p, i) => { if (p.value > 0 && (best < 0 || p.value > evolutionData[best].value)) best = i; });
+      return best;
+  }, [evolutionData]);
+  const lastIdx = evolutionData.length - 1;
+  const renderTimelineDot = (props: any) => {
+      const { cx, cy, index } = props;
+      const key = `dot-${index}`;
+      const show = series.showAllDots ? true : (index === peakIdx || index === lastIdx);
+      if (!show || cx == null || cy == null) return <g key={key} />;
+      const emph = index === peakIdx || index === lastIdx;
+      return <circle key={key} cx={cx} cy={cy} r={emph ? 4.5 : 3} fill="#000" stroke="#D4AF37" strokeWidth={emph ? 2.5 : 2} />;
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
@@ -633,21 +611,22 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                       <LineChart className="w-3 h-3 text-luxury-gold" /> Evolução de Gastos
                   </h3>
                   <span className="text-2xl font-serif text-white tracking-tighter">Timeline do Estúdio</span>
+                  <span className="text-xs text-zinc-500 mt-1" data-testid="timeline-caption">{series.caption}</span>
               </div>
           </div>
-          <div className="h-[200px] md:h-[280px] w-full relative z-10">
+          <div ref={timelineRef} className="h-[200px] md:h-[280px] w-full relative z-10" data-testid="timeline-chart">
               <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={evolutionData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                  <AreaChart data={evolutionData} margin={{ top: 14, right: TIMELINE_MARGIN_RIGHT, left: 0, bottom: 4 }}>
                       <defs>
                           <linearGradient id="colorDashboard" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.25}/><stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/>
+                              <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.28}/><stop offset="100%" stopColor="#D4AF37" stopOpacity={0}/>
                           </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTickX} dy={8} />
-                      <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={3} fillOpacity={1} fill="url(#colorDashboard)" animationDuration={2000} dot={{ r: 4, fill: '#000', stroke: '#D4AF37', strokeWidth: 2 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} />
+                      <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} ticks={series.ticks} interval={0} tick={renderTimelineTick} height={30} />
+                      <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} tickCount={4} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(212,175,55,0.35)', strokeWidth: 1, strokeDasharray: '3 4' }} />
+                      <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={evolutionData.length > 12 ? 2.25 : 3} strokeLinecap="round" fillOpacity={1} fill="url(#colorDashboard)" animationDuration={900} dot={renderTimelineDot} activeDot={{ r: 5.5, stroke: '#fff', strokeWidth: 2, fill: '#000' }} />
                   </AreaChart>
               </ResponsiveContainer>
           </div>
@@ -691,7 +670,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                   >
                       <XAxis type="number" hide />
                       <YAxis type="category" dataKey="name" hide width={0} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
                       <Bar
                           dataKey="value"
                           radius={[6, 6, 6, 6]}
@@ -742,23 +720,35 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               {chartData.map((cat, idx) => {
                   const Icon = getCategoryIcon(cat.name);
                   return (
-                      <div key={idx} className="flex items-center justify-between p-2.5 md:p-5 bg-white/[0.01] border border-white/5 rounded-2xl hover:bg-white/[0.04] hover:border-luxury-gold/20 transition-all group relative overflow-hidden">
+                      <div
+                        key={idx}
+                        role="button"
+                        tabIndex={0}
+                        data-testid="dept-card"
+                        data-dept={cat.name}
+                        aria-label={`Abrir ${cat.label}`}
+                        onClick={() => onCategoryClick && onCategoryClick(cat.name)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCategoryClick && onCategoryClick(cat.name); } }}
+                        className="flex items-center justify-between p-2.5 md:p-5 bg-white/[0.01] border border-white/5 rounded-2xl hover:bg-white/[0.04] hover:border-luxury-gold/20 active:bg-white/[0.06] transition-all group relative overflow-hidden cursor-pointer focus:outline-none focus-visible:border-luxury-gold/50"
+                      >
                           <div className="flex items-center gap-3 md:gap-4 z-10 min-w-0">
                               <PercentRing percent={cat.percentage} color={cat.color} size={40}>
                                   <div
-                                    onClick={(e) => { e.stopPropagation(); onEditIcon && onEditIcon(cat.name); }}
-                                    className="w-7 h-7 rounded-lg bg-black border border-white/10 flex items-center justify-center cursor-pointer hover:border-luxury-gold transition-all"
+                                    className="w-7 h-7 rounded-lg bg-black border border-white/10 flex items-center justify-center transition-all"
                                     style={{ borderColor: `${cat.color}33` }}
                                   >
                                       <Icon className="w-3.5 h-3.5" style={{ color: cat.color }} />
                                   </div>
                               </PercentRing>
-                              <div className="flex flex-col cursor-pointer min-w-0" onClick={() => onCategoryClick && onCategoryClick(cat.name)}>
+                              <div className="flex flex-col min-w-0">
                                   <span className="block text-[13px] font-semibold text-zinc-100 tracking-tight truncate" title={cat.label}>{cat.label}</span>
                                   <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{cat.percentage.toFixed(1).replace('.', ',')}% do total</span>
                               </div>
                           </div>
-                          <span className="text-sm md:text-base font-sans font-bold text-white tracking-tight z-10 shrink-0 pl-2">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(cat.value)}</span>
+                          <div className="flex items-center gap-1 z-10 shrink-0 pl-2">
+                              <span className="text-sm md:text-base font-sans font-bold text-white tracking-tight">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(cat.value)}</span>
+                              <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-luxury-gold transition-colors" aria-hidden="true" />
+                          </div>
                       </div>
                   );
               })}

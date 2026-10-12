@@ -5,6 +5,7 @@ import { Search, ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileTex
 import { normalizeProductName } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import PeriodPicker from './PeriodPicker';
+import ConfirmDialog from './ConfirmDialog';
 
 interface TransactionListProps {
   receipts: Receipt[];
@@ -13,6 +14,8 @@ interface TransactionListProps {
   onSelectEstablishment?: (name: string) => void; 
   onSelectProduct?: (normalizedName: string) => void;
   onExportData?: (receipts: Receipt[]) => void;
+  // Um .txt por cupom dentro de um .zip
+  onExportTxtZip?: (receipts: Receipt[]) => void;
   onAddManual?: () => void;
   initialCategory?: string;
   config?: DashboardConfig; 
@@ -28,7 +31,7 @@ const LONG_PRESS_MS = 450;   // segurar o cupom por esse tempo mostra a lixeira
 const PRESS_SLOP_PX = 8;     // mexer o dedo mais que isso é rolagem, não um "segurar"
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onAddManual, initialCategory, config }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [establishmentFilter, setEstablishmentFilter] = useState('');
   
@@ -37,6 +40,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortType, setSortType] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  // Exportar os cupons em TXT (.zip): pergunta antes e deixa incluir os que os filtros escondem
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportAll, setExportAll] = useState(false);
 
   // Segurar um cupom: a linha "arma" e mostra uma lixeira; tocar na lixeira abre a confirmação de exclusão.
   const [armedId, setArmedId] = useState<string | null>(null);
@@ -182,6 +188,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                   <Plus className="w-4 h-4 text-black" />
                   <span className="text-sm font-bold text-black">Adicionar</span>
               </button>
+              {onExportTxtZip && (
+                  <button onClick={() => { setExportAll(false); setExportOpen(true); }} disabled={receipts.length === 0} data-testid="export-txt-open" className="group flex items-center justify-center gap-3 bg-zinc-900 border border-white/10 px-6 py-3 rounded-xl hover:border-luxury-gold/50 transition-all disabled:opacity-40">
+                      <FileText className="w-4 h-4 text-luxury-gold" />
+                      <span className="text-sm font-bold text-zinc-300">Exportar TXT</span>
+                  </button>
+              )}
               {onExportData && (
                   <button onClick={() => onExportData(filteredReceipts)} className="group flex items-center justify-center gap-3 bg-zinc-900 border border-white/10 px-6 py-3 rounded-xl hover:border-luxury-gold/50 transition-all">
                       <Download className="w-4 h-4 text-luxury-gold" />
@@ -319,6 +331,32 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
           </>
         )}
       </div>
+
+      {exportOpen && onExportTxtZip && (() => {
+          const hidden = receipts.length - filteredReceipts.length;
+          const total = exportAll ? receipts.length : filteredReceipts.length;
+          return (
+              <ConfirmDialog
+                  tone="gold"
+                  icon={<FileText className="w-5 h-5" />}
+                  title="Exportar cupons em TXT"
+                  confirmLabel={total === 1 ? 'Gerar .zip com 1 cupom' : `Gerar .zip com ${total} cupons`}
+                  message={
+                      <div className="space-y-3 text-left">
+                          <p className="text-center">Cria um arquivo .zip com um .txt separado para cada cupom, igual ao da aba "Cupom TXT".</p>
+                          {hidden > 0 && (
+                              <label className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer">
+                                  <input type="checkbox" checked={exportAll} onChange={e => setExportAll(e.target.checked)} data-testid="export-txt-all" className="mt-0.5 w-4 h-4 accent-[#D4AF37]" />
+                                  <span className="text-sm text-zinc-300">Incluir também os {hidden} {hidden === 1 ? 'cupom' : 'cupons'} que os filtros e o período escondem ({receipts.length} no total)</span>
+                              </label>
+                          )}
+                      </div>
+                  }
+                  onConfirm={() => { setExportOpen(false); onExportTxtZip(exportAll ? receipts : filteredReceipts); }}
+                  onCancel={() => setExportOpen(false)}
+              />
+          );
+      })()}
     </div>
   );
 };

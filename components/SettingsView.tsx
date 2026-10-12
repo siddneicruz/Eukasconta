@@ -4,7 +4,7 @@ import * as LucideIcons from 'lucide-react';
 import { 
     Plus, Trash2, X, Search, Layers, Database, AlertTriangle, Download, 
     Upload, RefreshCw, Calculator, Eraser, History as HistoryIcon, Clock, 
-    FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound
+    FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText
 } from 'lucide-react';
 import { Receipt, SystemSnapshot, Establishment, TaxonomyNode, AILearningEntry } from '../types';
 import { getCategoryIcon, getCategoryColor } from './Dashboard';
@@ -26,6 +26,8 @@ interface SettingsViewProps {
   onBack: () => void;
   onClearData?: () => void;
   onExportData?: () => void; 
+  // Um .txt por cupom, todos num .zip
+  onExportTxtZip?: () => void;
   onImportData?: (file: File) => void;
   onCleanupDuplicates?: () => void; 
   onReprocessCategories?: () => void;
@@ -103,7 +105,7 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 );
 
 const SettingsView: React.FC<SettingsViewProps> = ({ 
-  taxonomy, onUpdateTaxonomy, onClearData, onExportData, onImportData, 
+  taxonomy, onUpdateTaxonomy, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
   receipts = [], establishments = [], onUpdateEstablishment, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
@@ -348,8 +350,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <ActionBlock icon={RefreshCw} title="Sinc Cloud" desc="Taxonomia & IA" onClick={onReprocessCategories} />
             </div>
 
-            <div className="pt-10 border-t border-white/5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="pt-10 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <BackupCard icon={Download} label="Exportar" sub="Backup JSON/ZIP" onClick={onExportData} />
+                {onExportTxtZip && <BackupCard icon={FileText} label="Cupons TXT" sub="Um .txt por cupom, em .zip" onClick={onExportTxtZip} />}
                 <BackupCard icon={Upload} label="Importar" sub="Restaurar backup" onClick={() => fileInputRef.current?.click()} />
                 <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if(f && onImportData) onImportData(f); }} accept={isNativeApp() ? '*/*' : '.json,.zip,application/json,application/zip'} className="hidden" />
                 

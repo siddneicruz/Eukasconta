@@ -7,6 +7,7 @@ import { formatCNPJ } from '../services/productNormalization';
 import JSZip from 'jszip';
 import { downloadFile } from '../services/nativeFiles';
 import { titleCase } from '../services/textFormat';
+import { generateReceiptText } from '../services/receiptText';
 
 interface ReceiptDetailProps {
   receipt: Receipt;
@@ -132,50 +133,6 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, o
       )}
     </div>
   );
-};
-
-export const generateReceiptText = (receipt: Receipt): string => {
-    const lineWidth = 48;
-    const center = (text: string) => {
-        const padding = Math.max(0, (lineWidth - text.length) / 2);
-        return ' '.repeat(Math.floor(padding)) + text + ' '.repeat(Math.ceil(padding));
-    };
-    const line = '-'.repeat(lineWidth);
-    const formattedDate = receipt.date.split('-').reverse().join('/');
-
-    let output = [
-        line,
-        center(receipt.establishmentName.toUpperCase()),
-        center(receipt.address ? receipt.address.toUpperCase() : 'ENDERECO NAO INFORMADO'),
-        center(`${(receipt.city || '').toUpperCase()} - ${(receipt.state || '').toUpperCase()}`),
-        center(`CNPJ: ${formatCNPJ(receipt.cnpj) || 'NAO INFORMADO'}`),
-        '',
-        center(`${formattedDate} ${receipt.time}`),
-        center(`EXTRATO Nº: ${receipt.receiptNumber || '000000'}`),
-        line,
-        ''
-    ].join('\n');
-
-    output += 'IT  DESCRIÇÃO                   QTD UN  VL.UN  TOTAL\n';
-    receipt.items.forEach((item, idx) => {
-        const idxStr = (idx + 1).toString().padStart(3, '0');
-        let desc = item.description.toUpperCase();
-        if (desc.length > 25) desc = desc.substring(0, 25);
-        desc = desc.padEnd(26, ' ');
-        const qtdUn = `${item.quantity} ${item.unitType || 'UN'}`.padStart(9, ' ');
-        const unitPrice = item.unitPrice.toFixed(2).padStart(6, ' ');
-        const total = item.totalPrice.toFixed(2).padStart(6, ' ');
-        output += `${idxStr} ${desc} ${qtdUn} ${unitPrice} ${total}\n`;
-    });
-    output += '\n' + line + '\n';
-    const totalLabel = "TOTAL R$";
-    const totalValue = receipt.totalAmount.toFixed(2);
-    const spaces = lineWidth - totalLabel.length - totalValue.length;
-    output += `${totalLabel}${' '.repeat(spaces)}${totalValue}\n\n`;
-    output += center("OBRIGADO PELA PREFERÊNCIA") + '\n';
-    output += center("PROJETO DESIGN STUDIO - AI AUDIT") + '\n';
-    output += center(receipt.id.split('-')[0]) + '\n';
-    return output;
 };
 
 // Texto do cupom (monoespaçado): ajusta a letra para a linha mais larga caber inteira na tela,

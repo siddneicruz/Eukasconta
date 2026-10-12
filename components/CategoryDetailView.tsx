@@ -1,8 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Receipt, DashboardConfig } from '../types';
-import { ChevronLeft, Gem, LayoutGrid, ArrowRight, PieChart as PieIcon, Palette, Store, Clock, Calendar, ChevronRight, History } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChevronLeft, Palette, Store, ChevronDown, History } from 'lucide-react';
 import InteractiveDonut from './InteractiveDonut';
 import ReceiptRow from './ReceiptRow';
 import PercentRing from './PercentRing';
@@ -21,19 +20,7 @@ interface CategoryDetailViewProps {
 
 const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
 
-const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-        const data = payload[0].payload;
-        return (
-            <div className="bg-zinc-950 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
-                <p className="text-luxury-gold text-[11px] font-bold uppercase tracking-[0.08em] mb-2 border-b border-white/5 pb-2">{data.name || data.label}</p>
-                <p className="text-white font-serif text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
-                {data.percentage && <p className="text-zinc-400 text-xs mt-1">{data.percentage.toFixed(1).replace('.', ',')}% do depto.</p>}
-            </div>
-        );
-    }
-    return null;
-};
+const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, receipts, onBack, onSelectSubCategory, config, onEditIcon, onSelectReceipt }) => {
   const filteredReceipts = useMemo(() => {
@@ -98,9 +85,13 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
       });
       return Object.entries(agg)
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 15);
+        .sort((a, b) => b.value - a.value);
   }, [filteredReceipts, categoryName]);
+
+  const [showAllStores, setShowAllStores] = useState(false);
+  const storesTotal = useMemo(() => establishmentData.reduce((a, e) => a + e.value, 0), [establishmentData]);
+  const STORES_COLLAPSED = 5;
+  const visibleStores = showAllStores ? establishmentData : establishmentData.slice(0, STORES_COLLAPSED);
 
   const stats = useMemo(() => {
       const total = subCategoriesData.reduce((acc, c) => acc + c.value, 0);
@@ -109,17 +100,23 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
 
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-1000 pb-20">
-      <div className="flex items-center gap-6 mb-12">
+      <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-10">
         <button onClick={onBack} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-luxury-gold transition-all shadow-xl">
             <ChevronLeft className="w-7 h-7" />
         </button>
-        <div>
+        <div className="min-w-0 flex-1">
             <span className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold block mb-1">NÍVEL 2 • DIVISÕES DE DEPARTAMENTO</span>
-            <h2 className="text-4xl font-serif text-white tracking-tighter uppercase">{categoryName}</h2>
+            <h2 className="text-3xl sm:text-4xl font-serif text-white tracking-tighter uppercase break-words">{categoryName}</h2>
         </div>
+        {onEditIcon && (
+            <button onClick={() => onEditIcon(categoryName)} aria-label="Mudar ícone e cor do departamento" title="Mudar ícone e cor" data-testid="dept-edit-icon"
+                className="shrink-0 w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-luxury-gold hover:border-luxury-gold/30 transition-all">
+                <Palette className="w-5 h-5" />
+            </button>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 mb-8">
           <div className="lg:col-span-7 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 min-h-[340px] md:min-h-[500px] shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
                <div className="absolute top-5 left-5 md:top-10 md:left-10 flex flex-col">
                    <h3 className="text-[11px] text-zinc-400 uppercase tracking-[0.1em] font-bold mb-1">Concentração Divisória</h3>
@@ -169,37 +166,54 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
           </div>
       </div>
 
-      <div className="bg-black border border-white/10 rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative overflow-hidden group mb-12">
-          <div className="absolute top-0 left-0 w-80 h-80 bg-luxury-gold/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 relative z-10">
-              <div className="flex flex-col">
-                <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
-                    <Store className="w-3 h-3 text-luxury-gold" /> Establishment Matrix: {categoryName}
-                </h3>
-                <span className="text-2xl font-serif text-white tracking-tighter">Investimento por Unidade</span>
-              </div>
+      <div className="bg-black border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl mb-8" data-testid="store-ranking">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+              <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold flex items-center gap-2 min-w-0">
+                  <Store className="w-3 h-3 text-luxury-gold shrink-0" />
+                  <span className="truncate">Investimento por unidade</span>
+              </h3>
+              <span className="text-xs text-zinc-500 tabular-nums shrink-0">{establishmentData.length} {establishmentData.length === 1 ? 'loja' : 'lojas'}</span>
           </div>
-          
-          <div className="h-[350px] w-full relative z-10">
-              <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={establishmentData} margin={{ top: 0, right: 10, left: -20, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                      <XAxis dataKey="name" hide={true} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10 }} tickFormatter={(val) => `R$${val}`} />
-                      <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />
-                      <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={2000}>
-                          {establishmentData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                      </Bar>
-                  </BarChart>
-              </ResponsiveContainer>
-          </div>
+          {establishmentData.length === 0 ? (
+              <p className="text-sm text-zinc-500 py-4">Sem compras neste departamento no período.</p>
+          ) : (
+              <ul className="divide-y divide-white/5">
+                  {visibleStores.map((e, i) => {
+                      const color = CHART_COLORS[i % CHART_COLORS.length];
+                      const pct = storesTotal > 0 ? (e.value / storesTotal) * 100 : 0;
+                      const max = establishmentData[0].value || 1;
+                      return (
+                          <li key={e.name} className="py-2.5" data-testid="store-row">
+                              <div className="flex items-baseline justify-between gap-3">
+                                  <span className="flex items-center gap-2 min-w-0">
+                                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                                      <span className="text-sm text-zinc-100 truncate" title={e.name}>{properCase(e.name)}</span>
+                                  </span>
+                                  <span className="shrink-0 tabular-nums">
+                                      <span className="text-sm font-serif font-bold text-white">{brl(e.value)}</span>
+                                      <span className="text-[11px] text-zinc-500 ml-2">{pct.toFixed(0)}%</span>
+                                  </span>
+                              </div>
+                              <div className="mt-1.5 h-1 rounded-full bg-white/5 overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${Math.max(2, (e.value / max) * 100)}%`, background: color }} />
+                              </div>
+                          </li>
+                      );
+                  })}
+              </ul>
+          )}
+          {establishmentData.length > STORES_COLLAPSED && (
+              <button type="button" onClick={() => setShowAllStores(v => !v)} data-testid="store-ranking-toggle"
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-luxury-gold hover:bg-white/5 transition-colors">
+                  {showAllStores ? 'Mostrar menos' : `Ver as ${establishmentData.length} lojas`}
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllStores ? 'rotate-180' : ''}`} />
+              </button>
+          )}
       </div>
 
       {/* RELAÇÃO DE AQUISIÇÕES POR CATEGORIA */}
       <div className="animate-in slide-in-from-bottom-8 duration-700">
-          <div className="flex items-center gap-3 mb-8 px-1">
+          <div className="flex items-center gap-3 mb-4 px-1">
               <History className="w-5 h-5 text-luxury-gold" />
               <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Timeline de Aquisições: {categoryName}</h3>
           </div>

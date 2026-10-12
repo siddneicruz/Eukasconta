@@ -8,6 +8,7 @@ import * as LucideIcons from 'lucide-react';
 import Dashboard, { getCategoryIcon } from './components/Dashboard';
 import Scanner from './components/Scanner';
 import ScanProgressChip from './components/ScanProgressChip';
+import { buildReceiptsTxtZip } from './services/receiptText';
 import { setScanHandlers, ScanSummary } from './services/scanQueue';
 import TransactionList from './components/TransactionList';
 import ReceiptDetail from './components/ReceiptDetail';
@@ -587,6 +588,19 @@ const App: React.FC = () => {
     return added;
   };
 
+  // Um arquivo .txt por cupom, todos dentro de um .zip. Sem lista, leva todos os cupons do app.
+  const handleExportTxtZip = async (list?: Receipt[]) => {
+      const source = list && list.length > 0 ? list : receipts;
+      if (source.length === 0) { showNotification('Não há cupons para exportar.'); return; }
+      setGlobalLoading(true); setLoadingText('GERANDO OS ARQUIVOS TXT...');
+      try {
+          const { blob, count, skipped } = await buildReceiptsTxtZip(source);
+          if (count === 0) { alert('Não consegui gerar nenhum arquivo: os cupons estão com dados incompletos.'); return; }
+          const outcome = await downloadFile(blob, `Cupons_TXT_${new Date().toISOString().split('T')[0]}.zip`);
+          if (outcome === 'saved') showNotification(`${count} ${count === 1 ? 'cupom exportado' : 'cupons exportados'} em TXT${skipped > 0 ? `; ${skipped} com dados incompletos ficaram de fora` : ''}.`, 6000);
+      } catch (err: any) { alert('Erro ao gerar o .zip: ' + err.message); } finally { setGlobalLoading(false); }
+  };
+
   const handleExportData = async (filenamePrefix = "Eukasconta_Studio_Vault") => {
       setGlobalLoading(true); setLoadingText("ESTRUTURANDO VAULT...");
       try {
@@ -1019,7 +1033,7 @@ const App: React.FC = () => {
                 {view === 'establishment_detail' && selectedEstablishment && (
                     <EstablishmentDetailView establishmentName={selectedEstablishment} receipts={receipts} onBack={() => setView('reports')} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} />
                 )}
-                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} />}
+                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} />}
                 {view === 'reports' && (
                     <Reports 
                         receipts={receipts} 
@@ -1057,7 +1071,8 @@ const App: React.FC = () => {
                             if (cloud.user) backup.deleteRemote().catch(() => { /* sem rede: a cópia fica e pode ser apagada depois em Conta */ }).finally(wipe);
                             else wipe();
                         }} 
-                        onExportData={() => handleExportData()} 
+                        onExportData={() => handleExportData()}
+                        onExportTxtZip={() => handleExportTxtZip()} 
                         onImportData={handleImportData} 
                         onCreateSnapshot={handleCreateSnapshot} 
                         onRestoreSnapshot={handleRestoreSnapshot} 
