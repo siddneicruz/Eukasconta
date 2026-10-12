@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
-import { titleCase } from '../services/textFormat';
+import { titleCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL } from '../services/textFormat';
 
 interface DashboardProps {
   receipts: Receipt[];
@@ -342,24 +342,20 @@ const GENERIC_ESTABLISHMENT_PHRASES = [
   'comercio', 'comercial', 'distribuidora', 'armazem', 'mercado', 'minimercado',
   'hipermercado', 'ltda', 'eireli', 's/a',
 ];
-const cleanEstablishmentLabel = (name: string, maxLen: number = 15): string => {
+// Nome da loja sem as palavras genéricas ("Supermercado", "Ltda"...). Devolve o nome inteiro limpo;
+// quem precisa de um rótulo curto usa shortLabels (primeira palavra, mais palavras só se houver repetição).
+const cleanEstablishmentName = (name: string): string => {
+  if (isUnidentifiedName(name)) return UNIDENTIFIED_LABEL;
   const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   let cleaned = stripAccents(name);
   GENERIC_ESTABLISHMENT_PHRASES.forEach(phrase => {
     cleaned = cleaned.replace(new RegExp(`\\b${phrase}\\b`, 'gi'), ' ');
   });
-  cleaned = cleaned.replace(/\s+/g, ' ').trim() || name.trim();
-  // Primeira palavra só — mais limpo que cortar no meio de uma palavra com "…".
-  const firstWord = cleaned.split(' ')[0] || cleaned;
-  return firstWord.length > maxLen ? `${firstWord.slice(0, maxLen - 1).trim()}…` : firstWord;
+  return cleaned.replace(/\s+/g, ' ').trim() || name.trim();
 };
 
-// Mesma ideia (primeira palavra), mas para nomes de categoria/departamento —
-// sem a limpeza de termos genéricos de estabelecimento.
-const firstWordLabel = (name: string, maxLen: number = 16): string => {
-  const word = name.trim().split(' ')[0] || name;
-  return word.length > maxLen ? `${word.slice(0, maxLen - 1).trim()}…` : word;
-};
+const clip = (text: string, maxLen: number): string =>
+  text.length > maxLen ? `${text.slice(0, maxLen - 1).trim()}…` : text;
 
 const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -444,6 +440,16 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         .sort((a, b) => b.value - a.value)
         .slice(0, 15); // Top 15 para manter a estética limpa
   }, [filteredReceipts]);
+
+  // Rótulos curtos dos gráficos: primeira palavra, e mais palavras só quando dois nomes ficariam iguais.
+  const establishmentLabels = useMemo(() => {
+    // "Sem identificação" fica de fora: é uma etiqueta inteira, não um nome para encurtar.
+    const known = establishmentData.filter(e => !isUnidentifiedName(e.name));
+    const shortened = shortLabels(known.map(k => cleanEstablishmentName(k.name)));
+    const short = new Map<string, string>(known.map((e, i) => [e.name, shortened[i]] as [string, string]));
+    return establishmentData.map(e => isUnidentifiedName(e.name) ? UNIDENTIFIED_LABEL : clip(titleCase(short.get(e.name) || ''), 18));
+  }, [establishmentData]);
+  const departmentLabels = useMemo(() => shortLabels(chartData.map(c => c.name)).map(l => clip(l, 24)), [chartData]);
 
   const evolutionData = useMemo(() => {
       const agg: Record<string, number> = {};
@@ -630,7 +636,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                        data={chartData}
                        centerLabel="Total Investido"
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalSpent)}
-                       tooltipContent={CustomTooltip}
                        onSliceClick={(entry) => onCategoryClick && onCategoryClick(entry.name)}
                    />
                </div>
@@ -644,7 +649,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                     onClick={() => onConfigChange({ ...config, establishment: null })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-[11px] font-bold uppercase tracking-wide hover:bg-luxury-gold/20 transition-all"
                   >
-                      {cleanEstablishmentLabel(config.establishment)} <span className="opacity-60">✕</span>
+                      {clip(titleCase(cleanEstablishmentName(config.establishment)), 22)} <span className="opacity-60">✕</span>
                   </button>
               )}
           </div>
@@ -671,12 +676,12 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                           className="cursor-pointer"
                       >
                           {establishmentData.slice(0, 8).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer transition-all" style={{ filter: hoveredEstIdx === index ? 'brightness(1.15)' : undefined }} />
+                              <Cell key={`cell-${index}`} fill={isUnidentifiedName(entry.name) ? '#71717a' : CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer transition-all" style={{ filter: hoveredEstIdx === index ? 'brightness(1.15)' : undefined }} />
                           ))}
                           <LabelList
                               dataKey="value"
                               content={({ x, y, width, height, value, index }: any) => {
-                                  const name = titleCase(cleanEstablishmentLabel(String(establishmentData[index]?.name ?? '')));
+                                  const name = establishmentLabels[index] ?? '';
                                   const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value));
                                   const bx = Number(x), bw = Number(width), cy = Number(y) + Number(height) / 2;
                                   const fits = bw >= name.length * 7 + 22;
@@ -722,7 +727,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                                   </div>
                               </PercentRing>
                               <div className="flex flex-col cursor-pointer min-w-0" onClick={() => onCategoryClick && onCategoryClick(cat.name)}>
-                                  <span className="block text-[13px] font-semibold text-zinc-100 tracking-tight truncate" title={cat.name}>{firstWordLabel(cat.name)}</span>
+                                  <span className="block text-[13px] font-semibold text-zinc-100 tracking-tight truncate" title={cat.name}>{departmentLabels[idx]}</span>
                                   <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{cat.percentage.toFixed(1).replace('.', ',')}% do total</span>
                               </div>
                           </div>

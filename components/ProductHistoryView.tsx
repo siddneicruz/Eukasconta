@@ -134,7 +134,6 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
                        data={productsData}
                        centerLabel="Total Itens"
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.total)}
-                       tooltipContent={CustomTooltip}
                        onSliceClick={(entry) => entry?.name && onSelectVariant(entry.name)}
                    />
                </div>

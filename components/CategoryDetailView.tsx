@@ -122,7 +122,6 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
                        data={subCategoriesData}
                        centerLabel="Total Categoria"
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.total)}
-                       tooltipContent={CustomTooltip}
                        onSliceClick={(entry) => entry?.fullName && onSelectSubCategory(entry.fullName)}
                    />
                </div>

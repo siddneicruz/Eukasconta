@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Receipt, DashboardConfig } from '../types';
-import { Search, ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus } from 'lucide-react';
+import { Search, ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { normalizeProductName } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 
@@ -21,6 +21,9 @@ const normalizeText = (text: string) => {
   if (!text) return "";
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 };
+
+const AUTO_OPEN_ROWS = 15;
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onAddManual, initialCategory, config }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,6 +91,34 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
       return groups;
   }, [filteredReceipts]);
 
+  // Meses recolhíveis. Sem escolha da pessoa, abre os meses mais novos até somar ~15 cupons
+  // (o mês mais recente sempre abre) e recolhe o resto; o título de cada mês fica sempre à vista.
+  const monthGroups = useMemo(() => (Object.entries(groupedReceipts) as [string, Receipt[]][]).map(([month, items]) => ({
+      month, items, total: items.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0),
+  })), [groupedReceipts]);
+
+  const [manualCollapsed, setManualCollapsed] = useState<Set<string> | null>(null);
+  useEffect(() => { setManualCollapsed(null); },
+      [searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config?.year, config?.month]);
+
+  const autoCollapsed = useMemo(() => {
+      const closed = new Set<string>();
+      let shown = 0;
+      monthGroups.forEach((g, i) => {
+          if (i > 0 && shown >= AUTO_OPEN_ROWS) closed.add(g.month);
+          else shown += g.items.length;
+      });
+      return closed;
+  }, [monthGroups]);
+  const collapsed = manualCollapsed ?? autoCollapsed;
+  const allCollapsed = monthGroups.length > 0 && monthGroups.every(g => collapsed.has(g.month));
+  const toggleMonth = (month: string) => {
+      const next = new Set(collapsed);
+      if (next.has(month)) next.delete(month); else next.add(month);
+      setManualCollapsed(next);
+  };
+  const toggleAllMonths = () => setManualCollapsed(allCollapsed ? new Set() : new Set(monthGroups.map(g => g.month)));
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div className="flex flex-col md:flex-row ls:flex-row md:items-end ls:items-center justify-between gap-6 ls:gap-4">
@@ -148,21 +179,42 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-10 pr-2 pb-20 custom-scrollbar relative z-10">
-        {Object.keys(groupedReceipts).length === 0 ? (
+        {monthGroups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 opacity-70">
             <FileText className="w-12 h-12 text-zinc-800 mb-4" />
             <h3 className="font-serif text-xl text-zinc-500 mb-2 uppercase">Vazio</h3>
             <p className="text-zinc-500 font-sans text-sm">Nenhum registro encontrado</p>
           </div>
         ) : (
-          /* Explicitly type the entries to ensure 'items' is inferred as Receipt[] and avoid 'unknown' type errors */
-          (Object.entries(groupedReceipts) as [string, Receipt[]][]).map(([month, items]) => (
-            <div key={month} className="space-y-4">
-                <div className="flex items-center gap-4 px-2">
+          <>
+          {monthGroups.length > 1 && (
+            <div className="flex items-center justify-between px-2 -mb-5">
+                <span className="text-[11px] text-zinc-500 font-bold tracking-[0.08em] uppercase">{filteredReceipts.length} {filteredReceipts.length === 1 ? 'lançamento' : 'lançamentos'}</span>
+                <button type="button" onClick={toggleAllMonths} data-testid="toggle-months"
+                    aria-label={allCollapsed ? 'Expandir todos os meses' : 'Recolher todos os meses'}
+                    title={allCollapsed ? 'Expandir todos os meses' : 'Recolher todos os meses'}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-zinc-400 hover:text-luxury-gold hover:border-luxury-gold/30 transition-colors">
+                    {allCollapsed ? <ChevronsUpDown className="w-4 h-4" /> : <ChevronsDownUp className="w-4 h-4" />}
+                </button>
+            </div>
+          )}
+          {monthGroups.map(({ month, items, total }) => {
+            const isCollapsed = collapsed.has(month);
+            return (
+            <div key={month} data-month={month} className="space-y-4">
+                <button type="button" onClick={() => toggleMonth(month)} aria-expanded={!isCollapsed}
+                    className="w-full flex items-center gap-4 px-2 py-1 rounded-xl text-center hover:bg-white/[0.03] transition-colors">
                     <div className="h-px bg-white/10 flex-1" />
-                    <span className="text-[13px] font-semibold text-luxury-gold tracking-wide whitespace-nowrap">{month}</span>
+                    <span className="flex flex-col items-center min-w-0">
+                        <span className="flex items-center gap-1.5 text-[13px] font-semibold text-luxury-gold tracking-wide whitespace-nowrap">
+                            <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                            {month}
+                        </span>
+                        <span className="text-[11px] text-zinc-500 font-medium tabular-nums mt-0.5">{items.length} {items.length === 1 ? 'cupom' : 'cupons'} · {brl.format(total)}</span>
+                    </span>
                     <div className="h-px bg-white/10 flex-1" />
-                </div>
+                </button>
+                {!isCollapsed && (
                 <div className="space-y-3">
                     {items.map((receipt) => {
                          const rDate = new Date(receipt.date + 'T12:00:00');
@@ -185,15 +237,18 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 md:gap-6 shrink-0">
-                                    <span className="font-sans font-bold text-white text-sm md:text-lg tabular-nums">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receipt.totalAmount)}</span>
+                                    <span className="font-sans font-bold text-white text-sm md:text-lg tabular-nums">{brl.format(receipt.totalAmount)}</span>
                                     <ChevronRight className="w-4 h-4 text-zinc-800 group-hover:text-luxury-gold group-hover:translate-x-1 transition-all hidden sm:block" />
                                 </div>
                             </div>
                          );
                     })}
                 </div>
+                )}
             </div>
-          ))
+            );
+          })}
+          </>
         )}
       </div>
     </div>

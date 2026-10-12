@@ -284,7 +284,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
 };
 
 const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [] }) => {
-  const [viewMode, setViewMode] = useState<'cards' | 'thermal'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'thermal'>('thermal'); // abre no cupom em TXT; o Estruturado fica na aba da direita
   const [isEditing, setIsEditing] = useState(false);
   const [editedReceipt, setEditedReceipt] = useState<Receipt>(receipt);
 
@@ -432,8 +432,8 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
 
         {!isEditing && (
             <div className="flex border-b border-white/5 bg-black/40 shrink-0">
+                <button onClick={() => setViewMode('thermal')} className={`flex-1 py-3 text-xs uppercase tracking-[0.08em] font-bold flex items-center justify-center gap-2 transition-all ${viewMode === 'thermal' ? 'text-luxury-gold border-b-2 border-luxury-gold bg-luxury-gold/5' : 'text-zinc-500 hover:text-zinc-300'}`}><Scroll className="w-3.5 h-3.5" /> Cupom TXT</button>
                 <button onClick={() => setViewMode('cards')} className={`flex-1 py-3 text-xs uppercase tracking-[0.08em] font-bold flex items-center justify-center gap-2 transition-all ${viewMode === 'cards' ? 'text-luxury-gold border-b-2 border-luxury-gold bg-luxury-gold/5' : 'text-zinc-500 hover:text-zinc-300'}`}><PieChart className="w-3.5 h-3.5" /> Estruturado</button>
-                <button onClick={() => setViewMode('thermal')} className={`flex-1 py-3 text-xs uppercase tracking-[0.08em] font-bold flex items-center justify-center gap-2 transition-all ${viewMode === 'thermal' ? 'text-luxury-gold border-b-2 border-luxury-gold bg-luxury-gold/5' : 'text-zinc-500 hover:text-zinc-300'}`}><Scroll className="w-3.5 h-3.5" /> Auditoria (TXT)</button>
             </div>
         )}
 

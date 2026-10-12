@@ -76,3 +76,12 @@ button:focus-visible, select:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.4);
 }
+
+/* Gráficos (Recharts): ao tocar numa barra/fatia o navegador desenhava um retângulo de foco
+   amarelo em volta. Em gráfico de toque isso só atrapalha, então some em todos. */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-surface * {
+  outline: none !important;
+}
