@@ -9,6 +9,7 @@ import { SCAN_LIMIT_OPENROUTER_MS } from '../services/openrouterService';
 import { diagnostics } from '../services/diagnosticService';
 import { generateId } from '../services/idUtils';
 import { downloadFile } from '../services/nativeFiles';
+import { nativeScannerSupported, scanWithNativeScanner } from '../services/documentScanner';
 
 interface ScannerProps {
   onScanComplete: (receipts: Receipt[]) => void;
@@ -139,7 +140,13 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
   const [reportSent, setReportSent] = useState(false);
   const [batchStop, setBatchStop] = useState<GeminiError | null>(null);
   const [scannerLogs, setScannerLogs] = useState<string[]>([]);
-  
+  // Scanner de documentos do Android (só no app instalado): texto de andamento enquanto abre,
+  // aviso se falhar, e "desligado" para a próxima toque cair na câmera comum.
+  const [nativeScanBusy, setNativeScanBusy] = useState<string | null>(null);
+  const [nativeScanNotice, setNativeScanNotice] = useState<string | null>(null);
+  const [nativeScannerOff, setNativeScannerOff] = useState(false);
+  const useNativeScanner = nativeScannerSupported() && !nativeScannerOff;
+
   const abortProcessingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -351,6 +358,25 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
       }
   };
 
+  const handleCameraClick = async () => {
+    if (!useNativeScanner) { cameraInputRef.current?.click(); return; }
+    setNativeScanNotice(null);
+    setNativeScanBusy('Abrindo o scanner…');
+    try {
+      const out = await scanWithNativeScanner(setNativeScanBusy);
+      if (out.status === 'ok') {
+        diagnostics.log('SCANNER', `Scanner de documentos devolveu ${out.files.length} página(s).`);
+        processBatch(out.files);
+      } else if (out.status === 'unavailable') {
+        diagnostics.log('SCANNER', `Scanner de documentos indisponível: ${out.reason}`);
+        setNativeScannerOff(true);
+        setNativeScanNotice(`Não consegui abrir o scanner de documentos (${out.reason}). Toque em Câmera de novo para usar a câmera comum.`);
+      }
+    } finally {
+      setNativeScanBusy(null);
+    }
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
@@ -557,8 +583,8 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                         <div className="flex flex-col gap-4 w-full max-w-sm mt-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <input type="file" ref={cameraInputRef} onChange={handleFileChange} accept="image/*" capture="environment" className="hidden" />
-                                <button onClick={() => cameraInputRef.current?.click()} className="bg-luxury-gold hover:bg-zinc-100 hover:text-zinc-900 text-black font-bold text-[10px] uppercase tracking-widest py-5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-luxury-gold/10">
-                                    <Camera className="w-4 h-4" /> Câmera
+                                <button onClick={handleCameraClick} disabled={!!nativeScanBusy} data-testid="camera-button" className="bg-luxury-gold hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-60 text-black font-bold text-[10px] uppercase tracking-widest py-5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-luxury-gold/10">
+                                    {nativeScanBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} Câmera
                                 </button>
                                 
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" multiple className="hidden" />
@@ -566,7 +592,19 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                                     <ImageIcon className="w-4 h-4" /> Galeria
                                 </button>
                             </div>
-                            
+
+                            {nativeScanBusy && (
+                                <p className="text-[10px] text-luxury-gold uppercase tracking-widest font-bold text-center" data-testid="native-scan-status">{nativeScanBusy}</p>
+                            )}
+                            {nativeScanNotice && !nativeScanBusy && (
+                                <div className="px-4 py-3 rounded-xl bg-amber-950/20 border border-amber-900/30 text-amber-300 text-[11px] leading-relaxed" data-testid="native-scan-notice">{nativeScanNotice}</div>
+                            )}
+                            {useNativeScanner && !nativeScanBusy && !nativeScanNotice && (
+                                <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold text-center leading-relaxed">
+                                    A câmera usa o scanner de documentos: recorta só o cupom e deixa em preto e branco.
+                                </p>
+                            )}
+
                             <button onClick={onManualEntry} className="w-full bg-transparent hover:bg-white/5 border border-white/5 text-zinc-600 hover:text-white font-bold py-4 rounded-xl text-[9px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 transition-all mt-4">
                                 <Keyboard className="w-4 h-4" /> Lançamento Manual
                             </button>
