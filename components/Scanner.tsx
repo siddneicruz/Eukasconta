@@ -1,19 +1,17 @@
 
-import React, { useState, useRef } from 'react';
-import { Camera, Upload, ScanLine, Image as ImageIcon, Loader2, AlertCircle, CheckCircle2, RefreshCw, XCircle, Bug, Ban, Keyboard, WifiOff, ShieldAlert, Lock, FileJson, Clock, Download, FileText } from 'lucide-react';
-import { parseReceiptImage, GeminiError } from '../services/geminiService';
-import { getActiveProvider, getActiveProviderLabel, getUserApiKey, setActiveProvider, PROVIDER_LABELS, AiProvider } from '../services/keyStorageService';
-import { Receipt, Establishment, MasterProduct } from '../types';
-import { applyRegistry, buildMasterIndex, learnEstablishment } from '../services/registryLookupService';
-import { SCAN_LIMIT_OPENROUTER_MS } from '../services/openrouterService';
+import React, { useState, useRef, useEffect } from 'react';
+import { Camera, ScanLine, Image as ImageIcon, Loader2, AlertCircle, CheckCircle2, RefreshCw, Ban, Keyboard, WifiOff, ShieldAlert, Lock, FileJson, Clock, Download, FileText } from 'lucide-react';
+import { GeminiError } from '../services/geminiService';
+import { getActiveProvider, getUserApiKey, setActiveProvider, PROVIDER_LABELS, AiProvider } from '../services/keyStorageService';
+import { Establishment, MasterProduct } from '../types';
 import { diagnostics } from '../services/diagnosticService';
-import { generateId } from '../services/idUtils';
-import { normalizeReceiptDate } from '../services/productNormalization';
 import { downloadFile } from '../services/nativeFiles';
 import { nativeScannerSupported, scanWithNativeScanner } from '../services/documentScanner';
+import { useScanQueue, startScan, retryFailed, stopScan, dismissScanResults, markScanResultsSeen, MAX_FILES_PER_BATCH, ScanContext } from '../services/scanQueue';
 
 interface ScannerProps {
-  onScanComplete: (receipts: Receipt[]) => void;
+  // Clique em "Concluir": a leitura já gravou os cupons, aqui só se vai ver o histórico.
+  onFinish: () => void;
   onCancel: () => void;
   onManualEntry: () => void; 
   knownEstablishments: string[];
@@ -22,92 +20,6 @@ interface ScannerProps {
   establishments?: Establishment[];
   masterProducts?: MasterProduct[];
 }
-
-interface FailedItem {
-    file: File;
-    error: GeminiError;
-}
-
-const resizeImage = (base64Str: string, maxWidth = 1024, quality = 0.85): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    
-    // Timer de segurança para evitar travamento infinito no carregamento da imagem
-    const timeout = setTimeout(() => {
-        img.src = ""; // Aborta carregamento
-        reject(new Error("Tempo limite de processamento de imagem excedido."));
-    }, 10000);
-
-    img.onload = () => {
-      clearTimeout(timeout);
-      try {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        if (width > maxWidth) {
-          height = Math.round(height * (maxWidth / width));
-          width = maxWidth;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            reject(new Error("Falha ao inicializar contexto de renderização 2D."));
-            return;
-        }
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      } catch (e: any) {
-        reject(new Error(`Erro técnico no canvas: ${e.message}`));
-      }
-    };
-    
-    img.onerror = () => {
-        clearTimeout(timeout);
-        reject(new Error("O arquivo de imagem está corrompido, vazio ou em formato não suportado pelo navegador."));
-    };
-    
-    img.src = base64Str;
-  });
-};
-
-const readFileAsBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            if (typeof reader.result === 'string') resolve(reader.result);
-            else reject(new Error("Falha na decodificação binária do arquivo."));
-        };
-        reader.onerror = () => reject(new Error("Falha na leitura física do arquivo no disco."));
-        reader.readAsDataURL(file);
-    });
-};
-
-const cleanNumber = (val: any): number => {
-    if (typeof val === 'number') return val;
-    if (!val) return 0;
-    let str = String(val).trim();
-    str = str.replace(/O/gi, '0').replace(/l/g, '1').replace(/I/g, '1');
-    str = str.replace(/[R$\s]/g, '');
-    if (str.includes(',') && str.includes('.')) {
-        str = str.replace(/\./g, ''); 
-        str = str.replace(',', '.'); 
-    } else if (str.includes(',')) {
-        str = str.replace(',', '.');
-    }
-    str = str.replace(/[^0-9.]/g, '');
-    const num = parseFloat(str);
-    return isNaN(num) ? 0 : num;
-};
 
 const getErrorIcon = (category: string) => {
     switch (category) {
@@ -123,24 +35,10 @@ const getErrorIcon = (category: string) => {
 // Provedores que de fato leem cupom hoje (OpenAI ainda é só um espaço reservado).
 const READING_PROVIDERS: AiProvider[] = ['gemini', 'anthropic', 'openrouter'];
 
-// Erro que vale para o lote inteiro: chave recusada ou cota/crédito esgotado. Continuar só repetiria
-// o mesmo erro em cada arquivo (e, em cota diária, gastaria pedidos à toa).
-const isBatchStopper = (e: GeminiError): boolean =>
-    e.category === 'AUTH' || (e.category === 'QUOTA' && !e.isRetryable);
-
-// Quantas falhas seguidas da IA (já com o pedido enviado) até parar o lote. Se 3 cupons seguidos não
-// foram lidos nem com os modelos de reserva, o provedor está lento ou fora do ar: o 4º tende a falhar também.
-const MAX_CONSECUTIVE_AI_FAILURES = 3;
-
-const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEntry, knownEstablishments, categories, establishments = [], masterProducts = [] }) => {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isStopping, setIsStopping] = useState(false);
-  const [progress, setProgress] = useState<{current: number, total: number} | null>(null);
-  const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
-  const [tempReceipts, setTempReceipts] = useState<Receipt[]>([]);
-  const [reportSent, setReportSent] = useState(false);
-  const [batchStop, setBatchStop] = useState<GeminiError | null>(null);
-  const [scannerLogs, setScannerLogs] = useState<string[]>([]);
+const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, knownEstablishments, categories, establishments = [], masterProducts = [] }) => {
+  // A leitura roda em segundo plano (services/scanQueue): esta tela só mostra o andamento e continua certa
+  // se a pessoa sair e voltar durante o lote.
+  const { isProcessing, isStopping, progress, failedItems, savedCount, duplicateCount, batchStop, logs: scannerLogs } = useScanQueue();
   // Scanner de documentos do Android (só no app instalado): texto de andamento enquanto abre,
   // aviso se falhar, e "desligado" para a próxima toque cair na câmera comum.
   const [nativeScanBusy, setNativeScanBusy] = useState<string | null>(null);
@@ -148,222 +46,25 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
   const [nativeScannerOff, setNativeScannerOff] = useState(false);
   const useNativeScanner = nativeScannerSupported() && !nativeScannerOff;
 
-  const abortProcessingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const cancelRejectRef = useRef<((reason?: any) => void) | null>(null);
 
-  const processBatch = async (files: FileList | File[], isRetry = false) => {
-    const totalFiles = files.length;
-    if (totalFiles > 300) {
-        alert("Por favor, selecione no máximo 300 arquivos por vez para garantir a estabilidade do estúdio.");
-        return;
+  // Abrir esta tela é "ver o resultado": o aviso flutuante das outras abas some.
+  useEffect(() => { markScanResultsSeen(); }, [failedItems.length, isProcessing]);
+
+  const scanContext = (): ScanContext => ({ knownEstablishments, categories, establishments, masterProducts });
+
+  const processBatch = (files: FileList | File[]) => {
+    const res = startScan(files, scanContext());
+    if (!res.ok && res.reason === 'too_many') {
+        alert(`Por favor, selecione no máximo ${MAX_FILES_PER_BATCH} arquivos por vez para garantir a estabilidade do estúdio.`);
     }
-
-    setIsProcessing(true);
-    setIsStopping(false);
-    setReportSent(false);
-    abortProcessingRef.current = false;
-    if (!isRetry) {
-        setTempReceipts([]);
-    }
-    setFailedItems([]); 
-    setBatchStop(null);
-    setScannerLogs([]);
-    setProgress({ current: 0, total: totalFiles });
-
-    const addLog = (msg: string) => {
-        setScannerLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
-        diagnostics.log('SCANNER', msg);
-    };
-
-    addLog(`Iniciando processamento em lote: ${totalFiles} arquivos detectados.`);
-
-    const processedReceipts: Receipt[] = [];
-    const currentFailures: FailedItem[] = [];
-
-    // Cadastro do lote: cópia das lojas conhecidas (para o 2º cupom da mesma loja achar o 1º)
-    // e catálogo de produtos já preparado uma única vez.
-    const batchRegistry: Establishment[] = [...establishments];
-    const masterIndex = buildMasterIndex(masterProducts);
-
-    // Para o lote: os arquivos que faltam ficam como "recuperáveis" (Tentar Recuperação), sem serem enviados.
-    const stopBatch = (reason: GeminiError, atIndex: number) => {
-        for (let j = atIndex + 1; j < totalFiles; j++) {
-            currentFailures.push({ file: files[j], error: new GeminiError('Não processado: o lote parou antes de chegar neste arquivo.', reason.category, true) });
-        }
-        setBatchStop(reason);
-        addLog(`Lote interrompido no arquivo ${atIndex + 1}/${totalFiles}. ${totalFiles - atIndex - 1} arquivo(s) não foram enviados à IA.`);
-    };
-    let aiFailuresInARow = 0;
-
-    for (let i = 0; i < totalFiles; i++) {
-        if (abortProcessingRef.current) {
-            addLog('Processamento interrompido pelo usuário.');
-            break;
-        }
-        
-        const file = files[i];
-        let sentToAi = false;
-        setProgress({ current: i + 1, total: totalFiles });
-        addLog(`Processando arquivo ${i + 1}/${totalFiles}: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
-
-        try {
-            // Check for backup files
-            if (file.name.toLowerCase().endsWith('.json') || file.name.toLowerCase().endsWith('.zip')) {
-                throw new GeminiError("Arquivos de backup (JSON/ZIP) devem ser importados nas Configurações > Importar.", 'PARSING', false);
-            }
-
-            if (!file.type.startsWith('image/')) throw new GeminiError(`Formato '${file.type}' não suportado. Use imagens.`, 'PARSING', false);
-            if (file.size > 20 * 1024 * 1024) throw new GeminiError("Arquivo excede limite de 20MB.", 'PARSING', false);
-
-            // ETAPA 1: Leitura do arquivo
-            addLog('Lendo arquivo...');
-            const rawBase64 = await readFileAsBase64(file);
-            
-            // ETAPA 2: Otimização para OCR (Redimensionamento inteligente)
-            addLog('Otimizando imagem...');
-            const optimizedBase64Full = await resizeImage(rawBase64, 1280, 0.80);
-            
-            const mimeTypeMatch = optimizedBase64Full.match(/^data:(.*?);base64/);
-            const finalMimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-            const base64Data = optimizedBase64Full.split(',')[1];
-
-            // ETAPA 3: Envio para Inteligência Artificial com Timeout
-            addLog(`Enviando para ${getActiveProviderLabel()} (IA)...`);
-            
-            // O OpenRouter grátis é lento e já tem controle de tempo próprio; os demais mantêm 90 s.
-            const limitMs = getActiveProvider() === 'openrouter' ? SCAN_LIMIT_OPENROUTER_MS : 90000;
-            const timeoutPromise = new Promise<never>((_, reject) => 
-                setTimeout(() => reject(new GeminiError(`Tempo limite excedido (${Math.round(limitMs / 1000)}s). O cupom é muito longo ou o provedor está lento.`, 'NETWORK', true)), limitMs)
-            );
-
-            const cancelPromise = new Promise<never>((_, reject) => {
-                cancelRejectRef.current = reject;
-            });
-
-            sentToAi = true;
-            const extractedData = await Promise.race([
-                parseReceiptImage(base64Data, finalMimeType, knownEstablishments, categories),
-                timeoutPromise,
-                cancelPromise
-            ]) as Partial<Receipt>;
-            
-            cancelRejectRef.current = null; // Clear after success
-            
-            if (abortProcessingRef.current) break; // Stop immediately if cancelled during await
-
-            addLog('Dados extraídos com sucesso. Processando itens...');
-            let rawItems = extractedData.items || [];
-            let calculatedItems = rawItems.map(item => {
-                let q = cleanNumber(item.quantity);
-                let u = cleanNumber(item.unitPrice);
-                let t = cleanNumber(item.totalPrice);
-                if (q <= 0) q = 1; 
-                return { ...item, quantity: q, unitPrice: u, totalPrice: t };
-            });
-
-            calculatedItems = calculatedItems.map(item => {
-                let { quantity: q, unitPrice: u, totalPrice: t } = item;
-                if (t === 0 && u > 0) t = Number((q * u).toFixed(2));
-                else if (u === 0 && t > 0) u = Number((t / q).toFixed(2));
-                return { ...item, quantity: q, unitPrice: u, totalPrice: t };
-            });
-
-            let receiptTotal = cleanNumber(extractedData.totalAmount);
-            const itemsSum = calculatedItems.reduce((acc, i) => acc + i.totalPrice, 0);
-
-            if (receiptTotal === 0 && itemsSum > 0) receiptTotal = Number(itemsSum.toFixed(2));
-
-            // Leitura vazia (nenhum item e nenhum valor): não vira cupom "Estabelecimento Desconhecido" de R$ 0,00 no histórico.
-            // Entra na lista de falhas, com opção de tentar de novo.
-            if (calculatedItems.length === 0 && receiptTotal <= 0) {
-                throw new GeminiError('A leitura veio vazia: não achou nenhum item nem valor neste cupom, por isso ele não foi salvo. Tire outra foto com o cupom inteiro, reto e bem iluminado, ou tente outro modelo em Config.', 'PARSING', true);
-            }
-
-            const newReceipt: Receipt = {
-                id: generateId(),
-                establishmentName: extractedData.establishmentName || "Estabelecimento Desconhecido",
-                cnpj: extractedData.cnpj || "",
-                address: extractedData.address || "",
-                city: extractedData.city || "",
-                state: (extractedData.state || "").toUpperCase().substring(0, 2),
-                date: normalizeReceiptDate(extractedData.date || ''),
-                time: extractedData.time || "12:00", 
-                totalAmount: receiptTotal || 0,
-                items: calculatedItems,
-                scannedAt: new Date().toISOString()
-            };
-            
-            // ETAPA 4: Consulta ao cadastro (loja pelo CNPJ; itens pelo catálogo de produtos)
-            const registry = applyRegistry(newReceipt, { establishments: batchRegistry, masterIndex, categories });
-            registry.notes.forEach(addLog);
-            learnEstablishment(batchRegistry, registry);
-
-            processedReceipts.push(registry.receipt);
-            aiFailuresInARow = 0;
-            addLog(`Sucesso: ${file.name} - Total: R$ ${registry.receipt.totalAmount}`);
-            
-        } catch (err: any) {
-            if (abortProcessingRef.current) break;
-            const errorObj = err instanceof GeminiError ? err : new GeminiError(err.message || "Erro inesperado de hardware/rede.", 'UNKNOWN', true, err);
-            if (isBatchStopper(errorObj)) {
-                // O lote para aqui. Este arquivo e os que faltavam ficam como "recuperáveis": depois de
-                // corrigir a chave (ou trocar de provedor), "Tentar Recuperação" processa todos de novo.
-                currentFailures.push({ file, error: new GeminiError(errorObj.message, errorObj.category, true, err) });
-                addLog(`ERRO em ${file.name}: ${errorObj.message}`);
-                stopBatch(errorObj, i);
-                break;
-            }
-            currentFailures.push({ file, error: errorObj });
-            addLog(`ERRO em ${file.name}: ${errorObj.message}`);
-
-            if (sentToAi) aiFailuresInARow++;
-            if (aiFailuresInARow >= MAX_CONSECUTIVE_AI_FAILURES && i < totalFiles - 1) {
-                stopBatch(new GeminiError(
-                    `A IA falhou em ${aiFailuresInARow} cupons seguidos, então o lote foi interrompido para não perder tempo nem cota à toa. Costuma ser lentidão ou instabilidade do provedor naquele momento. Tente de novo daqui a alguns minutos, escolha outro modelo em Config ou use outro provedor.`,
-                    'NETWORK', true, err), i);
-                break;
-            }
-        }
-    }
-
-    setIsProcessing(false);
-    setIsStopping(false);
-    setProgress(null);
-
-    if (currentFailures.length > 0) {
-        setFailedItems(currentFailures);
-        if (processedReceipts.length > 0) {
-            setTempReceipts(prev => [...prev, ...processedReceipts]);
-        }
-    } else {
-        if (processedReceipts.length > 0) {
-            setTempReceipts(prev => {
-                const updated = [...prev, ...processedReceipts];
-                onScanComplete(updated);
-                return [];
-            });
-        } else {
-            if (tempReceipts.length > 0) {
-                onScanComplete(tempReceipts);
-                setTempReceipts([]);
-            }
-        }
-    }
-
+    // Libera o seletor para escolher os mesmos arquivos de novo depois
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
-  const handleStopProcessing = () => {
-      abortProcessingRef.current = true;
-      setIsStopping(true);
-      if (cancelRejectRef.current) {
-          cancelRejectRef.current(new Error("Processamento interrompido pelo usuário."));
-          cancelRejectRef.current = null;
-      }
-  };
+  const handleStopProcessing = () => stopScan();
 
   const handleCameraClick = async () => {
     if (!useNativeScanner) { cameraInputRef.current?.click(); return; }
@@ -391,11 +92,7 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
     }
   };
 
-  const handleRetry = () => {
-      const filesToRetry = failedItems.filter(i => i.error.isRetryable).map(item => item.file);
-      if (filesToRetry.length === 0) return;
-      processBatch(filesToRetry, true);
-  };
+  const handleRetry = () => { retryFailed(scanContext()); };
 
   // Outros provedores com chave salva, para oferecer a troca quando o lote parou por chave/cota.
   const alternativeProviders = batchStop
@@ -408,9 +105,8 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
   };
 
   const handleFinishAndGoToHistory = () => {
-      onScanComplete(tempReceipts);
-      setTempReceipts([]);
-      setFailedItems([]);
+      dismissScanResults();
+      onFinish();
   };
 
   const handleDownloadErrorReport = () => {
@@ -424,9 +120,10 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
       reportContent += `Gerado em: ${formattedDate}\n`;
       reportContent += `================================================================================\n\n`;
       reportContent += `RESUMO DO PROCESSAMENTO:\n`;
-      reportContent += `- Cupons Processados com Sucesso: ${tempReceipts.length}\n`;
+      reportContent += `- Cupons Salvos: ${savedCount}\n`;
+      reportContent += `- Cupons que já estavam no histórico: ${duplicateCount}\n`;
       reportContent += `- Cupons com Ocorrências/Falhas: ${failedItems.length}\n`;
-      reportContent += `- Total de Arquivos no Lote: ${tempReceipts.length + failedItems.length}\n\n`;
+      reportContent += `- Total de Arquivos no Lote: ${savedCount + duplicateCount + failedItems.length}\n\n`;
       reportContent += `--------------------------------------------------------------------------------\n`;
       reportContent += `DETALHES DOS ERROS POR ARQUIVO:\n`;
       reportContent += `--------------------------------------------------------------------------------\n\n`;
@@ -506,8 +203,8 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-2xl p-4 text-center">
                                 <span className="text-[11px] uppercase tracking-wider text-emerald-500 font-bold block mb-1">Processados com Sucesso</span>
-                                <span className="text-2xl font-serif font-bold text-emerald-400">{tempReceipts.length}</span>
-                                <span className="text-xs text-zinc-500 block mt-1">cupons salvos</span>
+                                <span className="text-2xl font-serif font-bold text-emerald-400">{savedCount}</span>
+                                <span className="text-xs text-zinc-500 block mt-1">{savedCount === 1 ? 'cupom salvo' : 'cupons salvos'}{duplicateCount > 0 ? ` (+${duplicateCount} já ${duplicateCount === 1 ? 'existia' : 'existiam'})` : ''}</span>
                             </div>
                             <div className="bg-red-950/20 border border-red-500/20 rounded-2xl p-4 text-center">
                                 <span className="text-[11px] uppercase tracking-wider text-red-500 font-bold block mb-1">Ocorrências / Falhas</span>

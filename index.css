@@ -36,6 +36,15 @@
   .app-main { padding-top: 5rem; padding-bottom: 0; }
 }
 
+/* Aviso flutuante da leitura de cupons em segundo plano: fica logo acima da barra de abas */
+.scan-chip {
+  left: 0.75rem; right: 0.75rem;
+  bottom: calc(4rem + var(--safe-bottom) + 0.5rem);
+}
+@media (min-width: 768px) {
+  .scan-chip { left: auto; right: 1.5rem; bottom: 1.5rem; width: 22rem; }
+}
+
 /* ---------- Celular deitado (paisagem) ----------
    A barra de abas vira um trilho vertical à esquerda e o conteúdo usa a
    largura toda. Altura <= 500px = celular; tablets deitados não entram aqui. */
@@ -58,6 +67,7 @@
   .app-tabbar .tab-scan { margin-top: 0; padding-bottom: 0; justify-content: center; }
   .app-tabbar .tab-scan > span:first-child { width: 2.75rem; height: 2.75rem; border-width: 0; }
   .app-header { left: calc(76px + env(safe-area-inset-left, 0px)); }
+  .scan-chip { left: calc(76px + env(safe-area-inset-left, 0px) + 0.75rem); right: 0.75rem; bottom: 0.75rem; max-width: 26rem; }
   .app-main {
     padding-top: 3.5rem;
     padding-bottom: 0;

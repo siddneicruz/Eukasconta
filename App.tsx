@@ -7,6 +7,8 @@ import * as LucideIcons from 'lucide-react';
 
 import Dashboard, { getCategoryIcon } from './components/Dashboard';
 import Scanner from './components/Scanner';
+import ScanProgressChip from './components/ScanProgressChip';
+import { setScanHandlers, ScanSummary } from './services/scanQueue';
 import TransactionList from './components/TransactionList';
 import ReceiptDetail from './components/ReceiptDetail';
 import CategoryDetailView from './components/CategoryDetailView';
@@ -537,17 +539,39 @@ const App: React.FC = () => {
       if (uid) deleteCloudReceipt(uid, target.id).catch(() => { /* a cópia na nuvem some no próximo envio; o app segue */ });
   };
 
-  // Quantos dos cupons lidos são novos (mesma regra de duplicado do handleScanComplete). Serve para avisar a pessoa.
-  const countNewReceipts = (list: Receipt[]): number => {
-      const seen = [...receipts];
-      let n = 0;
-      list.forEach(nr => {
-          const a = auditAndRepairReceipt(nr);
-          const dup = seen.some(ex => (a.id === ex.id) || (a.date === ex.date && Math.abs(a.totalAmount - ex.totalAmount) < 0.01 && a.establishmentName === ex.establishmentName));
-          if (!dup) { seen.unshift(a); n++; }
-      });
-      return n;
+  // Leitura de cupons em segundo plano (services/scanQueue): cada cupom lido é gravado na hora, mesmo que a
+  // pessoa esteja em outra aba, e o aviso de fim sai de qualquer tela.
+  const receiptsRef = useRef(receipts);
+  receiptsRef.current = receipts;
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const commitScanned = (r: Receipt): boolean => {
+      const a = auditAndRepairReceipt(r);
+      const isDup = (ex: Receipt) => a.id === ex.id || (a.date === ex.date && Math.abs(a.totalAmount - ex.totalAmount) < 0.01 && a.establishmentName === ex.establishmentName);
+      if (receiptsRef.current.some(isDup)) return false;
+      receiptsRef.current = [a, ...receiptsRef.current];   // o próximo cupom do lote já enxerga este
+      setReceipts(prev => prev.some(isDup) ? prev : [a, ...prev]);
+      return true;
   };
+  const finishScan = (s: ScanSummary) => {
+      const n = s.added.length;
+      if (n > 0) cloud.contribute(s.added.map(auditAndRepairReceipt));
+      const saved = `${n} ${n === 1 ? 'cupom salvo' : 'cupons salvos'}`;
+      const dupNote = s.duplicates > 0 ? `; ${s.duplicates} já ${s.duplicates === 1 ? 'existia' : 'existiam'}` : '';
+      const onScanner = viewRef.current === 'scanner';
+      let msg: string;
+      // Com falhas e em outra aba, o aviso flutuante da leitura já diz tudo (e fica até a pessoa ver): sem segundo aviso por cima dele.
+      if (s.failed > 0 && !onScanner) return;
+      if (s.failed > 0) msg = `Leitura terminou: ${saved}${dupNote}, ${s.failed} não ${s.failed === 1 ? 'importado' : 'importados'}.`;
+      else if (s.interrupted) msg = n > 0 || s.duplicates > 0 ? `Leitura interrompida: ${saved}${dupNote}.` : 'Leitura interrompida.';
+      else if (n === 0) msg = s.duplicates === 1 ? 'Esse cupom já estava no histórico, nada novo foi salvo.' : `Esses ${s.duplicates} cupons já estavam no histórico, nada novo foi salvo.`;
+      else msg = `${saved}${dupNote}.`;
+      // Sem falhas e com a tela do Scanner aberta, leva ao histórico. Em outra aba, não puxa a pessoa de lá.
+      if (s.failed === 0 && onScanner && (n > 0 || s.duplicates > 0)) setView('history');
+      showNotification(msg, 6000);
+  };
+  useEffect(() => { setScanHandlers({ commit: commitScanned, onFinish: finishScan }); });
+  useEffect(() => () => setScanHandlers(null), []);
 
   const handleScanComplete = (newReceipts: Receipt[]) => {
     let added = 0;
@@ -1009,7 +1033,7 @@ const App: React.FC = () => {
                         onUpdateMasterProducts={setMasterProducts}
                     />
                 )}
-                {view === 'scanner' && <Scanner onScanComplete={(rs) => { const added = countNewReceipts(rs); const dups = rs.length - added; handleScanComplete(rs); cloud.contribute(rs.map(auditAndRepairReceipt)); setView('history'); showNotification(added === 0 ? (dups === 1 ? 'Esse cupom já estava no histórico, nada novo foi salvo.' : `Esses ${dups} cupons já estavam no histórico, nada novo foi salvo.`) : `${added} ${added === 1 ? 'cupom salvo' : 'cupons salvos'}${dups > 0 ? `; ${dups} já ${dups === 1 ? 'existia' : 'existiam'}` : ''}.`, 6000); }} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} />}
+                {view === 'scanner' && <Scanner onFinish={() => setView('history')} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} />}
                 {view === 'manual_entry' && <ManualEntryForm onSave={(r) => { handleScanComplete([r]); setView('history'); showNotification("Lançamento salvo com sucesso."); }} onCancel={() => setView('dashboard')} categories={categories} knownEstablishments={Array.from(new Set(receipts.map(r => r.establishmentName)))} knownProducts={[]} allReceipts={receipts} />}
                 {view === 'alerts' && (
                     <AlertsView cloud={cloud} draft={alertDraft} onDraftConsumed={() => setAlertDraft(null)} onGoToAccount={goToAccount} onBack={() => setView('dashboard')} />
@@ -1050,6 +1074,8 @@ const App: React.FC = () => {
                 )}
           </div>
       </main>
+
+      <ScanProgressChip hidden={view === 'scanner'} onOpen={() => setView('scanner')} />
 
       {/* Barra de abas do celular (some em telas médias/grandes, onde o menu do topo aparece) */}
       <nav className="app-tabbar md:hidden fixed bottom-0 inset-x-0 z-50 bg-black/90 backdrop-blur-xl border-t border-white/10">
