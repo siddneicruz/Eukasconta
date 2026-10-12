@@ -1,11 +1,13 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, TaxonomyNode } from '../types';
+import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, TaxonomyNode, MasterProduct } from '../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from 'recharts';
 import InteractiveDonut from './InteractiveDonut';
 import PercentRing from './PercentRing';
 import PeriodPicker from './PeriodPicker';
 import ReceiptRow from './ReceiptRow';
+import ItemSearchBox from './ItemSearchBox';
+import ItemPriceInsight from './ItemPriceInsight';
 import { 
     Calendar, Fuel, Home, Shirt, ShoppingCart, ScanLine, History, 
     BarChart3, Settings, Filter, CalendarDays, RotateCcw, 
@@ -31,6 +33,8 @@ import {
 import * as LucideIcons from 'lucide-react';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
+import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
+import { periodLabel } from '../services/productPriceStats';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 
 interface DashboardProps {
@@ -45,6 +49,7 @@ interface DashboardProps {
   onSettingsClick: () => void;
   onEditIcon?: (category: string) => void;
   onSelectReceipt?: (receipt: Receipt) => void;
+  masterProducts?: MasterProduct[];
 }
 
 const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
@@ -400,7 +405,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     return null;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onSettingsClick, onEditIcon, onSelectReceipt }) => {
+const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [] }) => {
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
   const availableMasterCategories = useMemo(() => {
       return taxonomy
@@ -409,8 +414,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         .sort();
   }, [taxonomy]);
 
+  // Com um item escolhido na busca, cada cupom passa a ter só as linhas desse item (e o total dessas linhas):
+  // o painel inteiro (linha do tempo, departamentos, lojas, lista) reflete só ele.
+  const itemReceipts = useMemo(() => projectReceipts(receipts, config.item), [receipts, config.item]);
+  const receiptsById = useMemo(() => new Map(receipts.map(r => [r.id, r] as [string, Receipt])), [receipts]);
+
   const filteredReceipts = useMemo(() => {
-    return receipts.filter(r => {
+    return itemReceipts.filter(r => {
         let rDate = new Date(r.date + 'T12:00:00');
         if (isNaN(rDate.getTime())) rDate = new Date();
         
@@ -437,7 +447,19 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         if (config.month !== null && rDate.getMonth() !== config.month) return false;
         return true;
     }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [receipts, config]);
+  }, [itemReceipts, config]);
+
+  // Resumo do item escolhido no período, e as compras dele para o gráfico de preço
+  const itemSummary = useMemo(() => {
+    if (!config.item) return null;
+    let lines = 0, total = 0;
+    filteredReceipts.forEach(r => r.items.forEach(i => { lines += 1; total += Number(i.totalPrice) || 0; }));
+    return { lines, total };
+  }, [config.item, filteredReceipts]);
+  const itemHistory = useMemo(
+    () => (config.item ? toHistoryItems(filteredReceipts, makeItemMatcher(config.item)) : []),
+    [config.item, filteredReceipts]);
+  const openOriginal = (r: Receipt) => onSelectReceipt?.(receiptsById.get(r.id) || r);
 
   // Departamentos: "HORTIFRUTI", "Hortifruti" e "hortifruti" (ou com/sem acento) viram um só.
   // O nome que representa o grupo é o da taxonomia, se existir; senão o que mais gastou.
@@ -567,9 +589,9 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
             <div className="order-3 md:order-4 ls:order-4 flex items-center gap-2 px-2 md:px-4 md:border-l ls:border-l border-white/10 shrink-0">
                 <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === '7d' ? null : '7d', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${config.quickFilter === '7d' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'border-white/5 text-zinc-500'}`}>7 DIAS</button>
                 <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">PERÍODO</span></button>
-                {(config.category || config.month !== null || config.quickFilter || config.establishment) && (
+                {(config.category || config.month !== null || config.quickFilter || config.establishment || config.item) && (
                     <button
-                        onClick={() => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null })}
+                        onClick={() => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null })}
                         title="Limpar filtros"
                         className="p-2 rounded-xl border border-white/5 text-zinc-600 hover:text-luxury-gold hover:border-luxury-gold/30 transition-all"
                     >
@@ -578,6 +600,25 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 )}
             </div>
         </div>
+
+        {/* Item escolhido na busca: também fica sempre visível e com saída óbvia */}
+        {config.item && itemSummary && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2" data-testid="item-filter-banner">
+                <span className="text-[13px] text-zinc-200 min-w-0">
+                    <span className="block truncate">Mostrando só <b className="font-semibold text-luxury-gold">{itemFilterTitle(config.item)}</b></span>
+                    <span className="block text-xs text-zinc-400 tabular-nums truncate" data-testid="item-filter-summary">
+                        {itemSummary.lines === 0 ? 'Nenhuma compra neste período' : `${itemSummary.lines} ${itemSummary.lines === 1 ? 'compra' : 'compras'} · ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemSummary.total)}`}
+                    </span>
+                </span>
+                <button
+                    onClick={() => onConfigChange({ ...config, item: null })}
+                    data-testid="item-filter-clear"
+                    className="shrink-0 px-3.5 py-1.5 rounded-full border border-luxury-gold/40 text-xs font-bold text-luxury-gold hover:bg-luxury-gold/15 transition-all"
+                >
+                    Ver tudo
+                </button>
+            </div>
+        )}
 
         {/* Filtro de estabelecimento ligado ao tocar numa barra: fica sempre visível e com saída óbvia */}
         {config.establishment && (
@@ -593,6 +634,17 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 </button>
             </div>
         )}
+      </div>
+
+      <div className="relative z-30 mb-4 md:mb-8">
+          <ItemSearchBox
+              receipts={receipts}
+              masters={masterProducts}
+              selected={config.item || null}
+              onSelect={(f) => onConfigChange({ ...config, item: f })}
+              placeholder="Buscar item (ex.: cebola, leite, arroz)"
+              testId="item-search"
+          />
       </div>
 
       {/* No celular esses atalhos já estão na barra de abas do rodapé */}
@@ -631,6 +683,12 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               </ResponsiveContainer>
           </div>
       </div>
+
+      {config.item && (
+          <div className="mb-10" data-testid="item-price-section">
+              <ItemPriceInsight items={itemHistory} title={itemFilterTitle(config.item)} periodTitle={periodLabel(config)} />
+          </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-10">
           <div className="lg:col-span-6 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 min-h-[420px] md:min-h-[500px] shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
@@ -762,7 +820,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           </div>
           <div className="space-y-2">
               {filteredReceipts.slice(0, 12).map((receipt) => (
-                  <ReceiptRow key={receipt.id} receipt={receipt} onClick={onSelectReceipt} />
+                  <ReceiptRow key={receipt.id} receipt={receipt} onClick={openOriginal} />
               ))}
           </div>
           {filteredReceipts.length > 12 && (

@@ -233,7 +233,8 @@ const App: React.FC = () => {
       quickFilter: null,
       customStartDate: '',
       customEndDate: '',
-      establishment: null
+      establishment: null,
+      item: null
   });
 
   const [isMobilePreview, setIsMobilePreview] = useState(false);
@@ -992,6 +993,7 @@ const App: React.FC = () => {
                       onCategoryClick={(cat) => { setSelectedCategory(cat); setView('category_detail'); }} 
                       onEditIcon={setSelectedCategoryForIcon} 
                       onSelectReceipt={(r) => setSelectedReceiptId(r.id)}
+                      masterProducts={masterProducts}
                     />
                 )}
                 {view === 'category_detail' && selectedCategory && (
@@ -1033,7 +1035,7 @@ const App: React.FC = () => {
                 {view === 'establishment_detail' && selectedEstablishment && (
                     <EstablishmentDetailView establishmentName={selectedEstablishment} receipts={receipts} onBack={() => setView('reports')} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} />
                 )}
-                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} />}
+                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onConfigChange={setDashboardConfig} masterProducts={masterProducts} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} />}
                 {view === 'reports' && (
                     <Reports 
                         receipts={receipts} 

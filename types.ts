@@ -115,6 +115,16 @@ export interface DashboardConfig {
     customStartDate: string;
     customEndDate: string;
     establishment: string | null;
+    // Busca de item: quando preenchida, o painel e o histórico mostram só as linhas dessa(s) compra(s)
+    item?: ItemFilter | null;
+}
+
+// Um item escolhido na busca. `descs` = produto escolhido (descrições em MAIÚSCULAS que o formam);
+// `text` = busca livre ("tudo com cebola"): todas as palavras precisam aparecer na descrição.
+export interface ItemFilter {
+    label: string;
+    descs?: string[];
+    text?: string;
 }
 
 export type ViewState = 

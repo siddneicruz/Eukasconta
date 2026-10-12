@@ -1,11 +1,15 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Receipt, DashboardConfig } from '../types';
-import { Search, ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { Receipt, DashboardConfig, MasterProduct, ItemFilter, ReceiptItem } from '../types';
+import { ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { normalizeProductName } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import PeriodPicker from './PeriodPicker';
 import ConfirmDialog from './ConfirmDialog';
+import ItemSearchBox from './ItemSearchBox';
+import ItemPriceInsight from './ItemPriceInsight';
+import { makeItemMatcher, textFilter, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
+import { periodLabel, normalizeUnit } from '../services/productPriceStats';
 
 interface TransactionListProps {
   receipts: Receipt[];
@@ -19,6 +23,9 @@ interface TransactionListProps {
   onAddManual?: () => void;
   initialCategory?: string;
   config?: DashboardConfig; 
+  // Busca por item (autocompletar usa o cadastro de produtos); o item escolhido fica na config, igual ao Início
+  masterProducts?: MasterProduct[];
+  onConfigChange?: (config: DashboardConfig) => void;
 }
 
 const normalizeText = (text: string) => {
@@ -31,9 +38,13 @@ const LONG_PRESS_MS = 450;   // segurar o cupom por esse tempo mostra a lixeira
 const PRESS_SLOP_PX = 8;     // mexer o dedo mais que isso é rolagem, não um "segurar"
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config, masterProducts = [], onConfigChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [establishmentFilter, setEstablishmentFilter] = useState('');
+  // Item escolhido no autocompletar: vive na config (compartilhado com o Início); sem config, fica só aqui
+  const [localItem, setLocalItem] = useState<ItemFilter | null>(null);
+  const itemFilter: ItemFilter | null = config && onConfigChange ? (config.item || null) : localItem;
+  const setItemFilter = (f: ItemFilter | null) => { if (config && onConfigChange) onConfigChange({ ...config, item: f }); else setLocalItem(f); };
   
   const [startDate, setStartDate] = useState(config?.customStartDate || '');
   const [endDate, setEndDate] = useState(config?.customEndDate || '');
@@ -95,12 +106,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
   useEffect(() => {
     if (config?.customStartDate) setStartDate(config.customStartDate);
     if (config?.customEndDate) setEndDate(config.customEndDate);
-  }, [config]);
+  }, [config?.customStartDate, config?.customEndDate]);
 
   const filteredReceipts = useMemo(() => {
     const term = normalizeText(searchTerm);
+    const itemMatch = itemFilter ? makeItemMatcher(itemFilter) : null;
     
     return receipts.filter(r => {
+        if (itemMatch && !r.items.some(itemMatch)) return false;
         const matchesSearch = normalizeText(r.establishmentName).includes(term) || 
                               r.totalAmount.toString().includes(term) ||
                               r.items.some(item => normalizeText(item.description).includes(term));
@@ -134,7 +147,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
         }
         return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount;
     });
-  }, [receipts, searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config]);
+  }, [receipts, searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config, itemFilter]);
 
   // Agrupamento para exibição por mês (Timeline)
   const groupedReceipts = useMemo(() => {
@@ -150,13 +163,38 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
 
   // Meses recolhíveis. Sem escolha da pessoa, abre os meses mais novos até somar ~15 cupons
   // (o mês mais recente sempre abre) e recolhe o resto; o título de cada mês fica sempre à vista.
+  // Busca por item: o escolhido no autocompletar ou, se só digitou, a palavra digitada (3+ letras).
+  // Mostra as linhas do item em cada cupom e o gráfico de preço antes da lista.
+  const searchMatcher = useMemo(() => {
+      if (itemFilter) return makeItemMatcher(itemFilter);
+      const f = textFilter(searchTerm);
+      return f ? makeItemMatcher(f) : null;
+  }, [itemFilter, searchTerm]);
+  const searchTitle = itemFilter ? itemFilterTitle(itemFilter) : searchTerm.trim();
+  const rowInfo = useMemo(() => {
+      const m = new Map<string, { lines: ReceiptItem[]; subtotal: number }>();
+      if (!searchMatcher) return m;
+      filteredReceipts.forEach(r => {
+          const lines = r.items.filter(searchMatcher);
+          if (lines.length) m.set(r.id, { lines, subtotal: lines.reduce((s, i) => s + (Number(i.totalPrice) || 0), 0) });
+      });
+      return m;
+  }, [filteredReceipts, searchMatcher]);
+  const priceItems = useMemo(() => (searchMatcher ? toHistoryItems(filteredReceipts, searchMatcher) : []), [filteredReceipts, searchMatcher]);
+  const priceFor = (r: Receipt) => (itemFilter && rowInfo.get(r.id) ? rowInfo.get(r.id)!.subtotal : (Number(r.totalAmount) || 0));
+  const itemPeriodTitle = useMemo(() => {
+      if (startDate || endDate) return periodLabel({ year: config?.year ?? new Date().getFullYear(), month: null, quickFilter: 'custom', customStartDate: startDate, customEndDate: endDate });
+      if (config) return periodLabel({ year: config.year, month: config.month, quickFilter: null, customStartDate: '', customEndDate: '' });
+      return 'Todo o histórico';
+  }, [startDate, endDate, config]);
+
   const monthGroups = useMemo(() => (Object.entries(groupedReceipts) as [string, Receipt[]][]).map(([month, items]) => ({
-      month, items, total: items.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0),
-  })), [groupedReceipts]);
+      month, items, total: items.reduce((s, r) => s + priceFor(r), 0),
+  })), [groupedReceipts, rowInfo, itemFilter]);
 
   const [manualCollapsed, setManualCollapsed] = useState<Set<string> | null>(null);
   useEffect(() => { setManualCollapsed(null); },
-      [searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config?.year, config?.month]);
+      [searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config?.year, config?.month, itemFilter]);
 
   const autoCollapsed = useMemo(() => {
       const closed = new Set<string>();
@@ -205,10 +243,21 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
 
       <div className="flex flex-col xl:flex-row ls:flex-row gap-4 ls:gap-2 items-start xl:items-center ls:items-center bg-black/40 p-1 rounded-2xl relative z-20">
         <div className="flex gap-2 w-full xl:flex-1">
-        <div className="relative flex-1 min-w-0">
-           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-           <input type="text" placeholder="Buscar loja ou valor" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-xl py-3.5 pl-12 pr-6 text-sm text-zinc-300 focus:outline-none focus:border-luxury-gold/30 transition-colors" />
-        </div>
+        <ItemSearchBox
+            className="flex-1 min-w-0"
+            testId="hist-search"
+            receipts={receipts}
+            masters={masterProducts}
+            selected={itemFilter}
+            onSelect={(f) => { setItemFilter(f); setSearchTerm(''); }}
+            query={searchTerm}
+            onQueryChange={setSearchTerm}
+            placeholder="Buscar loja, item ou valor"
+            textRow={false}
+            enterPicksFirst={false}
+            showClear={false}
+            emptyHint={false}
+        />
             <button 
                 onClick={() => {
                     setSortType(sortType === 'date' ? 'amount' : 'date');
@@ -231,7 +280,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
             />
             
             {(searchTerm || startDate || endDate) && (
-                <button onClick={() => { setSearchTerm(''); setStartDate(''); setEndDate(''); }} className="shrink-0 p-3.5 bg-white/5 hover:bg-red-950/20 text-zinc-500 hover:text-red-400 rounded-xl transition-colors border border-white/5">
+                <button data-testid="hist-clear" onClick={() => { setSearchTerm(''); setStartDate(''); setEndDate(''); }} className="shrink-0 p-3.5 bg-white/5 hover:bg-red-950/20 text-zinc-500 hover:text-red-400 rounded-xl transition-colors border border-white/5">
                     <XCircle className="w-4 h-4" />
                 </button>
             )}
@@ -239,7 +288,25 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
         </div>
       </div>
 
+      {itemFilter && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2 -mt-2" data-testid="hist-item-banner">
+            <span className="text-[13px] text-zinc-200 min-w-0">
+                <span className="block truncate">Mostrando só <b className="font-semibold text-luxury-gold">{itemFilterTitle(itemFilter)}</b></span>
+                <span className="block text-xs text-zinc-400 tabular-nums">{priceItems.length} {priceItems.length === 1 ? 'compra' : 'compras'} no período</span>
+            </span>
+            <button onClick={() => setItemFilter(null)} data-testid="hist-item-clear"
+                className="shrink-0 px-3.5 py-1.5 rounded-full border border-luxury-gold/40 text-xs font-bold text-luxury-gold hover:bg-luxury-gold/15 transition-all">
+                Ver tudo
+            </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto space-y-10 pr-2 pb-20 custom-scrollbar relative z-10">
+        {priceItems.length > 0 && (
+          <div data-testid="hist-price-section">
+              <ItemPriceInsight items={priceItems} title={searchTitle} periodTitle={itemPeriodTitle} testId="hist-price" />
+          </div>
+        )}
         {monthGroups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 opacity-70">
             <FileText className="w-12 h-12 text-zinc-800 mb-4" />
@@ -303,12 +370,26 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                                         <h4 className="text-zinc-100 font-sans font-semibold text-[15px] md:text-lg leading-snug line-clamp-2 break-words pr-1">{titleCase(receipt.establishmentName)}</h4>
                                         <div className="flex items-center gap-2 md:gap-3 text-xs text-zinc-500 mt-0.5 md:mt-1 min-w-0">
                                             <span className="flex items-center gap-1 shrink-0 tabular-nums"><Clock className="w-3 h-3" />{receipt.time || '12:00'}</span>
-                                            <span className="truncate">{receipt.items.slice(0, 3).map(i => titleCase(i.description)).join(', ')}{receipt.items.length > 3 ? '…' : ''}</span>
+                                            {rowInfo.get(receipt.id) ? (
+                                                <span className="truncate" data-testid="row-item-lines">
+                                                    {rowInfo.get(receipt.id)!.lines.slice(0, 2).map(i => `${brl.format(Number(i.unitPrice) || 0)}/${normalizeUnit(i.unitType).toLowerCase()} · ${titleCase(i.description)}`).join('  |  ')}
+                                                    {rowInfo.get(receipt.id)!.lines.length > 2 ? ` +${rowInfo.get(receipt.id)!.lines.length - 2}` : ''}
+                                                </span>
+                                            ) : (
+                                                <span className="truncate">{receipt.items.slice(0, 3).map(i => titleCase(i.description)).join(', ')}{receipt.items.length > 3 ? '…' : ''}</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 md:gap-6 shrink-0">
-                                    <span className="font-sans font-bold text-white text-sm md:text-lg tabular-nums">{brl.format(receipt.totalAmount)}</span>
+                                    {itemFilter && rowInfo.get(receipt.id) && rowInfo.get(receipt.id)!.lines.length < receipt.items.length ? (
+                                        <span className="flex flex-col items-end leading-tight">
+                                            <span className="font-sans font-bold text-white text-sm md:text-lg tabular-nums" data-testid="row-item-amount">{brl.format(priceFor(receipt))}</span>
+                                            <span className="text-[11px] text-zinc-500 tabular-nums">cupom {brl.format(receipt.totalAmount)}</span>
+                                        </span>
+                                    ) : (
+                                        <span className="font-sans font-bold text-white text-sm md:text-lg tabular-nums">{brl.format(priceFor(receipt))}</span>
+                                    )}
                                     {armed ? (
                                         <button type="button" data-testid="row-delete" aria-label="Excluir lançamento" title="Excluir lançamento"
                                             onPointerDown={(e) => e.stopPropagation()}

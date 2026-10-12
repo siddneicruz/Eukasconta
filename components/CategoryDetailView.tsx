@@ -7,6 +7,7 @@ import ReceiptRow from './ReceiptRow';
 import PercentRing from './PercentRing';
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
 import { properCase, sameDept, catKey } from '../services/textFormat';
+import { projectReceipts, itemFilterTitle } from '../services/itemSearch';
 
 interface CategoryDetailViewProps {
   categoryName: string;
@@ -23,8 +24,10 @@ const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, receipts, onBack, onSelectSubCategory, config, onEditIcon, onSelectReceipt }) => {
+  // Com um item escolhido na busca do Início, só as linhas dele entram aqui também
+  const baseReceipts = useMemo(() => projectReceipts(receipts, config.item), [receipts, config.item]);
   const filteredReceipts = useMemo(() => {
-    return receipts.filter(r => {
+    return baseReceipts.filter(r => {
         const rDate = new Date(r.date + 'T12:00:00');
         
         if (config.quickFilter === 'custom') {
@@ -41,7 +44,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
         }
         return r.items.some(item => sameDept(item.category, categoryName));
     }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [receipts, categoryName, config]);
+  }, [baseReceipts, categoryName, config]);
 
   // Subgrupos: "HORTIFRUTI - FRUTAS" e "Hortifruti - Frutas" são o mesmo; vale o nome que mais gastou.
   const subCategoriesData = useMemo(() => {
@@ -107,6 +110,11 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
         <div className="min-w-0 flex-1">
             <span className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold block mb-1">NÍVEL 2 • DIVISÕES DE DEPARTAMENTO</span>
             <h2 className="text-3xl sm:text-4xl font-serif text-white tracking-tighter uppercase break-words">{categoryName}</h2>
+            {config.item && (
+                <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-luxury-gold/30 bg-luxury-gold/10 px-3 py-1 text-xs text-zinc-300" data-testid="cat-item-note">
+                    <span className="truncate">Só <b className="font-semibold text-luxury-gold">{itemFilterTitle(config.item)}</b></span>
+                </span>
+            )}
         </div>
         {onEditIcon && (
             <button onClick={() => onEditIcon(categoryName)} aria-label="Mudar ícone e cor do departamento" title="Mudar ícone e cor" data-testid="dept-edit-icon"

@@ -169,8 +169,11 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
     const rawLo = Math.max(0, pMin - span * 0.18);
     const rawHi = pMax + span * 0.32; // folga em cima para o rótulo caber
     const { lo: yLo, hi: yHi, ticks: yTicks } = niceScale(rawLo, rawHi);
-    const longSpan = (last - first) / day > 45;
-    return { xLo, xHi, yLo, yHi, yTicks, ticks: pickTicks(points, first, last), fmtX: (t: number) => (longSpan ? monthYear(t) : dayMonth(t)) };
+    const ticks = pickTicks(points, first, last);
+    // "ago/26 · ago/26" não ajuda: se dois rótulos de mês saíssem iguais, o eixo mostra dia/mês
+    const monthLabels = ticks.map(monthYear);
+    const longSpan = (last - first) / day > 45 && new Set(monthLabels).size === monthLabels.length;
+    return { xLo, xHi, yLo, yHi, yTicks, ticks, fmtX: (t: number) => (longSpan ? monthYear(t) : dayMonth(t)) };
   }, [points, avg]);
 
   const toggle = (t: number) => setPins(prev => (prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]));
