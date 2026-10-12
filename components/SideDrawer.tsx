@@ -2,6 +2,7 @@ import React from 'react';
 import { X, LayoutDashboard, ScanLine, History, BarChart3, Settings, Terminal, Sparkles, Bell } from 'lucide-react';
 import { ViewState } from '../types';
 import { getActiveProvider } from '../services/keyStorageService';
+import { AppMark, PDLogo } from './Brand';
 
 interface SideDrawerProps {
   isOpen: boolean;
@@ -58,9 +59,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView,
       >
         <div className="flex items-center justify-between gap-3 p-6 border-b border-white/5">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-luxury-gold flex items-center justify-center shadow-lg shrink-0">
-              <span className="font-serif font-bold text-black text-lg">PD</span>
-            </div>
+            <AppMark className="h-12 w-auto shrink-0" />
             <div className="min-w-0">
               <h2 className="font-sans text-base font-bold text-white truncate">Eukasconta</h2>
               <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-400">
@@ -105,6 +104,10 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView,
             <Terminal className="w-4 h-4 shrink-0" />
             <span className="text-[13px] font-bold tracking-tight">Diagnóstico</span>
           </button>
+          <div className="mt-3 pt-4 border-t border-white/5 flex flex-col items-center gap-2 text-zinc-500">
+            <span className="text-[11px] font-medium">Criado por</span>
+            <PDLogo className="w-36 text-zinc-300" />
+          </div>
         </div>
       </aside>
     </>

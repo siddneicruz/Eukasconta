@@ -17,6 +17,7 @@ import { isNativeApp } from '../services/platform';
 import type { CloudApi } from '../services/useCloud';
 import { formatCNPJ } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
+import { AppMark, PDLogo } from './Brand';
 
 interface SettingsViewProps {
   taxonomy: TaxonomyNode[];
@@ -385,6 +386,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
           </div>
       )}
+
+      {/* Assinatura da criadora do app */}
+      <footer className="mt-16 pt-10 border-t border-white/5 flex flex-col items-center text-center gap-4 px-4">
+          <AppMark className="h-14 w-auto" title="Eu Kasconta" />
+          <p className="text-xs text-zinc-500">Eu Kasconta — suas compras sob controle.</p>
+          <div className="mt-2 flex flex-col items-center gap-2 text-zinc-300">
+              <span className="text-[11px] font-medium text-zinc-500">Criado por</span>
+              <PDLogo className="w-52 sm:w-64" />
+          </div>
+      </footer>
     </div>
   );
 };

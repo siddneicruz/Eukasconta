@@ -35,6 +35,7 @@ import { downloadFile } from './services/nativeFiles';
 import { App as CapApp } from '@capacitor/app';
 import { isNativeApp } from './services/platform';
 import { STORAGE_FULL_EVENT } from './services/storageGuard';
+import { AppMark } from './components/Brand';
 
 const LUXURY_COLORS = [
     // Golds & Bronzes
@@ -841,10 +842,10 @@ const App: React.FC = () => {
                 <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('dashboard')}>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded bg-luxury-gold flex items-center justify-center shadow-lg"><span className="font-serif font-bold text-black text-sm md:text-lg">PD</span></div>
+                <AppMark className="h-9 md:h-11 w-auto shrink-0 drop-shadow-[0_2px_8px_rgba(212,175,55,0.25)]" />
                 <div className="flex flex-col">
                     <h1 className="font-serif text-base md:text-lg font-bold tracking-tight">Eukasconta</h1>
-                    <span className="text-[11px] text-luxury-gold uppercase tracking-[0.1em]">Design Studio</span>
+                    <span className="text-[11px] text-luxury-gold font-semibold tracking-wide">Projeto Design</span>
                 </div>
             </div>
             <nav className="hidden md:flex gap-2 items-center">
