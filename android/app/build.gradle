@@ -16,6 +16,16 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Chave fixa de TESTE: assim cada APK novo instala por cima do anterior, sem apagar os dados do app.
+    // (É só para o APK de teste. Para publicar na Play Store será criada uma chave de produção, fora do repositório.)
+    signingConfigs {
+        debug {
+            storeFile file('eukasconta-debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
