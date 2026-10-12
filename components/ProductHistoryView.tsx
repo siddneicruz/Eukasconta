@@ -129,11 +129,9 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
                    <span className="text-[11px] text-zinc-500 border border-white/10 px-4 py-1.5 rounded-full uppercase tracking-[0.08em] font-bold w-fit">Análise de Consumo</span>
                </div>
                
-               <div className="h-[280px] md:h-[400px] w-full relative mt-8 md:mt-0">
+               <div className="h-[280px] md:h-[400px] w-[calc(100%+1.5rem)] md:w-full relative mt-8 md:mt-0">
                    <InteractiveDonut
                        data={productsData}
-                       innerRadius="58%"
-                       outerRadius="78%"
                        centerLabel="Total Itens"
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.total)}
                        tooltipContent={CustomTooltip}

@@ -625,11 +625,9 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                <div className="absolute top-5 left-5 md:top-10 md:left-10 flex flex-col">
                    <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Gastos por Departamento</h3>
                </div>
-               <div className="h-[340px] md:h-[400px] w-full relative mt-10 md:mt-0">
+               <div className="h-[340px] md:h-[400px] w-[calc(100%+1.5rem)] md:w-full relative mt-10 md:mt-0">
                    <InteractiveDonut
                        data={chartData}
-                       innerRadius="58%"
-                       outerRadius="78%"
                        centerLabel="Total Investido"
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalSpent)}
                        tooltipContent={CustomTooltip}

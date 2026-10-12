@@ -1,6 +1,5 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector, Tooltip } from 'recharts';
-import { Eye, EyeOff } from 'lucide-react';
 
 export interface DonutSlice {
   name: string;
@@ -11,8 +10,6 @@ export interface DonutSlice {
 interface InteractiveDonutProps {
   data: DonutSlice[];
   onSliceClick?: (entry: any) => void;
-  innerRadius?: number | string;
-  outerRadius?: number | string;
   centerLabel?: string;
   centerValue?: string;
   tooltipContent?: React.ComponentType<any>;
@@ -25,7 +22,7 @@ const renderActiveShape = (props: any) => {
   const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   return (
     <g>
-      <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius + 10} startAngle={startAngle} endAngle={endAngle} fill={fill} stroke="#000" strokeWidth={2} style={{ filter: `drop-shadow(0 0 12px ${fill}66)` }} />
+      <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius + 8} startAngle={startAngle} endAngle={endAngle} fill={fill} stroke="#000" strokeWidth={2} style={{ filter: `drop-shadow(0 0 12px ${fill}66)` }} />
     </g>
   );
 };
@@ -36,9 +33,27 @@ const RADIAN = Math.PI / 180;
 // nomes inteiros de departamento não cabem ao redor do anel) fora da fatia,
 // ligado por um traço fino. Só ganham rótulo as fatias grandes e afastadas
 // umas das outras (ver pickLabeled): rótulo grudado em rótulo não dá pra ler.
+const LABEL_FONT_PX = 11;
 const shortName = (name: string) => {
   const w = String(name).trim().split(/\s+/)[0] || '';
-  return w.length > 11 ? w.slice(0, 10) + '…' : w;
+  return w.length > 9 ? w.slice(0, 8) + '…' : w;
+};
+
+// Distâncias do rótulo a partir da borda do anel (px): traço radial, cotovelo horizontal e folga até o texto.
+const RADIAL = 10, ELBOW = 5, GAP = 3;
+const LABEL_REACH = RADIAL + ELBOW + GAP;
+
+// Largura real do texto do rótulo (canvas), para o anel saber quanto espaço lateral reservar.
+let measureCtx: CanvasRenderingContext2D | null = null;
+const textWidth = (t: string): number => {
+  try {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    if (measureCtx) {
+      measureCtx.font = `600 ${LABEL_FONT_PX}px Inter, system-ui, sans-serif`;
+      return measureCtx.measureText(t).width;
+    }
+  } catch { /* sem canvas: usa a estimativa */ }
+  return t.length * 7.2;
 };
 
 // Escolhe quais fatias recebem nome: maiores primeiro, mínimo de 5% e ao menos
@@ -63,15 +78,15 @@ const makeOuterLabel = (chosen: Set<number>) => (props: any) => {
   if (!chosen.has(index)) return null;
   const cos = Math.cos(-midAngle * RADIAN);
   const sin = Math.sin(-midAngle * RADIAN);
-  const r0 = Number(outerRadius) + 3;
-  const r1 = Number(outerRadius) + 12;
+  const r0 = Number(outerRadius) + 2;
+  const r1 = Number(outerRadius) + RADIAL;
   const x1 = cx + r1 * cos;
   const y1 = cy + r1 * sin;
   const right = cos >= 0;
   return (
     <g className="pointer-events-none">
-      <polyline points={`${cx + r0 * cos},${cy + r0 * sin} ${x1},${y1} ${x1 + (right ? 6 : -6)},${y1}`} fill="none" stroke="#71717a" strokeWidth={1} />
-      <text x={x1 + (right ? 9 : -9)} y={y1} fill="#d4d4d8" fontSize={11} fontWeight={600} textAnchor={right ? 'start' : 'end'} dominantBaseline="central">
+      <polyline points={`${cx + r0 * cos},${cy + r0 * sin} ${x1},${y1} ${x1 + (right ? ELBOW : -ELBOW)},${y1}`} fill="none" stroke="#71717a" strokeWidth={1} />
+      <text x={x1 + (right ? ELBOW + GAP : -(ELBOW + GAP))} y={y1} fill="#d4d4d8" fontSize={LABEL_FONT_PX} fontWeight={600} textAnchor={right ? 'start' : 'end'} dominantBaseline="central">
         {shortName(name)}
       </text>
     </g>
@@ -83,15 +98,50 @@ const makeOuterLabel = (chosen: Set<number>) => (props: any) => {
 // - Tocar numa fatia sem arrastar aciona o drill-down (onSliceClick).
 // Um clique só dispara se o ponteiro se moveu pouco desde o toque inicial —
 // senão qualquer giro seria também interpretado como clique na fatia.
+//
+// Os nomes ficam sempre à mostra. Para eles caberem inteiros, o tamanho do anel
+// é calculado pela largura real disponível menos a largura do maior nome
+// escolhido (no celular o anel fica menor; no computador, com espaço, cresce).
 const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
-  data, onSliceClick, innerRadius = '62%', outerRadius = '82%', centerLabel, centerValue, tooltipContent,
+  data, onSliceClick, centerLabel, centerValue, tooltipContent,
 }) => {
   const [rotation, setRotation] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
-  const [showLabels, setShowLabels] = useState(false);
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const dragState = useRef<{ startX: number; startY: number; startRotation: number; moved: boolean; centerX: number; centerY: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const labelRenderer = React.useMemo(() => makeOuterLabel(pickLabeled(data)), [data]);
+
+  const chosen = useMemo(() => pickLabeled(data), [data]);
+  const labelRenderer = useMemo(() => makeOuterLabel(chosen), [chosen]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const read = () => {
+      const r = el.getBoundingClientRect();
+      setBox(prev => (prev.w === Math.round(r.width) && prev.h === Math.round(r.height)) ? prev : { w: Math.round(r.width), h: Math.round(r.height) });
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Raio do anel em px: cabe na altura (com folga para rótulos em cima/embaixo) e na largura
+  // (descontando o alcance do rótulo e o maior nome); furo proporcional.
+  const geom = useMemo(() => {
+    if (box.w <= 0 || box.h <= 0) return null;
+    const widest = [...chosen].reduce((m, i) => Math.max(m, textWidth(shortName(data[i].name))), 0);
+    const sidePad = LABEL_REACH + widest + 6;
+    const outer = Math.max(40, Math.min(box.w / 2 - sidePad, box.h / 2 - 22));
+    return { outer, inner: outer * 0.7 };
+  }, [box, chosen, data]);
+
+  // Texto do centro: cabe dentro do furo (nunca vaza para o anel).
+  const holeW = geom ? geom.inner * 2 * 0.84 : 0;
+  const valueFont = geom && centerValue
+    ? Math.max(13, Math.min(geom.inner >= 110 ? 28 : 22, holeW / (Math.max(centerValue.length, 4) * 0.6)))
+    : 18;
 
   const angleAt = (clientX: number, clientY: number, cx: number, cy: number) =>
     (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
@@ -142,18 +192,11 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      <button
-        onClick={(e) => { e.stopPropagation(); setShowLabels(s => !s); }}
-        title={showLabels ? 'Ocultar nomes' : 'Mostrar nomes'}
-        className="absolute top-0 right-0 z-20 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-luxury-gold transition-all"
-      >
-        {showLabels ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
       {(centerLabel || centerValue) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-          {centerLabel && <span className="text-xs tracking-wide text-zinc-400 font-medium mb-1.5">{centerLabel}</span>}
-          {centerValue && <span className="text-2xl sm:text-3xl md:text-4xl font-serif text-white tracking-tight">{centerValue}</span>}
-          <div className="h-1 w-10 bg-luxury-gold/30 mt-3 rounded-full" />
+          {centerLabel && <span className="text-[11px] tracking-wide text-zinc-400 font-medium mb-1 whitespace-nowrap">{centerLabel}</span>}
+          {centerValue && <span className="font-serif text-white tracking-tight leading-none whitespace-nowrap" style={{ fontSize: valueFont }}>{centerValue}</span>}
+          <div className="h-1 w-8 bg-luxury-gold/30 mt-2.5 rounded-full" />
         </div>
       )}
       <ResponsiveContainer width="100%" height="100%" className="z-10 relative">
@@ -162,8 +205,8 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={showLabels ? '52%' : innerRadius}
-            outerRadius={showLabels ? '68%' : outerRadius}
+            innerRadius={geom ? geom.inner : '42%'}
+            outerRadius={geom ? geom.outer : '60%'}
             paddingAngle={0}
             dataKey="value"
             stroke="none"
@@ -173,7 +216,7 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
             animationDuration={600}
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
-            label={showLabels ? labelRenderer : false}
+            label={labelRenderer}
             labelLine={false}
             onMouseEnter={(_, idx) => setActiveIndex(idx)}
             onMouseLeave={() => setActiveIndex(undefined)}
