@@ -1,9 +1,11 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
-import { titleCase, shortLabels } from '../services/textFormat';
+import { properCase, shortLabels } from '../services/textFormat';
 
 export interface DonutSlice {
   name: string;
+  // nome para mostrar (já com Iniciais Maiúsculas); sem ele, usa `name`
+  label?: string;
   value: number;
   color: string;
 }
@@ -29,18 +31,14 @@ const renderActiveShape = (props: any) => {
 
 const RADIAN = Math.PI / 180;
 
-// Rótulo com linha-guia, no estilo "budge": nome (só a primeira palavra —
-// nomes inteiros de departamento não cabem ao redor do anel) fora da fatia,
-// ligado por um traço fino. Só ganham rótulo as fatias grandes e afastadas
-// umas das outras (ver pickLabeled): rótulo grudado em rótulo não dá pra ler.
-const LABEL_FONT_PX = 11;
-// Primeira palavra; só quando dois nomes dariam o mesmo rótulo ("Carne Bovina"/"Carne Suína")
-// entra a segunda, aí cabe um pouco mais.
-const clipLabel = (l: string) => {
-  const max = l.includes(' ') ? 12 : 9;
-  return l.length > max ? l.slice(0, max - 1).trim() + '…' : l;
-};
-const buildLabels = (data: DonutSlice[]): string[] => shortLabels(data.map(d => String(d.name))).map(clipLabel);
+// Rótulo com linha-guia, no estilo "budge": o nome COMPLETO do departamento (Iniciais Maiúsculas) fora
+// da fatia, ligado por um traço fino. Nome comprido quebra em até duas linhas; se nem assim couber sem
+// encostar em outro nome, cai para a primeira palavra. Só ganham rótulo as fatias grandes e afastadas
+// umas das outras (ver planLabels): rótulo grudado em rótulo não dá pra ler.
+const LABEL_FONT_PX = 10;
+const LINE_H = 12;
+const MIN_LINE_W = 66;     // largura mínima de uma linha de rótulo (celular)
+const MAX_LINE_W = 150;    // e a máxima (tela larga: o nome cabe numa linha só)
 
 // Distâncias do rótulo a partir da borda do anel (px): traço radial, cotovelo horizontal e folga até o texto.
 const RADIAL = 10, ELBOW = 5, GAP = 3;
@@ -52,11 +50,56 @@ const textWidth = (t: string): number => {
   try {
     if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
     if (measureCtx) {
-      measureCtx.font = `600 ${LABEL_FONT_PX}px Inter, system-ui, sans-serif`;
+      measureCtx.font = `500 ${LABEL_FONT_PX}px Inter, system-ui, sans-serif`;
       return measureCtx.measureText(t).width;
     }
   } catch { /* sem canvas: usa a estimativa */ }
-  return t.length * 7.2;
+  return t.length * 5.6;
+};
+
+interface LabelBox { lines: string[]; w: number; h: number }
+
+const fitLine = (t: string, maxW: number): string => {
+  if (textWidth(t) <= maxW) return t;
+  let r = t;
+  while (r.length > 1 && textWidth(r + '…') > maxW) r = r.slice(0, -1);
+  return r.trimEnd() + '…';
+};
+
+const DANGLING = new Set(['e', 'de', 'da', 'do', 'das', 'dos', 'com', 'em', 'para', 'por', 'na', 'no']);
+
+// Nome inteiro em uma linha se couber; senão a melhor quebra em duas (sem deixar "e"/"de" pendurado no fim da 1ª linha).
+const wrapName = (name: string, maxW: number): string[] => {
+  const full = name.trim();
+  if (textWidth(full) <= maxW) return [full];
+  const words = full.split(/\s+/);
+  if (words.length < 2) return [fitLine(full, maxW)];
+  let best: string[] | null = null, bestW = Infinity;
+  const tryAll = (allowDangling: boolean) => {
+    for (let k = 1; k < words.length; k++) {
+      if (!allowDangling && DANGLING.has(words[k - 1].toLowerCase())) continue;
+      const a = words.slice(0, k).join(' '), b = words.slice(k).join(' ');
+      const w = Math.max(textWidth(a), textWidth(b));
+      if (w < bestW) { bestW = w; best = [a, b]; }
+    }
+  };
+  tryAll(false);
+  if (!best) tryAll(true);
+  return (best as unknown as string[]).map(l => fitLine(l, maxW));
+};
+
+const toBox = (lines: string[]): LabelBox => ({ lines, w: Math.max(...lines.map(textWidth)), h: lines.length * LINE_H });
+
+// Para cada fatia: [nome completo (até 2 linhas), primeira palavra]. O segundo só entra se o primeiro não couber.
+const buildLabels = (data: DonutSlice[], maxW: number): LabelBox[][] => {
+  const full = data.map(d => properCase(d.label ?? d.name));
+  const short = shortLabels(full);
+  return full.map((f, i) => {
+    const primary = toBox(wrapName(f, maxW));
+    const fallback = toBox([fitLine(short[i], maxW)]);
+    const same = primary.lines.length === 1 && primary.lines[0] === fallback.lines[0];
+    return same ? [primary] : [primary, fallback];
+  });
 };
 
 // Fatias que podem ganhar nome: a partir de 1,5% do total, maiores primeiro (no máximo 18).
@@ -66,12 +109,11 @@ const labelCandidates = (data: DonutSlice[], total: number): number[] =>
     .sort((a, b) => data[b].value - data[a].value)
     .slice(0, 18);
 
-// Escolhe os nomes que realmente cabem: percorre as fatias da maior para a menor e só aceita o nome
-// se a caixa dele (na posição atual do anel) estiver dentro da área e não encostar em outro nome já
-// aceito. Refeito a cada giro, então o espaço livre é sempre aproveitado.
-const LABEL_H = 13;
-const planLabels = (data: DonutSlice[], labels: string[], candidates: number[], total: number, rotation: number, w: number, h: number, outer: number): Set<number> => {
-  const chosen = new Set<number>();
+// Escolhe os nomes que realmente cabem: percorre as fatias da maior para a menor e só aceita a caixa do
+// nome (na posição atual do anel) se estiver dentro da área e não encostar em outro nome já aceito.
+// Refeito a cada giro, então o espaço livre é sempre aproveitado.
+const planLabels = (data: DonutSlice[], labels: LabelBox[][], candidates: number[], total: number, rotation: number, w: number, h: number, outer: number): Map<number, LabelBox> => {
+  const chosen = new Map<number, LabelBox>();
   if (total <= 0 || w <= 0 || h <= 0) return chosen;
   const cx = w / 2, cy = h / 2, r1 = outer + RADIAL;
   let acc = 0;
@@ -81,20 +123,23 @@ const planLabels = (data: DonutSlice[], labels: string[], candidates: number[], 
     const cos = Math.cos(-mids[i] * RADIAN), sin = Math.sin(-mids[i] * RADIAN);
     const x1 = cx + r1 * cos, y1 = cy + r1 * sin;
     const right = cos >= 0;
-    const tw = textWidth(labels[i]);
-    const l = right ? x1 + ELBOW + GAP : x1 - ELBOW - GAP - tw;
-    const r = l + tw, t = y1 - LABEL_H / 2, b = y1 + LABEL_H / 2;
-    if (l < 1 || r > w - 1 || t < 0 || b > h) continue;
-    if (placed.some(q => l < q.r + 4 && r > q.l - 4 && t < q.b + 1 && b > q.t - 1)) continue;
-    placed.push({ l, r, t, b });
-    chosen.add(i);
+    for (const box of labels[i]) {
+      const l = right ? x1 + ELBOW + GAP : x1 - ELBOW - GAP - box.w;
+      const r = l + box.w, t = y1 - box.h / 2, b = y1 + box.h / 2;
+      if (l < 1 || r > w - 1 || t < 0 || b > h) continue;
+      if (placed.some(q => l < q.r + 4 && r > q.l - 4 && t < q.b + 1 && b > q.t - 1)) continue;
+      placed.push({ l, r, t, b });
+      chosen.set(i, box);
+      break;
+    }
   }
   return chosen;
 };
 
-const makeOuterLabel = (chosen: Set<number>, labels: string[]) => (props: any) => {
+const makeOuterLabel = (chosen: Map<number, LabelBox>) => (props: any) => {
   const { cx, cy, midAngle, outerRadius, index } = props;
-  if (!chosen.has(index)) return null;
+  const box = chosen.get(index);
+  if (!box) return null;
   const cos = Math.cos(-midAngle * RADIAN);
   const sin = Math.sin(-midAngle * RADIAN);
   const r0 = Number(outerRadius) + 2;
@@ -102,12 +147,15 @@ const makeOuterLabel = (chosen: Set<number>, labels: string[]) => (props: any) =
   const x1 = cx + r1 * cos;
   const y1 = cy + r1 * sin;
   const right = cos >= 0;
+  const tx = x1 + (right ? ELBOW + GAP : -(ELBOW + GAP));
   return (
     <g className="pointer-events-none">
       <polyline points={`${cx + r0 * cos},${cy + r0 * sin} ${x1},${y1} ${x1 + (right ? ELBOW : -ELBOW)},${y1}`} fill="none" stroke="#71717a" strokeWidth={1} />
-      <text x={x1 + (right ? ELBOW + GAP : -(ELBOW + GAP))} y={y1} fill="#d4d4d8" fontSize={LABEL_FONT_PX} fontWeight={600} textAnchor={right ? 'start' : 'end'} dominantBaseline="central">
-        {labels[index]}
-      </text>
+      {box.lines.map((line, k) => (
+        <text key={k} x={tx} y={y1 + (k - (box.lines.length - 1) / 2) * LINE_H} fill="#d4d4d8" fontSize={LABEL_FONT_PX} fontWeight={500} textAnchor={right ? 'start' : 'end'} dominantBaseline="central">
+          {line}
+        </text>
+      ))}
     </g>
   );
 };
@@ -157,23 +205,29 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  const labels = useMemo(() => buildLabels(data), [data]);
+  // Largura de linha do rótulo: no celular o mínimo; em tela larga sobra espaço e o nome cabe inteiro numa linha.
+  const maxLineW = useMemo(() => {
+    if (box.w <= 0 || box.h <= 0) return MIN_LINE_W;
+    const outerByHeight = Math.max(40, box.h / 2 - 22);
+    return Math.round(Math.max(MIN_LINE_W, Math.min(MAX_LINE_W, box.w / 2 - LABEL_REACH - 6 - outerByHeight)));
+  }, [box]);
+  const labels = useMemo(() => buildLabels(data, maxLineW), [data, maxLineW]);
 
   // Raio do anel em px: cabe na altura (com folga para rótulos em cima/embaixo) e na largura
   // (descontando o alcance do rótulo e o maior nome); furo proporcional.
   const geom = useMemo(() => {
     if (box.w <= 0 || box.h <= 0) return null;
     // espaço lateral pensado nos 8 maiores nomes (os que mais importam); nomes mais largos que isso só entram se couberem
-    const widest = candidates.slice(0, 8).reduce((m, i) => Math.max(m, textWidth(labels[i])), 0);
+    const widest = candidates.slice(0, 8).reduce((m, i) => Math.max(m, labels[i][0].w), 0);
     const sidePad = LABEL_REACH + widest + 6;
     const outer = Math.max(40, Math.min(box.w / 2 - sidePad, box.h / 2 - 22));
     return { outer, inner: outer * 0.7 };
   }, [box, candidates, labels]);
 
   const chosen = useMemo(
-    () => geom ? planLabels(data, labels, candidates, total, rotation, box.w, box.h, geom.outer) : new Set<number>(),
+    () => geom ? planLabels(data, labels, candidates, total, rotation, box.w, box.h, geom.outer) : new Map<number, LabelBox>(),
     [data, labels, candidates, total, rotation, box, geom]);
-  const labelRenderer = useMemo(() => makeOuterLabel(chosen, labels), [chosen, labels]);
+  const labelRenderer = useMemo(() => makeOuterLabel(chosen), [chosen]);
 
   // Texto do centro: cabe dentro do furo (nunca vaza para o anel).
   const holeW = geom ? geom.inner * 2 * 0.84 : 0;
@@ -285,7 +339,7 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
         {active && (
           <div className="flex items-center gap-2.5 max-w-full bg-zinc-900/95 border border-white/10 rounded-full pl-3 pr-4 py-2 shadow-lg animate-in fade-in duration-150">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: active.color }} />
-            <span className="text-[13px] font-semibold text-luxury-gold truncate min-w-0">{titleCase(active.name)}</span>
+            <span className="text-[13px] font-semibold text-luxury-gold truncate min-w-0">{properCase(active.label ?? active.name)}</span>
             <span className="text-[13px] font-semibold text-white tabular-nums shrink-0">{fmtBRL.format(active.value)}</span>
             {total > 0 && <span className="text-xs text-zinc-400 tabular-nums shrink-0">{fmtPct.format((active.value / total) * 100)}%</span>}
           </div>

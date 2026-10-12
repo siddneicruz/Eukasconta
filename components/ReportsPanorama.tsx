@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { DashboardConfig, Receipt } from '../types';
 import { normalizeUnit } from '../services/productPriceStats';
+import { properCase } from '../services/textFormat';
 
 /* ────────────────────────────────────────────────────────────────────────────
    PANORAMA — leitura analítica do período.
@@ -56,7 +57,8 @@ const MONTHS_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'S
 const WD_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const WD_LONG = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
-const masterOf = (c?: string) => ((c || 'Outros').split(' - ')[0] || 'Outros').trim() || 'Outros';
+// Iniciais Maiúsculas também junta "HORTIFRUTI" com "Hortifruti" no mesmo departamento.
+const masterOf = (c?: string) => properCase(((c || 'Outros').split(' - ')[0] || 'Outros').trim()) || 'Outros';
 
 /* ───────────────────────────── períodos ───────────────────────────── */
 

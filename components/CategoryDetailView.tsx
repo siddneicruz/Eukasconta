@@ -7,7 +7,7 @@ import InteractiveDonut from './InteractiveDonut';
 import ReceiptRow from './ReceiptRow';
 import PercentRing from './PercentRing';
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
-import { titleCase } from '../services/textFormat';
+import { properCase, sameDept, catKey } from '../services/textFormat';
 
 interface CategoryDetailViewProps {
   categoryName: string;
@@ -52,29 +52,38 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
             if (rDate.getFullYear() !== config.year) return false;
             if (config.month !== null && rDate.getMonth() !== config.month) return false;
         }
-        return r.items.some(item => (item.category || '').startsWith(categoryName));
+        return r.items.some(item => sameDept(item.category, categoryName));
     }).sort((a, b) => b.date.localeCompare(a.date));
   }, [receipts, categoryName, config]);
 
+  // Subgrupos: "HORTIFRUTI - FRUTAS" e "Hortifruti - Frutas" são o mesmo; vale o nome que mais gastou.
   const subCategoriesData = useMemo(() => {
-      const agg: Record<string, number> = {};
+      const groups = new Map<string, { total: number; variants: Map<string, number> }>();
       let total = 0;
       filteredReceipts.forEach(r => {
           r.items.forEach(item => {
-              if (item.category.startsWith(categoryName)) {
-                  agg[item.category] = (agg[item.category] || 0) + item.totalPrice;
-                  total += item.totalPrice;
-              }
+              if (!sameDept(item.category, categoryName)) return;
+              const key = catKey(item.category);
+              let g = groups.get(key);
+              if (!g) { g = { total: 0, variants: new Map() }; groups.set(key, g); }
+              g.total += item.totalPrice;
+              g.variants.set(item.category, (g.variants.get(item.category) || 0) + item.totalPrice);
+              total += item.totalPrice;
           });
       });
-      return Object.entries(agg)
-        .map(([name, value]) => ({ 
-            name: name.split(' - ').slice(1).join(' - ') || name, 
-            fullName: name,
-            value, 
-            color: getCategoryColor(name),
-            percentage: total > 0 ? (value / total) * 100 : 0 
-        }))
+      return Array.from(groups.values())
+        .map(g => {
+            const fullName = Array.from(g.variants.entries()).sort((a, b) => b[1] - a[1])[0][0];
+            const sub = fullName.split(' - ').slice(1).join(' - ') || fullName;
+            return {
+                name: sub,
+                label: properCase(sub),
+                fullName,
+                value: g.total,
+                color: getCategoryColor(fullName),
+                percentage: total > 0 ? (g.total / total) * 100 : 0
+            };
+        })
         .sort((a, b) => b.value - a.value);
   }, [filteredReceipts, categoryName]);
 
@@ -82,7 +91,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
       const agg: Record<string, number> = {};
       filteredReceipts.forEach(r => {
           r.items.forEach(item => {
-              if (item.category.startsWith(categoryName)) {
+              if (sameDept(item.category, categoryName)) {
                   agg[r.establishmentName] = (agg[r.establishmentName] || 0) + item.totalPrice;
               }
           });
@@ -144,7 +153,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
                                 </div>
                             </PercentRing>
                             <div className="flex flex-col cursor-pointer min-w-0" onClick={() => onSelectSubCategory(cat.fullName)}>
-                                <span className="block text-sm font-semibold text-zinc-100 truncate">{titleCase(cat.name)}</span>
+                                <span className="block text-sm font-semibold text-zinc-100 truncate">{cat.label}</span>
                                 <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{cat.percentage.toFixed(1).replace('.', ',')}% do depto.</span>
                             </div>
                         </div>
@@ -197,7 +206,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
           <div className="space-y-2">
               {filteredReceipts.slice(0, 15).map((receipt) => {
                   const catTotal = receipt.items
-                    .filter(i => i.category.startsWith(categoryName))
+                    .filter(i => sameDept(i.category, categoryName))
                     .reduce((sum, i) => sum + i.totalPrice, 0);
 
                   return (

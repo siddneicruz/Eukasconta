@@ -9,6 +9,7 @@ import {
 import * as Recharts from 'recharts';
 import { calculateSimilarity, cleanDescriptionForMatching } from '../services/productMasterService';
 import ReportsPanorama from './ReportsPanorama';
+import PeriodPicker from './PeriodPicker';
 import { downloadFile } from '../services/nativeFiles';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
 
@@ -813,15 +814,15 @@ const Reports: React.FC<ReportsProps> = ({
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-2 md:gap-4 ls:gap-2 overflow-hidden">
             {config.quickFilter === 'custom' ? (
                 <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-6 animate-in slide-in-from-left-2">
-                    <div className="relative flex-1 min-w-0">
-                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
-                        <input type="date" value={config.customStartDate} onChange={e => onConfigChange({...config, customStartDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
-                    </div>
-                    <span className="text-zinc-700 font-bold text-xs uppercase shrink-0">A</span>
-                    <div className="relative flex-1 min-w-0">
-                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
-                        <input type="date" value={config.customEndDate} onChange={e => onConfigChange({...config, customEndDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
-                    </div>
+                    <PeriodPicker
+                        start={config.customStartDate}
+                        end={config.customEndDate}
+                        onChange={(from, to) => onConfigChange({ ...config, customStartDate: from, customEndDate: to })}
+                        placeholder="Escolher período"
+                        size="compact"
+                        className="flex-1"
+                        openOnMount={!config.customStartDate && !config.customEndDate}
+                    />
                 </div>
             ) : (
                 <>

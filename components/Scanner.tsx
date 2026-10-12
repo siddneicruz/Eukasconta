@@ -8,6 +8,7 @@ import { applyRegistry, buildMasterIndex, learnEstablishment } from '../services
 import { SCAN_LIMIT_OPENROUTER_MS } from '../services/openrouterService';
 import { diagnostics } from '../services/diagnosticService';
 import { generateId } from '../services/idUtils';
+import { normalizeReceiptDate } from '../services/productNormalization';
 import { downloadFile } from '../services/nativeFiles';
 import { nativeScannerSupported, scanWithNativeScanner } from '../services/documentScanner';
 
@@ -274,6 +275,12 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
 
             if (receiptTotal === 0 && itemsSum > 0) receiptTotal = Number(itemsSum.toFixed(2));
 
+            // Leitura vazia (nenhum item e nenhum valor): não vira cupom "Estabelecimento Desconhecido" de R$ 0,00 no histórico.
+            // Entra na lista de falhas, com opção de tentar de novo.
+            if (calculatedItems.length === 0 && receiptTotal <= 0) {
+                throw new GeminiError('A leitura veio vazia: não achou nenhum item nem valor neste cupom, por isso ele não foi salvo. Tire outra foto com o cupom inteiro, reto e bem iluminado, ou tente outro modelo em Config.', 'PARSING', true);
+            }
+
             const newReceipt: Receipt = {
                 id: generateId(),
                 establishmentName: extractedData.establishmentName || "Estabelecimento Desconhecido",
@@ -281,7 +288,7 @@ const Scanner: React.FC<ScannerProps> = ({ onScanComplete, onCancel, onManualEnt
                 address: extractedData.address || "",
                 city: extractedData.city || "",
                 state: (extractedData.state || "").toUpperCase().substring(0, 2),
-                date: extractedData.date || new Date().toISOString().split('T')[0],
+                date: normalizeReceiptDate(extractedData.date || ''),
                 time: extractedData.time || "12:00", 
                 totalAmount: receiptTotal || 0,
                 items: calculatedItems,

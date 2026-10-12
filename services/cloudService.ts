@@ -362,3 +362,9 @@ export const deleteCloudReceipts = async (userId: string): Promise<void> => {
   const { error } = await supabase.from('receipts').delete().eq('user_id', userId);
   if (error) throw new Error(error.message);
 };
+
+// Apaga da nuvem a cópia privada de um cupom que a pessoa excluiu no app (os itens saem junto, em cascata).
+export const deleteCloudReceipt = async (userId: string, clientId: string): Promise<void> => {
+  const { error } = await supabase.from('receipts').delete().eq('user_id', userId).eq('client_id', clientId);
+  if (error) throw new Error(error.message);
+};

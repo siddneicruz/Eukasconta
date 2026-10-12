@@ -17,8 +17,13 @@ export const PROVIDER_LABELS: Record<AiProvider, string> = {
 
 const storageKey = (provider: AiProvider) => `eukasconta_byok_${provider}`;
 
+// Avisa o backup da conta (useCloudBackup) de que uma chave ou escolha de IA mudou.
+const KEYS_CHANGED_EVENT = 'eukasconta:keys-changed';
+const notifyKeysChanged = () => { try { window.dispatchEvent(new Event(KEYS_CHANGED_EVENT)); } catch { /* sem window */ } };
+
 export const saveUserApiKey = (provider: AiProvider, apiKey: string): void => {
   localStorage.setItem(storageKey(provider), apiKey.trim());
+  notifyKeysChanged();
 };
 
 export const getUserApiKey = (provider: AiProvider): string | null => {
@@ -27,6 +32,7 @@ export const getUserApiKey = (provider: AiProvider): string | null => {
 
 export const clearUserApiKey = (provider: AiProvider): void => {
   localStorage.removeItem(storageKey(provider));
+  notifyKeysChanged();
 };
 
 export const hasAnyUserApiKey = (): boolean => {
@@ -46,6 +52,7 @@ export const getActiveProvider = (): AiProvider => {
 
 export const setActiveProvider = (provider: AiProvider): void => {
   localStorage.setItem(ACTIVE_PROVIDER_KEY, provider);
+  notifyKeysChanged();
 };
 
 export const getActiveProviderLabel = (): string => PROVIDER_LABELS[getActiveProvider()];
@@ -66,4 +73,5 @@ export const setOpenRouterModel = (task: OpenRouterTask, modelId: string): void 
   const v = modelId.trim();
   if (v) localStorage.setItem(modelKey(task), v);
   else localStorage.removeItem(modelKey(task));
+  notifyKeysChanged();
 };

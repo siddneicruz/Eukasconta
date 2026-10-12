@@ -15,6 +15,7 @@ import AISettingsPanel from './AISettingsPanel';
 import CloudAccountPanel from './CloudAccountPanel';
 import { isNativeApp } from '../services/platform';
 import type { CloudApi } from '../services/useCloud';
+import type { BackupApi } from '../services/useCloudBackup';
 import { formatCNPJ } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import { AppMark, PDLogo } from './Brand';
@@ -43,6 +44,7 @@ interface SettingsViewProps {
   aiLearning: AILearningEntry[];
   onUpdateAiLearning: (learning: AILearningEntry[]) => void;
   cloud?: CloudApi;
+  backup?: BackupApi;
   initialTab?: string;
   onOpenAlerts?: () => void;
 }
@@ -104,7 +106,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   taxonomy, onUpdateTaxonomy, onClearData, onExportData, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
   receipts = [], establishments = [], onUpdateEstablishment, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
-  onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, initialTab, onOpenAlerts
+  onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
@@ -297,7 +299,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {settingsTab === 'ai_key' && <AISettingsPanel />}
-      {settingsTab === 'account' && cloud && <CloudAccountPanel cloud={cloud} onOpenAlerts={() => onOpenAlerts?.()} />}
+      {settingsTab === 'account' && cloud && <CloudAccountPanel cloud={cloud} backup={backup} onOpenAlerts={() => onOpenAlerts?.()} />}
 
       {settingsTab === 'system' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-12">

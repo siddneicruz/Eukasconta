@@ -104,21 +104,37 @@ export const getProductClassification = (rawDescription: string, contextGenericN
     return PRODUCT_DATABASE[generic] ? generic : generic.substring(0, 25);
 };
 
-const normalizeDateString = (dateStr: string): string => {
-    if (!dateStr || typeof dateStr !== 'string') return new Date().toISOString().split('T')[0];
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    const brMatch = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-    if (brMatch) {
-        let day = brMatch[1].padStart(2, '0');
-        let month = brMatch[2].padStart(2, '0');
-        let year = brMatch[3];
-        if (year.length === 2) year = '20' + year;
-        return `${year}-${month}-${day}`;
-    }
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
-    return new Date().toISOString().split('T')[0];
+// Data de hoje no relógio do celular (toISOString devolve a data em UTC: depois das 21h em Brasília já viraria "amanhã").
+export const localTodayIso = (): string => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 };
+
+const validYmd = (y: number, m: number, d: number): boolean => {
+    if (!(y >= 1990 && y <= 2100 && m >= 1 && m <= 12 && d >= 1)) return false;
+    return d <= new Date(y, m, 0).getDate();
+};
+
+// Aceita "2026-10-09", "2026-10-09 14:30", "2026-10-09T14:30:00", "09/10/2026", "09/10/2026 14:30:12", "09-10-26", "09.10.2026".
+// A ordem brasileira (dia/mês/ano) vale sempre; só cai em "hoje" se nada fizer sentido.
+const normalizeDateString = (dateStr: string): string => {
+    if (!dateStr || typeof dateStr !== 'string') return localTodayIso();
+    const t = dateStr.trim();
+    const iso = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)/);
+    if (iso && validYmd(+iso[1], +iso[2], +iso[3])) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+    const br = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?!\d)/);
+    if (br) {
+        const year = br[3].length === 2 ? 2000 + Number(br[3]) : Number(br[3]);
+        if (validYmd(year, +br[2], +br[1])) return `${year}-${br[2].padStart(2, '0')}-${br[1].padStart(2, '0')}`;
+    }
+    const d = new Date(t);
+    if (!isNaN(d.getTime()) && validYmd(d.getFullYear(), d.getMonth() + 1, d.getDate())) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    return localTodayIso();
+};
+
+export const normalizeReceiptDate = normalizeDateString;
 
 export const cleanCNPJ = (cnpj: string) => (cnpj || '').replace(/\D/g, '');
 

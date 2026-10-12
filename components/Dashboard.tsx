@@ -4,6 +4,7 @@ import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, TaxonomyNode } from '../t
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from 'recharts';
 import InteractiveDonut from './InteractiveDonut';
 import PercentRing from './PercentRing';
+import PeriodPicker from './PeriodPicker';
 import ReceiptRow from './ReceiptRow';
 import { 
     Calendar, Fuel, Home, Shirt, ShoppingCart, ScanLine, History, 
@@ -29,7 +30,7 @@ import {
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
-import { titleCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL } from '../services/textFormat';
+import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 
 interface DashboardProps {
   receipts: Receipt[];
@@ -388,7 +389,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         if (config.establishment && r.establishmentName !== config.establishment) return false;
 
         if (config.category) {
-            const hasCategory = r.items.some(item => (item.category || '').startsWith(config.category!));
+            const hasCategory = r.items.some(item => sameDept(item.category, config.category));
             if (!hasCategory) return false;
         }
 
@@ -410,25 +411,33 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
     }).sort((a, b) => b.date.localeCompare(a.date));
   }, [receipts, config]);
 
+  // Departamentos: "HORTIFRUTI", "Hortifruti" e "hortifruti" (ou com/sem acento) viram um só.
+  // O nome que representa o grupo é o da taxonomia, se existir; senão o que mais gastou.
   const { chartData, totalSpent } = useMemo(() => {
-    const agg: Record<string, number> = {};
+    const byKey = new Map<string, { total: number; variants: Map<string, number> }>();
+    const official = new Map<string, string>();
+    availableMasterCategories.forEach(n => official.set(deptKey(n), n));
     let total = 0;
     filteredReceipts.forEach(receipt => {
         receipt.items.forEach(item => {
-            const key = (item.category || 'Bazar e Outros').split(' - ')[0];
+            const raw = (item.category || 'Bazar e Outros').split(' - ')[0].trim() || 'Bazar e Outros';
+            const key = deptKey(raw);
             const price = Number(item.totalPrice) || 0;
-            if (config.category && key !== config.category) return;
-            agg[key] = (agg[key] || 0) + price;
+            if (config.category && key !== deptKey(config.category)) return;
+            let g = byKey.get(key);
+            if (!g) { g = { total: 0, variants: new Map() }; byKey.set(key, g); }
+            g.total += price;
+            g.variants.set(raw, (g.variants.get(raw) || 0) + price);
             total += price;
         });
     });
-    return { 
-        chartData: Object.entries(agg).map(([name, value]) => ({
-            name, value, color: getCategoryColor(name), percentage: total > 0 ? (value / total) * 100 : 0
-        })).sort((a, b) => b.value - a.value),
-        totalSpent: total 
-    };
-  }, [filteredReceipts, config.category]);
+    const rows = Array.from(byKey.entries()).map(([key, g]) => {
+        const top = Array.from(g.variants.entries()).sort((a, b) => b[1] - a[1])[0][0];
+        const name = official.get(key) || top;
+        return { name, label: properCase(name), value: g.total, color: getCategoryColor(name), percentage: total > 0 ? (g.total / total) * 100 : 0 };
+    });
+    return { chartData: rows.sort((a, b) => b.value - a.value), totalSpent: total };
+  }, [filteredReceipts, config.category, availableMasterCategories]);
 
   const establishmentData = useMemo(() => {
     const agg: Record<string, number> = {};
@@ -449,7 +458,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
     const short = new Map<string, string>(known.map((e, i) => [e.name, shortened[i]] as [string, string]));
     return establishmentData.map(e => isUnidentifiedName(e.name) ? UNIDENTIFIED_LABEL : clip(titleCase(short.get(e.name) || ''), 18));
   }, [establishmentData]);
-  const departmentLabels = useMemo(() => shortLabels(chartData.map(c => c.name)).map(l => clip(l, 24)), [chartData]);
 
   const evolutionData = useMemo(() => {
       const agg: Record<string, number> = {};
@@ -504,10 +512,14 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               const day = d.getDate().toString().padStart(2, '0');
               agg[day] = (agg[day] || 0) + r.totalAmount;
           });
+          // mês corrente: até hoje; mês passado: o mês inteiro (antes cortava no "dia de hoje" também nos meses antigos)
+          const now = new Date();
+          const isCurrent = config.year === now.getFullYear() && config.month === now.getMonth();
+          const lastDay = isCurrent ? now.getDate() : new Date(config.year, (config.month as number) + 1, 0).getDate();
           return Array.from({ length: 31 }, (_, i) => {
               const day = (i + 1).toString().padStart(2, '0');
               return { name: day, value: agg[day] || 0 };
-          }).filter(d => d.value > 0 || Number(d.name) <= new Date().getDate());
+          }).filter(d => d.value > 0 || Number(d.name) <= lastDay);
       } else {
           filteredReceipts.forEach(r => {
               const d = new Date(r.date + 'T12:00:00');
@@ -536,15 +548,15 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
             
             {config.quickFilter === 'custom' ? (
                 <div className="order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-4 animate-in slide-in-from-left-2">
-                    <div className="relative flex-1 min-w-0">
-                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
-                        <input type="date" value={config.customStartDate} onChange={e => onConfigChange({...config, customStartDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
-                    </div>
-                    <span className="text-zinc-700 font-bold text-xs shrink-0">A</span>
-                    <div className="relative flex-1 min-w-0">
-                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
-                        <input type="date" value={config.customEndDate} onChange={e => onConfigChange({...config, customEndDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-6 pr-1 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40" />
-                    </div>
+                    <PeriodPicker
+                        start={config.customStartDate}
+                        end={config.customEndDate}
+                        onChange={(from, to) => onConfigChange({ ...config, customStartDate: from, customEndDate: to })}
+                        placeholder="Escolher período"
+                        size="compact"
+                        className="flex-1"
+                        openOnMount={!config.customStartDate && !config.customEndDate}
+                    />
                 </div>
             ) : (
                 <>
@@ -577,7 +589,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
             <div className="order-3 md:order-4 ls:order-4 flex items-center gap-2 px-2 md:px-4 md:border-l ls:border-l border-white/10 shrink-0">
                 <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === '7d' ? null : '7d', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${config.quickFilter === '7d' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'border-white/5 text-zinc-500'}`}>7 DIAS</button>
                 <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">PERÍODO</span></button>
-                {(config.category || config.month !== null || config.quickFilter) && (
+                {(config.category || config.month !== null || config.quickFilter || config.establishment) && (
                     <button
                         onClick={() => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null })}
                         title="Limpar filtros"
@@ -588,6 +600,21 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 )}
             </div>
         </div>
+
+        {/* Filtro de estabelecimento ligado ao tocar numa barra: fica sempre visível e com saída óbvia */}
+        {config.establishment && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2" data-testid="est-filter-banner">
+                <span className="text-[13px] text-zinc-200 min-w-0 truncate">
+                    Mostrando só <b className="font-semibold text-luxury-gold">{isUnidentifiedName(config.establishment) ? UNIDENTIFIED_LABEL : titleCase(cleanEstablishmentName(config.establishment))}</b>
+                </span>
+                <button
+                    onClick={() => onConfigChange({ ...config, establishment: null })}
+                    className="shrink-0 px-3.5 py-1.5 rounded-full border border-luxury-gold/40 text-xs font-bold text-luxury-gold hover:bg-luxury-gold/15 transition-all"
+                >
+                    Ver tudo
+                </button>
+            </div>
+        )}
       </div>
 
       {/* No celular esses atalhos já estão na barra de abas do rodapé */}
@@ -727,7 +754,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                                   </div>
                               </PercentRing>
                               <div className="flex flex-col cursor-pointer min-w-0" onClick={() => onCategoryClick && onCategoryClick(cat.name)}>
-                                  <span className="block text-[13px] font-semibold text-zinc-100 tracking-tight truncate" title={cat.name}>{departmentLabels[idx]}</span>
+                                  <span className="block text-[13px] font-semibold text-zinc-100 tracking-tight truncate" title={cat.label}>{cat.label}</span>
                                   <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{cat.percentage.toFixed(1).replace('.', ',')}% do total</span>
                               </div>
                           </div>

@@ -21,6 +21,10 @@ import ImportLogViewer, { ImportLogEntry } from './components/ImportLogViewer';
 import AlertsView, { AlertDraft } from './components/AlertsView';
 import ScanSuggestionsSheet from './components/ScanSuggestionsSheet';
 import { useCloud } from './services/useCloud';
+import { useCloudBackup } from './services/useCloudBackup';
+import { deleteCloudReceipt } from './services/cloudService';
+import ConfirmDialog from './components/ConfirmDialog';
+import { titleCase } from './services/textFormat';
 
 import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, SystemSnapshot, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
 import { diagnostics } from './services/diagnosticService';
@@ -435,6 +439,9 @@ const App: React.FC = () => {
       onGeocoded: (cnpj, patch) => setEstablishments(prev => prev.map(e => cleanCNPJ(e.cnpj) === cnpj ? { ...e, ...patch } : e)),
       onToast: (msg) => showNotification(msg),
   });
+  // Backup automático na conta: dados e chave de IA voltam sozinhos ao entrar depois de reinstalar o app.
+  const backupTrigger = useMemo(() => ({}), [receipts, taxonomy, establishments, masterProducts, aiLearning, categories]);
+  const backup = useCloudBackup({ userId: cloud.user?.id ?? null, trigger: backupTrigger, onToast: (msg) => showNotification(msg, 6000) });
   const [alertDraft, setAlertDraft] = useState<AlertDraft | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
   const openAlertDraft = (d: AlertDraft) => { cloud.dismissSuggestions(); setAlertDraft(d); setView('alerts'); };
@@ -444,6 +451,7 @@ const App: React.FC = () => {
   /* ── Android: botão voltar fecha o que estiver aberto e só então sai do app ── */
   const backHandlerRef = useRef<() => boolean>(() => false);
   backHandlerRef.current = () => {
+    if (pendingDeleteId) { setPendingDeleteId(null); return true; }
     if (isDiagnosticOpen) { setIsDiagnosticOpen(false); return true; }
     if (isImportLogOpen) { setIsImportLogOpen(false); return true; }
     if (selectedCategoryForIcon) { setSelectedCategoryForIcon(null); return true; }
@@ -512,6 +520,33 @@ const App: React.FC = () => {
 
   const handleUpdateReceipt = (updatedReceipt: Receipt) => {
       setReceipts(prev => prev.map(r => r.id === updatedReceipt.id ? updatedReceipt : r));
+  };
+
+  // Excluir lançamento: sempre pergunta antes; só apaga no "Excluir" da mensagem de confirmação.
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const requestDeleteReceipt = (id: string) => setPendingDeleteId(id);
+  const pendingDelete = useMemo(() => receipts.find(r => r.id === pendingDeleteId) || null, [receipts, pendingDeleteId]);
+  const confirmDeleteReceipt = () => {
+      const target = pendingDelete;
+      setPendingDeleteId(null);
+      if (!target) return;
+      setReceipts(prev => prev.filter(r => r.id !== target.id));
+      setSelectedReceiptId(prev => (prev === target.id ? null : prev));
+      showNotification('Lançamento excluído.');
+      const uid = cloud.user?.id;
+      if (uid) deleteCloudReceipt(uid, target.id).catch(() => { /* a cópia na nuvem some no próximo envio; o app segue */ });
+  };
+
+  // Quantos dos cupons lidos são novos (mesma regra de duplicado do handleScanComplete). Serve para avisar a pessoa.
+  const countNewReceipts = (list: Receipt[]): number => {
+      const seen = [...receipts];
+      let n = 0;
+      list.forEach(nr => {
+          const a = auditAndRepairReceipt(nr);
+          const dup = seen.some(ex => (a.id === ex.id) || (a.date === ex.date && Math.abs(a.totalAmount - ex.totalAmount) < 0.01 && a.establishmentName === ex.establishmentName));
+          if (!dup) { seen.unshift(a); n++; }
+      });
+      return n;
   };
 
   const handleScanComplete = (newReceipts: Receipt[]) => {
@@ -884,6 +919,28 @@ const App: React.FC = () => {
 
       <main className="app-main flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto p-4 md:p-12 w-full">
+                {/* App aberto sem nenhum cupom: se é uma reinstalação, os dados estão na conta */}
+                {view === 'dashboard' && backup.conflict && (
+                    <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2.5" data-testid="conflict-banner">
+                        <span className="text-[13px] text-zinc-200 min-w-0">A sua conta já tem um backup com {backup.conflict.remoteCount} cupons. Escolha como juntar com os {backup.conflict.localCount} deste aparelho.</span>
+                        <button onClick={goToAccount} className="shrink-0 px-3.5 py-2 rounded-full border border-luxury-gold/40 text-xs font-bold text-luxury-gold hover:bg-luxury-gold/15 transition-all">Escolher</button>
+                    </div>
+                )}
+                {view === 'dashboard' && receipts.length === 0 && cloud.available && cloud.ready && (
+                    cloud.user ? (
+                        (backup.status === 'checking' || backup.status === 'restoring') && (
+                            <div className="mb-4 flex items-center gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 px-4 py-3 text-[13px] text-zinc-200" data-testid="restore-banner" role="status">
+                                <Loader2 className="w-4 h-4 text-luxury-gold animate-spin shrink-0" />
+                                {backup.status === 'restoring' ? 'Trazendo seus dados da conta…' : 'Procurando o backup da sua conta…'}
+                            </div>
+                        )
+                    ) : (
+                        <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2.5" data-testid="restore-hint">
+                            <span className="text-[13px] text-zinc-200 min-w-0">Reinstalou o app? Entre na sua conta e seus cupons e sua chave de IA voltam sozinhos.</span>
+                            <button onClick={goToAccount} className="shrink-0 px-3.5 py-2 rounded-full border border-luxury-gold/40 text-xs font-bold text-luxury-gold hover:bg-luxury-gold/15 transition-all">Entrar</button>
+                        </div>
+                    )
+                )}
                 {view === 'dashboard' && (
                     <Dashboard 
                       receipts={receipts} 
@@ -938,7 +995,7 @@ const App: React.FC = () => {
                 {view === 'establishment_detail' && selectedEstablishment && (
                     <EstablishmentDetailView establishmentName={selectedEstablishment} receipts={receipts} onBack={() => setView('reports')} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} />
                 )}
-                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={(id) => setReceipts(prev => prev.filter(r => r.id !== id))} onAddManual={() => setView('manual_entry')} />}
+                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} />}
                 {view === 'reports' && (
                     <Reports 
                         receipts={receipts} 
@@ -952,7 +1009,7 @@ const App: React.FC = () => {
                         onUpdateMasterProducts={setMasterProducts}
                     />
                 )}
-                {view === 'scanner' && <Scanner onScanComplete={(rs) => { handleScanComplete(rs); cloud.contribute(rs.map(auditAndRepairReceipt)); setView('history'); }} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} />}
+                {view === 'scanner' && <Scanner onScanComplete={(rs) => { const added = countNewReceipts(rs); const dups = rs.length - added; handleScanComplete(rs); cloud.contribute(rs.map(auditAndRepairReceipt)); setView('history'); showNotification(added === 0 ? (dups === 1 ? 'Esse cupom já estava no histórico, nada novo foi salvo.' : `Esses ${dups} cupons já estavam no histórico, nada novo foi salvo.`) : `${added} ${added === 1 ? 'cupom salvo' : 'cupons salvos'}${dups > 0 ? `; ${dups} já ${dups === 1 ? 'existia' : 'existiam'}` : ''}.`, 6000); }} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} />}
                 {view === 'manual_entry' && <ManualEntryForm onSave={(r) => { handleScanComplete([r]); setView('history'); showNotification("Lançamento salvo com sucesso."); }} onCancel={() => setView('dashboard')} categories={categories} knownEstablishments={Array.from(new Set(receipts.map(r => r.establishmentName)))} knownProducts={[]} allReceipts={receipts} />}
                 {view === 'alerts' && (
                     <AlertsView cloud={cloud} draft={alertDraft} onDraftConsumed={() => setAlertDraft(null)} onGoToAccount={goToAccount} onBack={() => setView('dashboard')} />
@@ -960,6 +1017,7 @@ const App: React.FC = () => {
                 {view === 'settings' && (
                     <SettingsView 
                         cloud={cloud}
+                        backup={backup}
                         initialTab={settingsInitialTab}
                         onOpenAlerts={() => setView('alerts')}
                         taxonomy={taxonomy}
@@ -969,7 +1027,12 @@ const App: React.FC = () => {
                         snapshots={snapshots} 
                         establishments={establishments}
                         onUpdateEstablishment={handleUpdateEstablishment}
-                        onClearData={() => { localStorage.clear(); setReceipts([]); setTaxonomy([]); setSnapshots([]); setEstablishments([]); showNotification("Hard Reset concluído."); }} 
+                        onClearData={() => {
+                            // Hard Reset também apaga a cópia da conta; senão ela voltaria no próximo login
+                            const wipe = () => { localStorage.clear(); setReceipts([]); setTaxonomy([]); setSnapshots([]); setEstablishments([]); showNotification("Hard Reset concluído."); };
+                            if (cloud.user) backup.deleteRemote().catch(() => { /* sem rede: a cópia fica e pode ser apagada depois em Conta */ }).finally(wipe);
+                            else wipe();
+                        }} 
                         onExportData={() => handleExportData()} 
                         onImportData={handleImportData} 
                         onCreateSnapshot={handleCreateSnapshot} 
@@ -1073,7 +1136,21 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} categories={categories} />}
+      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} />}
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Excluir este lançamento?"
+          message={<>
+            <span className="block text-zinc-200 font-semibold">{titleCase(pendingDelete.establishmentName) || 'Sem nome'}</span>
+            <span className="block mt-1 tabular-nums">{pendingDelete.date.split('-').reverse().join('/')} · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(pendingDelete.totalAmount) || 0)} · {pendingDelete.items.length} {pendingDelete.items.length === 1 ? 'item' : 'itens'}</span>
+            <span className="block mt-3">Isso não pode ser desfeito.</span>
+          </>}
+          confirmLabel="Excluir"
+          cancelLabel="Cancelar"
+          onConfirm={confirmDeleteReceipt}
+          onCancel={() => setPendingDeleteId(null)}
+        />
+      )}
       {cloud.suggestions.length > 0 && <ScanSuggestionsSheet groups={cloud.suggestions} onClose={cloud.dismissSuggestions} onCreateAlert={openAlertDraft} />}
       {notification && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] bg-zinc-900 border border-luxury-gold/30 text-white px-6 py-3 rounded-3xl w-max max-w-[90vw] text-sm animate-in slide-in-from-bottom-5 flex items-center gap-2 shadow-2xl"><CheckCircle2 className="w-5 h-5 text-luxury-gold shrink-0" /> <span>{notification}</span></div>}
       

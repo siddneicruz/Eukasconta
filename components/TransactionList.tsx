@@ -1,9 +1,10 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Receipt, DashboardConfig } from '../types';
 import { Search, ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { normalizeProductName } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
+import PeriodPicker from './PeriodPicker';
 
 interface TransactionListProps {
   receipts: Receipt[];
@@ -23,6 +24,8 @@ const normalizeText = (text: string) => {
 };
 
 const AUTO_OPEN_ROWS = 15;
+const LONG_PRESS_MS = 450;   // segurar o cupom por esse tempo mostra a lixeira
+const PRESS_SLOP_PX = 8;     // mexer o dedo mais que isso é rolagem, não um "segurar"
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onAddManual, initialCategory, config }) => {
@@ -34,6 +37,54 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortType, setSortType] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  // Segurar um cupom: a linha "arma" e mostra uma lixeira; tocar na lixeira abre a confirmação de exclusão.
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const press = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null; fired: boolean } | null>(null);
+  const swallowClick = useRef(false);
+  const cancelPress = () => { if (press.current?.timer) clearTimeout(press.current.timer); press.current = null; };
+  const startPress = (e: React.PointerEvent, id: string) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    cancelPress();
+    const p = { x: e.clientX, y: e.clientY, timer: null as ReturnType<typeof setTimeout> | null, fired: false };
+    p.timer = setTimeout(() => {
+      p.fired = true; swallowClick.current = true;
+      setArmedId(id);
+      try { navigator.vibrate?.(18); } catch { /* sem vibração: segue */ }
+    }, LONG_PRESS_MS);
+    press.current = p;
+  };
+  const movePress = (e: React.PointerEvent) => {
+    const p = press.current;
+    if (!p || p.fired) return;
+    if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > PRESS_SLOP_PX) cancelPress();
+  };
+  const endPress = () => {
+    const fired = press.current?.fired;
+    cancelPress();
+    // o "click" que vem logo depois de soltar o dedo não pode abrir o cupom; se ele não vier, libera sozinho
+    if (fired) setTimeout(() => { swallowClick.current = false; }, 400);
+  };
+  const rowClick = (receipt: Receipt) => {
+    if (swallowClick.current) { swallowClick.current = false; return; }
+    if (armedId) { setArmedId(null); return; }
+    onSelectReceipt(receipt);
+  };
+  useEffect(() => {
+    if (!armedId) return;
+    const away = (e: PointerEvent) => {
+      if ((e.target as Element | null)?.closest?.('[data-armed="true"]')) return;
+      // o primeiro toque fora só tira a lixeira; se caiu em outro cupom, esse toque não o abre
+      setArmedId(null);
+      swallowClick.current = true;
+      setTimeout(() => { swallowClick.current = false; }, 400);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setArmedId(null); };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+  }, [armedId]);
+  useEffect(() => () => cancelPress(), []);
 
   useEffect(() => {
     if (config?.customStartDate) setStartDate(config.customStartDate);
@@ -159,15 +210,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
         </div>
 
         <div className="flex items-center gap-2 w-full xl:w-auto">
-            <div className="relative flex-1 min-w-0 xl:min-w-[140px]">
-                <Calendar className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-xl py-3 sm:py-3.5 pl-3 sm:pl-10 pr-2 sm:pr-3 text-[13px] text-zinc-300 focus:outline-none font-medium" />
-            </div>
-            <span className="text-zinc-700 hidden sm:inline">-</span>
-            <div className="relative flex-1 min-w-0 xl:min-w-[140px]">
-                <Calendar className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-xl py-3 sm:py-3.5 pl-3 sm:pl-10 pr-2 sm:pr-3 text-[13px] text-zinc-300 focus:outline-none font-medium" />
-            </div>
+            <PeriodPicker
+                start={startDate}
+                end={endDate}
+                onChange={(from, to) => { setStartDate(from); setEndDate(to); }}
+                placeholder="Escolher período"
+                className="flex-1 min-w-0 xl:min-w-[220px]"
+            />
             
             {(searchTerm || startDate || endDate) && (
                 <button onClick={() => { setSearchTerm(''); setStartDate(''); setEndDate(''); }} className="shrink-0 p-3.5 bg-white/5 hover:bg-red-950/20 text-zinc-500 hover:text-red-400 rounded-xl transition-colors border border-white/5">
@@ -221,8 +270,18 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                          const dayNum = isNaN(rDate.getTime()) ? '?' : rDate.getDate();
                          const dayName = isNaN(rDate.getTime()) ? '??' : rDate.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').replace(/^./, c => c.toUpperCase());
 
+                         const armed = armedId === receipt.id;
                          return (
-                            <div key={receipt.id} onClick={() => onSelectReceipt(receipt)} className="group bg-black border border-white/10 rounded-2xl p-3 md:p-4 cursor-pointer transition-all hover:border-luxury-gold/40 hover:bg-zinc-900 shadow-xl flex items-center justify-between gap-2">
+                            <div key={receipt.id} data-receipt-row data-armed={armed ? 'true' : undefined}
+                                onClick={() => rowClick(receipt)}
+                                onPointerDown={(e) => startPress(e, receipt.id)}
+                                onPointerMove={movePress}
+                                onPointerUp={endPress}
+                                onPointerCancel={endPress}
+                                onPointerLeave={cancelPress}
+                                onContextMenu={(e) => { e.preventDefault(); setArmedId(receipt.id); }}
+                                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' } as React.CSSProperties}
+                                className={`group border rounded-2xl p-3 md:p-4 cursor-pointer transition-all shadow-xl flex items-center justify-between gap-2 ${armed ? 'bg-red-500/[0.07] border-red-500/50' : 'bg-black border-white/10 hover:border-luxury-gold/40 hover:bg-zinc-900'}`}>
                                 <div className="flex items-center gap-3 md:gap-5 min-w-0">
                                     <div className="flex flex-col items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/5 border border-white/5 shrink-0">
                                         <span className="text-base md:text-xl font-serif font-bold text-white leading-none">{dayNum}</span>
@@ -238,7 +297,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                                 </div>
                                 <div className="flex items-center gap-2 md:gap-6 shrink-0">
                                     <span className="font-sans font-bold text-white text-sm md:text-lg tabular-nums">{brl.format(receipt.totalAmount)}</span>
-                                    <ChevronRight className="w-4 h-4 text-zinc-800 group-hover:text-luxury-gold group-hover:translate-x-1 transition-all hidden sm:block" />
+                                    {armed ? (
+                                        <button type="button" data-testid="row-delete" aria-label="Excluir lançamento" title="Excluir lançamento"
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            onClick={(e) => { e.stopPropagation(); setArmedId(null); onDeleteReceipt(receipt.id); }}
+                                            className="w-11 h-11 -mr-1 flex items-center justify-center rounded-xl bg-red-500/15 border border-red-500/50 text-red-400 hover:bg-red-500/25 active:scale-95 transition-all animate-in zoom-in-50 duration-150">
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    ) : (
+                                        <ChevronRight className="w-4 h-4 text-zinc-800 group-hover:text-luxury-gold group-hover:translate-x-1 transition-all hidden sm:block" />
+                                    )}
                                 </div>
                             </div>
                          );

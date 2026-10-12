@@ -5,13 +5,23 @@ const KEEP_UPPER = new Set(['LTDA', 'S/A', 'SA', 'ME', 'EPP', 'EIRELI', 'CIA', '
 const SMALL_WORDS = new Set(['E', 'DE', 'DA', 'DO', 'DAS', 'DOS', 'COM', 'EM', 'PARA', 'POR', 'NA', 'NO']);
 const UNIT_TOKEN = /^\d+([.,]\d+)?(kg|g|mg|ml|l|un|und|m|cm|mm|pct|cx)$/i;
 
-const fixWord = (w: string): string => {
+const fixWord = (w: string, keep: Set<string> = KEEP_UPPER): string => {
   if (!w) return w;
   const up = w.toUpperCase();
-  if (KEEP_UPPER.has(up) || UNIT_TOKEN.test(w)) return up;
+  if (keep.has(up) || UNIT_TOKEN.test(w)) return up;
   const lower = w.toLowerCase();
   // primeira letra de cada pedaço separado por hífen, barra ou ponto ("LTDA-F01" -> "Ltda-F01")
   return lower.replace(/(^|[-/.])([a-zà-ú])/g, (_m, sep, ch) => sep + ch.toUpperCase());
+};
+
+// Iniciais maiúsculas e o resto minúsculo, qualquer que seja a caixa de entrada
+// ("LATICÍNIOS E FRIOS", "laticínios e frios" e "Laticínios E Frios" -> "Laticínios e Frios").
+// Para nomes de departamento/categoria, onde não existe sigla de embalagem (PET, KG...).
+const DEPT_KEEP = new Set(['TV', 'USB', 'LED', 'II', 'III', 'IV']);
+export const properCase = (s: string | undefined | null, keep: Set<string> = DEPT_KEEP): string => {
+  const text = (s ?? '').trim();
+  if (!text) return '';
+  return text.split(/\s+/).map((w, i) => (i > 0 && SMALL_WORDS.has(w.toUpperCase()) ? w.toLowerCase() : fixWord(w, keep))).join(' ');
 };
 
 // Só mexe em texto todo em maiúsculas; se a pessoa já escreveu "Mercado do Zé", mantém como está.
@@ -20,13 +30,21 @@ export const titleCase = (s: string | undefined | null): string => {
   if (!text) return '';
   const letters = text.replace(/[^A-Za-zÀ-ú]/g, '');
   if (letters && letters !== letters.toUpperCase()) return text;
-  return text.split(/\s+/).map((w, i) => (i > 0 && SMALL_WORDS.has(w.toUpperCase()) ? w.toLowerCase() : fixWord(w))).join(' ');
+  return properCase(text, KEEP_UPPER);
 };
 
 /* ───────────────────────── rótulos curtos que não se repetem ───────────────────────── */
 
 const plain = (s: string): string =>
   (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+// Departamento = o que vem antes de " - " na categoria ("Hortifruti - Frutas" -> "Hortifruti").
+// A chave ignora caixa e acento, então "HORTIFRUTI", "Hortifruti" e "hortifruti" são o mesmo departamento.
+export const masterOf = (category?: string | null): string => String(category ?? '').split(' - ')[0].trim();
+export const deptKey = (category?: string | null): string => plain(masterOf(category));
+export const sameDept = (category: string | null | undefined, name: string | null | undefined): boolean => deptKey(category) === deptKey(name);
+// Categoria inteira ("Hortifruti - Frutas"), comparável sem caixa nem acento.
+export const catKey = (category?: string | null): string => plain(String(category ?? '').split(' - ').map(p => p.trim()).join(' - '));
 
 // Nome que o app grava (ou que a leitura devolve) quando o cupom não trouxe a loja.
 const UNIDENTIFIED = new Set([

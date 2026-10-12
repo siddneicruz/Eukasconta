@@ -12,6 +12,7 @@ interface ReceiptDetailProps {
   receipt: Receipt;
   onClose: () => void;
   onUpdateReceipt: (updatedReceipt: Receipt) => void;
+  onDelete?: () => void;
   onNext?: () => void;
   onPrev?: () => void;
   hasNext?: boolean;
@@ -283,7 +284,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
     );
 };
 
-const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [] }) => {
+const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [] }) => {
   const [viewMode, setViewMode] = useState<'cards' | 'thermal'>('thermal'); // abre no cupom em TXT; o Estruturado fica na aba da direita
   const [isEditing, setIsEditing] = useState(false);
   const [editedReceipt, setEditedReceipt] = useState<Receipt>(receipt);
@@ -418,7 +419,8 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
           <div className="flex gap-2">
               {!isEditing ? (
                 <>
-                    <button onClick={() => setIsEditing(true)} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-luxury-gold transition-colors bg-black/20"><Edit2 className="w-5 h-5" /></button>
+                    <button onClick={() => setIsEditing(true)} aria-label="Editar lançamento" className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-luxury-gold transition-colors bg-black/20"><Edit2 className="w-5 h-5" /></button>
+                    {onDelete && <button onClick={onDelete} aria-label="Excluir lançamento" data-testid="delete-receipt" className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-400 transition-colors bg-black/20"><Trash2 className="w-5 h-5" /></button>}
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors bg-black/20"><X className="w-5 h-5" /></button>
                 </>
               ) : (
