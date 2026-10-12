@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { Receipt, ReceiptItem } from '../types';
 import { X, Calendar, MapPin, Hash, ChevronDown, ChevronUp, PieChart, Edit2, Check, ChevronLeft, ChevronRight, Fuel, Utensils, ShoppingCart, Home, AlertCircle, Heart, Droplets, Smile, Shirt, Zap, Briefcase, PawPrint, FileText, Scroll, MessageSquare, Send, Croissant, Download, Folder, FileType, Save, Trash2, Plus, Clock, Globe } from 'lucide-react';
 import { getCategoryIcon } from './Dashboard';
@@ -176,6 +176,41 @@ export const generateReceiptText = (receipt: Receipt): string => {
     return output;
 };
 
+// Texto do cupom (monoespaçado): ajusta a letra para a linha mais larga caber inteira na tela,
+// sem quebrar (antes o "TOTAL" e os traços desciam para a linha de baixo no celular).
+const FitPre: React.FC<{ text: string; maxPx?: number; minPx?: number }> = ({ text, maxPx = 12, minPx = 7 }) => {
+    const boxRef = useRef<HTMLDivElement>(null);
+    const preRef = useRef<HTMLPreElement>(null);
+    const [size, setSize] = useState(9);
+    const cols = useMemo(() => Math.max(20, ...text.split('\n').map(l => l.length)), [text]);
+    useLayoutEffect(() => {
+        const box = boxRef.current;
+        if (!box) return;
+        const fit = () => {
+            const width = box.clientWidth;
+            if (!width) return;
+            // Largura real de um caractere na fonte monoespaçada do aparelho (em relação ao tamanho da letra).
+            let ratio = 0.6;
+            try {
+                const ctx = document.createElement('canvas').getContext('2d');
+                const family = preRef.current ? getComputedStyle(preRef.current).fontFamily : 'monospace';
+                if (ctx) { ctx.font = `100px ${family}`; ratio = ctx.measureText('0'.repeat(100)).width / 10000 || 0.6; }
+            } catch { /* usa 0,6 */ }
+            const px = Math.floor((width / (cols * ratio * 1.01)) * 10) / 10; // 1% de folga
+            setSize(Math.max(minPx, Math.min(maxPx, px)));
+        };
+        fit();
+        const ro = new ResizeObserver(fit);
+        ro.observe(box);
+        return () => ro.disconnect();
+    }, [cols, maxPx, minPx]);
+    return (
+        <div ref={boxRef} className="w-full">
+            <pre ref={preRef} className="whitespace-pre select-text relative z-0" style={{ fontSize: `${size}px`, lineHeight: 1.5 }}>{text}</pre>
+        </div>
+    );
+};
+
 const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const txtContent = useMemo(() => generateReceiptText(receipt), [receipt]);
@@ -224,10 +259,10 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
                     <FileType className="w-3 h-3" /> {fileName}
                 </span>
             </div>
-            <div className="flex-1 bg-zinc-900 rounded-md p-6 mb-4 border border-zinc-800 shadow-2xl relative overflow-hidden font-mono text-[10px] md:text-xs text-zinc-400 leading-relaxed overflow-y-auto custom-scrollbar">
+            <div className="flex-1 bg-zinc-900 rounded-md p-3 md:p-6 mb-4 border border-zinc-800 shadow-2xl relative overflow-hidden font-mono text-zinc-400 overflow-y-auto overflow-x-auto custom-scrollbar">
                 <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-20"></div>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none z-10"></div>
-                <pre className="whitespace-pre-wrap select-text relative z-0">{txtContent}</pre>
+                <FitPre text={txtContent} />
             </div>
             <div className="flex justify-between items-center bg-black border border-white/10 rounded-xl p-4 animate-in slide-in-from-bottom-2 gap-4">
                 <div className="flex flex-col flex-1">
