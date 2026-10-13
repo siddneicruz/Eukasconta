@@ -2,13 +2,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
     Search, BrainCircuit, RefreshCw, Check, ArrowRight,
-    Sparkles, X, Merge, ChevronDown, Scissors
+    Sparkles, X, Merge, ChevronDown, Scissors, Tags
 } from 'lucide-react';
 import { Receipt, TaxonomyNode, MasterProduct } from '../types';
 import { titleCase } from '../services/textFormat';
 import { fold, queryTokens } from '../services/itemSearch';
 import { buildProductGroups, suggestClusters, ProductGroup, DupCluster } from '../services/productUnify';
 import { ProductUnifySheet, ProductDupSheet, UnifyPlan } from './ProductUnifySheet';
+import CategoryFixSheet from './CategoryFixSheet';
+import { suggestCategoryFixes } from '../services/categoryRules';
 
 interface ProductMappingEditorProps {
   receipts: Receipt[];
@@ -57,6 +59,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const [unifyWith, setUnifyWith] = useState<ProductGroup[] | null>(null);
     const [dupOpen, setDupOpen] = useState(false);
+    const [fixOpen, setFixOpen] = useState(false);
     const [ignored, setIgnored] = useState<Set<string>>(loadIgnored);
 
     const categoriesList = useMemo(() => {
@@ -84,6 +87,10 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
         if (!tokens.length) return groups;
         return indexed.filter(x => tokens.every(t => x.hay.includes(t))).map(x => x.g);
     }, [indexed, groups, searchTerm]);
+
+    // Itens que parecem estar na categoria errada (ex.: linguiça e bacon em Carne Suína)
+    const fixes = useMemo(() => suggestCategoryFixes(receipts, categoriesList), [receipts, categoriesList]);
+    const fixCount = useMemo(() => fixes.reduce((n, f) => n + f.items.length, 0), [fixes]);
 
     const clusters = useMemo(() => suggestClusters(groups).filter(c => !ignored.has(c.id)), [groups, ignored]);
 
@@ -235,6 +242,24 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                     </div>
                 </div>
 
+                {fixes.length > 0 && (
+                    <div className="mb-4 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/[0.05] p-4 relative z-10" data-testid="fix-card">
+                        <div className="flex items-start gap-3">
+                            <Tags className="w-5 h-5 text-luxury-gold shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-zinc-100 leading-snug">
+                                    {plural(fixCount, 'item parece estar', 'itens parecem estar')} na categoria errada
+                                </p>
+                                <p className="text-xs text-zinc-400 mt-1">{fixes.map(f => f.short).join(', ').replace(/^./, c => c.toUpperCase())}: carne trabalhada, não corte de porco, boi ou ave.</p>
+                            </div>
+                        </div>
+                        <button type="button" onClick={() => setFixOpen(true)} data-testid="fix-open"
+                            className="mt-3 w-full py-3 rounded-xl bg-luxury-gold text-black font-bold text-[11px] uppercase tracking-[0.08em] hover:bg-white transition-colors">
+                            Revisar
+                        </button>
+                    </div>
+                )}
+
                 {canUnify && groups.length > 1 && (
                     <div className="flex gap-2 mb-4 relative z-10">
                         <button type="button" onClick={() => (selectMode ? leaveSelectMode() : setSelectMode(true))} data-testid="prod-select-toggle" aria-pressed={selectMode}
@@ -353,6 +378,10 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                         Unificar
                     </button>
                 </div>
+            )}
+
+            {fixOpen && (
+                <CategoryFixSheet sections={fixes} categories={categoriesList} onApply={onUpdateBatchMapping} onClose={() => setFixOpen(false)} />
             )}
 
             {unifyWith && (

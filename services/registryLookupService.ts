@@ -15,6 +15,7 @@
 
 import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanDescriptionForMatching } from './productMasterService';
+import { ruleCategoryFor } from './categoryRules';
 import { cleanCNPJ, formatCNPJ } from './productNormalization';
 
 /* ───────────────────────────── CNPJ ───────────────────────────── */
@@ -243,7 +244,7 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
   ctx.categories.forEach(c => canonical.set(stripKey(c), c));
   const valid = new Set(ctx.categories);
 
-  let known = 0, recategorized = 0, normalizedCats = 0;
+  let known = 0, recategorized = 0, normalizedCats = 0, ruled = 0;
   receipt.items = (input.items || []).map((item: ReceiptItem) => {
     const next: ReceiptItem = { ...item };
 
@@ -263,12 +264,19 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
         recategorized++;
       }
       if (!next.unitType && hit.master.unitType) next.unitType = hit.master.unitType;
+    } else {
+      // Item novo: carne trabalhada (linguiça, bacon) não entra como corte de carne
+      const fixed = ruleCategoryFor(next.description, next.category, ctx.categories);
+      if (fixed) { next.category = fixed; ruled++; }
     }
     return next;
   });
 
   if (receipt.items.length > 0 && known > 0) {
     notes.push(`${known} de ${receipt.items.length} itens já estão no catálogo${recategorized ? `; categoria do catálogo aplicada em ${recategorized}` : ''}.`);
+  }
+  if (ruled > 0) {
+    notes.push(`${ruled} ${ruled === 1 ? 'item de carne trabalhada (linguiça, bacon) foi' : 'itens de carne trabalhada (linguiça, bacon) foram'} para a categoria de embutidos.`);
   }
   if (normalizedCats > 0) {
     notes.push(`${normalizedCats} categoria(s) ajustada(s) para a grafia oficial da taxonomia.`);

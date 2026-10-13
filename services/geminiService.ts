@@ -70,6 +70,7 @@ DIFERENCIAÇÃO DE CATEGORIAS (CRÍTICO):
 3. FRIOS: Queijos fatiados e presuntaria.
 4. LATICÍNIOS: Leites em caixa, iogurtes e manteigas.
 5. PROTEÍNAS: Carnes in natura devem ir para as categorias de animais específicas ("Carne Bovina", "Carne de Aves", etc).
+6. CARNES TRABALHADAS: linguiça, bacon e toucinho NÃO são cortes de carne in natura. Mesmo sendo de porco, vão para a categoria de linguiças e embutidos, nunca para "Carne Suína", "Carne Bovina" ou "Aves".
 
 TAXONOMIA OBRIGATÓRIA (Use exatamente um destes itens para o campo 'category'):
 ${categories.join('\n')}
