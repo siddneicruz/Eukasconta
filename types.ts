@@ -46,6 +46,7 @@ export interface MasterProduct {
   category: string;       // Standard Category
   aliases: string[];      // Raw item descriptions that map to this parent
   establishmentCodes: Record<string, string>; // Maps establishment name/CNPJ to raw item code at that store
+  curated?: boolean;      // Unificado pela pessoa: o que ela juntou vale mais que as regras automáticas e ensina o catálogo
 }
 
 export interface SystemSnapshot {

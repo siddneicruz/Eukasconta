@@ -6,7 +6,7 @@ import {
     Upload, RefreshCw, Calculator, Eraser, History as HistoryIcon, Clock, 
     FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText
 } from 'lucide-react';
-import { Receipt, SystemSnapshot, Establishment, TaxonomyNode, AILearningEntry } from '../types';
+import { Receipt, SystemSnapshot, Establishment, TaxonomyNode, AILearningEntry, MasterProduct } from '../types';
 import { getCategoryIcon, getCategoryColor } from './Dashboard';
 import TaxonomyEditor from './TaxonomyEditor';
 import ProductMappingEditor from './ProductMappingEditor';
@@ -20,6 +20,8 @@ import { formatCNPJ } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import { AppMark, PDLogo } from './Brand';
 import NicknameSuggestSheet from './NicknameSuggestSheet';
+import type { ProductGroup } from '../services/productUnify';
+import type { UnifyPlan } from './ProductUnifySheet';
 
 interface SettingsViewProps {
   taxonomy: TaxonomyNode[];
@@ -36,6 +38,10 @@ interface SettingsViewProps {
   onUpdateGlobalMapping?: (description: string, newCategory: string) => void;
   onUpdateBatchMapping?: (mappings: { description: string, newCategory: string }[]) => void;
   receipts?: Receipt[];
+  masterProducts?: MasterProduct[];
+  // Unificar produtos (Inteligência)
+  onUnifyProducts?: (plan: UnifyPlan) => void;
+  onSplitProduct?: (desc: string, group: ProductGroup) => void;
   establishments: Establishment[];
   onUpdateEstablishment: (est: Establishment) => void;
   // Vários apelidos de uma vez (sugestões da IA já revisadas)
@@ -110,7 +116,7 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 const SettingsView: React.FC<SettingsViewProps> = ({ 
   taxonomy, onUpdateTaxonomy, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
-  receipts = [], establishments = [], onUpdateEstablishment, onApplyAliases, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
+  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, establishments = [], onUpdateEstablishment, onApplyAliases, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -303,7 +309,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               <ProductMappingEditor 
                 receipts={receipts} 
                 taxonomy={taxonomy} 
+                masterProducts={masterProducts}
                 onUpdateBatchMapping={onUpdateBatchMapping} 
+                onUnifyProducts={onUnifyProducts}
+                onSplitProduct={onSplitProduct}
               />
               <AILearningManager 
                 learning={aiLearning} 

@@ -36,6 +36,8 @@ import { auditAndRepairReceipt, cleanCNPJ, formatCNPJ } from './services/product
 import { resolveNodeStyle, migrateLegacyTaxonomy, findBestMatch, syncMissingDefaultTaxonomy } from './services/taxonomyService';
 import { auditCategoriesWithAI } from './services/geminiService';
 import { buildAndSyncMasterProducts } from './services/productMasterService';
+import { unifyGroups, splitDesc, ProductGroup } from './services/productUnify';
+import type { UnifyPlan } from './components/ProductUnifySheet';
 
 import { GoogleGenAI } from '@google/genai';
 import JSZip from 'jszip';
@@ -765,7 +767,7 @@ const App: React.FC = () => {
       }
   };
 
-  const handleUpdateBatchMapping = (mappings: { description: string, newCategory: string }[]) => {
+  const handleUpdateBatchMapping = (mappings: { description: string, newCategory: string }[], opts: { silent?: boolean } = {}) => {
       // 1. Instantly update receipts state
       setReceipts(prev => {
           return prev.map(receipt => {
@@ -825,7 +827,25 @@ const App: React.FC = () => {
           return updated;
       });
 
-      showNotification(`${mappings.length} ativos remapeados e aprendidos pela IA.`);
+      if (!opts.silent) showNotification(`${mappings.length} ativos remapeados e aprendidos pela IA.`);
+  };
+
+  // Junta produtos escolhidos pela pessoa num só: os cupons ficam como estão, o catálogo passa a tratar todos os nomes como um item
+  const handleUnifyProducts = (plan: UnifyPlan) => {
+      setMasterProducts(prev => unifyGroups(prev, plan.groups, { name: plan.name, category: plan.category }).masters);
+      // A categoria escolhida vale para todas as compras desses itens (e a IA aprende com ela)
+      const mappings = plan.groups
+          .flatMap(g => g.descs)
+          .filter(d => d.cats.length !== 1 || d.cats[0] !== plan.category)
+          .map(d => ({ description: d.desc, newCategory: plan.category }));
+      if (mappings.length) handleUpdateBatchMapping(mappings, { silent: true });
+      showNotification(`${plan.groups.length} produtos unificados em ${titleCase(plan.name)}.`);
+  };
+
+  // Desfaz uma unificação para um nome de cupom: ele volta a ser um produto à parte
+  const handleSplitProduct = (desc: string, group: ProductGroup) => {
+      setMasterProducts(prev => splitDesc(prev, desc, { category: group.category, unit: group.unit }).masters);
+      showNotification(`${titleCase(desc)} agora é um produto à parte.`);
   };
 
   const handleCleanupDuplicates = () => {
@@ -1093,6 +1113,9 @@ const App: React.FC = () => {
                         onRestoreSnapshot={handleRestoreSnapshot} 
                         onDeleteSnapshot={(id) => setSnapshots(prev => prev.filter(s => s.id !== id))}
                         onUpdateBatchMapping={handleUpdateBatchMapping}
+                        masterProducts={masterProducts}
+                        onUnifyProducts={handleUnifyProducts}
+                        onSplitProduct={handleSplitProduct}
                         onCleanupDuplicates={handleCleanupDuplicates}
                         onAuditPrices={handleAuditPrices}
                         onReprocessCategories={handleReprocessCategories}

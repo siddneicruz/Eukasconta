@@ -134,6 +134,16 @@ export const buildMasterIndex = (masters: MasterProduct[] = []): MasterIndex => 
     });
     const clean = cleanDescriptionForMatching(m.description);
     fuzzy.push({ master: m, clean, words: new Set(wordsOf(clean)) });
+    // Produto unificado à mão: cada nome que a pessoa juntou também serve de modelo para os próximos cupons.
+    if (m.curated) {
+      const seen = new Set<string>([clean]);
+      (m.aliases || []).forEach(a => {
+        const c = cleanDescriptionForMatching(a);
+        if (!c || seen.has(c)) return;
+        seen.add(c);
+        fuzzy.push({ master: m, clean: c, words: new Set(wordsOf(c)) });
+      });
+    }
   }
   return { byAlias, byStoreCode, fuzzy };
 };

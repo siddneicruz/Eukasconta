@@ -138,19 +138,44 @@ export const createMasterProduct = (
     };
 };
 
+// Pontuação de um nome contra um produto. Nos produtos que a pessoa unificou à mão, vale também
+// a semelhança com cada nome que ela juntou: assim o catálogo aprende com o que foi unificado.
+const scoreAgainst = (descUpper: string, master: MasterProduct): number => {
+    let best = calculateSimilarity(descUpper, master.description);
+    if (master.curated) {
+        for (const alias of master.aliases) {
+            const s = calculateSimilarity(descUpper, alias);
+            if (s > best) best = s;
+        }
+    }
+    return best;
+};
+
 // Walks through all receipts, aligns them with existing master products,
 // automatically learns new ones, and adds aliases/local codes.
 export const buildAndSyncMasterProducts = (
     receipts: Receipt[],
     existingMasters: MasterProduct[] = []
 ): MasterProduct[] => {
-    const masters = [...existingMasters];
+    // Trabalha numa cópia: mexer nos objetos do estado do React fazia a mudança passar batida e não ser salva.
+    const masters: MasterProduct[] = existingMasters.map(m => ({
+        ...m,
+        aliases: [...(m.aliases || [])],
+        establishmentCodes: { ...(m.establishmentCodes || {}) }
+    }));
     let nextCodeIndex = masters.length > 0 
         ? Math.max(...masters.map(m => {
             const num = parseInt(m.code.replace('MAE', ''), 10);
             return isNaN(num) ? 0 : num;
         })) + 1
         : 15; // Start at MAE0015 so it aligns conceptually with PRD0015
+
+    // Quem é dono de cada nome de cupom (o primeiro cadastro que o tem)
+    const aliasOwner = new Map<string, MasterProduct>();
+    const claim = (master: MasterProduct, alias: string) => {
+        if (!aliasOwner.has(alias)) aliasOwner.set(alias, master);
+    };
+    masters.forEach(m => m.aliases.forEach(a => claim(m, a)));
 
     receipts.forEach(receipt => {
         const estKey = receipt.cnpj || receipt.establishmentName || 'Geral';
@@ -164,33 +189,40 @@ export const buildAndSyncMasterProducts = (
             // Extract local establishment item code if description has a leading number sequence
             const matchCode = rawDesc.match(/^(\d{3,14})\b/);
             const estCode = matchCode ? matchCode[1] : '';
+
+            // O que a pessoa unificou à mão vale mais que as regras automáticas
+            const owned = aliasOwner.get(descUpper);
             
             // Step 1: Check expert rules first
             let matched = false;
-            for (const rule of EXPERT_UNIFICATION_RULES) {
-                if (rule.pattern.test(descUpper)) {
-                    // Find if a master product already exists with this rule name
-                    let master = masters.find(m => m.description === rule.parentName);
-                    if (!master) {
-                        master = createMasterProduct(rule.parentName, rule.unitType, rule.category, nextCodeIndex++);
-                        masters.push(master);
+            if (!owned?.curated) {
+                for (const rule of EXPERT_UNIFICATION_RULES) {
+                    if (rule.pattern.test(descUpper)) {
+                        // Find if a master product already exists with this rule name
+                        let master = masters.find(m => m.description === rule.parentName);
+                        if (!master) {
+                            master = createMasterProduct(rule.parentName, rule.unitType, rule.category, nextCodeIndex++);
+                            masters.push(master);
+                            master.aliases.forEach(a => claim(master!, a));
+                        }
+                        
+                        if (!master.aliases.includes(descUpper)) {
+                            master.aliases.push(descUpper);
+                            claim(master, descUpper);
+                        }
+                        if (estCode) {
+                            master.establishmentCodes[estKey] = estCode;
+                        }
+                        matched = true;
+                        break;
                     }
-                    
-                    if (!master.aliases.includes(descUpper)) {
-                        master.aliases.push(descUpper);
-                    }
-                    if (estCode) {
-                        master.establishmentCodes[estKey] = estCode;
-                    }
-                    matched = true;
-                    break;
                 }
             }
             
             if (matched) return;
 
             // Step 2: Check if exact rawDesc is already an alias in an existing master product
-            let foundMaster = masters.find(m => m.aliases.includes(descUpper));
+            let foundMaster = owned;
             
             if (!foundMaster) {
                 // Step 3: Check by clean similarity
@@ -199,7 +231,7 @@ export const buildAndSyncMasterProducts = (
                 
                 for (const master of masters) {
                     // Only match if in same category or close (to avoid cross-category grouping)
-                    const score = calculateSimilarity(descUpper, master.description);
+                    const score = scoreAgainst(descUpper, master);
                     if (score > bestScore) {
                         bestScore = score;
                         bestMatch = master;
@@ -211,6 +243,7 @@ export const buildAndSyncMasterProducts = (
                     foundMaster = bestMatch;
                     if (!foundMaster.aliases.includes(descUpper)) {
                         foundMaster.aliases.push(descUpper);
+                        claim(foundMaster, descUpper);
                     }
                 }
             }
@@ -231,6 +264,7 @@ export const buildAndSyncMasterProducts = (
                     foundMaster.aliases.push(descUpper);
                 }
                 masters.push(foundMaster);
+                foundMaster.aliases.forEach(a => claim(foundMaster!, a));
             }
             
             // Map establishment local code if present
