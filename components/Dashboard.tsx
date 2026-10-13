@@ -32,7 +32,7 @@ import {
     Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
-import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
+import { brlAxis } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel } from '../services/productPriceStats';
@@ -55,6 +55,19 @@ interface DashboardProps {
 
 const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
+
+// Período em poucas letras para a barra de filtros fechada ("Mai 2026", "Ano 2026", "7 dias", "01/05 a 15/05").
+const shortPeriod = (c: DashboardConfig): string => {
+    if (c.quickFilter === '7d') return '7 dias';
+    if (c.quickFilter === '30d') return '30 dias';
+    if (c.quickFilter === 'custom') {
+        const dm = (iso: string) => iso.split('-').reverse().slice(0, 2).join('/');
+        if (c.customStartDate && c.customEndDate) return `${dm(c.customStartDate)} a ${dm(c.customEndDate)}`;
+        return 'Período';
+    }
+    if (c.month !== null && c.month !== undefined) return `${MONTHS_SHORT[c.month].charAt(0)}${MONTHS_SHORT[c.month].slice(1).toLowerCase()} ${c.year}`;
+    return `Ano ${c.year}`;
+};
 
 export const getCustomMeta = (category: string) => {
     try {
@@ -380,14 +393,27 @@ const useElementWidth = (ref: React.RefObject<HTMLElement | null>, fallback = 30
   return w;
 };
 
-const TIMELINE_MARGIN_RIGHT = 22;
+const TIMELINE_MARGIN_RIGHT = 18;
+// A timeline usa letra um pouco menor que os outros gráficos (10 px) e um eixo Y mais estreito.
+const TL_AXIS_Y_WIDTH = 56;
+const TL_TICK = { fill: '#8b8b95', fontSize: 10, fontWeight: 500 } as const;
 
 // Rótulo do eixo X, centrado no ponto (a margem direita do gráfico deixa o último inteiro dentro do card).
 const renderTimelineTick = (props: any) => {
   const { x, y, payload } = props;
   return (
-      <text x={Number(x)} y={Number(y)} dy={14} textAnchor="middle" fill={axisTickX.fill} fontSize={axisTickX.fontSize} fontWeight={axisTickX.fontWeight}>
+      <text x={Number(x)} y={Number(y)} dy={12} textAnchor="middle" fill={TL_TICK.fill} fontSize={TL_TICK.fontSize} fontWeight={TL_TICK.fontWeight}>
           {String(payload?.value ?? '')}
+      </text>
+  );
+};
+
+// Valor do eixo Y numa linha só, em 10 px.
+const renderTimelineYTick = (props: any) => {
+  const { x, y, payload } = props;
+  return (
+      <text x={Number(x) - 2} y={Number(y)} dy={3.5} textAnchor="end" fill={TL_TICK.fill} fontSize={TL_TICK.fontSize}>
+          {brlAxis(payload?.value)}
       </text>
   );
 };
@@ -396,10 +422,10 @@ const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload;
         return (
-            <div className="bg-zinc-950 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
-                <p className="text-luxury-gold text-xs font-bold mb-2 border-b border-white/5 pb-2">{data.label || data.name}</p>
-                <p className="text-white font-serif text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
-                {data.percentage && <p className="text-zinc-400 text-xs mt-1">{data.percentage.toFixed(1).replace('.', ',')}% do total</p>}
+            <div className="bg-zinc-950 border border-white/10 px-3 py-2 rounded-xl shadow-xl backdrop-blur-md">
+                <p className="text-luxury-gold text-[11px] font-semibold leading-none">{data.label || data.name}</p>
+                <p className="text-white font-serif text-[15px] leading-none mt-1.5 tabular-nums">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
+                {data.percentage && <p className="text-zinc-400 text-[11px] mt-1">{data.percentage.toFixed(1).replace('.', ',')}% do total</p>}
             </div>
         );
     }
@@ -408,6 +434,12 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [] }) => {
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
+  // No celular a barra de filtros fica numa linha só (categoria + período); toca no período para abrir o resto.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const hasFilters = !!(config.category || config.month !== null || config.quickFilter || config.establishment || config.item);
+  const resetFilters = () => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null });
+  // Partes que só aparecem com a barra aberta no celular (no computador e no celular deitado ficam sempre)
+  const moreCls = filtersOpen ? 'flex' : 'hidden md:flex ls:flex';
   const { aliasOf, nameOf, keyOf } = useStoreNames();
   const availableMasterCategories = useMemo(() => {
       return taxonomy
@@ -539,7 +571,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   // Timeline: escala (dia, mês ou trimestre) e poucos rótulos no eixo, conforme o período e a largura da tela
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineWidth = useElementWidth(timelineRef);
-  const plotWidth = Math.max(120, timelineWidth - AXIS_Y_WIDTH - TIMELINE_MARGIN_RIGHT);
+  const plotWidth = Math.max(120, timelineWidth - TL_AXIS_Y_WIDTH - TIMELINE_MARGIN_RIGHT);
   const series = useMemo(() => buildEvolution(filteredReceipts, config, plotWidth), [filteredReceipts, config, plotWidth]);
   const evolutionData = series.points;
   const peakIdx = useMemo(() => {
@@ -548,33 +580,51 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       return best;
   }, [evolutionData]);
   const lastIdx = evolutionData.length - 1;
+  // Pontos pequenos e finos, vazados na cor do cartão. Poucos pontos (até 12): todos. Muitos (um mês, um ano): só o pico e o último.
   const renderTimelineDot = (props: any) => {
       const { cx, cy, index } = props;
       const key = `dot-${index}`;
-      const show = series.showAllDots ? true : (index === peakIdx || index === lastIdx);
-      if (!show || cx == null || cy == null) return <g key={key} />;
       const emph = index === peakIdx || index === lastIdx;
-      return <circle key={key} cx={cx} cy={cy} r={emph ? 4.5 : 3} fill="#000" stroke="#D4AF37" strokeWidth={emph ? 2.5 : 2} />;
+      if ((!series.showAllDots && !emph) || cx == null || cy == null) return <g key={key} />;
+      return <circle key={key} className="tl-dot" cx={cx} cy={cy} r={emph ? 3 : 2.25} stroke="#D4AF37" strokeWidth={1.25} />;
   };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
-      <div className="flex flex-col gap-3 mb-4 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-3 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
-        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-2 md:gap-4 ls:gap-2 overflow-hidden">
-            <div className="order-1 w-full md:w-auto ls:w-auto min-w-0 flex items-center gap-2 px-3 pt-1 md:pt-0 ls:pt-0 md:px-5 md:border-r ls:border-r border-white/10 md:shrink-0 ls:shrink-0">
-                <Filter className="w-4 h-4 text-luxury-gold" />
-                <select 
-                    value={config.category || ''} 
-                    onChange={(e) => onConfigChange({ ...config, category: e.target.value || null })} 
-                    className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-[0.08em] w-full md:w-auto md:max-w-[150px] ls:w-auto ls:max-w-[130px] truncate"
+      <div className="flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
+        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>
+            <div className="order-1 flex-1 md:flex-none ls:flex-none min-w-0 flex items-center gap-2 px-3 py-1.5 md:py-0 ls:py-0 md:px-5 md:border-r ls:border-r border-white/10 md:shrink-0 ls:shrink-0">
+                <Filter className="w-4 h-4 text-luxury-gold shrink-0" />
+                <select
+                    value={config.category || ''}
+                    onChange={(e) => onConfigChange({ ...config, category: e.target.value || null })}
+                    className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-[0.04em] md:tracking-[0.08em] ls:tracking-[0.08em] w-full min-w-0 md:w-auto md:max-w-[150px] ls:w-auto ls:max-w-[130px] truncate"
                 >
                     <option value="" className="bg-black">TODAS CATEGORIAS</option>
                     {availableMasterCategories.map(cat => <option key={cat} value={cat} className="bg-black text-white">{cat}</option>)}
                 </select>
             </div>
-            
+
+            {/* Celular em pé: o período fechado vira um botão; ao tocar abre ano, meses, 7 dias e período */}
+            <div className="order-1 flex md:hidden ls:hidden shrink-0 items-center gap-1 pr-1">
+                {!filtersOpen && hasFilters && (
+                    <button type="button" onClick={resetFilters} title="Limpar filtros" aria-label="Limpar filtros" data-testid="filter-reset-collapsed"
+                        className="w-8 h-8 flex items-center justify-center rounded-xl border border-white/5 text-zinc-500 active:text-luxury-gold">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                )}
+                <button type="button" onClick={() => setFiltersOpen(o => !o)} aria-expanded={filtersOpen} data-testid="filter-toggle"
+                    className={`h-8 pl-2.5 pr-2 rounded-xl flex items-center gap-1.5 text-xs font-bold border transition-colors ${filtersOpen ? 'bg-luxury-gold text-black border-luxury-gold' : 'filter-chip bg-luxury-gold/10 text-luxury-gold border-luxury-gold/25'}`}>
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    <span className="whitespace-nowrap" data-testid="filter-summary">{shortPeriod(config)}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`} />
+                </button>
+            </div>
+            {/* Aberta, a categoria e o botão do período ficam sozinhos na primeira linha */}
+            {filtersOpen && <div className="order-1 w-full h-0 md:hidden ls:hidden" aria-hidden="true" />}
+
             {config.quickFilter === 'custom' ? (
-                <div className="order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-4 animate-in slide-in-from-left-2">
+                <div className={`order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 ${moreCls} items-center gap-1.5 px-2 md:px-4 animate-in slide-in-from-left-2`}>
                     <PeriodPicker
                         start={config.customStartDate}
                         end={config.customEndDate}
@@ -587,7 +637,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 </div>
             ) : (
                 <>
-                    <div className="order-2 flex-1 md:flex-none ls:flex-none flex items-center gap-2 px-3 md:px-5 md:border-r ls:border-r border-white/10 shrink-0">
+                    <div className={`order-2 flex-1 md:flex-none ls:flex-none ${moreCls} items-center gap-2 px-3 md:px-5 md:border-r ls:border-r border-white/10 shrink-0`}>
                         <CalendarDays className="w-4 h-4 text-zinc-500" />
                         <select 
                             value={config.year} 
@@ -597,15 +647,15 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                             {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-black text-white">{y}</option>)}
                         </select>
                     </div>
-                    <div className="order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 flex items-center justify-start md:justify-between gap-1 px-2 md:px-4 overflow-x-auto no-scrollbar">
-                        <button 
-                            onClick={() => onConfigChange({ ...config, month: null, quickFilter: null })} 
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
+                    <div className={`order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 ${moreCls} items-center justify-start md:justify-between gap-0.5 md:gap-1 px-1 md:px-4 overflow-x-auto no-scrollbar`} data-testid="filter-months">
+                        <button
+                            onClick={() => onConfigChange({ ...config, month: null, quickFilter: null })}
+                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
                         >
                             ANUAL
                         </button>
                         {MONTHS_SHORT.map((m, idx) => (
-                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-2.5 py-1.5 md:px-3 md:py-2 rounded-full text-xs font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                 {m}
                             </button>
                         ))}
@@ -613,14 +663,14 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 </>
             )}
 
-            <div className="order-3 md:order-4 ls:order-4 flex items-center gap-2 px-2 md:px-4 md:border-l ls:border-l border-white/10 shrink-0">
-                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === '7d' ? null : '7d', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${config.quickFilter === '7d' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'border-white/5 text-zinc-500'}`}>7 DIAS</button>
-                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">PERÍODO</span></button>
-                {(config.category || config.month !== null || config.quickFilter || config.establishment || config.item) && (
+            <div className={`order-3 md:order-4 ls:order-4 ${moreCls} items-center gap-1.5 md:gap-2 px-2 md:px-4 md:border-l ls:border-l border-white/10 shrink-0`}>
+                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === '7d' ? null : '7d', month: null })} className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-bold border transition-all ${config.quickFilter === '7d' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'border-white/5 text-zinc-500'}`}>7 DIAS</button>
+                <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">PERÍODO</span></button>
+                {hasFilters && (
                     <button
-                        onClick={() => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null })}
+                        onClick={resetFilters}
                         title="Limpar filtros"
-                        className="p-2 rounded-xl border border-white/5 text-zinc-600 hover:text-luxury-gold hover:border-luxury-gold/30 transition-all"
+                        className="p-1.5 md:p-2 rounded-xl border border-white/5 text-zinc-600 hover:text-luxury-gold hover:border-luxury-gold/30 transition-all"
                     >
                         <RotateCcw className="w-3.5 h-3.5" />
                     </button>
@@ -663,7 +713,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         )}
       </div>
 
-      <div className="relative z-30 mb-4 md:mb-8">
+      <div className="relative z-30 mb-3 md:mb-8">
           <ItemSearchBox
               receipts={receipts}
               masters={masterProducts}
@@ -682,30 +732,30 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           <ActionButton onClick={onSettingsClick} icon={Settings} label="Estúdio" />
       </div>
 
-      <div className="mb-10 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 shadow-2xl relative overflow-hidden group">
+      <div className="mb-10 bg-black border border-white/10 rounded-[1.75rem] md:rounded-[2.5rem] p-4 md:p-10 shadow-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-96 h-96 bg-luxury-gold/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
-          <div className="flex justify-between items-center mb-4 md:mb-8 relative z-10">
+          <div className="flex justify-between items-center mb-2 md:mb-8 relative z-10 px-1 md:px-0">
               <div className="flex flex-col">
-                  <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
+                  <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-0.5 flex items-center gap-1.5">
                       <LineChart className="w-3 h-3 text-luxury-gold" /> Evolução de Gastos
                   </h3>
-                  <span className="text-2xl font-serif text-white tracking-tighter">Timeline do Estúdio</span>
-                  <span className="text-xs text-zinc-500 mt-1" data-testid="timeline-caption">{series.caption}</span>
+                  <span className="text-lg md:text-2xl font-serif text-white tracking-tight leading-tight">Timeline do Estúdio</span>
+                  <span className="text-[11px] md:text-xs text-zinc-500 mt-0.5" data-testid="timeline-caption">{series.caption}</span>
               </div>
           </div>
-          <div ref={timelineRef} className="h-[200px] md:h-[280px] w-full relative z-10" data-testid="timeline-chart">
+          <div ref={timelineRef} className="tl-chart h-[176px] md:h-[280px] w-full relative z-10" data-testid="timeline-chart">
               <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={evolutionData} margin={{ top: 14, right: TIMELINE_MARGIN_RIGHT, left: 0, bottom: 4 }}>
+                  <AreaChart data={evolutionData} margin={{ top: 10, right: TIMELINE_MARGIN_RIGHT, left: 0, bottom: 2 }}>
                       <defs>
                           <linearGradient id="colorDashboard" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.28}/><stop offset="100%" stopColor="#D4AF37" stopOpacity={0}/>
+                              <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.2}/><stop offset="100%" stopColor="#D4AF37" stopOpacity={0}/>
                           </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} ticks={series.ticks} interval={0} tick={renderTimelineTick} height={30} />
-                      <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} tickCount={4} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(212,175,55,0.35)', strokeWidth: 1, strokeDasharray: '3 4' }} />
-                      <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={evolutionData.length > 12 ? 2.25 : 3} strokeLinecap="round" fillOpacity={1} fill="url(#colorDashboard)" animationDuration={900} dot={renderTimelineDot} activeDot={{ r: 5.5, stroke: '#fff', strokeWidth: 2, fill: '#000' }} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} ticks={series.ticks} interval={0} tick={renderTimelineTick} height={24} />
+                      <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(212,175,55,0.3)', strokeWidth: 1, strokeDasharray: '3 4' }} />
+                      <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fillOpacity={1} fill="url(#colorDashboard)" animationDuration={900} dot={renderTimelineDot} activeDot={{ r: 3.5, stroke: '#D4AF37', strokeWidth: 1.5, className: 'tl-dot' }} />
                   </AreaChart>
               </ResponsiveContainer>
           </div>

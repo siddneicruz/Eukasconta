@@ -143,6 +143,14 @@
       html.light-theme .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01); }
       
       html.light-theme .border-zinc-800 { border-color: #e4e4e7; }
+
+      /* Timeline do Estúdio: linha fina com um brilho leve; pontos vazados na cor do cartão */
+      .tl-chart .recharts-area-curve { filter: drop-shadow(0 0 3px rgba(212, 175, 55, 0.35)); }
+      .tl-dot { fill: #000; }
+      html.light-theme .tl-chart .recharts-area-curve { filter: none; }
+      html.light-theme .tl-dot { fill: #ffffff; }
+      /* Botão do período (barra de filtros fechada): dourado mais escuro para ler no fundo claro */
+      html.light-theme .filter-chip { color: #8a6a0a; border-color: rgba(138, 106, 10, 0.35); background-color: rgba(212, 175, 55, 0.14); }
     </style>
 <link rel="stylesheet" href="/index.css">
 </head>
