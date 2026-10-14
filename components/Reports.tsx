@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, Establishment, MasterProduct } from '../types';
 import { 
   TrendingUp, Store, PieChart as PieChartIcon, ChevronLeft, ChevronRight,
@@ -11,11 +11,13 @@ import { calculateSimilarity, cleanDescriptionForMatching } from '../services/pr
 import ReportsPanorama from './ReportsPanorama';
 import PeriodPicker from './PeriodPicker';
 import { downloadFile } from '../services/nativeFiles';
-import { renderYTick, axisTickX, AXIS_Y_WIDTH } from '../services/chartFormat';
+import { renderYTick, axisTickX, AXIS_Y_WIDTH, TL_AXIS_Y_WIDTH, renderTimelineYTick } from '../services/chartFormat';
+import CompareCard, { ChosenCompare } from './CompareCard';
+import { buildCompareOptions, bySpend, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
 
 const { 
   XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  CartesianGrid, LineChart, Line, Legend, BarChart, Bar, Cell, AreaChart, Area, ReferenceLine, Label 
+  CartesianGrid, Line, BarChart, Bar, Cell, AreaChart, Area, ReferenceLine, Label 
 } = Recharts;
 
 interface ReportsProps {
@@ -55,8 +57,10 @@ const Reports: React.FC<ReportsProps> = ({
   masterProducts = [],
   onUpdateMasterProducts
 }) => {
-  const [selectedCats, setSelectedCats] = useState<string[]>([]);
-  const [rankingCat, setRankingCat] = useState<string | null>(null);
+  // O que está sendo comparado (departamentos e categorias das compras do usuário) e a cor de cada um
+  const [sel, setSel] = useState<CompareSelection[]>([]);
+  const [rankingId, setRankingId] = useState<string | null>(null);
+  const selInit = useRef(false);
   const [goalItem, setGoalItem] = useState<string>(''); 
   const [activeSection, setActiveSection] = useState<'panorama' | 'overview' | 'goals' | 'catalog'>('panorama');
   const [tempGoalValue, setTempGoalValue] = useState<string>('');
@@ -490,12 +494,6 @@ const Reports: React.FC<ReportsProps> = ({
     downloadFile(blob, `cadastro_produtos_${fileDate}_${fileTime}.csv`).catch(() => { /* sem permissão para compartilhar */ });
   };
 
-  const allCategories = useMemo(() => {
-      const masters = new Set<string>();
-      (DEFAULT_CATEGORIES || []).forEach(cat => masters.add(cat.split(' - ')[0]));
-      return Array.from(masters).sort();
-  }, []);
-
   const taxonomyOptions = useMemo(() => {
       const options: string[] = [];
       const masters = new Set<string>();
@@ -506,18 +504,6 @@ const Reports: React.FC<ReportsProps> = ({
       return [...Array.from(masters).sort(), ...options.sort()];
   }, []);
 
-  useEffect(() => {
-    if (selectedCats.length === 0 && allCategories.length > 0) {
-        setSelectedCats(allCategories.slice(0, 3));
-    }
-  }, [allCategories]);
-
-  useEffect(() => {
-    if (!rankingCat && selectedCats.length > 0) {
-        setRankingCat(selectedCats[0]);
-    }
-  }, [selectedCats, rankingCat]);
-
   const handleSaveGoal = () => {
       const val = parseFloat(tempGoalValue);
       if (!isNaN(val) && goalItem) {
@@ -525,14 +511,6 @@ const Reports: React.FC<ReportsProps> = ({
           setGoals(newGoals);
           localStorage.setItem('eukasconta_category_goals', JSON.stringify(newGoals));
           window.dispatchEvent(new Event('storage'));
-      }
-  };
-
-  const toggleCategory = (name: string) => {
-      if (selectedCats.includes(name)) {
-          setSelectedCats(prev => prev.filter(c => c !== name));
-      } else if (selectedCats.length < 5) {
-          setSelectedCats(prev => [...prev, name]);
       }
   };
 
@@ -571,20 +549,37 @@ const Reports: React.FC<ReportsProps> = ({
     });
   }, [receipts, config]);
 
-  const stats = useMemo(() => {
-    let total = 0;
-    let itemsCount = 0;
-    filteredReceipts.forEach(r => {
-        (r.items || []).forEach(i => {
-            const masterCat = i.category.split(' - ')[0];
-            if (selectedCats.includes(masterCat)) {
-                total += i.totalPrice || 0;
-                itemsCount++;
-            }
-        });
-    });
-    return { total, itemsCount, avg: filteredReceipts.length > 0 ? total / filteredReceipts.length : 0 };
-  }, [filteredReceipts, selectedCats]);
+  // Opções do Comparativo: saem das compras de verdade, então acompanham as categorias que o usuário usa hoje
+  const compareOptions = useMemo(() => buildCompareOptions(receipts, filteredReceipts), [receipts, filteredReceipts]);
+  const optionById = useMemo(() => new Map(compareOptions.map(o => [o.id, o] as [string, CompareOption])), [compareOptions]);
+
+  // Na primeira vez com dados, já compara os 3 departamentos que mais gastaram no período
+  useEffect(() => {
+    if (selInit.current || compareOptions.length === 0) return;
+    selInit.current = true;
+    const top = compareOptions.filter(o => o.kind === 'dept').sort(bySpend).slice(0, 3);
+    setSel(top.map((o, i) => ({ id: o.id, color: CMP_COLORS[i] })));
+  }, [compareOptions]);
+
+  const toggleCompare = (id: string) => setSel(prev => {
+    if (prev.some(s => s.id === id)) return prev.filter(s => s.id !== id);
+    if (prev.length >= MAX_COMPARE) return prev;
+    const used = new Set(prev.map(s => s.color));
+    const color = CMP_COLORS.find(c => !used.has(c)) || CMP_COLORS[prev.length % CMP_COLORS.length];
+    return [...prev, { id, color }];
+  });
+
+  const chosen: ChosenCompare[] = useMemo(() => {
+    const out: ChosenCompare[] = [];
+    sel.forEach(s => { const opt = optionById.get(s.id); if (opt) out.push({ ...s, opt }); });
+    return out;
+  }, [sel, optionById]);
+
+  // Quem aparece no ranking de lojas: a escolha de aba, ou a primeira da comparação
+  useEffect(() => {
+    if (chosen.length === 0) { if (rankingId) setRankingId(null); return; }
+    if (!rankingId || !chosen.some(c => c.id === rankingId)) setRankingId(chosen[0].id);
+  }, [chosen, rankingId]);
 
   const getTimelineData = (targetCategories: string[], isSingleItem: boolean = false) => {
       const dataPoints: any[] = [];
@@ -685,7 +680,8 @@ const Reports: React.FC<ReportsProps> = ({
       }
 
       if (config.month !== null) {
-          for (let d = 1; d <= 31; d++) {
+          const daysInMonth = new Date(config.year, (config.month as number) + 1, 0).getDate();
+          for (let d = 1; d <= daysInMonth; d++) {
               const dayStr = d.toString().padStart(2, '0');
               const point: any = { name: dayStr };
               targetCategories.forEach(c => point[isSingleItem ? 'value' : c] = 0);
@@ -736,19 +732,18 @@ const Reports: React.FC<ReportsProps> = ({
       return dataPoints;
   };
 
-  const comparativeData = useMemo(() => getTimelineData(selectedCats), [filteredReceipts, selectedCats, config, receipts]);
-
   const goalPerfData = useMemo(() => {
       if (!goalItem) return [];
       return getTimelineData([goalItem], true);
   }, [filteredReceipts, goalItem, goals, config, receipts]);
 
   const establishmentRankData = useMemo(() => {
-    if (!rankingCat) return [];
+    if (!rankingId) return [];
+    const matches = matcherFor(rankingId);
     const agg: Record<string, { total: number, cnpj: string }> = {};
     filteredReceipts.forEach(r => {
         r.items.forEach(item => {
-            if (item.category.startsWith(rankingCat)) {
+            if (matches(String(item.category || ''))) {
                 if (!agg[r.establishmentName]) agg[r.establishmentName] = { total: 0, cnpj: r.cnpj };
                 agg[r.establishmentName].total += item.totalPrice;
             }
@@ -762,31 +757,28 @@ const Reports: React.FC<ReportsProps> = ({
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5); 
-  }, [filteredReceipts, rankingCat, establishments]);
+  }, [filteredReceipts, rankingId, establishments]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
       if (active && payload && payload.length) {
+          const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
           return (
-              <div className="bg-zinc-950 border border-white/10 p-5 rounded-[1.5rem] shadow-2xl backdrop-blur-md">
-                  <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-[0.1em] mb-3 border-b border-white/5 pb-2">Auditoria: {label}</p>
-                  <div className="space-y-2">
+              <div className="bg-zinc-950 border border-white/10 px-3 py-2 rounded-xl shadow-xl backdrop-blur-md max-w-[240px]">
+                  <p className="text-luxury-gold text-[11px] font-semibold leading-none">{payload[0]?.payload?.label || payload[0]?.payload?.realName || label}</p>
+                  <div className="mt-1.5 space-y-1">
                       {payload.map((p: any, idx: number) => {
                         const isDelta = p.dataKey === 'delta';
-                        const deltaVal = p.value;
-                        const isPositiveDelta = deltaVal > 0;
-                        
+                        const isPositiveDelta = p.value > 0;
                         return (
-                            <div key={idx} className="flex items-center justify-between gap-8">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill || '#D4AF37' }} />
-                                    <span className="text-[11px] font-bold text-zinc-300 uppercase">{p.name || p.dataKey}</span>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className={`text-xs font-sans font-bold ${isDelta ? (isPositiveDelta ? 'text-red-500' : 'text-emerald-500') : 'text-white'}`}>
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.value)}
-                                    </span>
-                                    {isDelta && <span className="text-[11px] uppercase font-bold text-zinc-500">{isPositiveDelta ? 'EXCEDENTE' : 'ECONOMIA'}</span>}
-                                </div>
+                            <div key={idx} className="flex items-center justify-between gap-4">
+                                <span className="flex items-center gap-1.5 min-w-0">
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color || p.fill || '#D4AF37' }} />
+                                    <span className="text-[11px] text-zinc-300 truncate">{p.name && p.name !== 'value' ? p.name : (isDelta ? 'Diferença' : 'Gasto')}</span>
+                                </span>
+                                <span className="text-right shrink-0">
+                                    <span className={`text-[12px] font-semibold tabular-nums ${isDelta ? (isPositiveDelta ? 'text-red-500' : 'text-emerald-500') : 'text-white'}`}>{brl(p.value)}</span>
+                                    {isDelta && <span className="block text-[10px] text-zinc-500">{isPositiveDelta ? 'acima da meta' : 'dentro da meta'}</span>}
+                                </span>
                             </div>
                         );
                       })}
@@ -799,10 +791,10 @@ const Reports: React.FC<ReportsProps> = ({
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
-      <div className="flex flex-col gap-4 md:gap-6 mb-8 md:mb-10 md:sticky md:top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 md:py-4 md:-mx-6 md:px-6">
-        <div className="flex flex-col md:flex-row ls:flex-row md:items-center ls:items-center justify-between gap-6 ls:gap-4 mb-4 ls:mb-0">
+      <div className="flex flex-col gap-3 md:gap-6 mb-4 md:mb-10 md:sticky md:top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 md:py-4 md:-mx-6 md:px-6">
+        <div className="flex flex-col md:flex-row ls:flex-row md:items-center ls:items-center justify-between gap-3 md:gap-6 ls:gap-4 mb-0 md:mb-4 ls:mb-0">
             <div>
-                <h2 className="text-3xl ls:text-2xl md:text-5xl font-serif text-white mb-1 tracking-tight uppercase">Performance Matrix</h2>
+                <h2 className="text-2xl ls:text-2xl md:text-5xl font-serif text-white mb-1 tracking-tight uppercase">Performance Matrix</h2>
                 <p className="text-zinc-400 font-sans text-sm">Auditoria de fluxo por período</p>
             </div>
             <div className="grid grid-cols-2 md:flex ls:flex items-center gap-3">
@@ -855,7 +847,7 @@ const Reports: React.FC<ReportsProps> = ({
                 <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">FILTRAR </span>PERÍODO</button>
                 {(config.category || config.month !== null || config.quickFilter) && (
                     <button
-                        onClick={() => { onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null }); setSelectedCats([]); }}
+                        onClick={() => { onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null }); }}
                         title="Limpar filtros"
                         className="p-2 rounded-xl border border-white/5 text-zinc-600 hover:text-luxury-gold hover:border-luxury-gold/30 transition-all"
                     >
@@ -866,16 +858,10 @@ const Reports: React.FC<ReportsProps> = ({
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 md:grid-cols-3 ls:grid-cols-3 gap-3 md:gap-6 mb-8 md:mb-12 ${activeSection === 'panorama' ? 'hidden' : ''}`}>
-        <KPIBlock icon={DollarSign} label="INVESTIMENTO NOS GRUPOS" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.total)} color="text-luxury-gold" />
-        <KPIBlock icon={ShoppingBag} label="VOLUMETRIA DE ITENS" value={stats.itemsCount.toString()} color="text-zinc-400" />
-        <KPIBlock icon={Target} label="MÉDIA POR RECIBO" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.avg)} color="text-emerald-500" />
-      </div>
-
       {/* SELETOR DE SEÇÃO: transforma o que era uma rolagem longa com tudo
           empilhado em um dashboard por abas — cada seção só renderiza quando
           está ativa, então a tela mostra uma coisa de cada vez. */}
-      <div className="flex items-center gap-1 mb-8 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1 mb-4 md:mb-6 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
           {[
               { id: 'panorama' as const, label: 'Panorama', icon: Sparkles },
               { id: 'overview' as const, label: 'Comparativo', icon: LucideLineChart },
@@ -892,41 +878,24 @@ const Reports: React.FC<ReportsProps> = ({
           ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className={activeSection === 'catalog' || activeSection === 'panorama' ? 'hidden' : 'lg:col-span-3 space-y-4'}>
-              <section className="bg-black/20 border border-white/5 rounded-2xl p-5 shadow-xl">
-                  <h4 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5 text-luxury-gold" /> Filtros Expressos</h4>
-                  <div className="grid grid-cols-1 gap-1.5">
-                      <QuickFilterBtn label="7 DIAS" active={config.quickFilter === '7d'} onClick={() => setQuickRange('7d')} icon={Clock} />
-                      <QuickFilterBtn label="30 DIAS" active={config.quickFilter === '30d'} onClick={() => setQuickRange('30d')} icon={CalendarDays} />
-                      <QuickFilterBtn label="MÊS ATUAL" active={config.month === new Date().getMonth() && !config.quickFilter} onClick={() => setQuickRange('thisMonth')} icon={Calendar} />
-                      <QuickFilterBtn label="ANO INTEIRO" active={config.month === null && !config.quickFilter} onClick={() => setQuickRange('thisYear')} icon={BarChart3} />
-                  </div>
-                  <button 
-                    onClick={() => { onConfigChange({ ...config, month: null, category: null, quickFilter: null, establishment: null }); setSelectedCats([]); }}
-                    className="w-full mt-3 py-2.5 rounded-xl bg-white/5 border border-white/5 text-[11px] font-bold text-zinc-500 uppercase tracking-[0.08em] hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-                  >
-                      <RotateCcw className="w-3.5 h-3.5" /> Limpar Filtros
-                  </button>
-              </section>
+      <div className="space-y-4 md:space-y-6">
+          {(activeSection === 'overview' || activeSection === 'goals') && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" data-testid="express-filters">
+                  {([
+                      { label: '7 dias', on: config.quickFilter === '7d', go: () => setQuickRange('7d') },
+                      { label: '30 dias', on: config.quickFilter === '30d', go: () => setQuickRange('30d') },
+                      { label: 'Mês atual', on: !config.quickFilter && config.month === new Date().getMonth() && config.year === new Date().getFullYear(), go: () => setQuickRange('thisMonth') },
+                      { label: 'Ano inteiro', on: !config.quickFilter && config.month === null, go: () => setQuickRange('thisYear') },
+                  ]).map(f => (
+                      <button key={f.label} type="button" onClick={f.go} aria-pressed={f.on}
+                          className={`h-8 px-3 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${f.on ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-white/[0.03] border-white/10 text-zinc-400 hover:text-white'}`}>
+                          {f.label}
+                      </button>
+                  ))}
+              </div>
+          )}
 
-              <section className="bg-black/20 border border-white/5 rounded-2xl p-5 shadow-xl">
-                  <h4 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-4 flex items-center gap-2"><Filter className="w-3.5 h-3.5 text-luxury-gold" /> Departamentos</h4>
-                  <div className="space-y-1.5 max-h-[420px] overflow-y-auto custom-scrollbar pr-2">
-                      {allCategories.map(name => {
-                          const isSelected = selectedCats.includes(name);
-                          return (
-                              <button key={name} onClick={() => toggleCategory(name)} className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left ${isSelected ? 'bg-luxury-gold/10 border-luxury-gold/30 text-white' : 'bg-white/[0.01] border-white/5 text-zinc-600 hover:text-zinc-400'}`}>
-                                  <span className="text-[11px] font-bold uppercase tracking-wide truncate font-sans">{name}</span>
-                                  {isSelected ? <div className="w-3.5 h-3.5 shrink-0 rounded border border-luxury-gold flex items-center justify-center bg-luxury-gold"><Check className="w-2.5 h-2.5 text-black" /></div> : <div className="w-3.5 h-3.5 shrink-0 rounded border border-zinc-800" />}
-                              </button>
-                          );
-                      })}
-                  </div>
-              </section>
-          </div>
-
-          <div className={activeSection === 'catalog' || activeSection === 'panorama' ? 'lg:col-span-12 space-y-10' : 'lg:col-span-9 space-y-10'}>
+          <div className="space-y-6 md:space-y-8">
               {activeSection === 'panorama' && (
                   <ReportsPanorama
                       receipts={receipts}
@@ -939,56 +908,34 @@ const Reports: React.FC<ReportsProps> = ({
               )}
 
               {activeSection === 'overview' && (<>
-              {/* TREND MATRIX - WIDE */}
-              <div className="bg-[#121214] border border-white/5 rounded-[2rem] p-6 md:p-8 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-96 h-96 bg-luxury-gold/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 relative z-10">
-                      <div className="flex flex-col">
-                        <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">
-                            <LucideLineChart className="w-3 h-3 text-luxury-gold" /> Trend Matrix Comparativa
-                        </h3>
-                        <span className="text-2xl font-serif text-white tracking-tighter">Timeline de Fluxo</span>
-                      </div>
-                  </div>
-                  <div className="h-[240px] md:h-[350px] w-full relative z-10">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={comparativeData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTickX} dy={15} />
-                            <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend iconType="circle" verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '24px', fontSize: '12px', fontWeight: 600 }} />
-                            {selectedCats.map((name, idx) => (
-                                <Line key={name} type="monotone" dataKey={name} stroke={CHART_COLORS[idx % CHART_COLORS.length]} strokeWidth={3} dot={{ r: 4, fill: '#000', stroke: CHART_COLORS[idx % CHART_COLORS.length], strokeWidth: 2 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} animationDuration={2000} />
-                            ))}
-                        </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-              </div>
+              <CompareCard options={compareOptions} chosen={chosen} onToggle={toggleCompare} max={MAX_COMPARE} receipts={filteredReceipts} config={config} />
 
-              {/* TOP 5 ESTABELECIMENTOS - COLUNAS MULTICOLORIDAS VERTICAIS */}
-              <div className="bg-[#121214] border border-white/5 rounded-[2rem] p-6 md:p-8 shadow-2xl overflow-hidden relative group">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full pointer-events-none" />
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 relative z-10">
-                      <div className="flex items-center gap-3">
-                        <Award className="w-5 h-5 text-emerald-500" />
-                        <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">Top 5 Estabelecimentos</h3>
-                      </div>
-                      <div className="flex gap-2 overflow-x-auto no-scrollbar max-w-full">
-                          {selectedCats.map(cat => (
-                              <button key={cat} onClick={() => setRankingCat(cat)} className={`px-6 py-2 rounded-2xl text-[11px] font-bold uppercase transition-all tracking-[0.08em] whitespace-nowrap ${rankingCat === cat ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-400'}`}>{cat}</button>
+              {/* TOP 5 ESTABELECIMENTOS: onde mais se gastou com a categoria escolhida na aba */}
+              <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="top-stores-card">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-3 px-0.5">
+                      <h3 className="text-[12px] font-semibold text-zinc-300 flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-emerald-500" /> Top 5 estabelecimentos</h3>
+                      <div className="flex gap-1.5 overflow-x-auto no-scrollbar max-w-full -mx-0.5 px-0.5">
+                          {chosen.map(c => (
+                              <button key={c.id} type="button" onClick={() => setRankingId(c.id)} aria-pressed={rankingId === c.id} data-testid="top-stores-tab"
+                                  className={`h-8 px-3 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors flex items-center gap-1.5 ${rankingId === c.id ? 'bg-luxury-gold/15 border-luxury-gold/40 text-luxury-gold' : 'border-white/10 text-zinc-500 hover:text-zinc-300'}`}>
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                                  {chipLabel(c.opt, chosen.map(x => x.opt))}
+                              </button>
                           ))}
                       </div>
                   </div>
-                  <div className="h-[240px] md:h-[350px] w-full relative z-10">
+                  {establishmentRankData.length === 0 ? (
+                      <p className="py-10 text-center text-[13px] text-zinc-500">{chosen.length === 0 ? 'Escolha uma categoria no gráfico acima.' : 'Nenhuma compra dessa categoria neste período.'}</p>
+                  ) : (
+                  <div className="h-[200px] md:h-[300px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={establishmentRankData} margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#a1a1aa', fontSize: 11, fontWeight: 600 }} angle={-25} textAnchor="end" height={70} />
-                              <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
-                              <Tooltip cursor={{fill: 'rgba(255,255,255,0.02)'}} content={<CustomTooltip />} />
+                          <BarChart data={establishmentRankData} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
+                              <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#a1a1aa', fontSize: 10, fontWeight: 500 }} angle={-25} textAnchor="end" height={56} interval={0} />
+                              <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} />
+                              <Tooltip cursor={{fill: 'rgba(255,255,255,0.03)'}} content={<CustomTooltip />} />
                               {/* Fix: casting data to any when accessing realName to avoid TS error */}
-                              <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={50} animationDuration={1500} onClick={(data) => data && onSelectEstablishment && onSelectEstablishment((data as any).realName)}>
+                              <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={28} animationDuration={700} onClick={(data) => data && onSelectEstablishment && onSelectEstablishment((data as any).realName)}>
                                   {establishmentRankData.map((entry, index) => (
                                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
                                   ))}
@@ -996,6 +943,7 @@ const Reports: React.FC<ReportsProps> = ({
                           </BarChart>
                       </ResponsiveContainer>
                   </div>
+                  )}
               </div>
               </>)}
 
@@ -1565,36 +1513,5 @@ const Reports: React.FC<ReportsProps> = ({
     </div>
   );
 };
-
-const QuickFilterBtn = ({ label, active, onClick, icon: Icon }: any) => (
-    <button 
-        onClick={onClick}
-        className={`flex items-center justify-between p-2.5 rounded-xl border transition-all text-left group ${active ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-white/[0.02] border-white/5 text-zinc-500 hover:bg-white/5'}`}
-    >
-        <span className="text-[11px] font-bold uppercase tracking-wide">{label}</span>
-        <Icon className={`w-3.5 h-3.5 ${active ? 'text-black' : 'text-zinc-700 group-hover:text-luxury-gold'}`} />
-    </button>
-);
-
-// Um pequeno mapa de classes completas (não construídas em tempo de
-// execução) — o Tailwind só gera CSS para nomes de classe que aparecem por
-// inteiro no código-fonte, então "bg-" + color.replace(...) nunca geraria
-// nada.
-const KPI_ACCENT: Record<string, string> = {
-  'text-luxury-gold': 'bg-luxury-gold',
-  'text-zinc-400': 'bg-zinc-400',
-  'text-emerald-500': 'bg-emerald-500',
-};
-
-const KPIBlock = ({ icon: Icon, label, value, color }: any) => (
-  <div className="relative bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-4 md:p-6 flex flex-row md:flex-col items-center md:items-start gap-4 shadow-xl group transition-all duration-300 hover:border-white/10 overflow-hidden">
-    <div className={`absolute top-0 left-0 right-0 h-[3px] ${KPI_ACCENT[color] || 'bg-zinc-600'} opacity-70`} />
-    <div className={`p-3 md:p-3 rounded-xl bg-white/5 shrink-0 ${color}`}><Icon className="w-5 h-5 md:w-5 md:h-5" /></div>
-    <div className="flex flex-col min-w-0">
-      <span className="text-[11px] md:text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-1">{label}</span>
-      <span className={`text-2xl md:text-3xl font-serif font-bold tracking-tighter ${color === 'text-luxury-gold' ? 'text-white' : color}`}>{value}</span>
-    </div>
-  </div>
-);
 
 export default Reports;

@@ -32,7 +32,7 @@ import {
     Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
-import { brlAxis } from '../services/chartFormat';
+import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel } from '../services/productPriceStats';
@@ -377,46 +377,6 @@ const cleanEstablishmentName = (name: string): string => {
 
 const clip = (text: string, maxLen: number): string =>
   text.length > maxLen ? `${text.slice(0, maxLen - 1).trim()}…` : text;
-
-// Largura do gráfico em px (acompanha girar o celular e mudar o tamanho da janela).
-const useElementWidth = (ref: React.RefObject<HTMLElement | null>, fallback = 300): number => {
-  const [w, setW] = useState(fallback);
-  useEffect(() => {
-      const el = ref.current;
-      if (!el) return;
-      const read = () => setW(Math.round(el.clientWidth) || fallback);
-      read();
-      const ro = new ResizeObserver(read);
-      ro.observe(el);
-      return () => ro.disconnect();
-  }, [ref, fallback]);
-  return w;
-};
-
-const TIMELINE_MARGIN_RIGHT = 18;
-// A timeline usa letra um pouco menor que os outros gráficos (10 px) e um eixo Y mais estreito.
-const TL_AXIS_Y_WIDTH = 56;
-const TL_TICK = { fill: '#8b8b95', fontSize: 10, fontWeight: 500 } as const;
-
-// Rótulo do eixo X, centrado no ponto (a margem direita do gráfico deixa o último inteiro dentro do card).
-const renderTimelineTick = (props: any) => {
-  const { x, y, payload } = props;
-  return (
-      <text x={Number(x)} y={Number(y)} dy={12} textAnchor="middle" fill={TL_TICK.fill} fontSize={TL_TICK.fontSize} fontWeight={TL_TICK.fontWeight}>
-          {String(payload?.value ?? '')}
-      </text>
-  );
-};
-
-// Valor do eixo Y numa linha só, em 10 px.
-const renderTimelineYTick = (props: any) => {
-  const { x, y, payload } = props;
-  return (
-      <text x={Number(x) - 2} y={Number(y)} dy={3.5} textAnchor="end" fill={TL_TICK.fill} fontSize={TL_TICK.fontSize}>
-          {brlAxis(payload?.value)}
-      </text>
-  );
-};
 
 const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
