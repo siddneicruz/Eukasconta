@@ -1,0 +1,95 @@
+SRC=https://build.protomaps.com/20261015.pmtiles
+== células (lon,lat,zoom,tamanho)
+z13: 108 células, total 392 MB, acima de 90 MB: 0, maior 13 MB
+   z13 lon -50 lat -26 -> 13.0 MB
+   z13 lon -53 lat -25 -> 12.0 MB
+   z13 lon -50 lat -27 -> 12.0 MB
+   z13 lon -56 lat -28 -> 9.7 MB
+   z13 lon -50 lat -25 -> 9.7 MB
+   z13 lon -54 lat -25 -> 9.6 MB
+   z13 lon -53 lat -24 -> 8.4 MB
+   z13 lon -55 lat -27 -> 7.7 MB
+   z13 lon -49 lat -25 -> 7.7 MB
+   z13 lon -52 lat -30 -> 7.5 MB
+   z13 lon -55 lat -26 -> 7.0 MB
+   z13 lon -54 lat -30 -> 6.9 MB
+z14: 108 células, total 666 MB, acima de 90 MB: 0, maior 21 MB
+   z14 lon -50 lat -26 -> 21.0 MB
+   z14 lon -50 lat -27 -> 20.0 MB
+   z14 lon -53 lat -25 -> 18.0 MB
+   z14 lon -56 lat -28 -> 16.0 MB
+   z14 lon -54 lat -25 -> 16.0 MB
+   z14 lon -52 lat -30 -> 15.0 MB
+   z14 lon -55 lat -26 -> 14.0 MB
+   z14 lon -53 lat -24 -> 14.0 MB
+   z14 lon -50 lat -25 -> 14.0 MB
+   z14 lon -54 lat -30 -> 13.0 MB
+   z14 lon -50 lat -29 -> 13.0 MB
+   z14 lon -55 lat -27 -> 12.0 MB
+oeste SC z13: [(-54, -28, 3.7), (-54, -27, 6.0), (-53, -28, 5.3), (-53, -27, 6.5)] total 21.5 MB
+oeste SC z14: [(-54, -28, 6.6), (-54, -27, 11.0), (-53, -28, 9.5), (-53, -27, 11.0)] total 38.1 MB
+== extração real: oeste de SC (4 células, z14)
+total 37248
+-rw-r--r-- 1 runner runner 11335456 Oct 15 22:37 c_-53_-27.pmtiles
+-rw-r--r-- 1 runner runner  9528309 Oct 15 22:37 c_-53_-28.pmtiles
+-rw-r--r-- 1 runner runner 10635007 Oct 15 22:37 c_-54_-27.pmtiles
+-rw-r--r-- 1 runner runner  6631605 Oct 15 22:37 c_-54_-28.pmtiles
+== raw.githubusercontent: CORS e Range
+RAW=https://raw.githubusercontent.com/siddneicruz/Eukasconta/probe-raw/t.pmtiles
+-- HEAD com Origin
+HTTP/2 200 
+cache-control: max-age=300
+content-security-policy: default-src 'none'; style-src 'unsafe-inline'; sandbox
+content-type: application/octet-stream
+etag: "8151e6b27293cb2d9bc9aac4ab691729e261500c5ce4ff4db25a213b5c235349"
+strict-transport-security: max-age=31536000
+x-content-type-options: nosniff
+x-frame-options: deny
+x-xss-protection: 1; mode=block
+x-github-request-id: 5844:1E185B:118758:16033E:6AD155C9
+x-github-edge-region: uksouth
+accept-ranges: bytes
+date: Thu, 15 Oct 2026 22:38:02 GMT
+via: 1.1 varnish
+x-served-by: cache-hhr-khhr2060032-HHR
+x-cache: MISS
+x-cache-hits: 0
+x-timer: S1792103882.951545,VS0,VE800
+vary: Authorization,Accept-Encoding
+access-control-allow-origin: *
+cross-origin-resource-policy: cross-origin
+x-fastly-request-id: 17b86d8f6b49de9f48da917d6bb418a686c41b65
+expires: Thu, 15 Oct 2026 22:43:02 GMT
+source-age: 0
+content-length: 11335456
+
+-- Range 0-99 com Origin
+HTTP/2 206 
+cache-control: max-age=300
+content-security-policy: default-src 'none'; style-src 'unsafe-inline'; sandbox
+content-type: application/octet-stream
+etag: "8151e6b27293cb2d9bc9aac4ab691729e261500c5ce4ff4db25a213b5c235349"
+strict-transport-security: max-age=31536000
+x-content-type-options: nosniff
+x-frame-options: deny
+x-xss-protection: 1; mode=block
+x-github-request-id: 4474:1AA2E9:9493E:DB01B:6AD155CA
+x-github-edge-region: westus3
+accept-ranges: bytes
+content-range: bytes 0-99/11335456
+date: Thu, 15 Oct 2026 22:38:03 GMT
+via: 1.1 varnish
+x-served-by: cache-bur-kbur8200039-BUR
+x-cache: MISS
+x-cache-hits: 0
+x-timer: S1792103883.793104,VS0,VE244
+vary: Authorization,Accept-Encoding
+access-control-allow-origin: *
+cross-origin-resource-policy: cross-origin
+x-fastly-request-id: 5e17398451c8d48ef224c9a2c545f7ddbe7fd6be
+expires: Thu, 15 Oct 2026 22:43:03 GMT
+source-age: 0
+content-length: 100
+
+-rw-r--r-- 1 runner runner 100 Oct 15 22:38 /tmp/r.bin
+== fim
