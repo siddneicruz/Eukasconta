@@ -140,6 +140,7 @@ export type ViewState =
   | 'establishment_detail'
   | 'settings' 
   | 'alerts'
+  | 'map'
   | 'diagnostics';
 
 export type LogType = 'CLICK' | 'API_CALL' | 'SYSTEM_ERROR' | 'PERFORMANCE' | 'DATA_INTEGRITY' | 'SCANNER';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, LayoutDashboard, ScanLine, History, BarChart3, Settings, Terminal, Sparkles, Bell } from 'lucide-react';
+import { X, LayoutDashboard, ScanLine, History, BarChart3, Settings, Terminal, Sparkles, Bell, Map as MapIcon } from 'lucide-react';
 import { ViewState } from '../types';
 import { getActiveProvider } from '../services/keyStorageService';
 import { AppMark, PDLogo } from './Brand';
@@ -26,6 +26,7 @@ const SECTIONS: { title: string; items: DrawerItem[] }[] = [
   ]},
   { title: 'Analisar', items: [
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+    { id: 'map', label: 'Mapa', icon: MapIcon },
     { id: 'alerts', label: 'Avisos e alertas', icon: Bell },
   ]},
   { title: 'Configurar', items: [

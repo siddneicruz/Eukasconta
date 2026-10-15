@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Terminal, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
+import { LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
 import PhoneFrame from './components/PhoneFrame';
 import SideDrawer from './components/SideDrawer';
 import * as LucideIcons from 'lucide-react';
@@ -28,6 +28,8 @@ import { useCloud } from './services/useCloud';
 import { useCloudBackup } from './services/useCloudBackup';
 import { deleteCloudReceipt } from './services/cloudService';
 import ConfirmDialog from './components/ConfirmDialog';
+// O mapa traz a biblioteca de mapas junto; só é baixado quando a pessoa abre a tela.
+const EstablishmentsMapView = lazy(() => import('./components/EstablishmentsMapView'));
 import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
 
@@ -990,14 +992,14 @@ const App: React.FC = () => {
                 <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Alternar Tema">
                     {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
-                <button onClick={() => setIsDiagnosticOpen(true)} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors"><Terminal className="w-4 h-4" /></button>
+                <button onClick={() => setView('map')} className={`p-2 transition-colors ${view === 'map' ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`} title="Mapa" aria-label="Mapa" data-testid="header-map"><MapIcon className="w-4 h-4" /></button>
             </nav>
             <div className="flex md:hidden items-center gap-1">
                 <BellButton count={cloud.unread} active={view === 'alerts'} onClick={() => setView('alerts')} className="p-3" />
                 <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-3 text-zinc-500 active:text-luxury-gold" aria-label="Alternar tema">
                     {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
-                <button onClick={() => setIsDiagnosticOpen(true)} className="p-3 text-zinc-500 active:text-luxury-gold" aria-label="Diagnóstico"><Terminal className="w-5 h-5" /></button>
+                <button onClick={() => setView('map')} className={`p-3 ${view === 'map' ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label="Mapa" data-testid="header-map-m"><MapIcon className="w-5 h-5" /></button>
             </div>
         </div>
       </header>
@@ -1105,6 +1107,16 @@ const App: React.FC = () => {
                 )}
                 {view === 'scanner' && <Scanner onFinish={() => setView('history')} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} />}
                 {view === 'manual_entry' && <ManualEntryForm onSave={(r) => { handleScanComplete([r]); setView('history'); showNotification("Lançamento salvo com sucesso."); }} onCancel={() => setView('dashboard')} categories={categories} knownEstablishments={Array.from(new Set(receipts.map(r => r.establishmentName)))} knownProducts={[]} allReceipts={receipts} />}
+                {view === 'map' && (
+                    <Suspense fallback={<div className="flex items-center justify-center py-24 text-zinc-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+                        <EstablishmentsMapView
+                            receipts={receipts}
+                            establishments={establishments}
+                            onPatchEstablishment={(est, patch) => setEstablishments(prev => prev.map(e => (e.cnpj === est.cnpj && e.originalName === est.originalName ? { ...e, ...patch } : e)))}
+                            onBack={() => setView('dashboard')}
+                        />
+                    </Suspense>
+                )}
                 {view === 'alerts' && (
                     <AlertsView cloud={cloud} draft={alertDraft} onDraftConsumed={() => setAlertDraft(null)} onGoToAccount={goToAccount} onBack={() => setView('dashboard')} />
                 )}
