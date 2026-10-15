@@ -28,6 +28,8 @@
     "jszip": "3.10.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
+    "pmtiles": "^3.2.1",
+    "protomaps-leaflet": "^5.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-leaflet": "^5.0.0",

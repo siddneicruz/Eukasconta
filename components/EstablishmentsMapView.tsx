@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Browser } from '@capacitor/browser';
-import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X } from 'lucide-react';
+import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X, WifiOff } from 'lucide-react';
 import { Receipt, Establishment } from '../types';
 import { geocodeMissingEstablishments, needsGeocoding } from '../services/geocodingService';
 import { fetchRoute, haversineKm, formatDistance, formatDuration, navigationLinks, RouteResult, LatLng } from '../services/routingService';
 import { getCurrentPosition } from '../services/cloudService';
 import { isNativeApp } from '../services/platform';
 import { useStoreNames } from './StoreNamesContext';
+import { useOfflineMaps } from '../services/useOfflineMaps';
+import OfflineVectorLayer from './OfflineVectorLayer';
+import OfflineMapCard from './OfflineMapCard';
 
 interface MapViewProps {
   receipts: Receipt[];
@@ -127,6 +130,12 @@ const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number
   return null;
 };
 
+// Avisa para onde o mapa está olhando (para saber se saiu da área baixada)
+const CenterWatcher: React.FC<{ onCenter: (lat: number, lng: number) => void }> = ({ onCenter }) => {
+  useMapEvents({ moveend: e => { const c = e.target.getCenter(); onCenter(c.lat, c.lng); } });
+  return null;
+};
+
 /* ───────────── tela ───────────── */
 
 const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishments, onPatchEstablishment, onBack }) => {
@@ -201,6 +210,15 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const nearestId = me && sorted.length ? sorted[0].id : null;
   const notFound = useMemo(() => establishments.filter(e => e.geocodeStatus === 'not_found'), [establishments]);
 
+  /* mapa salvo no aparelho */
+  const mapPoints = useMemo<[number, number][]>(
+    () => [...stores.map(s => [s.lat, s.lng] as [number, number]), ...(me ? [[me.lat, me.lng] as [number, number]] : [])],
+    [stores, me]
+  );
+  const maps = useOfflineMaps(mapPoints);
+  const [viewCenter, setViewCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const outside = maps.useVector && !!maps.opened && !!viewCenter && !maps.opened.covers(viewCenter.lat, viewCenter.lng);
+
   /* loja escolhida e rota */
   // Sem toque seu, vale sempre a loja mais perto (acompanha a lista enquanto as lojas vão sendo localizadas).
   // Tocou numa loja, vale a sua escolha; tocar de novo na mesma, ou no X do cartão, desfaz a escolha e tira a rota.
@@ -266,13 +284,19 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
       )}
 
       <div ref={mapBox} className="bg-zinc-950 border border-white/5 rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative scroll-mt-20">
-        <div className="h-[340px] md:h-[520px] w-full relative z-0" data-testid="map-canvas">
-          <MapContainer center={center} zoom={stores.length ? 12 : 4} scrollWheelZoom className={light ? '' : 'map-dark'} style={{ width: '100%', height: '100%', background: light ? '#f4f4f5' : '#09090b' }}>
-            <TileLayer
-              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              maxZoom={19}
-            />
+        <div className={`h-[340px] md:h-[520px] w-full relative z-0 ${!light && !(maps.useVector && maps.opened) ? 'map-dark' : ''}`} data-testid="map-canvas">
+          <MapContainer center={center} zoom={stores.length ? 12 : 4} scrollWheelZoom style={{ width: '100%', height: '100%', background: light ? '#f4f4f5' : '#09090b' }}>
+            {/* espera ler o que está salvo antes de escolher a base: evita pedir imagens online à toa */}
+            {!maps.savedLoaded ? null : maps.useVector && maps.opened ? (
+              <OfflineVectorLayer archive={maps.opened.archive} dark={!light} maxDataZoom={maps.opened.maxzoom} />
+            ) : (
+              <TileLayer
+                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                maxZoom={19}
+              />
+            )}
+            <CenterWatcher onCenter={(lat, lng) => setViewCenter({ lat, lng })} />
             <Framer me={me} target={selected ? { lat: selected.lat, lng: selected.lng } : null} path={route.data?.path || null} all={allPoints} targetId={selected?.id || null} />
             {route.data && (
               <>
@@ -298,6 +322,16 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           >
             {loc.status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : <LocateFixed className="w-5 h-5" />}
           </button>
+
+          {maps.opened && (
+            <button
+              onClick={() => maps.setSource(maps.useVector ? 'online' : 'saved')} data-testid="map-source-chip" data-mode={maps.useVector ? 'saved' : 'online'}
+              className="absolute bottom-3 left-3 z-[1000] max-w-[70%] flex items-center gap-1.5 pl-3 pr-3.5 h-9 rounded-full bg-black/75 backdrop-blur border border-white/15 text-[11px] font-bold text-luxury-gold shadow-xl active:scale-95"
+            >
+              <WifiOff className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{maps.useVector ? (outside ? 'Fora da área salva · ver online' : 'Mapa salvo no celular') : 'Mapa online · usar o salvo'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -341,6 +375,8 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           </div>
         </div>
       )}
+
+      <OfflineMapCard maps={maps} hasPoints={mapPoints.length > 0} />
 
       {/* Lojas das suas compras, da mais perto para a mais longe */}
       {sorted.length > 0 && (

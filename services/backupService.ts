@@ -11,13 +11,14 @@ const PREFIX = 'eukasconta_';
 const SECRET_PREFIXES = ['eukasconta_byok_', 'eukasconta_active_ai_provider', 'eukasconta_openrouter_model_'];
 
 // Ficam só neste aparelho: controle da própria nuvem, diagnóstico, simulador, e os checkpoints
-// (cada um é uma cópia inteira dos dados e multiplicaria o tamanho do backup).
+// (cada um é uma cópia inteira dos dados e multiplicaria o tamanho do backup) e o que diz respeito ao mapa salvo.
 const DEVICE_ONLY = [
   /^eukasconta_cloud_/,
   /^eukasconta_backup_/,
   /^eukasconta_diagnostics$/,
   /^eukasconta_emulator_prefs$/,
   /^eukasconta_snapshots$/,
+  /^eukasconta_maps_/,
 ];
 
 const MAX_BYTES = 20 * 1024 * 1024;
