@@ -1,0 +1,82 @@
+name: Mapas (sondagem)
+
+on:
+  push:
+    branches: [mapas-probe]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sondar fonte de mapas, tamanhos e CORS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          R=report.txt
+          : > $R
+          say() { echo "$@" | tee -a $R; }
+          say "== go-pmtiles"
+          url=$(curl -s https://api.github.com/repos/protomaps/go-pmtiles/releases/latest | jq -r '.assets[] | select(.name|test("Linux_x86_64.tar.gz$")) | .browser_download_url' | head -1)
+          say "$url"
+          curl -sL "$url" | tar xz pmtiles
+          ./pmtiles version 2>&1 | tee -a $R
+
+          say "== builds.json (metadata)"
+          curl -s -m 30 -D - https://build-metadata.protomaps.dev/builds.json -o builds.json | head -12 | tee -a $R
+          head -c 600 builds.json | tee -a $R; echo | tee -a $R
+          KEY=$(jq -r 'sort_by(.uploaded) | last | .key' builds.json 2>/dev/null)
+          say "KEY=$KEY"
+          if [ -z "$KEY" ] || [ "$KEY" = "null" ]; then
+            for d in 0 1 2 3 4 5; do
+              k=$(date -u -d "-$d day" +%Y%m%d).pmtiles
+              code=$(curl -s -o /dev/null -I -w "%{http_code}" https://build.protomaps.com/$k)
+              say "try $k -> $code"
+              if [ "$code" = "200" ]; then KEY=$k; break; fi
+            done
+          fi
+          SRC=https://build.protomaps.com/$KEY
+          say "SRC=$SRC"
+          say "== CORS da fonte"
+          curl -sI -H "Origin: https://localhost" $SRC | tee -a $R
+
+          dry() { say "---- dry-run $1 bbox=$2 maxzoom=$3"; ./pmtiles extract $SRC /tmp/x.pmtiles --bbox=$2 --maxzoom=$3 --dry-run 2>&1 | tail -6 | tee -a $R; }
+          dry brasil "-74,-34,-34,6" 12
+          dry brasil "-74,-34,-34,6" 13
+          dry brasil "-74,-34,-34,6" 14
+          dry sp "-53.11,-25.31,-44.16,-19.78" 14
+          dry sp "-53.11,-25.31,-44.16,-19.78" 15
+          dry saocarlos "-48.1,-22.25,-47.7,-21.75" 14
+          dry saocarlos "-48.1,-22.25,-47.7,-21.75" 15
+
+          say "== extração real: São Carlos z0-14"
+          ./pmtiles extract $SRC saocarlos.pmtiles --bbox=-48.1,-22.25,-47.7,-21.75 --maxzoom=14 2>&1 | tail -5 | tee -a $R
+          ls -l saocarlos.pmtiles | tee -a $R
+          ./pmtiles show saocarlos.pmtiles 2>&1 | head -30 | tee -a $R
+
+          say "== release de teste e CORS dos arquivos"
+          gh release delete mapas-probe -y --cleanup-tag >/dev/null 2>&1
+          gh release create mapas-probe saocarlos.pmtiles --title "probe" --notes "teste" 2>&1 | tee -a $R
+          DL=https://github.com/${{ github.repository }}/releases/download/mapas-probe/saocarlos.pmtiles
+          say "DL=$DL"
+          say "-- HEAD com Origin"
+          curl -sIL -H "Origin: https://localhost" $DL | tee -a $R
+          say "-- Range 0-99"
+          curl -sL -H "Origin: https://localhost" -H "Range: bytes=0-99" -D - -o /tmp/r.bin $DL | tee -a $R
+          ls -l /tmp/r.bin | tee -a $R
+
+          say "== fim"
+          mkdir -p /tmp/out && cp $R /tmp/out/report.txt
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan probe-result
+          git rm -rf . > /dev/null 2>&1 || true
+          cp /tmp/out/report.txt .
+          git add report.txt
+          git commit -m "relatorio da sondagem" -q
+          git push -f origin probe-result
