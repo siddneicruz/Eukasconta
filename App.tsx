@@ -42,6 +42,7 @@ import type { UnifyPlan } from './components/ProductUnifySheet';
 import { GoogleGenAI } from '@google/genai';
 import JSZip from 'jszip';
 import { downloadFile } from './services/nativeFiles';
+import { markFileBackup } from './services/lastWhen';
 import { App as CapApp } from '@capacitor/app';
 import { isNativeApp } from './services/platform';
 import { STORAGE_FULL_EVENT } from './services/storageGuard';
@@ -634,7 +635,7 @@ const App: React.FC = () => {
           const zip = new ZipModule(); zip.file("studio_vault.json", JSON.stringify(vaultData, null, 2));
           const content = await zip.generateAsync({ type: "blob" });
           const outcome = await downloadFile(content, `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.zip`);
-          if (outcome === 'saved') showNotification("Studio Vault exportado com sucesso.");
+          if (outcome === 'saved') { markFileBackup(); showNotification("Studio Vault exportado com sucesso."); }
       } catch (err: any) { alert("Erro ao exportar vault: " + err.message); } finally { setGlobalLoading(false); }
   };
 

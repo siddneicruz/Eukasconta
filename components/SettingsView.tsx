@@ -20,6 +20,7 @@ import { formatCNPJ } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import { AppMark, PDLogo } from './Brand';
 import NicknameSuggestSheet from './NicknameSuggestSheet';
+import { agoText, parseWhen, useFileBackupAt, useNow, whenText } from '../services/lastWhen';
 import type { ProductGroup } from '../services/productUnify';
 import type { UnifyPlan } from './ProductUnifySheet';
 
@@ -128,6 +129,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const [estSearchTerm, setEstSearchTerm] = useState('');
   const [nickOpen, setNickOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const now = useNow();
+  const fileBackupAt = parseWhen(useFileBackupAt());
 
   const filteredSearchIcons = useMemo(() => {
       const search = iconSearch.toLowerCase().trim();
@@ -373,7 +376,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <div className="pt-10 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <BackupCard icon={Download} label="Exportar" sub="Backup JSON/ZIP" onClick={onExportData} />
+                <BackupCard icon={Download} label="Exportar" sub="Backup JSON/ZIP" onClick={onExportData} testId="export-backup"
+                    note={fileBackupAt ? <>Último: <b className="text-zinc-300 font-semibold">{whenText(fileBackupAt, now)}</b> · {agoText(fileBackupAt, now)}</> : 'Nunca exportado'} />
                 {onExportTxtZip && <BackupCard icon={FileText} label="Cupons TXT" sub="Um .txt por cupom, em .zip" onClick={onExportTxtZip} />}
                 <BackupCard icon={Upload} label="Importar" sub="Restaurar backup" onClick={() => fileInputRef.current?.click()} />
                 <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if(f && onImportData) onImportData(f); }} accept={isNativeApp() ? '*/*' : '.json,.zip,application/json,application/zip'} className="hidden" />
@@ -455,12 +459,13 @@ const ActionBlock = ({ icon: Icon, title, desc, onClick, primary }: any) => (
     </div>
 );
 
-const BackupCard = ({ icon: Icon, label, sub, onClick }: any) => (
-    <button onClick={onClick} className="flex flex-col items-center justify-center gap-3 p-5 sm:p-8 bg-white/[0.01] border border-white/5 rounded-[2.5rem] hover:bg-zinc-900/40 transition-all group w-full">
+const BackupCard = ({ icon: Icon, label, sub, onClick, note, testId }: any) => (
+    <button onClick={onClick} data-testid={testId} className="flex flex-col items-center justify-center gap-3 p-5 sm:p-8 bg-white/[0.01] border border-white/5 rounded-[2.5rem] hover:bg-zinc-900/40 transition-all group w-full">
         <Icon className="w-6 h-6 text-zinc-600 group-hover:text-white transition-colors" />
         <div className="text-center">
             <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em]">{label}</h4>
             <p className="text-[11px] text-zinc-500 uppercase mt-1">{sub}</p>
+            {note && <p className="text-[11px] text-zinc-500 mt-1.5 tabular-nums" data-testid={testId ? `${testId}-last` : undefined}>{note}</p>}
         </div>
     </button>
 );

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { UserRound, LogOut, Loader2, ShieldCheck, Share2, BellRing, Send, Bell, Info, MailCheck, CloudOff, DatabaseBackup, KeyRound, CloudDownload, CloudUpload } from 'lucide-react';
+import { UserRound, LogOut, Loader2, ShieldCheck, Share2, BellRing, Send, Bell, Info, MailCheck, CloudOff, DatabaseBackup, KeyRound, CloudDownload, CloudUpload, Clock } from 'lucide-react';
 import type { CloudApi } from '../services/useCloud';
 import type { BackupApi } from '../services/useCloudBackup';
 import ConfirmDialog from './ConfirmDialog';
+import { agoText, parseWhen, useNow, whenText } from '../services/lastWhen';
 
 const Switch: React.FC<{ on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }> = ({ on, onChange, label, disabled }) => (
   <button
@@ -25,10 +26,8 @@ interface Props {
 }
 
 const fmtWhen = (iso?: string | null) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' às');
+  const d = parseWhen(iso);
+  return d ? whenText(d) : '';
 };
 
 const RADII = [2, 5, 8, 15, 30];
@@ -48,6 +47,7 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [confirmKeepDevice, setConfirmKeepDevice] = useState(false);
+  const now = useNow();
 
   if (!cloud.available) {
     return (
@@ -241,14 +241,32 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
         <div className="p-5 md:p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] md:rounded-[2.5rem] space-y-8" data-testid="backup-card">
           <div>
             <div className="text-sm text-white font-bold flex items-center gap-2"><DatabaseBackup className="w-4 h-4 text-luxury-gold" /> Backup na conta</div>
-            <p className="text-xs text-zinc-500 mt-2 leading-relaxed" data-testid="backup-status">
-              {backup.status === 'saving' ? 'Salvando…'
+            {(() => {
+              const at = parseWhen(backup.remote?.updated_at);
+              const n = backup.remote?.receipt_count ?? 0;
+              const state = backup.status === 'saving' ? 'Salvando agora…'
                 : backup.status === 'restoring' ? 'Trazendo seus dados da conta…'
                 : backup.status === 'checking' ? 'Conferindo a conta…'
-                : backup.remote
-                  ? `Último backup: ${fmtWhen(backup.remote.updated_at)} · ${backup.remote.receipt_count} ${backup.remote.receipt_count === 1 ? 'cupom' : 'cupons'}.`
-                  : 'Ainda não há backup nesta conta.'}
-            </p>
+                : '';
+              return (
+                <div className="mt-3 rounded-2xl bg-white/[0.03] border border-white/5 px-4 py-3" data-testid="backup-status">
+                  <p className="text-[11px] font-semibold text-zinc-500">Último backup</p>
+                  {at ? (
+                    <>
+                      <p className="mt-0.5 text-[15px] font-semibold text-white tabular-nums leading-snug" data-testid="backup-last-when">
+                        {whenText(at, now)} <span className="font-normal text-zinc-400">· {agoText(at, now)}</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-500 tabular-nums" data-testid="backup-last-count">{n} {n === 1 ? 'cupom guardado' : 'cupons guardados'} na conta</p>
+                    </>
+                  ) : (
+                    <p className="mt-0.5 text-[15px] font-semibold text-zinc-300 leading-snug" data-testid="backup-last-when">
+                      {backup.status === 'checking' ? 'Conferindo a conta…' : 'Nenhum backup ainda'}
+                    </p>
+                  )}
+                  {state && at && <p className="mt-1.5 text-xs text-luxury-gold dept-active flex items-center gap-1.5" data-testid="backup-state"><Loader2 className="w-3 h-3 animate-spin" /> {state}</p>}
+                </div>
+              );
+            })()}
             {backup.error && <div className="mt-3 px-4 py-3 rounded-xl bg-red-950/20 border border-red-900/30 text-red-300 text-xs" data-testid="backup-error">{backup.error}</div>}
           </div>
 
@@ -284,7 +302,17 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
             <Switch on={backup.includeKeys} onChange={backup.setIncludeKeys} label="Guardar minha chave de IA na conta" />
           </div>
 
-          <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row gap-3">
+          <div className="pt-8 border-t border-white/5">
+            <p className="mb-3 flex items-center gap-1.5 text-xs text-zinc-400 tabular-nums" data-testid="backup-last-near">
+              <Clock className="w-3.5 h-3.5 shrink-0 text-luxury-gold dept-active" />
+              {(() => {
+                const at = parseWhen(backup.remote?.updated_at);
+                if (backup.status === 'saving') return at ? <>Salvando agora… <span className="text-zinc-500">(o anterior foi {whenText(at, now)})</span></> : 'Salvando agora…';
+                if (at) return <>Último backup: <b className="text-zinc-200 font-semibold">{whenText(at, now)}</b> <span className="text-zinc-500">· {agoText(at, now)}</span></>;
+                return backup.status === 'checking' ? 'Conferindo a conta…' : 'Nenhum backup feito ainda nesta conta.';
+              })()}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
             <button type="button" onClick={() => backup.backupNow()} disabled={backup.status === 'saving' || backup.status === 'restoring' || !!backup.conflict} data-testid="backup-now"
               className="flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all disabled:opacity-50">
               {backup.status === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />} Fazer backup agora
@@ -293,6 +321,7 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
               className="flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-40">
               <CloudDownload className="w-4 h-4 text-luxury-gold" /> Restaurar da conta
             </button>
+            </div>
           </div>
         </div>
       )}
