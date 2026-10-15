@@ -1,0 +1,145 @@
+name: Mapas (arquivos para usar sem internet)
+
+# Gera os arquivos de mapa que o app baixa para o celular ("Mapa sem internet").
+# Cada arquivo cobre 1 grau x 1 grau (~110 km) e vem do mapa-base aberto do Protomaps (dados do OpenStreetMap, licença ODbL).
+# O resultado vai para a branch "mapas": manifest.json (catálogo) + c_<oeste>_<sul>.pmtiles.
+#
+# Para atualizar ou ampliar a região: Actions > "Mapas" > Run workflow (informe os limites em graus inteiros),
+# ou envie um push para a branch "mapas-build".
+
+on:
+  workflow_dispatch:
+    inputs:
+      oeste:
+        description: 'Longitude oeste (grau inteiro, ex.: -55)'
+        default: '-55'
+      leste:
+        description: 'Longitude leste (grau inteiro, ex.: -48)'
+        default: '-48'
+      sul:
+        description: 'Latitude sul (grau inteiro, ex.: -30)'
+        default: '-30'
+      norte:
+        description: 'Latitude norte (grau inteiro, ex.: -23)'
+        default: '-23'
+      maxzoom:
+        description: 'Zoom máximo (14 = ruas e quarteirões)'
+        default: '14'
+  push:
+    branches: [mapas-build]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mapas
+  cancel-in-progress: false
+
+jobs:
+  mapas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      OESTE: ${{ github.event.inputs.oeste || '-55' }}
+      LESTE: ${{ github.event.inputs.leste || '-48' }}
+      SUL: ${{ github.event.inputs.sul || '-30' }}
+      NORTE: ${{ github.event.inputs.norte || '-23' }}
+      MAXZOOM: ${{ github.event.inputs.maxzoom || '14' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar o go-pmtiles
+        run: |
+          url=$(curl -fsS https://api.github.com/repos/protomaps/go-pmtiles/releases/latest | jq -r '.assets[] | select(.name|test("Linux_x86_64.tar.gz$")) | .browser_download_url' | head -1)
+          test -n "$url"
+          curl -fsSL "$url" | tar xz pmtiles
+          ./pmtiles version
+
+      - name: Extrair as células
+        run: |
+          set -euo pipefail
+          KEY=$(curl -fsS https://build-metadata.protomaps.dev/builds.json | jq -r 'sort_by(.uploaded) | last | .key')
+          test -n "$KEY"
+          SRC=https://build.protomaps.com/$KEY
+          BUILT=$(echo "$KEY" | sed -E 's/^([0-9]{4})([0-9]{2})([0-9]{2}).*/\1-\2-\3/')
+          echo "Fonte: $SRC (versão de $BUILT)"
+          echo "SRC=$SRC" >> "$GITHUB_ENV"
+          echo "BUILT=$BUILT" >> "$GITHUB_ENV"
+
+          mkdir -p out
+          : > out/cells.tsv
+          for ((lon=OESTE; lon<LESTE; lon++)); do
+            for ((lat=SUL; lat<NORTE; lat++)); do
+              e=$((lon+1)); n=$((lat+1))
+              f="c_${lon}_${lat}.pmtiles"
+              ok=0
+              for try in 1 2 3; do
+                if ./pmtiles extract "$SRC" "out/$f" --bbox="$lon,$lat,$e,$n" --maxzoom="$MAXZOOM" > "out/$f.log" 2>&1; then ok=1; break; fi
+                echo "  tentativa $try falhou para $f"; tail -3 "out/$f.log"; sleep 5
+              done
+              if [ "$ok" != 1 ]; then echo "ERRO: não consegui extrair $f"; exit 1; fi
+              bytes=$(stat -c %s "out/$f")
+              echo "$f  $(python3 -c "print(round($bytes/1e6,1))") MB"
+              if [ "$bytes" -gt 95000000 ]; then echo "ERRO: $f passa de 95 MB (limite do GitHub é 100 MB); use zoom menor"; exit 1; fi
+              printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$lon" "$lat" "$e" "$n" "$f" "$bytes" >> out/cells.tsv
+            done
+          done
+          rm -f out/*.log
+          du -sh out
+
+      - name: Montar o catálogo
+        run: |
+          python3 - <<'PY'
+          import json, os
+          cells = []
+          for line in open('out/cells.tsv'):
+              lon, lat, e, n, f, b = line.rstrip('\n').split('\t')
+              cells.append({'id': f'{lon}_{lat}', 'file': f, 'bbox': [int(lon), int(lat), int(e), int(n)], 'bytes': int(b)})
+          m = {
+              'version': 1,
+              'built': os.environ['BUILT'],
+              'maxzoom': int(os.environ['MAXZOOM']),
+              'source': os.environ['SRC'],
+              'attribution': '© colaboradores do OpenStreetMap (ODbL) · mapa-base Protomaps',
+              'cells': cells,
+          }
+          json.dump(m, open('out/manifest.json', 'w'), ensure_ascii=False, indent=1)
+          print(len(cells), 'células,', round(sum(c['bytes'] for c in cells) / 1e6), 'MB no total')
+          PY
+          rm -f out/cells.tsv
+          cat > out/README.md <<'EOF'
+          # Mapas do Eu Kasconta
+
+          Arquivos de mapa (PMTiles) que o app baixa para usar sem internet. Gerados pelo workflow "Mapas".
+
+          Dados © colaboradores do OpenStreetMap, disponíveis sob a licença ODbL (https://www.openstreetmap.org/copyright).
+          Mapa-base vetorial: Protomaps (https://protomaps.com), obra produzida a partir desses dados.
+          EOF
+
+      - name: Publicar na branch mapas
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          mv out /tmp/mapas-out
+          rm -f pmtiles
+          git checkout --orphan mapas
+          git rm -rf . > /dev/null 2>&1 || true
+          cp -r /tmp/mapas-out/. .
+          git add -A
+          git commit -q -m "Mapas de ${BUILT} (${OESTE},${SUL} a ${LESTE},${NORTE}, zoom ${MAXZOOM})"
+          git push -q -f origin mapas
+
+      - name: Conferir o que ficou no ar
+        run: |
+          sleep 10
+          RAW=https://raw.githubusercontent.com/${{ github.repository }}/mapas
+          curl -fsS -H "Origin: https://localhost" "$RAW/manifest.json" -o /tmp/m.json
+          n=$(jq '.cells | length' /tmp/m.json)
+          echo "catálogo no ar: $n células"
+          first=$(jq -r '.cells[0].file' /tmp/m.json)
+          size=$(jq -r '.cells[0].bytes' /tmp/m.json)
+          curl -s -D - -o /tmp/r.bin -H "Origin: https://localhost" -H "Range: bytes=0-6" "$RAW/$first" | grep -i -E "^HTTP|access-control|content-range"
+          test "$(head -c 7 /tmp/r.bin)" = "PMTiles"
+          got=$(curl -sI "$RAW/$first" | grep -i '^content-length' | tr -dc '0-9')
+          echo "$first: $got bytes (esperado $size)"
+          test "$got" = "$size"
