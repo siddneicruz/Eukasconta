@@ -1,0 +1,209 @@
+== go-pmtiles
+https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz
+pmtiles 1.31.2, commit a3e4951ea6a0477b784c27c1dcbfd9c130878c5a, built at 2026-07-22T18:59:03Z
+== builds.json (metadata)
+HTTP/2 200 
+date: Thu, 15 Oct 2026 22:26:21 GMT
+content-type: application/json; charset=UTF-8
+content-length: 11808
+cache-control: max-age=600,s-maxage=600
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=BzkXtQZ8E%2BDnXJQkxyvGECaMyrJeHOovf8RsDvORVYXUN7ATmfeZZQPxWjeCOEgOak3Kpute1Dsm0q06Nzv9glWIl8UMtRwv2zylrp8bcYOztNWl1PpBfj422KX1lGMVn2B2qxptAY8Ddwld1Pip"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: a4b23eb26e8f42fc-EWR
+alt-svc: h3=":443"; ma=86400
+
+[{"key":"20230918.pmtiles","size":114683195425,"uploaded":"2023-09-18T11:02:48.409Z","version":"0.0.0"},{"key":"20230925.pmtiles","size":114804580614,"md5sum":"fgkfaoZYjf3PDTGgwOqnIg==","uploaded":"2023-09-25T10:59:15.461Z","version":"0.1.0"},{"key":"20231002.pmtiles","size":114848760756,"md5sum":"vR5aTJI70kFhl65G/16bMQ==","uploaded":"2023-10-02T16:47:30.874Z","version":"0.2.0"},{"key":"20231009.pmtiles","size":114952517844,"uploaded":"2023-10-09T10:10:14.864Z","version":"0.3.0"},{"key":"20231016.pmtiles","size":115092229733,"md5sum":"8POUuaeFIS3KRqUPwwS2Dg==","uploaded":"2023-10-16T09:31:29.9
+KEY=20261015.pmtiles
+SRC=https://build.protomaps.com/20261015.pmtiles
+== CORS da fonte
+HTTP/2 200 
+date: Thu, 15 Oct 2026 22:26:21 GMT
+content-type: application/octet-stream
+content-length: 138896928048
+etag: "ef9d8c3f065da167357ce59290c4d553-518"
+last-modified: Thu, 15 Oct 2026 09:00:28 GMT
+accept-ranges: bytes
+server: cloudflare
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=iHI4av1B1mfytMIixRhl7uuu1Zail3Ea5YRLrdt5BusLtu7AipW0b%2BRbnwB0XNSG4%2F7tQUAdkh54bdYRepPcP7R09u1%2FB2X2Udo7%2FoZArSFAh%2BofEJ1prkgE1XhFm4fN55Yga6Y%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-ray: a4b23eb59f0dd6b7-IAD
+
+---- dry-run brasil bbox=-74,-34,-34,6 maxzoom=12
+2026/10/15 22:26:22 extract.go:401: fetching 14 dirs, 14 chunks, 6 requests
+2026/10/15 22:26:23 extract.go:441: Region tiles 292986, result tile entries 217933
+2026/10/15 22:26:23 extract.go:450: fetching 217933 tiles, 403 chunks, 62 requests
+2026/10/15 22:26:23 extract.go:606: Completed in 2.10499669s with 4 download threads (103531.27574410138 tiles/s).
+2026/10/15 22:26:23 extract.go:611: Extract required 71 total requests.
+2026/10/15 22:26:23 extract.go:612: Extract transferred 800 MB (overfetch 0.05) for an archive size of 763 MB
+---- dry-run brasil bbox=-74,-34,-34,6 maxzoom=13
+2026/10/15 22:26:24 extract.go:401: fetching 30 dirs, 30 chunks, 9 requests
+2026/10/15 22:26:28 extract.go:441: Region tiles 1168457, result tile entries 806168
+2026/10/15 22:26:28 extract.go:450: fetching 806168 tiles, 618 chunks, 74 requests
+2026/10/15 22:26:28 extract.go:606: Completed in 4.429437477s with 4 download threads (182002.34076356498 tiles/s).
+2026/10/15 22:26:28 extract.go:611: Extract required 86 total requests.
+2026/10/15 22:26:28 extract.go:612: Extract transferred 1.7 GB (overfetch 0.05) for an archive size of 1.6 GB
+---- dry-run brasil bbox=-74,-34,-34,6 maxzoom=14
+2026/10/15 22:26:28 extract.go:401: fetching 75 dirs, 75 chunks, 11 requests
+2026/10/15 22:26:32 extract.go:441: Region tiles 4668419, result tile entries 2827899
+2026/10/15 22:26:32 extract.go:450: fetching 2827899 tiles, 836 chunks, 92 requests
+2026/10/15 22:26:33 extract.go:606: Completed in 5.479869354s with 4 download threads (516052.2588253966 tiles/s).
+2026/10/15 22:26:33 extract.go:611: Extract required 106 total requests.
+2026/10/15 22:26:33 extract.go:612: Extract transferred 3.2 GB (overfetch 0.05) for an archive size of 3.1 GB
+---- dry-run sp bbox=-53.11,-25.31,-44.16,-19.78 maxzoom=14
+2026/10/15 22:26:34 extract.go:401: fetching 18 dirs, 18 chunks, 11 requests
+2026/10/15 22:26:37 extract.go:441: Region tiles 149770, result tile entries 133814
+2026/10/15 22:26:37 extract.go:450: fetching 133814 tiles, 534 chunks, 97 requests
+2026/10/15 22:26:37 extract.go:606: Completed in 3.838910256s with 4 download threads (34857.28735112238 tiles/s).
+2026/10/15 22:26:37 extract.go:611: Extract required 111 total requests.
+2026/10/15 22:26:37 extract.go:612: Extract transferred 464 MB (overfetch 0.05) for an archive size of 442 MB
+---- dry-run sp bbox=-53.11,-25.31,-44.16,-19.78 maxzoom=15
+2026/10/15 22:26:38 extract.go:401: fetching 31 dirs, 31 chunks, 14 requests
+2026/10/15 22:26:42 extract.go:441: Region tiles 595306, result tile entries 509371
+2026/10/15 22:26:42 extract.go:450: fetching 509371 tiles, 1290 chunks, 114 requests
+2026/10/15 22:26:42 extract.go:606: Completed in 4.757416867s with 4 download threads (107068.81605599157 tiles/s).
+2026/10/15 22:26:42 extract.go:611: Extract required 131 total requests.
+2026/10/15 22:26:42 extract.go:612: Extract transferred 891 MB (overfetch 0.05) for an archive size of 849 MB
+---- dry-run saocarlos bbox=-48.1,-22.25,-47.7,-21.75 maxzoom=14
+2026/10/15 22:26:43 extract.go:401: fetching 12 dirs, 12 chunks, 9 requests
+2026/10/15 22:26:45 extract.go:441: Region tiles 730, result tile entries 730
+2026/10/15 22:26:45 extract.go:450: fetching 730 tiles, 62 chunks, 45 requests
+2026/10/15 22:26:45 extract.go:606: Completed in 2.78958424s with 4 download threads (261.6877247973732 tiles/s).
+2026/10/15 22:26:45 extract.go:611: Extract required 57 total requests.
+2026/10/15 22:26:45 extract.go:612: Extract transferred 4.5 MB (overfetch 0.05) for an archive size of 4.3 MB
+---- dry-run saocarlos bbox=-48.1,-22.25,-47.7,-21.75 maxzoom=15
+2026/10/15 22:26:46 extract.go:401: fetching 15 dirs, 15 chunks, 11 requests
+2026/10/15 22:26:49 extract.go:441: Region tiles 2630, result tile entries 2600
+2026/10/15 22:26:49 extract.go:450: fetching 2600 tiles, 126 chunks, 58 requests
+2026/10/15 22:26:49 extract.go:606: Completed in 4.353187667s with 4 download threads (597.2634683025237 tiles/s).
+2026/10/15 22:26:49 extract.go:611: Extract required 72 total requests.
+2026/10/15 22:26:49 extract.go:612: Extract transferred 7.0 MB (overfetch 0.05) for an archive size of 6.6 MB
+== extração real: São Carlos z0-14
+2026/10/15 22:26:52 extract.go:450: fetching 730 tiles, 62 chunks, 45 requests
+fetching chunks   0% |                                  | ( 0 B/4.3 MB) [0s:0s]                                                                               fetching chunks   0% |                   | (72 B/4.3 MB, 372 B/s) [0s:3h21m40s]                                                                               fetching chunks  21% |████                  | (962 kB/4.3 MB, 3.6 MB/s) [0s:0s]                                                                               fetching chunks  33% |████████                 | (1.4/4.3 MB, 3.4 MB/s) [0s:0s]                                                                               fetching chunks  39% |█████████                | (1.7/4.3 MB, 3.4 MB/s) [0s:0s]                                                                               fetching chunks  48% |████████████             | (2.1/4.3 MB, 3.6 MB/s) [0s:0s]                                                                               fetching chunks  49% |████████████             | (2.1/4.3 MB, 3.6 MB/s) [0s:0s]                                                                               fetching chunks  58% |██████████████           | (2.5/4.3 MB, 3.6 MB/s) [0s:0s]                                                                               fetching chunks  59% |██████████████           | (2.5/4.3 MB, 3.6 MB/s) [0s:0s]                                                                               fetching chunks  66% |████████████████         | (2.9/4.3 MB, 2.8 MB/s) [1s:0s]                                                                               fetching chunks  67% |████████████████         | (2.9/4.3 MB, 2.8 MB/s) [1s:0s]                                                                               fetching chunks  69% |█████████████████        | (3.0/4.3 MB, 2.8 MB/s) [1s:0s]                                                                               fetching chunks  73% |██████████████████       | (3.2/4.3 MB, 2.8 MB/s) [1s:0s]                                                                               fetching chunks  75% |██████████████████       | (3.2/4.3 MB, 2.8 MB/s) [1s:0s]                                                                               fetching chunks  76% |███████████████████      | (3.3/4.3 MB, 2.8 MB/s) [1s:0s]                                                                               fetching chunks  80% |████████████████████     | (3.5/4.3 MB, 2.2 MB/s) [1s:0s]                                                                               fetching chunks  84% |█████████████████████    | (3.6/4.3 MB, 2.2 MB/s) [1s:0s]                                                                               fetching chunks  85% |█████████████████████    | (3.7/4.3 MB, 2.2 MB/s) [1s:0s]                                                                               fetching chunks  87% |█████████████████████    | (3.8/4.3 MB, 2.2 MB/s) [2s:0s]                                                                               fetching chunks  89% |██████████████████████   | (3.9/4.3 MB, 2.2 MB/s) [2s:0s]                                                                               fetching chunks  90% |██████████████████████   | (3.9/4.3 MB, 1.8 MB/s) [2s:0s]                                                                               fetching chunks  94% |███████████████████████  | (4.0/4.3 MB, 1.8 MB/s) [2s:0s]                                                                               fetching chunks  95% |███████████████████████  | (4.1/4.3 MB, 1.8 MB/s) [2s:0s]                                                                               fetching chunks  97% |████████████████████████ | (4.2/4.3 MB, 1.8 MB/s) [2s:0s]                                                                               fetching chunks  98% |████████████████████████ | (4.3/4.3 MB, 1.8 MB/s) [2s:0s]                                                                               fetching chunks 100% |█████████████████████████| (4.3/4.3 MB, 1.6 MB/s)
+2026/10/15 22:26:55 extract.go:606: Completed in 5.648368423s with 4 download threads (129.2408606262712 tiles/s).
+2026/10/15 22:26:55 extract.go:611: Extract required 57 total requests.
+2026/10/15 22:26:55 extract.go:612: Extract transferred 4.5 MB (overfetch 0.05) for an archive size of 4.3 MB
+-rw-r--r-- 1 runner runner 4309654 Oct 15 22:26 saocarlos.pmtiles
+pmtiles spec version: 3
+tile type: mvt
+bounds: (long: -48.100000, lat: -22.250000) (long: -47.700000, lat: -21.750000)
+min zoom: 0
+max zoom: 14
+center: (long: -47.900000, lat: -22.000000)
+center zoom: 0
+addressed tiles count: 730
+tile entries count: 730
+tile contents count: 729
+clustered: true
+internal compression: gzip
+tile compression: gzip
+planetiler:githash 0e5588c4a6e8c29a270a33afe8df62027d889604
+version 4.15.2
+description Basemap layers derived from OpenStreetMap and Natural Earth
+planetiler:buildtime 2026-03-28T14:41:39.524Z
+planetiler:osm:osmosisreplicationseq 123501
+planetiler:osm:osmosisreplicationtime 2026-10-15T04:00:00Z
+planetiler:osm:osmosisreplicationurl https://planet.osm.org/replication/hour/
+planetiler:version 0.10.2
+type baselayer
+vector_layers <object, use --metadata to view full JSON metadata>
+attribution <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a>
+name Protomaps Basemap
+pgf:devanagari:name NotoSansDevanagari-Regular
+pgf:devanagari:version 1
+== release de teste e CORS dos arquivos
+https://github.com/siddneicruz/Eukasconta/releases/tag/mapas-probe
+DL=https://github.com/siddneicruz/Eukasconta/releases/download/mapas-probe/saocarlos.pmtiles
+-- HEAD com Origin
+HTTP/2 302 
+date: Thu, 15 Oct 2026 22:26:58 GMT
+content-type: text/html; charset=utf-8
+location: https://release-assets.githubusercontent.com/github-production-release-asset/1414930909/a59d44dd-dd0c-47f1-bd14-828482910d9c?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-10-15T23%3A15%3A09Z&rscd=attachment%3B+filename%3Dsaocarlos.pmtiles&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-10-15T22%3A14%3A32Z&ske=2026-10-15T23%3A15%3A09Z&sks=b&skv=2018-11-09&sig=PmLckoZRU5WCZ1ICCONyl0%2BiYI7N4bE5wumvTR4L4xc%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MjEwMzUxOCwibmJmIjoxNzkyMTAzMjE4LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.oUvPz1BgMmVW09OlQ4Q64sWpy-lwrgfal6Qtfa2k_dA&response-content-disposition=attachment%3B%20filename%3Dsaocarlos.pmtiles&response-content-type=application%2Foctet-stream
+vary: X-PJAX, X-PJAX-Container, Turbo-Visit, Turbo-Frame, X-Requested-With, X-GitHub-Client-Version, Sec-Fetch-Site,Accept-Encoding, Accept, X-Requested-With
+cache-control: no-cache
+strict-transport-security: max-age=31536000; includeSubdomains; preload
+x-frame-options: deny
+x-content-type-options: nosniff
+x-xss-protection: 0
+referrer-policy: no-referrer-when-downgrade
+content-security-policy: default-src 'none'; base-uri 'self'; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src 'self' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com api.github.com/cmc_internal/api/; font-src github.githubassets.com; form-action 'self' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors 'none'; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src 'self' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src 'self'; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com; style-src 'unsafe-inline' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/
+server: github.com
+content-length: 0
+x-github-request-id: 8C10:29BDA2:5A19E4:7963C6:6AD15332
+x-github-edge-region: iad
+
+HTTP/2 200 
+last-modified: Thu, 15 Oct 2026 22:26:56 GMT
+etag: "0x8DF2B0B6C33AB58"
+server: Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0
+x-ms-request-id: f5c411b3-c01e-001a-27f4-5c808a000000
+x-ms-version: 2018-11-09
+x-ms-creation-time: Thu, 15 Oct 2026 22:26:56 GMT
+x-ms-blob-content-md5: RltNzmO8OB8IZmw84rk8hw==
+x-ms-lease-status: unlocked
+x-ms-lease-state: available
+x-ms-blob-type: BlockBlob
+x-ms-server-encrypted: true
+x-ms-access-tier: Hot
+x-ms-access-tier-inferred: true
+accept-ranges: bytes
+age: 0
+date: Thu, 15 Oct 2026 22:26:58 GMT
+via: 1.1 varnish
+x-served-by: cache-iad-khef600052-IAD
+x-cache: MISS
+x-cache-hits: 0
+x-timer: S1792103218.385796,VS0,VE86
+content-disposition: attachment; filename=saocarlos.pmtiles
+content-type: application/octet-stream
+content-length: 4309654
+
+-- Range 0-99
+HTTP/2 302 
+date: Thu, 15 Oct 2026 22:26:58 GMT
+content-type: text/html; charset=utf-8
+location: https://release-assets.githubusercontent.com/github-production-release-asset/1414930909/a59d44dd-dd0c-47f1-bd14-828482910d9c?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-10-15T23%3A15%3A09Z&rscd=attachment%3B+filename%3Dsaocarlos.pmtiles&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-10-15T22%3A14%3A32Z&ske=2026-10-15T23%3A15%3A09Z&sks=b&skv=2018-11-09&sig=PmLckoZRU5WCZ1ICCONyl0%2BiYI7N4bE5wumvTR4L4xc%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MjEwMzUxOCwibmJmIjoxNzkyMTAzMjE4LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.oUvPz1BgMmVW09OlQ4Q64sWpy-lwrgfal6Qtfa2k_dA&response-content-disposition=attachment%3B%20filename%3Dsaocarlos.pmtiles&response-content-type=application%2Foctet-stream
+vary: X-PJAX, X-PJAX-Container, Turbo-Visit, Turbo-Frame, X-Requested-With, X-GitHub-Client-Version, Sec-Fetch-Site,Accept-Encoding, Accept, X-Requested-With
+cache-control: no-cache
+strict-transport-security: max-age=31536000; includeSubdomains; preload
+x-frame-options: deny
+x-content-type-options: nosniff
+x-xss-protection: 0
+referrer-policy: no-referrer-when-downgrade
+content-security-policy: default-src 'none'; base-uri 'self'; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src 'self' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com api.github.com/cmc_internal/api/; font-src github.githubassets.com; form-action 'self' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors 'none'; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src 'self' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src 'self'; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com; style-src 'unsafe-inline' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/
+server: github.com
+content-length: 0
+x-github-request-id: 8C11:1B4E77:1D4EF73:27E4273:6AD15332
+x-github-edge-region: iad
+
+HTTP/2 206 
+last-modified: Thu, 15 Oct 2026 22:26:56 GMT
+etag: "0x8DF2B0B6C33AB58"
+server: Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0
+x-ms-request-id: f5c411b3-c01e-001a-27f4-5c808a000000
+x-ms-version: 2018-11-09
+x-ms-creation-time: Thu, 15 Oct 2026 22:26:56 GMT
+x-ms-blob-content-md5: RltNzmO8OB8IZmw84rk8hw==
+x-ms-lease-status: unlocked
+x-ms-lease-state: available
+x-ms-blob-type: BlockBlob
+x-ms-server-encrypted: true
+x-ms-access-tier: Hot
+x-ms-access-tier-inferred: true
+accept-ranges: bytes
+date: Thu, 15 Oct 2026 22:26:58 GMT
+via: 1.1 varnish
+age: 0
+x-served-by: cache-iad-kcgs7200139-IAD
+x-cache: HIT
+x-cache-hits: 1
+x-timer: S1792103219.525956,VS0,VE1
+content-disposition: attachment; filename=saocarlos.pmtiles
+content-type: application/octet-stream
+content-range: bytes 0-99/4309654
+content-length: 100
+
+-rw-r--r-- 1 runner runner 100 Oct 15 22:26 /tmp/r.bin
+== fim
