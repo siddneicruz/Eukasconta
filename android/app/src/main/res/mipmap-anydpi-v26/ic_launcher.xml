@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ícone só com o ticket, sem azulejo: fundo transparente e símbolo na camada da frente.
-     A camada tem 108dp (tamanho cheio do ícone adaptativo), com o ticket dentro da zona segura. -->
+<!-- Ícone quadrado: ticket dourado ocupando todo o quadrado (camada de trás em ouro, sem fundo escuro)
+     e, na camada da frente, moldura, "K", picote e código de barras. A camada tem 108dp. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background" />
+    <background android:drawable="@drawable/ic_launcher_background" />
     <foreground android:drawable="@mipmap/ic_launcher_foreground" />
 </adaptive-icon>
