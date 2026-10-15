@@ -4,7 +4,7 @@ import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, Establishment, MasterProd
 import { 
   TrendingUp, Store, PieChart as PieChartIcon, ChevronLeft, ChevronRight,
   DollarSign, ShoppingBag, BarChart3, Calendar, Search, Download, Package,
-  Target, LineChart as LineChartIcon, Filter, CalendarDays, Plus, Award, MousePointer2, Goal, Calculator, Save, TrendingDown, ArrowUpRight, ArrowDownRight, Repeat, Clock, Check, LineChart as LucideLineChart, RotateCcw, Zap, Edit3, GitMerge, Trash2, Split, HelpCircle, Eye, RefreshCw, X, Tag, Loader2, Sparkles
+  Target, LineChart as LineChartIcon, Filter, CalendarDays, CalendarRange, Plus, Award, MousePointer2, Goal, Calculator, Save, TrendingDown, ArrowUpRight, ArrowDownRight, Repeat, Clock, Check, LineChart as LucideLineChart, RotateCcw, Zap, Edit3, GitMerge, Trash2, Split, HelpCircle, Eye, RefreshCw, X, Tag, Loader2, Sparkles
 } from 'lucide-react';
 import * as Recharts from 'recharts';
 import { calculateSimilarity, cleanDescriptionForMatching } from '../services/productMasterService';
@@ -13,6 +13,7 @@ import PeriodPicker from './PeriodPicker';
 import { downloadFile } from '../services/nativeFiles';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH, TL_AXIS_Y_WIDTH, renderTimelineYTick } from '../services/chartFormat';
 import CompareCard, { ChosenCompare } from './CompareCard';
+import CutsPanel from './CutsPanel';
 import { buildCompareOptions, bySpend, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
 
 const { 
@@ -62,7 +63,8 @@ const Reports: React.FC<ReportsProps> = ({
   const [rankingId, setRankingId] = useState<string | null>(null);
   const selInit = useRef(false);
   const [goalItem, setGoalItem] = useState<string>(''); 
-  const [activeSection, setActiveSection] = useState<'panorama' | 'overview' | 'goals' | 'catalog'>('panorama');
+  const [activeSection, setActiveSection] = useState<'panorama' | 'overview' | 'cuts' | 'goals' | 'catalog'>('panorama');
+  const [cutSelId, setCutSelId] = useState<string | null>(null);
   const [tempGoalValue, setTempGoalValue] = useState<string>('');
   const [goals, setGoals] = useState<Record<string, number>>(() => {
       try {
@@ -803,7 +805,8 @@ const Reports: React.FC<ReportsProps> = ({
             </div>
         </div>
 
-        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-2 md:gap-4 ls:gap-2 overflow-hidden">
+        {activeSection !== 'cuts' && (
+        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-2 md:gap-4 ls:gap-2 overflow-hidden" data-testid="period-bar">
             {config.quickFilter === 'custom' ? (
                 <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-6 animate-in slide-in-from-left-2">
                     <PeriodPicker
@@ -856,22 +859,25 @@ const Reports: React.FC<ReportsProps> = ({
                 )}
             </div>
         </div>
+        )}
       </div>
 
       {/* SELETOR DE SEÇÃO: transforma o que era uma rolagem longa com tudo
           empilhado em um dashboard por abas — cada seção só renderiza quando
           está ativa, então a tela mostra uma coisa de cada vez. */}
-      <div className="flex items-center gap-1 mb-4 md:mb-6 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-0.5 min-[380px]:gap-1 mb-4 md:mb-6 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
           {[
               { id: 'panorama' as const, label: 'Panorama', icon: Sparkles },
               { id: 'overview' as const, label: 'Comparativo', icon: LucideLineChart },
+              { id: 'cuts' as const, label: 'Recortes', icon: CalendarRange },
               { id: 'goals' as const, label: 'Metas', icon: Goal },
               { id: 'catalog' as const, label: 'Catálogo', icon: Package },
           ].map(tab => (
               <button
                   key={tab.id}
+                  data-testid={`tab-${tab.id}`}
                   onClick={() => setActiveSection(tab.id)}
-                  className={`flex flex-1 sm:flex-none items-center justify-center gap-2 px-2 sm:px-5 py-2.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all whitespace-nowrap ${activeSection === tab.id ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/10' : 'text-zinc-400 hover:text-white'}`}
+                  className={`flex flex-1 sm:flex-none items-center justify-center gap-2 px-1 min-[380px]:px-1.5 sm:px-5 py-2.5 rounded-xl text-[11px] min-[380px]:text-xs sm:text-[13px] font-semibold transition-all whitespace-nowrap ${activeSection === tab.id ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/10' : 'text-zinc-400 hover:text-white'}`}
               >
                   <tab.icon className="hidden sm:block w-3.5 h-3.5" /> {tab.label}
               </button>
@@ -946,6 +952,15 @@ const Reports: React.FC<ReportsProps> = ({
                   )}
               </div>
               </>)}
+
+              {activeSection === 'cuts' && (
+                  <CutsPanel
+                      receipts={receipts}
+                      displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments)}
+                      selectedId={cutSelId}
+                      onSelect={setCutSelId}
+                  />
+              )}
 
               {activeSection === 'goals' && (<>
               {/* AUDITÓRIO DE METAS - LARGO E NA BASE COM FILTRO NO CABEÇALHO */}

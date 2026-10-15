@@ -29,11 +29,13 @@ import {
     Bus, Truck, Ship, MapPin, Navigation, Container, Bone, Cat,
     Dog, Rabbit, Turtle, Snail, Bug, Trophy, Medal, Dumbbell, Book, Languages,
     GraduationCap, Library, Notebook, Box, Package, Archive, Soup,
-    Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake
+    Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake, ArrowLeftRight
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
+import DeptFilterSheet from './DeptFilterSheet';
+import { useDeptFilter, isDeptFilterActive, invertDeptFilter, deptFilterLabel, deptLabelFor, applyDeptFilter, buildDeptOptions } from '../services/deptFilter';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel } from '../services/productPriceStats';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
@@ -396,7 +398,11 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
   // No celular a barra de filtros fica numa linha só (categoria + período); toca no período para abrir o resto.
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const hasFilters = !!(config.category || config.month !== null || config.quickFilter || config.establishment || config.item);
+  // Filtro de categorias: fica gravado no aparelho (não some ao limpar os outros filtros)
+  const [deptFilter, setDeptFilter] = useDeptFilter();
+  const [deptSheetOpen, setDeptSheetOpen] = useState(false);
+  const deptActive = isDeptFilterActive(deptFilter);
+  const hasFilters = !!(config.month !== null || config.quickFilter || config.establishment || config.item);
   const resetFilters = () => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null });
   // Partes que só aparecem com a barra aberta no celular (no computador e no celular deitado ficam sempre)
   const moreCls = filtersOpen ? 'flex' : 'hidden md:flex ls:flex';
@@ -413,17 +419,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const itemReceipts = useMemo(() => projectReceipts(receipts, config.item), [receipts, config.item]);
   const receiptsById = useMemo(() => new Map(receipts.map(r => [r.id, r] as [string, Receipt])), [receipts]);
 
-  const filteredReceipts = useMemo(() => {
+  // Período, loja e item (ainda sem o filtro de categorias: a folha de categorias mostra quanto cada uma gastou aqui)
+  const periodReceipts = useMemo(() => {
     return itemReceipts.filter(r => {
         let rDate = new Date(r.date + 'T12:00:00');
         if (isNaN(rDate.getTime())) rDate = new Date();
         
         if (config.establishment && keyOf(r.establishmentName, r.cnpj) !== config.establishment) return false;
-
-        if (config.category) {
-            const hasCategory = r.items.some(item => sameDept(item.category, config.category));
-            if (!hasCategory) return false;
-        }
 
         if (config.quickFilter === 'custom') {
             if (config.customStartDate && r.date < config.customStartDate) return false;
@@ -440,8 +442,15 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         if (rDate.getFullYear() !== config.year) return false;
         if (config.month !== null && rDate.getMonth() !== config.month) return false;
         return true;
-    }).sort((a, b) => b.date.localeCompare(a.date));
+    });
   }, [itemReceipts, config, keyOf]);
+
+  // Com categorias tiradas (ou só algumas escolhidas), cada cupom fica só com as linhas que entram, e vale a soma delas
+  const filteredReceipts = useMemo(
+    () => [...applyDeptFilter(periodReceipts, deptFilter)].sort((a, b) => b.date.localeCompare(a.date)),
+    [periodReceipts, deptFilter]);
+  const deptOptions = useMemo(() => buildDeptOptions(receipts, periodReceipts), [receipts, periodReceipts]);
+  const deptLabel = deptFilterLabel(deptFilter, k => deptLabelFor(deptOptions, k));
 
   // Resumo do item escolhido no período, e as compras dele para o gráfico de preço
   const itemSummary = useMemo(() => {
@@ -467,7 +476,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
             const raw = (item.category || 'Bazar e Outros').split(' - ')[0].trim() || 'Bazar e Outros';
             const key = deptKey(raw);
             const price = Number(item.totalPrice) || 0;
-            if (config.category && key !== deptKey(config.category)) return;
             let g = byKey.get(key);
             if (!g) { g = { total: 0, variants: new Map() }; byKey.set(key, g); }
             g.total += price;
@@ -481,7 +489,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         return { name, label: properCase(name), value: g.total, color: getCategoryColor(name), percentage: total > 0 ? (g.total / total) * 100 : 0 };
     });
     return { chartData: rows.sort((a, b) => b.value - a.value), totalSpent: total };
-  }, [filteredReceipts, config.category, availableMasterCategories]);
+  }, [filteredReceipts, availableMasterCategories]);
 
   // Lojas: o mesmo apelido (ou o mesmo nome) vira uma barra só. `name` é a identidade usada no filtro;
   // `raw` é o nome do cupom que mais gastou, para quando a loja não tem apelido.
@@ -551,18 +559,25 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
+      {deptSheetOpen && <DeptFilterSheet options={deptOptions} filter={deptFilter} onChange={setDeptFilter} onClose={() => setDeptSheetOpen(false)} z="z-[250]" />}
       <div className="flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>
-            <div className="order-1 flex-1 md:flex-none ls:flex-none min-w-0 flex items-center gap-2 px-3 py-1.5 md:py-0 ls:py-0 md:px-5 md:border-r ls:border-r border-white/10 md:shrink-0 ls:shrink-0">
-                <Filter className="w-4 h-4 text-luxury-gold shrink-0" />
-                <select
-                    value={config.category || ''}
-                    onChange={(e) => onConfigChange({ ...config, category: e.target.value || null })}
-                    className="bg-transparent text-xs font-bold text-zinc-300 focus:outline-none cursor-pointer uppercase tracking-[0.04em] md:tracking-[0.08em] ls:tracking-[0.08em] w-full min-w-0 md:w-auto md:max-w-[150px] ls:w-auto ls:max-w-[130px] truncate"
-                >
-                    <option value="" className="bg-black">TODAS CATEGORIAS</option>
-                    {availableMasterCategories.map(cat => <option key={cat} value={cat} className="bg-black text-white">{cat}</option>)}
-                </select>
+            <div className="order-1 flex-1 md:flex-none ls:flex-none min-w-0 flex items-center gap-1 pl-1 pr-1 py-0.5 md:py-0 ls:py-0 md:pl-3 md:pr-3 md:border-r ls:border-r border-white/10 md:shrink-0 ls:shrink-0">
+                <button type="button" onClick={() => setDeptSheetOpen(true)} data-testid="dept-filter-btn" data-active={deptActive ? 'true' : 'false'}
+                    aria-haspopup="dialog" aria-label={`Categorias: ${deptLabel}. Alterar`}
+                    className="min-w-0 flex-1 md:flex-none md:max-w-[200px] ls:max-w-[150px] h-8 px-2 rounded-xl flex items-center gap-2 text-left hover:bg-white/5 transition-colors">
+                    <Filter className="w-4 h-4 text-luxury-gold shrink-0" />
+                    <span data-testid="dept-filter-label" className={`truncate text-xs font-bold uppercase tracking-[0.04em] md:tracking-[0.08em] ls:tracking-[0.08em] ${deptActive ? 'dept-active text-luxury-gold' : 'text-zinc-300'}`}>{deptLabel}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                </button>
+                {deptActive && (
+                    <button type="button" onClick={() => setDeptFilter(invertDeptFilter(deptFilter))} data-testid="dept-invert"
+                        title={deptFilter.mode === 'exclude' ? 'Inverter: ver só o que está tirado' : 'Inverter: voltar a tirar o que está marcado'}
+                        aria-label="Inverter o filtro de categorias"
+                        className="filter-chip shrink-0 w-8 h-8 flex items-center justify-center rounded-xl border bg-luxury-gold/10 text-luxury-gold border-luxury-gold/25 active:bg-luxury-gold/20">
+                        <ArrowLeftRight className="w-3.5 h-3.5" />
+                    </button>
+                )}
             </div>
 
             {/* Celular em pé: o período fechado vira um botão; ao tocar abre ano, meses, 7 dias e período */}
@@ -735,7 +750,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                <div className="h-[340px] md:h-[400px] w-[calc(100%+1.5rem)] md:w-full relative mt-10 md:mt-0">
                    <InteractiveDonut
                        data={chartData}
-                       centerLabel="Total Investido"
+                       centerLabel={deptActive ? 'Total filtrado' : 'Total Investido'}
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalSpent)}
                        onSliceClick={(entry) => onCategoryClick && onCategoryClick(entry.name)}
                    />
