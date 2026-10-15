@@ -256,11 +256,10 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
 
       <div ref={mapBox} className="bg-zinc-950 border border-white/5 rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative scroll-mt-20">
         <div className="h-[340px] md:h-[520px] w-full relative z-0" data-testid="map-canvas">
-          <MapContainer center={center} zoom={stores.length ? 12 : 4} scrollWheelZoom style={{ width: '100%', height: '100%', background: light ? '#f4f4f5' : '#09090b' }}>
+          <MapContainer center={center} zoom={stores.length ? 12 : 4} scrollWheelZoom className={light ? '' : 'map-dark'} style={{ width: '100%', height: '100%', background: light ? '#f4f4f5' : '#09090b' }}>
             <TileLayer
-              key={light ? 'l' : 'd'}
-              url={`https://{s}.basemaps.cartocdn.com/${light ? 'light_all' : 'dark_all'}/{z}/{x}/{y}{r}.png`}
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               maxZoom={19}
             />
             <Framer me={me} target={selected ? { lat: selected.lat, lng: selected.lng } : null} path={route.data?.path || null} all={allPoints} targetId={selected?.id || null} />
@@ -390,7 +389,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
       )}
 
       <p className="mt-6 px-1 text-[10px] text-zinc-600 leading-relaxed">
-        Mapa © contribuidores do OpenStreetMap (imagens CARTO) · endereços por Nominatim · rotas de carro por OSRM, calculadas só quando você escolhe uma loja.
+        Mapa © contribuidores do OpenStreetMap · endereços por Nominatim · rotas de carro por OSRM, calculadas só quando você escolhe uma loja.
       </p>
     </div>
   );

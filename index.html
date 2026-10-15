@@ -155,6 +155,8 @@
       /* Cupom em texto: no claro é texto limpo num sépia bem leve (sem o cinza e sem os efeitos de tela) */
       html.light-theme .thermal-box { background-color: #fbf7eb; border-color: #e8dfc4; color: #2e281c; box-shadow: none; }
       html.light-theme .thermal-fx { display: none; }
+      /* Mapa: as imagens do OpenStreetMap são claras; no tema escuro o painel de imagens é invertido para combinar com o app */
+      .map-dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.75); }
     </style>
 <link rel="stylesheet" href="/index.css">
 </head>
