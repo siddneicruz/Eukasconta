@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Browser } from '@capacitor/browser';
-import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store } from 'lucide-react';
+import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X } from 'lucide-react';
 import { Receipt, Establishment } from '../types';
 import { geocodeMissingEstablishments, needsGeocoding } from '../services/geocodingService';
 import { fetchRoute, haversineKm, formatDistance, formatDuration, navigationLinks, RouteResult, LatLng } from '../services/routingService';
@@ -31,6 +31,13 @@ const storeKey = (cnpj: string | undefined, name: string) => {
 };
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 const dayMonth = (iso: string) => { const [, m, d] = (iso || '').split('-'); return d && m ? `${d}/${m}` : ''; };
+
+// O endereço do cupom muitas vezes já traz a cidade; só acrescenta se não estiver lá.
+const fullAddress = (address?: string, city?: string) => {
+  const a = String(address || '').replace(/\s+/g, ' ').trim();
+  const c = String(city || '').replace(/\s+/g, ' ').trim();
+  return c && !plain(a).includes(plain(c)) ? [a, c].filter(Boolean).join(', ') : a;
+};
 
 interface MapStore {
   id: string;
@@ -98,19 +105,24 @@ const meIcon = L.divIcon({
 const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number, number][] | null; all: [number, number][]; targetId: string | null }> = ({ me, target, path, all, targetId }) => {
   const map = useMap();
   const didAll = useRef(false);
+  const hadTarget = useRef(false);
   // loja escolhida / rota pronta: enquadra você + a loja (ou a rota inteira)
   useEffect(() => {
     if (!target) return;
+    hadTarget.current = true;
     const pts: [number, number][] = path && path.length > 1 ? path : me ? [[me.lat, me.lng], [target.lat, target.lng]] : [[target.lat, target.lng]];
     if (pts.length === 1) map.setView(pts[0], 15);
     else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 16 });
   }, [targetId, path, me?.lat, me?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-  // nada escolhido ainda: mostra todas as lojas uma vez
+  // nada escolhido: mostra todas as lojas (na primeira vez e sempre que a escolha é desfeita)
   useEffect(() => {
-    if (target || all.length === 0 || didAll.current) return;
+    if (target || all.length === 0) return;
+    if (didAll.current && !hadTarget.current) return;
     didAll.current = true;
-    if (all.length === 1) map.setView(all[0], 14);
-    else map.fitBounds(L.latLngBounds(all), { padding: [36, 36] });
+    hadTarget.current = false;
+    const pts: [number, number][] = me ? [...all, [me.lat, me.lng]] : all;
+    if (pts.length === 1) map.setView(pts[0], 14);
+    else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15 });
   }, [all.length, target]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 };
@@ -174,7 +186,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           id: `${e.cnpj}|${e.originalName}`,
           est: e,
           name: namer.nameOf(e.originalName, e.cnpj),
-          address: [e.address, e.city].filter(Boolean).join(', ').replace(/\s+/g, ' '),
+          address: fullAddress(e.address, e.city),
           lat, lng,
           spent: a.spent, visits: a.visits, lastDate: a.last,
           km: me ? haversineKm(me, { lat, lng }) : null,
@@ -190,32 +202,31 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const notFound = useMemo(() => establishments.filter(e => e.geocodeStatus === 'not_found'), [establishments]);
 
   /* loja escolhida e rota */
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Sem toque seu, vale sempre a loja mais perto (acompanha a lista enquanto as lojas vão sendo localizadas).
+  // Tocou numa loja, vale a sua escolha; tocar de novo na mesma, ou no X do cartão, desfaz a escolha e tira a rota.
+  const [manual, setManual] = useState<{ id: string | null } | null>(null);
+  const selectedId = manual ? manual.id : nearestId;
   const selected = useMemo(() => stores.find(s => s.id === selectedId) || null, [stores, selectedId]);
   const [route, setRoute] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; data: RouteResult | null }>({ status: 'idle', data: null });
-
-  // ao saber onde você está, já escolhe a loja mais perto (uma vez)
-  const autoPicked = useRef(false);
-  useEffect(() => {
-    if (autoPicked.current || !me || selectedId || sorted.length === 0) return;
-    autoPicked.current = true;
-    setSelectedId(sorted[0].id);
-  }, [me, sorted, selectedId]);
 
   const meKey = me ? `${me.lat.toFixed(4)},${me.lng.toFixed(4)}` : '';
   useEffect(() => {
     if (!selected || !me) { setRoute({ status: 'idle', data: null }); return; }
     const ctrl = new AbortController();
     setRoute({ status: 'loading', data: null });
-    fetchRoute(me, { lat: selected.lat, lng: selected.lng }, ctrl.signal)
-      .then(data => { if (!ctrl.signal.aborted) setRoute({ status: 'ok', data }); })
-      .catch(() => { if (!ctrl.signal.aborted) setRoute({ status: 'error', data: null }); });
-    return () => ctrl.abort();
+    // pequena espera: se a "mais perto" mudar de novo em seguida (outra loja acabou de ser localizada), não gasta uma rota à toa
+    const timer = setTimeout(() => {
+      fetchRoute(me, { lat: selected.lat, lng: selected.lng }, ctrl.signal)
+        .then(data => { if (!ctrl.signal.aborted) setRoute({ status: 'ok', data }); })
+        .catch(() => { if (!ctrl.signal.aborted) setRoute({ status: 'error', data: null }); });
+    }, 600);
+    return () => { clearTimeout(timer); ctrl.abort(); };
   }, [selected?.id, meKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const mapBox = useRef<HTMLDivElement>(null);
   const pick = (id: string) => {
-    setSelectedId(id);
+    if (id === selectedId) { setManual({ id: null }); return; }
+    setManual({ id });
     mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -275,7 +286,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
                 position={[s.lat, s.lng]}
                 icon={pinIcon(s.id === selectedId, s.id === nearestId)}
                 zIndexOffset={s.id === selectedId ? 1000 : s.id === nearestId ? 500 : 0}
-                eventHandlers={{ click: () => setSelectedId(s.id) }}
+                eventHandlers={{ click: () => setManual({ id: s.id }) }}
               />
             ))}
             {me && <Marker position={[me.lat, me.lng]} icon={meIcon} zIndexOffset={2000} interactive={false} />}
@@ -299,6 +310,10 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               <p className="text-base font-bold text-white leading-tight truncate" data-testid="map-selected-name">{selected.name}</p>
               {selected.address && <p className="text-xs text-zinc-500 mt-0.5 leading-snug">{selected.address}</p>}
             </div>
+            <button onClick={() => setManual({ id: null })} aria-label="Fechar e tirar a rota" data-testid="map-clear"
+              className="shrink-0 -mr-1 -mt-1 w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 active:bg-white/10">
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="mt-3 text-sm" data-testid="map-route-info">
@@ -330,9 +345,17 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
       {/* Lojas das suas compras, da mais perto para a mais longe */}
       {sorted.length > 0 && (
         <section className="mt-6" aria-label="Lojas das suas compras">
-          <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold mb-3 px-1" data-testid="map-list-title">
-            {me ? 'Lojas das suas compras, da mais perto' : 'Lojas das suas compras'}
-          </h3>
+          <div className="flex items-center justify-between gap-3 mb-3 px-1 min-h-[28px]">
+            <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold" data-testid="map-list-title">
+              {me ? 'Lojas das suas compras, da mais perto' : 'Lojas das suas compras'}
+            </h3>
+            {me && nearestId && selectedId !== nearestId && (
+              <button onClick={() => setManual(null)} data-testid="map-back-nearest"
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-luxury-gold/10 border border-luxury-gold/25 text-luxury-gold text-[11px] font-bold active:scale-95">
+                Ir para a mais perto
+              </button>
+            )}
+          </div>
           <div className="space-y-2" data-testid="map-list">
             {sorted.map((s, i) => {
               const active = s.id === selectedId;
