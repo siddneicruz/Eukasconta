@@ -10,6 +10,7 @@ const {
 
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
 import ProductPriceChart from './ProductPriceChart';
+import ItemPeriodBar, { ItemPeriod, periodFromConfig } from './ItemPeriodBar';
 import { useStoreNames } from './StoreNamesContext';
 import NearbyPricesCard, { NearbySample } from './NearbyPricesCard';
 import type { CloudApi } from '../services/useCloud';
@@ -77,6 +78,15 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
   // abrem e os mais antigos começam fechados; depois que a pessoa mexe, vale o que ela escolheu.
   const [manualCollapsed, setManualCollapsed] = useState<Set<string> | null>(null);
 
+  // Período do histórico deste item: começa no filtro do Início (normalmente o mês atual) e pode ser trocado
+  // aqui mesmo (7 dias, 30 dias, mês, ano, tudo ou um período do calendário) sem mexer no filtro do Início.
+  const inherited = useMemo(
+      () => periodFromConfig(config),
+      [config.year, config.month, config.quickFilter, config.customStartDate, config.customEndDate]
+  );
+  const [period, setPeriod] = useState<ItemPeriod>(inherited);
+  const periodCfg = period.cfg;
+
   const productIcon = useMemo(() => getCategoryIcon(genericName), [genericName]);
   const productColor = useMemo(() => getCategoryColor(genericName), [genericName]);
 
@@ -104,8 +114,8 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
 
   // Compras dentro do período escolhido, da mais recente para a mais antiga.
   const periodRows = useMemo(
-      () => allHistory.filter(i => isDateInPeriod(i.date, config)).sort((a, b) => b.date.localeCompare(a.date) || b.key.localeCompare(a.key)),
-      [allHistory, config]
+      () => allHistory.filter(i => period.all || isDateInPeriod(i.date, periodCfg)).sort((a, b) => b.date.localeCompare(a.date) || b.key.localeCompare(a.key)),
+      [allHistory, period.all, periodCfg]
   );
 
   const establishmentData = useMemo(() => {
@@ -170,7 +180,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
 
   // trocar de produto ou de período volta ao automático
   useEffect(() => { setManualCollapsed(null); },
-      [genericName, subCategoryName, config.year, config.month, config.quickFilter, config.customStartDate, config.customEndDate]);
+      [genericName, subCategoryName, period.all, periodCfg.year, periodCfg.month, periodCfg.quickFilter, periodCfg.customStartDate, periodCfg.customEndDate]);
 
   const toggleMonth = (ym: string) => {
       const next = new Set(collapsed);
@@ -222,9 +232,14 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
           <p className="text-[11px] text-zinc-500 text-center tracking-[0.08em] uppercase mt-2">Menor, médio e teto de todo o histórico</p>
       </div>
 
+      {/* Seleção rápida do período do histórico deste item */}
+      <div className="mb-4">
+          <ItemPeriodBar value={period} onChange={setPeriod} fallback={inherited} />
+      </div>
+
       {/* Evolução do preço pago, com a média do período */}
       <div className="mb-6">
-          <ProductPriceChart series={series} periodTitle={periodLabel(config)} onUnitChange={setUnit} />
+          <ProductPriceChart series={series} periodTitle={period.all ? 'Todo o histórico' : periodLabel(periodCfg)} onUnitChange={setUnit} />
       </div>
 
       {cloud && onCreateAlert && onGoToAccount && (

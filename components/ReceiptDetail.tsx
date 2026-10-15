@@ -142,31 +142,34 @@ const FitPre: React.FC<{ text: string; maxPx?: number; minPx?: number }> = ({ te
     const boxRef = useRef<HTMLDivElement>(null);
     const preRef = useRef<HTMLPreElement>(null);
     const [size, setSize] = useState(9);
-    const cols = useMemo(() => Math.max(20, ...text.split('\n').map(l => l.length)), [text]);
     useLayoutEffect(() => {
         const box = boxRef.current;
         if (!box) return;
         const fit = () => {
+            const pre = preRef.current;
             const width = box.clientWidth;
-            if (!width) return;
-            // Largura real de um caractere na fonte monoespaçada do aparelho (em relação ao tamanho da letra).
-            let ratio = 0.6;
-            try {
-                const ctx = document.createElement('canvas').getContext('2d');
-                const family = preRef.current ? getComputedStyle(preRef.current).fontFamily : 'monospace';
-                if (ctx) { ctx.font = `100px ${family}`; ratio = ctx.measureText('0'.repeat(100)).width / 10000 || 0.6; }
-            } catch { /* usa 0,6 */ }
-            const px = Math.floor((width / (cols * ratio * 1.01)) * 10) / 10; // 1% de folga
+            if (!pre || !width) return;
+            // Mede o texto de verdade (a fonte do aparelho, com a linha mais larga) num tamanho de referência
+            // e escala: assim a linha mais larga ocupa a largura toda, sem sobra de um lado só.
+            const keep = pre.style.fontSize;
+            pre.style.fontSize = '100px';
+            const natural = pre.getBoundingClientRect().width;
+            pre.style.fontSize = keep;
+            if (!natural) return;
+            const px = Math.floor(((width / natural) * 100 * 0.995) * 10) / 10; // 0,5% de folga
             setSize(Math.max(minPx, Math.min(maxPx, px)));
         };
         fit();
         const ro = new ResizeObserver(fit);
         ro.observe(box);
+        // a fonte do cupom pode terminar de carregar depois: mede de novo quando isso acontecer
+        const fonts = (document as any).fonts;
+        if (fonts && fonts.ready) fonts.ready.then(fit).catch(() => {});
         return () => ro.disconnect();
-    }, [cols, maxPx, minPx]);
+    }, [text, maxPx, minPx]);
     return (
-        <div ref={boxRef} className="w-full">
-            <pre ref={preRef} className="whitespace-pre select-text relative z-0" style={{ fontSize: `${size}px`, lineHeight: 1.5 }}>{text}</pre>
+        <div ref={boxRef} className="w-full flex justify-center" data-testid="coupon-fit">
+            <pre ref={preRef} className="whitespace-pre select-text relative z-0" style={{ fontSize: `${size}px`, lineHeight: 1.5, width: 'max-content' }} data-testid="coupon-pre">{text}</pre>
         </div>
     );
 };
@@ -219,9 +222,10 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
                     <FileType className="w-3 h-3" /> {fileName}
                 </span>
             </div>
-            <div className="flex-1 bg-zinc-900 rounded-md p-3 md:p-6 mb-4 border border-zinc-800 shadow-2xl relative overflow-hidden font-mono text-zinc-400 overflow-y-auto overflow-x-auto custom-scrollbar">
-                <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-20"></div>
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none z-10"></div>
+            <div className="thermal-box flex-1 bg-zinc-900 rounded-md p-3 md:p-6 mb-4 border border-zinc-800 shadow-2xl relative overflow-hidden font-mono text-zinc-400 overflow-y-auto overflow-x-auto custom-scrollbar" data-testid="coupon-box">
+                {/* efeitos de tela de cupom (só no escuro): no claro o cupom é texto limpo sobre fundo claro */}
+                <div className="thermal-fx absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-20"></div>
+                <div className="thermal-fx absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none z-10"></div>
                 <FitPre text={txtContent} />
             </div>
             <div className="flex justify-between items-center bg-black border border-white/10 rounded-xl p-4 animate-in slide-in-from-bottom-2 gap-4">

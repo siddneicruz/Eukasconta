@@ -9,6 +9,7 @@ import Dashboard, { getCategoryIcon } from './components/Dashboard';
 import Scanner from './components/Scanner';
 import ScanProgressChip from './components/ScanProgressChip';
 import { buildReceiptsTxtZip } from './services/receiptText';
+import { currentYearMonth } from './services/currentMonth';
 import { setScanHandlers, ScanSummary } from './services/scanQueue';
 import TransactionList from './components/TransactionList';
 import ReceiptDetail from './components/ReceiptDetail';
@@ -230,9 +231,10 @@ const App: React.FC = () => {
       } catch (e) { return []; }
   });
 
+  // Padrão: sempre o mês atual (do dia 1 até hoje); a pessoa pode trocar no filtro (7 dias, 30 dias, ano, período...).
   const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>({
-      year: new Date().getFullYear(),
-      month: null,
+      year: currentYearMonth().year,
+      month: currentYearMonth().month,
       category: null,
       quickFilter: null,
       customStartDate: '',
@@ -240,6 +242,25 @@ const App: React.FC = () => {
       establishment: null,
       item: null
   });
+
+  // Se o app ficar aberto na virada do mês (ou voltar do segundo plano num mês novo) e o filtro ainda for o
+  // mês padrão, acompanha o calendário. Quem escolheu outro período não é mexido.
+  const autoMonthRef = useRef(`${currentYearMonth().year}-${currentYearMonth().month}`);
+  useEffect(() => {
+      const sync = () => {
+          const { year, month } = currentYearMonth();
+          const key = `${year}-${month}`;
+          if (key === autoMonthRef.current) return;
+          const prev = autoMonthRef.current;
+          autoMonthRef.current = key;
+          setDashboardConfig(c => (!c.quickFilter && c.month !== null && `${c.year}-${c.month}` === prev ? { ...c, year, month } : c));
+      };
+      const onVisible = () => { if (document.visibilityState === 'visible') sync(); };
+      document.addEventListener('visibilitychange', onVisible);
+      window.addEventListener('focus', sync);
+      const t = setInterval(sync, 60_000);
+      return () => { document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', sync); clearInterval(t); };
+  }, []);
 
   const [isMobilePreview, setIsMobilePreview] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);

@@ -38,6 +38,7 @@ import DeptFilterSheet from './DeptFilterSheet';
 import { useDeptFilter, isDeptFilterActive, invertDeptFilter, deptFilterLabel, deptLabelFor, applyDeptFilter, buildDeptOptions } from '../services/deptFilter';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel } from '../services/productPriceStats';
+import { isCurrentMonthPeriod } from '../services/currentMonth';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 
 interface DashboardProps {
@@ -66,6 +67,12 @@ const shortPeriod = (c: DashboardConfig): string => {
         const dm = (iso: string) => iso.split('-').reverse().slice(0, 2).join('/');
         if (c.customStartDate && c.customEndDate) return `${dm(c.customStartDate)} a ${dm(c.customEndDate)}`;
         return 'Período';
+    }
+    // mês atual: do dia 1 até hoje ("01/10 a 15/10"); cresce um dia a cada dia até fechar o mês
+    if (isCurrentMonthPeriod(c)) {
+        const t = new Date();
+        const p2 = (n: number) => String(n).padStart(2, '0');
+        return `01/${p2(t.getMonth() + 1)} a ${p2(t.getDate())}/${p2(t.getMonth() + 1)}`;
     }
     if (c.month !== null && c.month !== undefined) return `${MONTHS_SHORT[c.month].charAt(0)}${MONTHS_SHORT[c.month].slice(1).toLowerCase()} ${c.year}`;
     return `Ano ${c.year}`;
@@ -402,8 +409,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const [deptFilter, setDeptFilter] = useDeptFilter();
   const [deptSheetOpen, setDeptSheetOpen] = useState(false);
   const deptActive = isDeptFilterActive(deptFilter);
-  const hasFilters = !!(config.month !== null || config.quickFilter || config.establishment || config.item);
-  const resetFilters = () => onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null });
+  const hasFilters = !!(!isCurrentMonthPeriod(config) || config.establishment || config.item);
+  const resetFilters = () => onConfigChange({ year: new Date().getFullYear(), month: new Date().getMonth(), category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null });
   // Partes que só aparecem com a barra aberta no celular (no computador e no celular deitado ficam sempre)
   const moreCls = filtersOpen ? 'flex' : 'hidden md:flex ls:flex';
   const { aliasOf, nameOf, keyOf } = useStoreNames();

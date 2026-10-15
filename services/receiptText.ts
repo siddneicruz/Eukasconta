@@ -3,8 +3,20 @@ import JSZip from 'jszip';
 import { Receipt } from '../types';
 import { formatCNPJ } from './productNormalization';
 
+// A tabela de itens manda na largura do cupom: traços, cabeçalho, total e linhas centralizadas usam todos a
+// mesma largura, e as colunas do cabeçalho caem exatamente sobre as colunas dos itens.
+const MIN_WIDTH = 54;
+
 export const generateReceiptText = (receipt: Receipt): string => {
-    const lineWidth = 48;
+    const tableRow = (idx: string, desc: string, qtdUn: string, unitPrice: string, total: string) =>
+        `${idx} ${desc.padEnd(26, ' ')} ${qtdUn.padStart(9, ' ')} ${unitPrice.padStart(6, ' ')} ${total.padStart(6, ' ')}`;
+    const rows = receipt.items.map((item, idx) => {
+        const idxStr = (idx + 1).toString().padStart(3, '0');
+        let desc = item.description.toUpperCase();
+        if (desc.length > 25) desc = desc.substring(0, 25);
+        return tableRow(idxStr, desc, `${item.quantity} ${item.unitType || 'UN'}`, item.unitPrice.toFixed(2), item.totalPrice.toFixed(2));
+    });
+    const lineWidth = Math.max(MIN_WIDTH, ...rows.map(r => r.length));
     const center = (text: string) => {
         const padding = Math.max(0, (lineWidth - text.length) / 2);
         return ' '.repeat(Math.floor(padding)) + text + ' '.repeat(Math.ceil(padding));
@@ -25,17 +37,8 @@ export const generateReceiptText = (receipt: Receipt): string => {
         ''
     ].join('\n');
 
-    output += 'IT  DESCRIÇÃO                   QTD UN  VL.UN  TOTAL\n';
-    receipt.items.forEach((item, idx) => {
-        const idxStr = (idx + 1).toString().padStart(3, '0');
-        let desc = item.description.toUpperCase();
-        if (desc.length > 25) desc = desc.substring(0, 25);
-        desc = desc.padEnd(26, ' ');
-        const qtdUn = `${item.quantity} ${item.unitType || 'UN'}`.padStart(9, ' ');
-        const unitPrice = item.unitPrice.toFixed(2).padStart(6, ' ');
-        const total = item.totalPrice.toFixed(2).padStart(6, ' ');
-        output += `${idxStr} ${desc} ${qtdUn} ${unitPrice} ${total}\n`;
-    });
+    output += tableRow('IT'.padEnd(3, ' '), 'DESCRIÇÃO', 'QTD UN', 'VL.UN', 'TOTAL') + '\n';
+    rows.forEach(r => { output += r + '\n'; });
     output += '\n' + line + '\n';
     const totalLabel = "TOTAL R$";
     const totalValue = receipt.totalAmount.toFixed(2);

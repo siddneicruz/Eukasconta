@@ -1,25 +1,26 @@
 import React, { useId } from 'react';
-import { TICKET, APP_MARK_VIEWBOX, PD_MARK, PD_LOGO } from './brandPaths';
+import { TICKET, PD_MARK, PD_LOGO } from './brandPaths';
 
-// Símbolo do Eu Kasconta: ticket dourado com cantos vazados, moldura, "K", picote e código de barras.
-// Sem fundo: o ticket vale sozinho, em qualquer cor de tela.
+// Símbolo do Eu Kasconta: o mesmo ícone do app no celular, um quadrado dourado com moldura, "K", picote e
+// código de barras (cantos arredondados e sem nenhum fundo escuro por trás).
 export const AppMark: React.FC<{ className?: string; title?: string }> = ({ className = '', title }) => {
   const id = useId().replace(/:/g, '');
-  const f = TICKET.frame;
   return (
-    <svg viewBox={APP_MARK_VIEWBOX} className={className} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
+    <svg viewBox="0 0 108 108" className={className} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
       <defs>
-        <linearGradient id={`ek-${id}`} x1="0.12" y1="0" x2="0.88" y2="1">
+        <linearGradient id={`ek-${id}`} gradientUnits="userSpaceOnUse" x1="13" y1="0" x2="95" y2="108">
           <stop offset="0" stopColor="#F7DE86" />
           <stop offset="0.5" stopColor="#D4AF37" />
           <stop offset="1" stopColor="#A9812A" />
         </linearGradient>
       </defs>
-      <path d={TICKET.body} fill={`url(#ek-${id})`} />
-      <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.r} fill="none" stroke={TICKET.cream} strokeWidth={f.sw} />
-      <path d={TICKET.k} fill={TICKET.dark} />
-      <line x1={TICKET.perf.x1} y1={TICKET.perf.y} x2={TICKET.perf.x2} y2={TICKET.perf.y} stroke={TICKET.cream} strokeWidth={4.5} strokeDasharray="11 8" strokeLinecap="round" />
-      <path d={TICKET.bars} fill={TICKET.dark} />
+      <rect width="108" height="108" rx="24" fill={`url(#ek-${id})`} />
+      <g transform="translate(54 54) scale(.92) translate(-54 -54)">
+        <rect x="16" y="14" width="76" height="54" rx="3.2" fill="none" stroke={TICKET.cream} strokeWidth="2.6" />
+        <path d={TICKET.k} transform="translate(21.9 7.19) scale(.214)" fill={TICKET.dark} />
+        <line x1="11" y1="77.5" x2="97" y2="77.5" stroke={TICKET.cream} strokeWidth="2.2" strokeDasharray="4.6 3.4" strokeLinecap="round" />
+        <path d={TICKET.bars} transform="translate(9 16.4) scale(.30 .1917)" fill={TICKET.dark} />
+      </g>
     </svg>
   );
 };

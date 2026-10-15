@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import * as Recharts from 'recharts';
 import { calculateSimilarity, cleanDescriptionForMatching } from '../services/productMasterService';
+import { isCurrentMonthPeriod } from '../services/currentMonth';
 import ReportsPanorama from './ReportsPanorama';
 import PeriodPicker from './PeriodPicker';
 import { downloadFile } from '../services/nativeFiles';
@@ -848,9 +849,9 @@ const Reports: React.FC<ReportsProps> = ({
             )}
             <div className="order-2 md:order-4 ls:order-3 flex items-center gap-2 px-2 md:px-4 md:border-l ls:border-l border-white/10 shrink-0">
                 <button onClick={() => onConfigChange({ ...config, quickFilter: config.quickFilter === 'custom' ? null : 'custom', month: null })} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${config.quickFilter === 'custom' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-500'}`}><Calendar className="w-3.5 h-3.5" /> <span className="hidden sm:inline">FILTRAR </span>PERÍODO</button>
-                {(config.category || config.month !== null || config.quickFilter) && (
+                {(config.category || !isCurrentMonthPeriod(config)) && (
                     <button
-                        onClick={() => { onConfigChange({ year: new Date().getFullYear(), month: null, category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null }); }}
+                        onClick={() => { onConfigChange({ year: new Date().getFullYear(), month: new Date().getMonth(), category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null }); }}
                         title="Limpar filtros"
                         className="p-2 rounded-xl border border-white/5 text-zinc-600 hover:text-luxury-gold hover:border-luxury-gold/30 transition-all"
                     >
