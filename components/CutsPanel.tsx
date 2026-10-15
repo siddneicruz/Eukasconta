@@ -311,6 +311,9 @@ const CutsPanel: React.FC<Props> = ({ receipts, displayName, selectedId, onSelec
                     className="h-full min-w-0 pl-3.5 pr-1.5 flex items-center gap-1.5 rounded-l-full">
                     {isDeptFilterActive(c.filter) && <Filter className="w-3 h-3 shrink-0" aria-label="Com filtro de categorias" />}
                     <span className="truncate tabular-nums">{cutTitle(c)}</span>
+                    {c.name.trim() && (<>
+                      {' '}<span className={`shrink-0 text-[10px] font-medium tabular-nums ${on ? 'text-black/60' : 'text-zinc-500'}`} data-testid="cut-tag-dates">{rangeLabel(c.from, c.to)}</span>
+                    </>)}
                   </button>
                   <button type="button" onClick={() => remove(c)} data-testid="cut-tag-remove" aria-label={`Apagar recorte ${cutTitle(c)}`}
                     className={`shrink-0 w-9 h-full flex items-center justify-center rounded-r-full transition-colors ${on ? 'text-black/60 hover:text-black' : 'text-zinc-500 hover:text-red-400'}`}>
