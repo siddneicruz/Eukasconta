@@ -55,10 +55,11 @@ const RECEIPT_FORMAT_HINT = `Responda SOMENTE com um objeto JSON válido (sem ma
   "time": "HH:MM",
   "totalAmount": 0.00,
   "items": [
-    { "description": "texto do item como impresso", "quantity": 1, "unitType": "UN", "unitPrice": 0.00, "totalPrice": 0.00, "category": "um item exato da taxonomia" }
+    { "description": "nome do item como impresso, sem o código", "code": "código impresso na linha do item (de barras ou da loja), só os caracteres, ? no dígito ilegível, \"\" se não houver", "quantity": 1, "unitType": "UN", "unitPrice": 0.00, "totalPrice": 0.00, "category": "um item exato da taxonomia" }
   ]
 }
 Use números JSON com ponto decimal (12.5, não "12,50"). Se um dado não aparecer no cupom, use "" (texto) ou 0 (número).
+Se o nome de um item estiver rasurado ou cortado, escreva só o que dá para ler, com ? nas letras ilegíveis; não invente.
 Escreva o JSON compacto, numa única linha, sem quebras de linha nem indentação: isso encurta a resposta e acelera a leitura.`;
 
 /* ───────────────────────────── JSON tolerante ───────────────────────────── */

@@ -20,7 +20,7 @@ import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
 import EstablishmentEditSheet from './components/EstablishmentEditSheet';
 import { applyStoreEdit, StoreDraft } from './services/establishmentEdit';
-import { rekeyStoreCodes } from './services/productCodes';
+import { rekeyStoreCodes, applyCodeEdit, CodeOp } from './services/productCodes';
 import SettingsView from './components/SettingsView';
 import DiagnosticPanel from './components/DiagnosticPanel';
 import ManualEntryForm from './components/ManualEntryForm';
@@ -888,6 +888,14 @@ const App: React.FC = () => {
   };
 
   // Desfaz uma unificação para um nome de cupom: ele volta a ser um produto à parte
+  // Acrescenta ou tira um código (de barras ou de loja) de um produto. Devolve o texto do erro, ou null quando gravou.
+  const handleEditCodes = (masterCode: string, op: CodeOp): string | null => {
+      const r = applyCodeEdit(masterProducts, masterCode, op);
+      if ('error' in r) return r.error;
+      setMasterProducts(r.masters);
+      return null;
+  };
+
   const handleSplitProduct = (desc: string, group: ProductGroup) => {
       setMasterProducts(prev => splitDesc(prev, desc, { category: group.category, unit: group.unit }).masters);
       showNotification(`${titleCase(desc)} agora é um produto à parte.`);
@@ -1173,6 +1181,7 @@ const App: React.FC = () => {
                         masterProducts={masterProducts}
                         onUnifyProducts={handleUnifyProducts}
                         onSplitProduct={handleSplitProduct}
+                        onEditCodes={handleEditCodes}
                         onCleanupDuplicates={handleCleanupDuplicates}
                         onAuditPrices={handleAuditPrices}
                         onReprocessCategories={handleReprocessCategories}

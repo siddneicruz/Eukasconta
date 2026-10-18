@@ -9,6 +9,7 @@ import { Receipt, Establishment, MasterProduct } from '../types';
 import { parseReceiptImage, GeminiError } from './geminiService';
 import { getActiveProvider, getActiveProviderLabel } from './keyStorageService';
 import { applyRegistry, buildMasterIndex, learnEstablishment } from './registryLookupService';
+import { cleanCode, splitLeadingCode } from './productCodes';
 import { SCAN_LIMIT_OPENROUTER_MS } from './openrouterService';
 import { diagnostics } from './diagnosticService';
 import { generateId } from './idUtils';
@@ -309,12 +310,14 @@ const runBatch = async (files: File[], ctx: ScanContext, isRetry: boolean) => {
 
       addLog('Dados extraídos com sucesso. Processando itens...');
       const rawItems = extractedData.items || [];
-      let calculatedItems = rawItems.map(item => {
+      let calculatedItems = rawItems.map(raw => {
+        // Modelo que deixou o código colado no começo do nome: separa os dois. O código lido é limpo (sem espaço, ponto ou traço).
+        const item = splitLeadingCode(raw);
         let q = cleanNumber(item.quantity);
         const u = cleanNumber(item.unitPrice);
         const t = cleanNumber(item.totalPrice);
         if (q <= 0) q = 1;
-        return { ...item, quantity: q, unitPrice: u, totalPrice: t };
+        return { ...item, code: cleanCode(item.code) || undefined, quantity: q, unitPrice: u, totalPrice: t };
       });
       calculatedItems = calculatedItems.map(item => {
         const q = item.quantity;

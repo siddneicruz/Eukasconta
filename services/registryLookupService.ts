@@ -17,7 +17,7 @@ import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanDescriptionForMatching } from './productMasterService';
 import { ruleCategoryFor } from './categoryRules';
 import { cleanCNPJ, formatCNPJ } from './productNormalization';
-import { CodeIndex, CodeVia, buildCodeIndex, cleanCode, identifyByCode, leadingCode } from './productCodes';
+import { CodeIndex, CodeVia, buildCodeIndex, cleanCode, identifyByCode, leadingCode, looseSimilarity } from './productCodes';
 
 /* ───────────────────────────── CNPJ ───────────────────────────── */
 
@@ -157,29 +157,8 @@ const similarity = (itemClean: string, itemWords: string[], f: MasterIndex['fuzz
   return inter / union;
 };
 
-// Semelhança "frouxa" para conferir um nome lido contra um produto que o código já apontou. Compara com o nome do
-// produto e com cada nome que já apareceu para ele, e aceita abreviação (FAT = FATIADO), porque cupom abrevia à vontade.
-export const looseSimilarity = (description: string, master: MasterProduct): number => {
-  const clean = cleanDescriptionForMatching((description || '').toUpperCase());
-  const words = wordsOf(clean);
-  if (words.length === 0) return 0;
-  let best = 0;
-  for (const name of [master.description, ...(master.aliases || [])]) {
-    const c = cleanDescriptionForMatching((name || '').toUpperCase());
-    if (!c) continue;
-    if (c === clean) return 1;
-    const theirs = wordsOf(c);
-    if (theirs.length === 0) continue;
-    const set = new Set(theirs);
-    let inter = 0;
-    words.forEach(w => { if (set.has(w)) inter++; });
-    const jaccard = inter / new Set([...words, ...theirs]).size;
-    let near = 0;
-    words.forEach(w => { if (theirs.some(x => x === w || x.startsWith(w) || w.startsWith(x))) near++; });
-    best = Math.max(best, jaccard, near / words.length);
-  }
-  return best;
-};
+// Semelhança "frouxa" (abreviação, letra trocada, "?") para conferir um nome lido contra o produto que o código apontou.
+export { looseSimilarity };
 
 export interface MasterHit {
   master: MasterProduct;

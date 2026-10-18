@@ -30,6 +30,7 @@ const RECEIPT_JSON_SCHEMA = {
         type: 'object',
         properties: {
           description: { type: 'string' },
+          code: { type: 'string', description: 'Código do produto impresso na linha do item: código de barras (8 a 14 dígitos) ou código interno da loja, só os caracteres do código, sem espaços. Use ? no lugar de um dígito ilegível. Vazio se a linha não tem código.' },
           quantity: { type: 'number' },
           unitType: { type: 'string' },
           unitPrice: { type: 'number' },

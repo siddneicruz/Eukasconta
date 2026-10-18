@@ -8,13 +8,16 @@ import { formatCNPJ } from './productNormalization';
 const MIN_WIDTH = 54;
 
 export const generateReceiptText = (receipt: Receipt): string => {
-    const tableRow = (idx: string, desc: string, qtdUn: string, unitPrice: string, total: string) =>
-        `${idx} ${desc.padEnd(26, ' ')} ${qtdUn.padStart(9, ' ')} ${unitPrice.padStart(6, ' ')} ${total.padStart(6, ' ')}`;
+    // A coluna CODIGO só aparece quando algum item tem o código do produto (de barras ou da loja)
+    const hasCodes = receipt.items.some(i => i.code);
+    const codeW = hasCodes ? Math.min(14, Math.max(6, ...receipt.items.map(i => (i.code || '').length))) : 0;
+    const tableRow = (idx: string, code: string, desc: string, qtdUn: string, unitPrice: string, total: string) =>
+        `${idx} ${hasCodes ? code.slice(0, codeW).padEnd(codeW, ' ') + ' ' : ''}${desc.padEnd(26, ' ')} ${qtdUn.padStart(9, ' ')} ${unitPrice.padStart(6, ' ')} ${total.padStart(6, ' ')}`;
     const rows = receipt.items.map((item, idx) => {
         const idxStr = (idx + 1).toString().padStart(3, '0');
         let desc = item.description.toUpperCase();
         if (desc.length > 25) desc = desc.substring(0, 25);
-        return tableRow(idxStr, desc, `${item.quantity} ${item.unitType || 'UN'}`, item.unitPrice.toFixed(2), item.totalPrice.toFixed(2));
+        return tableRow(idxStr, item.code || '', desc, `${item.quantity} ${item.unitType || 'UN'}`, item.unitPrice.toFixed(2), item.totalPrice.toFixed(2));
     });
     const lineWidth = Math.max(MIN_WIDTH, ...rows.map(r => r.length));
     const center = (text: string) => {
@@ -37,7 +40,7 @@ export const generateReceiptText = (receipt: Receipt): string => {
         ''
     ].join('\n');
 
-    output += tableRow('IT'.padEnd(3, ' '), 'DESCRIÇÃO', 'QTD UN', 'VL.UN', 'TOTAL') + '\n';
+    output += tableRow('IT'.padEnd(3, ' '), 'CODIGO', 'DESCRIÇÃO', 'QTD UN', 'VL.UN', 'TOTAL') + '\n';
     rows.forEach(r => { output += r + '\n'; });
     output += '\n' + line + '\n';
     const totalLabel = "TOTAL R$";

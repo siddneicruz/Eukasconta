@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import * as Recharts from 'recharts';
 import { calculateSimilarity, cleanDescriptionForMatching } from '../services/productMasterService';
+import { mergedCodeFields } from '../services/productCodes';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
 import ReportsPanorama from './ReportsPanorama';
 import PeriodPicker from './PeriodPicker';
@@ -271,7 +272,7 @@ const Reports: React.FC<ReportsProps> = ({
                   if (!m1 || !m2) return;
                   working = working.filter(m => m.code !== c1).map(m => (
                       m.code === c2
-                          ? { ...m, aliases: Array.from(new Set([...m.aliases, ...m1.aliases])), establishmentCodes: { ...m.establishmentCodes, ...m1.establishmentCodes } }
+                          ? { ...m, aliases: Array.from(new Set([...m.aliases, ...m1.aliases])), ...mergedCodeFields(m, m1) }
                           : m
                   ));
                   redirectedTo.set(c1, c2);
@@ -392,7 +393,7 @@ const Reports: React.FC<ReportsProps> = ({
                       return {
                           ...m,
                           aliases: Array.from(new Set([...m.aliases, ...m1.aliases])),
-                          establishmentCodes: { ...m.establishmentCodes, ...m1.establishmentCodes }
+                          ...mergedCodeFields(m, m1)
                       };
                   }
                   return m;

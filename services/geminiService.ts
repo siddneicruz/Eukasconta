@@ -79,6 +79,8 @@ INSTRUÇÕES TÉCNICAS:
 - 'state': Use apenas a sigla (ex: SP, SC).
 - 'totalAmount': Deve ser o valor final pago.
 - 'items': Extraia descrição, quantidade, tipo de unidade (KG, UN, L), preço unitário e o total do item.
+- 'code' (em cada item): o código do produto que está impresso na linha do item, o de barras (EAN, 8 a 14 dígitos) ou o código interno da loja. Escreva só os caracteres do código, sem espaços. Se um dígito estiver ilegível, escreva ? no lugar dele. Se a linha não tem código, deixe vazio. NÃO coloque o código dentro de 'description': ela leva só o nome do produto como está impresso.
+- Se o nome de um item estiver rasurado, apagado ou cortado, escreva em 'description' só o que dá para ler e use ? nas letras ilegíveis. Não invente o nome.
 
 Retorne APENAS o JSON.
 `;
@@ -101,6 +103,7 @@ const RECEIPT_SCHEMA = {
         type: Type.OBJECT,
         properties: {
           description: { type: Type.STRING },
+          code: { type: Type.STRING, description: "Código do produto impresso na linha do item: código de barras (8 a 14 dígitos) ou código interno da loja, só os caracteres do código, sem espaços. Use ? no lugar de um dígito ilegível. Vazio se a linha não tem código." },
           quantity: { type: Type.NUMBER },
           unitType: { type: Type.STRING },
           unitPrice: { type: Type.NUMBER },

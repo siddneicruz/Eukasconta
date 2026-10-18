@@ -22,6 +22,8 @@ import { AppMark, PDLogo } from './Brand';
 import NicknameSuggestSheet from './NicknameSuggestSheet';
 import { agoText, parseWhen, useFileBackupAt, useNow, whenText } from '../services/lastWhen';
 import type { ProductGroup } from '../services/productUnify';
+import type { CodeOp } from '../services/productCodes';
+import { storeCodeOptions } from '../services/establishmentNames';
 import type { UnifyPlan } from './ProductUnifySheet';
 
 interface SettingsViewProps {
@@ -43,6 +45,7 @@ interface SettingsViewProps {
   // Unificar produtos (Inteligência)
   onUnifyProducts?: (plan: UnifyPlan) => void;
   onSplitProduct?: (desc: string, group: ProductGroup) => void;
+  onEditCodes?: (masterCode: string, op: CodeOp) => string | null;
   establishments: Establishment[];
   onUpdateEstablishment: (est: Establishment) => void;
   // Abre a folha com todos os dados da loja para editar
@@ -119,7 +122,7 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 const SettingsView: React.FC<SettingsViewProps> = ({ 
   taxonomy, onUpdateTaxonomy, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
-  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
+  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -131,6 +134,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const [estSearchTerm, setEstSearchTerm] = useState('');
   const [nickOpen, setNickOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const storeOptions = useMemo(() => storeCodeOptions(establishments), [establishments]);
   const now = useNow();
   const fileBackupAt = parseWhen(useFileBackupAt());
 
@@ -335,6 +339,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 onUpdateBatchMapping={onUpdateBatchMapping} 
                 onUnifyProducts={onUnifyProducts}
                 onSplitProduct={onSplitProduct}
+                stores={storeOptions}
+                onEditCodes={onEditCodes}
               />
               <AILearningManager 
                 learning={aiLearning} 

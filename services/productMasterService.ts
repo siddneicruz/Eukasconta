@@ -1,4 +1,11 @@
 import { Receipt, MasterProduct } from '../types';
+import { cleanDescriptionForMatching } from './descriptionClean';
+import {
+    cleanCode, leadingCode, codeKind, normStoreKey, codesOf, addStoreCode, addEan, toGtin14,
+    buildCodeIndex, indexEan, indexStoreCode, identifyByCode, looseSimilarity, isBlockedCode, noEanKey, noStoreKey,
+} from './productCodes';
+
+export { cleanDescriptionForMatching };
 
 // Hardcoded expert rules for initial seeding and high-precision unifications
 const EXPERT_UNIFICATION_RULES: { pattern: RegExp; parentName: string; unitType: string; category: string }[] = [
@@ -70,33 +77,6 @@ const EXPERT_UNIFICATION_RULES: { pattern: RegExp; parentName: string; unitType:
     }
 ];
 
-export const cleanDescriptionForMatching = (desc: string): string => {
-    if (!desc) return '';
-    let clean = desc.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-    
-    // Remove leading codes (e.g. PRD0015 or raw barcodes)
-    clean = clean.replace(/^(PRD\d+|PROD\d+|\d+)\b/g, '');
-    
-    // Replace punctuation with spaces
-    clean = clean.replace(/[.,;:\-_/\\()&|]/g, ' ');
-    
-    // Remove trailing volume specs or common unit measures (e.g. 50GR, 100ML, 50, 510, 2L, 1LT, 40VOL)
-    clean = clean.replace(/\b\d+\s*(GR|G|ML|L|LT|VOL|UNID|UN)\b/g, ' ');
-    clean = clean.replace(/\b\d+\b/g, ' '); // isolated numbers
-    
-    // Remove noise words and variants
-    const noise = [
-        'C/A', 'C/G', 'S/G', 'C/GAS', 'S/GAS', 'C/GA', 'S/GA', 'SEC', 'PROMO', 'DESSOSSADA', 'DESSOSADA',
-        'HIDR', 'HIDROP', 'HIDROPONICA', 'ESTUFA', 'ESTUEA', 'BROTO', 'DAGUA', 'UN', 'UNID', 'KG', 'K'
-    ];
-    noise.forEach(word => {
-        const regex = new RegExp(`\\b${word}\\b`, 'g');
-        clean = clean.replace(regex, ' ');
-    });
-    
-    return clean.replace(/\s+/g, ' ').trim();
-};
-
 export const calculateSimilarity = (s1: string, s2: string): number => {
     const clean1 = cleanDescriptionForMatching(s1);
     const clean2 = cleanDescriptionForMatching(s2);
@@ -153,16 +133,25 @@ const scoreAgainst = (descUpper: string, master: MasterProduct): number => {
 
 // Walks through all receipts, aligns them with existing master products,
 // automatically learns new ones, and adds aliases/local codes.
+//
+// Códigos: cada item com código (de barras ou da loja) ensina o produto: o código entra no cadastro dele, e o
+// cadastro passa a reconhecer o produto pelo código mesmo quando o nome vier rasurado. Um código que já é de outro
+// produto nunca é tomado: quem decide o que fazer com esse conflito é a pessoa.
 export const buildAndSyncMasterProducts = (
     receipts: Receipt[],
     existingMasters: MasterProduct[] = []
 ): MasterProduct[] => {
     // Trabalha numa cópia: mexer nos objetos do estado do React fazia a mudança passar batida e não ser salva.
-    const masters: MasterProduct[] = existingMasters.map(m => ({
-        ...m,
-        aliases: [...(m.aliases || [])],
-        establishmentCodes: { ...(m.establishmentCodes || {}) }
-    }));
+    const masters: MasterProduct[] = existingMasters.map(m => {
+        // Chaves antigas (CNPJ com pontuação, nome da loja) passam para a chave padrão (CNPJ só com dígitos ou "n:nome").
+        const codes: Record<string, string | string[]> = {};
+        Object.entries(m.establishmentCodes || {}).forEach(([k, v]) => {
+            const nk = normStoreKey(k) || k;
+            const merged = Array.from(new Set([...codesOf(codes[nk]), ...codesOf(v)]));
+            if (merged.length) codes[nk] = merged.length === 1 ? merged[0] : merged;
+        });
+        return { ...m, aliases: [...(m.aliases || [])], establishmentCodes: codes, ...(m.eans ? { eans: [...m.eans] } : {}), ...(m.noCodes ? { noCodes: [...m.noCodes] } : {}) };
+    });
     let nextCodeIndex = masters.length > 0 
         ? Math.max(...masters.map(m => {
             const num = parseInt(m.code.replace('MAE', ''), 10);
@@ -177,18 +166,30 @@ export const buildAndSyncMasterProducts = (
     };
     masters.forEach(m => m.aliases.forEach(a => claim(m, a)));
 
+    // Quem é dono de cada código (de barras, ou da loja), para reconhecer o produto e para não tomar código de outro
+    const codeIdx = buildCodeIndex(masters);
+
     receipts.forEach(receipt => {
-        const estKey = receipt.cnpj || receipt.establishmentName || 'Geral';
+        const storeKey = normStoreKey(receipt.cnpj || receipt.establishmentName);
         
         (receipt.items || []).forEach(item => {
             const rawDesc = (item.description || '').trim();
             if (!rawDesc) return;
             const descUpper = rawDesc.toUpperCase();
+            // Código lido na linha do item; cupons antigos traziam o número colado no começo do nome
+            const itemCode = cleanCode(item.code) || cleanCode(leadingCode(rawDesc));
             const unit = (item.unitType || 'UN').trim().toUpperCase();
-            
-            // Extract local establishment item code if description has a leading number sequence
-            const matchCode = rawDesc.match(/^(\d{3,14})\b/);
-            const estCode = matchCode ? matchCode[1] : '';
+            const kind = itemCode ? codeKind(itemCode) : null;
+
+            // O que o item ensina ao produto: código de barras do fabricante ou código da loja
+            const learnCodes = (master: MasterProduct) => {
+                if (!itemCode) return;
+                if (kind === 'ean') {
+                    if (!codeIdx.byEan.has(toGtin14(itemCode)) && !isBlockedCode(master, noEanKey(itemCode))) { addEan(master, itemCode); indexEan(codeIdx, master, itemCode); }
+                } else if (kind === 'store' && storeKey) {
+                    if (!codeIdx.byStore.has(`${storeKey}|${itemCode}`) && !isBlockedCode(master, noStoreKey(storeKey, itemCode))) { addStoreCode(master, storeKey, itemCode); indexStoreCode(codeIdx, master, storeKey, itemCode); }
+                }
+            };
 
             // O que a pessoa unificou à mão vale mais que as regras automáticas
             const owned = aliasOwner.get(descUpper);
@@ -210,9 +211,7 @@ export const buildAndSyncMasterProducts = (
                             master.aliases.push(descUpper);
                             claim(master, descUpper);
                         }
-                        if (estCode) {
-                            master.establishmentCodes[estKey] = estCode;
-                        }
+                        learnCodes(master);
                         matched = true;
                         break;
                     }
@@ -223,6 +222,18 @@ export const buildAndSyncMasterProducts = (
 
             // Step 2: Check if exact rawDesc is already an alias in an existing master product
             let foundMaster = owned;
+
+            // Step 2b: o código do produto, quando o nome ainda não é conhecido (cortado, rasurado ou escrito de outro jeito)
+            if (!foundMaster && itemCode) {
+                const byCode = identifyByCode(itemCode, storeKey, descUpper, codeIdx, looseSimilarity);
+                if (byCode && (byCode.hit.via === 'ean' || byCode.hit.via === 'store')) {
+                    foundMaster = byCode.hit.master;
+                    if (!foundMaster.aliases.includes(descUpper)) {
+                        foundMaster.aliases.push(descUpper);
+                        claim(foundMaster, descUpper);
+                    }
+                }
+            }
             
             if (!foundMaster) {
                 // Step 3: Check by clean similarity
@@ -267,10 +278,7 @@ export const buildAndSyncMasterProducts = (
                 foundMaster.aliases.forEach(a => claim(foundMaster!, a));
             }
             
-            // Map establishment local code if present
-            if (estCode && foundMaster) {
-                foundMaster.establishmentCodes[estKey] = estCode;
-            }
+            learnCodes(foundMaster);
         });
     });
     

@@ -61,6 +61,8 @@ export interface MasterProduct {
   establishmentCodes: Record<string, string | string[]>;
   // Código de barras do fabricante (EAN/GTIN): é o mesmo em qualquer loja.
   eans?: string[];
+  // Códigos que a pessoa tirou deste produto à mão: o app não os ensina de novo a partir dos cupons antigos.
+  noCodes?: string[];
   curated?: boolean;      // Unificado pela pessoa: o que ela juntou vale mais que as regras automáticas e ensina o catálogo
 }
 

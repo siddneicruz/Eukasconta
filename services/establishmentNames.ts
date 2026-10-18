@@ -1,5 +1,7 @@
 import { Establishment } from '../types';
 import { titleCase, isUnidentifiedName, UNIDENTIFIED_LABEL } from './textFormat';
+import { normStoreKey } from './productCodes';
+import { formatCNPJ } from './productNormalization';
 
 /* Apelido das lojas: o que a pessoa escreve em Config > Lojas passa a valer em todas as telas.
    O cupom continua guardado com o nome original; só a exibição troca. Lojas com o mesmo apelido
@@ -52,4 +54,21 @@ export const buildStoreNamer = (establishments: Establishment[] = []): StoreName
     return a ? `a:${plain(a)}` : `n:${plain(name)}`;
   };
   return { aliasOf, nameOf, keyOf };
+};
+
+/** Lojas para escolher no cadastro de códigos. A chave é a mesma que os códigos usam (CNPJ só com dígitos, ou "n:nome").
+ *  Duas lojas com o mesmo nome na lista ganham o CNPJ ao lado para dar para distinguir. */
+export const storeCodeOptions = (establishments: Establishment[] = []): { key: string; label: string }[] => {
+  const seen = new Map<string, string>();
+  establishments.forEach(e => {
+    const key = normStoreKey(e.cnpj || e.originalName);
+    if (!key || seen.has(key)) return;
+    const name = (e.aliasName || '').trim() ? titleCase(e.aliasName as string) : isUnidentifiedName(e.originalName) ? UNIDENTIFIED_LABEL : titleCase(e.originalName);
+    seen.set(key, name);
+  });
+  const count = new Map<string, number>();
+  seen.forEach(l => count.set(l, (count.get(l) || 0) + 1));
+  return Array.from(seen.entries())
+    .map(([key, label]) => ({ key, label: (count.get(label) || 0) > 1 && /^\d+$/.test(key) ? `${label} · ${formatCNPJ(key)}` : label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
 };

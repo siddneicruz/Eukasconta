@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
     Search, BrainCircuit, RefreshCw, Check, ArrowRight,
-    Sparkles, X, Merge, ChevronDown, Scissors, Tags
+    Sparkles, X, Merge, ChevronDown, Scissors, Tags, Barcode
 } from 'lucide-react';
 import { Receipt, TaxonomyNode, MasterProduct } from '../types';
 import { titleCase } from '../services/textFormat';
@@ -11,6 +11,8 @@ import { buildProductGroups, suggestClusters, ProductGroup, DupCluster } from '.
 import { ProductUnifySheet, ProductDupSheet, UnifyPlan } from './ProductUnifySheet';
 import CategoryFixSheet from './CategoryFixSheet';
 import { suggestCategoryFixes } from '../services/categoryRules';
+import ProductCodesPanel, { StoreOption } from './ProductCodesPanel';
+import { CodeOp, codesOf } from '../services/productCodes';
 
 interface ProductMappingEditorProps {
   receipts: Receipt[];
@@ -21,6 +23,10 @@ interface ProductMappingEditorProps {
   onUnifyProducts?: (plan: UnifyPlan) => void;
   // Tira um nome de cupom de um produto unificado e faz dele um produto à parte
   onSplitProduct?: (desc: string, group: ProductGroup) => void;
+  // Lojas para escolher ao acrescentar o código que uma loja usa para o produto
+  stores?: StoreOption[];
+  // Acrescenta ou tira um código (de barras ou de loja) do produto; devolve o texto do erro, ou null quando gravou
+  onEditCodes?: (masterCode: string, op: CodeOp) => string | null;
 }
 
 interface Suggestion {
@@ -44,7 +50,7 @@ const loadIgnored = (): Set<string> => {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const STOP_WORDS = ['UN', 'KG', 'L', 'ML', 'DE', 'COM', 'PARA'];
 
-const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, taxonomy, masterProducts = [], onUpdateBatchMapping, onUnifyProducts, onSplitProduct }) => {
+const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, taxonomy, masterProducts = [], onUpdateBatchMapping, onUnifyProducts, onSplitProduct, stores = [], onEditCodes }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [reviewModal, setReviewModal] = useState<{
         group: ProductGroup;
@@ -57,6 +63,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const [codesOpen, setCodesOpen] = useState<Set<string>>(new Set());
     const [unifyWith, setUnifyWith] = useState<ProductGroup[] | null>(null);
     const [dupOpen, setDupOpen] = useState(false);
     const [fixOpen, setFixOpen] = useState(false);
@@ -80,7 +87,17 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
 
     // Cada produto com os nomes de cupom que ele reúne
     const groups = useMemo(() => buildProductGroups(receipts, masterProducts), [receipts, masterProducts]);
-    const indexed = useMemo(() => groups.map(g => ({ g, hay: [fold(g.name), ...g.descs.map(d => fold(d.desc))].join('|') })), [groups]);
+    const masterByCode = useMemo(() => new Map(masterProducts.map(m => [m.code, m] as const)), [masterProducts]);
+    const codeCountOf = (code: string): number => {
+        const m = masterByCode.get(code);
+        return m ? (m.eans?.length || 0) + Object.values((m.establishmentCodes || {}) as Record<string, string | string[]>).reduce((n, v) => n + codesOf(v).length, 0) : 0;
+    };
+    // A busca acha o produto também pelo código: o nosso (MAE…), o de barras ou o de qualquer loja
+    const indexed = useMemo(() => groups.map(g => {
+        const m = g.code ? masterByCode.get(g.code) : undefined;
+        const codes = m ? [m.code, ...(m.eans || []), ...Object.values((m.establishmentCodes || {}) as Record<string, string | string[]>).flatMap(v => codesOf(v))] : [];
+        return { g, hay: [fold(g.name), ...g.descs.map(d => fold(d.desc)), ...codes.map(c => fold(c))].join('|') };
+    }), [groups, masterByCode]);
 
     const filtered = useMemo(() => {
         const tokens = queryTokens(searchTerm);
@@ -170,6 +187,12 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
     };
 
     const toggleSelect = (key: string) => setSelected(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        return next;
+    });
+
+    const toggleCodes = (key: string) => setCodesOpen(prev => {
         const next = new Set(prev);
         if (next.has(key)) next.delete(key); else next.add(key);
         return next;
@@ -324,12 +347,24 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                                     <>
                                         {body}
                                         {categorySelect(g)}
-                                        {many && (
-                                            <button type="button" onClick={() => toggleOpen(g.key)} aria-expanded={isOpen} data-testid="prod-names-toggle"
-                                                className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-luxury-gold transition-colors min-h-[36px]">
-                                                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                                                {isOpen ? 'Esconder os nomes' : `Ver os ${g.descs.length} nomes`}
-                                            </button>
+                                        <div className="mt-2.5 flex flex-wrap items-center gap-x-5">
+                                            {many && (
+                                                <button type="button" onClick={() => toggleOpen(g.key)} aria-expanded={isOpen} data-testid="prod-names-toggle"
+                                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-luxury-gold transition-colors min-h-[36px]">
+                                                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                                    {isOpen ? 'Esconder os nomes' : `Ver os ${g.descs.length} nomes`}
+                                                </button>
+                                            )}
+                                            {g.code && masterByCode.has(g.code) && (
+                                                <button type="button" onClick={() => toggleCodes(g.key)} aria-expanded={codesOpen.has(g.key)} data-testid="prod-codes-toggle"
+                                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-luxury-gold transition-colors min-h-[36px]">
+                                                    <Barcode className="w-4 h-4" />
+                                                    {codesOpen.has(g.key) ? 'Esconder os códigos' : codeCountOf(g.code) > 0 ? `Códigos (${codeCountOf(g.code)})` : 'Códigos'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {codesOpen.has(g.key) && g.code && masterByCode.get(g.code) && (
+                                            <ProductCodesPanel master={masterByCode.get(g.code)!} stores={stores} onEdit={onEditCodes ? op => onEditCodes(g.code, op) : undefined} />
                                         )}
                                         {many && isOpen && (
                                             <ul className="mt-1 divide-y divide-white/5 border-t border-white/5" data-testid="prod-names">

@@ -91,6 +91,8 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, o
                          <div className="flex justify-between items-start">
                             <div className="flex-1 pr-4">
                                 <p className="text-zinc-100 text-sm font-medium font-sans leading-snug break-words">{titleCase(item.description)}</p>
+                                {item.code && <p className="text-xs text-zinc-500 tabular-nums mt-0.5" data-testid="item-code">Código {item.code}</p>}
+                                {item.readDescription && <p className="text-xs text-zinc-500 mt-0.5 break-words" data-testid="item-read-description">Na foto: {item.readDescription}</p>}
                             </div>
                             <div className="flex flex-col items-end gap-0.5 min-w-[100px]">
                                 <span className="text-zinc-200 text-sm font-bold font-sans tabular-nums">

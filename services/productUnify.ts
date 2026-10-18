@@ -1,5 +1,6 @@
 import { Receipt, MasterProduct } from '../types';
 import { cleanDescriptionForMatching } from './productMasterService';
+import { mergedCodeFields } from './productCodes';
 
 /* Unificação de produtos feita pela pessoa.
    Um "produto" do app é um cadastro mestre (MAE0001…): vários nomes de cupom (aliases) que valem o mesmo item.
@@ -112,11 +113,10 @@ export const unifyGroups = (
   const survivorOld = picked.find(m => m.code === survivorCode);
 
   const all = new Set<string>();
-  const est: Record<string, string> = {};
-  // cadastro que fica escreve por último, então o código de loja dele vence um conflito
-  [...picked.filter(m => m.code !== survivorCode), ...(survivorOld ? [survivorOld] : [])].forEach(m => {
+  // os códigos (de barras e das lojas) de todos os produtos juntados passam para o que fica; o dele vem primeiro
+  const order = [...(survivorOld ? [survivorOld] : []), ...picked.filter(m => m.code !== survivorCode)];
+  order.forEach(m => {
     (m.aliases || []).forEach(a => { const k = descKey(a); if (k) all.add(k); });
-    Object.assign(est, m.establishmentCodes || {});
   });
   groups.forEach(g => g.descs.forEach(d => { if (d.desc) all.add(d.desc); }));
 
@@ -126,7 +126,7 @@ export const unifyGroups = (
     unitType: descKey(o.unit || survivorOld?.unitType || groups[0]?.unit || 'UN') || 'UN',
     category: o.category || survivorOld?.category || groups[0]?.category || 'Outros',
     aliases: Array.from(all),
-    establishmentCodes: est,
+    ...mergedCodeFields(...order),
     curated: true,
   };
 

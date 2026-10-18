@@ -9,6 +9,7 @@
 // Tudo aqui é função pura (não lê localStorage nem chama rede), então dá para testar isolada.
 
 import { MasterProduct } from '../types';
+import { cleanDescriptionForMatching } from './descriptionClean';
 
 /* ───────────────────────────── limpeza e tipo do código ───────────────────────────── */
 
@@ -64,7 +65,7 @@ export const codeKind = (code: string): CodeKind => {
 
 // Códigos antigos vinham colados no começo da descrição ("7891164028756 REQUEIJAO AURORA"): serve de código também.
 export const leadingCode = (description: string): string => {
-  const m = String(description || '').trim().match(/^(\d{4,14})\b/);
+  const m = String(description || '').trim().match(/^(\d{3,14})\b/);
   return m ? m[1] : '';
 };
 
@@ -300,4 +301,155 @@ export const identifyByCode = (
   const sim = hit.via === 'ean' || !readable ? 0 : similarity(description, hit.master);
   if (hit.via === 'ean' || !readable || sim >= MIN_SIMILARITY[hit.via]) return { hit, sim, readable };
   return null;
+};
+
+/* ───────────────────────────── parecer com um produto ───────────────────────────── */
+
+const wordsOf = (clean: string): string[] => clean.split(' ').filter(w => w.length > 2);
+
+// distância de edição (inserir, tirar ou trocar uma letra), para aceitar "PIMFNTAO" como "PIMENTAO"
+const editDistance = (a: string, b: string): number => {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+};
+
+// A palavra lida bate com a palavra do produto? Igual, começo (abreviação: FAT = FATIADO), com "?" no lugar de letra
+// ilegível, ou com uma letra trocada.
+const wordMatches = (w: string, x: string): boolean => {
+  if (w === x) return true;
+  if (w.length >= 3 && (x.startsWith(w) || (x.length >= 3 && w.startsWith(x)))) return true;
+  if (w.includes('?')) {
+    const pattern = w.replace(/[^A-Z0-9?]/g, '').replace(/\?/g, '[A-Z0-9]');
+    return new RegExp('^' + pattern).test(x);
+  }
+  const tol = w.length >= 7 ? 2 : w.length >= 4 ? 1 : 0;
+  return tol > 0 && editDistance(w, x) <= tol;
+};
+
+/**
+ * Semelhança "frouxa" (0 a 1) entre o nome lido e um produto que o código já apontou: compara com o nome do produto e
+ * com cada nome que já apareceu para ele, e aceita abreviação, letra trocada e "?". `clean` limpa o texto como o app faz
+ * para juntar nomes (cleanDescriptionForMatching).
+ */
+export const looseSimilarity = (description: string, master: MasterProduct): number => {
+  const prep = (s: string) => cleanDescriptionForMatching(String(s || '').toUpperCase().replace(/\?/g, '#')).replace(/#/g, '?');
+  const clean = prep(description);
+  const words = wordsOf(clean);
+  if (words.length === 0) return 0;
+  let best = 0;
+  for (const name of [master.description, ...(master.aliases || [])]) {
+    const c = prep(name);
+    if (!c) continue;
+    if (c === clean) return 1;
+    const theirs = wordsOf(c);
+    if (theirs.length === 0) continue;
+    const set = new Set(theirs);
+    let inter = 0;
+    words.forEach(w => { if (set.has(w)) inter++; });
+    const jaccard = inter / new Set([...words, ...theirs]).size;
+    let near = 0;
+    words.forEach(w => { if (theirs.some(x => wordMatches(w, x))) near++; });
+    best = Math.max(best, jaccard, near / words.length);
+  }
+  return best;
+};
+
+/* ───────────────────────────── código colado no nome ───────────────────────────── */
+
+/** Modelos que ignoram o campo "code" deixam o código na frente do nome ("16059 BATATA MONALISA"): separa os dois. */
+export const splitLeadingCode = <T extends { description: string; code?: string }>(item: T): T => {
+  if (cleanCode(item.code)) return item;
+  const m = String(item.description || '').trim().match(/^(\d{4,14})[\s\-–.:]+(\S.*)$/);
+  if (!m || !descriptionReadable(m[2])) return item;
+  const code = cleanCode(m[1]);
+  return code ? { ...item, code, description: m[2].trim() } : item;
+};
+
+/* ───────────────────────────── juntar e editar códigos ───────────────────────────── */
+
+/** Os códigos de dois produtos somados (o primeiro vence na ordem). */
+export const mergeCodes = (...ms: MasterProduct[]): { establishmentCodes: Record<string, string | string[]>; eans: string[]; noCodes: string[] } => {
+  const probe: MasterProduct = { code: '', description: '', unitType: '', category: '', aliases: [], establishmentCodes: {}, eans: [] };
+  ms.forEach(m => {
+    (m.eans || []).forEach(e => addEan(probe, e));
+    Object.entries(m.establishmentCodes || {}).forEach(([k, v]) => codesOf(v).forEach(c => addStoreCode(probe, k, c)));
+  });
+  const noCodes = Array.from(new Set(ms.flatMap(m => m.noCodes || [])));
+  return { establishmentCodes: probe.establishmentCodes, eans: probe.eans || [], noCodes };
+};
+
+/** Os campos de código para espalhar num produto que absorveu outros: `{ ...m, ...mergedCodeFields(m, outro) }`. */
+export const mergedCodeFields = (...ms: MasterProduct[]): Pick<MasterProduct, 'establishmentCodes' | 'eans' | 'noCodes'> => {
+  const mc = mergeCodes(...ms);
+  return { establishmentCodes: mc.establishmentCodes, ...(mc.eans.length ? { eans: mc.eans } : {}), ...(mc.noCodes.length ? { noCodes: mc.noCodes } : {}) };
+};
+
+// Código que a pessoa tirou de um produto: o app não o ensina de novo a partir dos cupons antigos.
+export const noEanKey = (ean: string): string => `E|${toGtin14(cleanCode(ean))}`;
+export const noStoreKey = (storeKey: string, code: string): string => `S|${normStoreKey(storeKey)}|${cleanCode(code)}`;
+export const isBlockedCode = (m: MasterProduct, key: string): boolean => (m.noCodes || []).includes(key);
+
+export type CodeEditResult = { ok: true; masters: MasterProduct[] } | { ok: false; error: string };
+
+/** Mexe nos códigos de um produto à mão (adicionar ou tirar), sem deixar o mesmo código em dois produtos. */
+export const applyCodeEdit = (masters: MasterProduct[], masterCode: string, op: CodeOp): CodeEditResult => {
+  const target = masters.find(m => m.code === masterCode);
+  if (!target) return { ok: false, error: 'Produto não encontrado.' };
+  const idx = buildCodeIndex(masters);
+  const copy = (m: MasterProduct): MasterProduct => ({
+    ...m,
+    establishmentCodes: { ...(m.establishmentCodes || {}) },
+    ...(m.eans ? { eans: [...m.eans] } : {}),
+    ...(m.noCodes ? { noCodes: [...m.noCodes] } : {}),
+  });
+  const next = copy(target);
+  const block = (k: string) => { if (!isBlockedCode(next, k)) next.noCodes = [...(next.noCodes || []), k]; };
+  const allow = (k: string) => {
+    if (!isBlockedCode(next, k)) return;
+    next.noCodes = (next.noCodes || []).filter(x => x !== k);
+    if (next.noCodes.length === 0) delete next.noCodes;
+  };
+
+  if (op.kind === 'addEan') {
+    const c = cleanCode(op.ean);
+    if (!c || !/^\d+$/.test(c)) return { ok: false, error: 'O código de barras tem só números (8, 12, 13 ou 14).' };
+    if (!gtinValid(c)) return { ok: false, error: 'Este código de barras não passa na conferência do último dígito. Veja se digitou certo.' };
+    const owner = idx.byEan.get(toGtin14(c));
+    if (owner && owner.code !== masterCode) return { ok: false, error: `Este código de barras já é do produto "${owner.description}". Se são o mesmo item, use "Unificar".` };
+    addEan(next, c);
+    allow(noEanKey(c));
+  } else if (op.kind === 'addStore') {
+    const c = cleanCode(op.code);
+    const sk = normStoreKey(op.storeKey);
+    if (!sk) return { ok: false, error: 'Escolha a loja.' };
+    if (!c || c.includes('?')) return { ok: false, error: 'Digite o código da loja inteiro.' };
+    const owner = idx.byStore.get(`${sk}|${c}`);
+    if (owner && owner.code !== masterCode) return { ok: false, error: `Este código já é do produto "${owner.description}" nesta loja. Se são o mesmo item, use "Unificar".` };
+    addStoreCode(next, sk, c);
+    allow(noStoreKey(sk, c));
+  } else if (op.kind === 'removeEan') {
+    const g = toGtin14(cleanCode(op.ean));
+    next.eans = (next.eans || []).filter(e => toGtin14(cleanCode(e)) !== g);
+    if (next.eans.length === 0) delete next.eans;
+    block(noEanKey(op.ean));
+  } else {
+    const sk = normStoreKey(op.storeKey);
+    const c = cleanCode(op.code);
+    const out: Record<string, string | string[]> = {};
+    Object.entries(next.establishmentCodes).forEach(([k, v]) => {
+      if (normStoreKey(k) !== sk) { out[k] = v; return; }
+      const left = codesOf(v).filter(x => cleanCode(x) !== c);
+      if (left.length) out[k] = left.length === 1 ? left[0] : left;
+    });
+    next.establishmentCodes = out;
+    block(noStoreKey(sk, c));
+  }
+  return { ok: true, masters: masters.map(m => (m === target ? next : m)) };
 };
