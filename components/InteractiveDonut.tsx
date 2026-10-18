@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
+import { Eye, EyeOff } from 'lucide-react';
 import { properCase, shortLabels } from '../services/textFormat';
 
 export interface DonutSlice {
@@ -150,15 +151,20 @@ const makeOuterLabel = (chosen: Map<number, LabelBox>) => (props: any) => {
   const tx = x1 + (right ? ELBOW + GAP : -(ELBOW + GAP));
   return (
     <g className="pointer-events-none">
-      <polyline points={`${cx + r0 * cos},${cy + r0 * sin} ${x1},${y1} ${x1 + (right ? ELBOW : -ELBOW)},${y1}`} fill="none" stroke="#71717a" strokeWidth={1} />
+      <polyline points={`${cx + r0 * cos},${cy + r0 * sin} ${x1},${y1} ${x1 + (right ? ELBOW : -ELBOW)},${y1}`} fill="none" stroke="var(--donut-line, #71717a)" strokeWidth={1} />
       {box.lines.map((line, k) => (
-        <text key={k} x={tx} y={y1 + (k - (box.lines.length - 1) / 2) * LINE_H} fill="#d4d4d8" fontSize={LABEL_FONT_PX} fontWeight={500} textAnchor={right ? 'start' : 'end'} dominantBaseline="central">
+        <text key={k} x={tx} y={y1 + (k - (box.lines.length - 1) / 2) * LINE_H} fill="var(--donut-label, #d4d4d8)" fontSize={LABEL_FONT_PX} fontWeight={500} textAnchor={right ? 'start' : 'end'} dominantBaseline="central">
           {line}
         </text>
       ))}
     </g>
   );
 };
+
+// Mostrar ou esconder os nomes ao redor do anel: a escolha vale para todos os gráficos e fica no aparelho.
+const LABELS_KEY = 'eukasconta_donut_labels';
+const readLabelsPref = (): boolean => { try { return localStorage.getItem(LABELS_KEY) !== '0'; } catch { return true; } };
+const writeLabelsPref = (v: boolean) => { try { localStorage.setItem(LABELS_KEY, v ? '1' : '0'); } catch { /* sem armazenamento: vale só até fechar */ } };
 
 // Doughnut com dois gestos de verdade:
 // - Arrastar (mouse ou dedo) gira o anel inteiro, como girar uma roleta.
@@ -175,6 +181,8 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
   const [rotation, setRotation] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [showLabels, setShowLabels] = useState<boolean>(readLabelsPref);
+  const toggleLabels = () => setShowLabels(v => { const n = !v; writeLabelsPref(n); return n; });
   const dragState = useRef<{ startX: number; startY: number; startRotation: number; moved: boolean; centerX: number; centerY: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Último tipo de ponteiro usado. No toque o navegador dispara "mouseenter" DEPOIS que o dedo sai,
@@ -218,15 +226,20 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
   const geom = useMemo(() => {
     if (box.w <= 0 || box.h <= 0) return null;
     // espaço lateral pensado nos 8 maiores nomes (os que mais importam); nomes mais largos que isso só entram se couberem
+    // sem nomes ao redor, o anel usa todo o espaço
+    if (!showLabels) {
+      const outer = Math.max(40, Math.min(box.w / 2 - 10, box.h / 2 - 10));
+      return { outer, inner: outer * 0.7 };
+    }
     const widest = candidates.slice(0, 8).reduce((m, i) => Math.max(m, labels[i][0].w), 0);
     const sidePad = LABEL_REACH + widest + 6;
     const outer = Math.max(40, Math.min(box.w / 2 - sidePad, box.h / 2 - 22));
     return { outer, inner: outer * 0.7 };
-  }, [box, candidates, labels]);
+  }, [box, candidates, labels, showLabels]);
 
   const chosen = useMemo(
-    () => geom ? planLabels(data, labels, candidates, total, rotation, box.w, box.h, geom.outer) : new Map<number, LabelBox>(),
-    [data, labels, candidates, total, rotation, box, geom]);
+    () => geom && showLabels ? planLabels(data, labels, candidates, total, rotation, box.w, box.h, geom.outer) : new Map<number, LabelBox>(),
+    [data, labels, candidates, total, rotation, box, geom, showLabels]);
   const labelRenderer = useMemo(() => makeOuterLabel(chosen), [chosen]);
 
   // Texto do centro: cabe dentro do furo (nunca vaza para o anel).
@@ -286,10 +299,16 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
 
   return (
     <div className="relative w-full h-full">
+      <button type="button" onClick={toggleLabels} aria-pressed={showLabels} data-testid="donut-labels-toggle"
+        aria-label={showLabels ? 'Esconder os nomes ao redor do gráfico' : 'Mostrar os nomes ao redor do gráfico'}
+        className="absolute top-0 right-0 z-20 h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 text-[12px] font-semibold text-zinc-300 hover:border-luxury-gold/40 hover:text-luxury-gold transition-colors">
+        {showLabels ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        {showLabels ? 'Esconder nomes' : 'Mostrar nomes'}
+      </button>
       {/* Área do gráfico: deixa uma faixa livre embaixo para a etiqueta (ela nunca cobre o anel) */}
       <div
         ref={containerRef}
-        className="absolute inset-x-0 top-0 bottom-12 touch-none select-none outline-none [&_*]:!outline-none"
+        className="absolute inset-x-0 top-10 bottom-12 touch-none select-none outline-none [&_*]:!outline-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -316,11 +335,10 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
               stroke="none"
               startAngle={90 + rotation}
               endAngle={450 + rotation}
-              isAnimationActive={!dragState.current}
-              animationDuration={600}
+              isAnimationActive={false}
               activeIndex={activeIndex}
               activeShape={renderActiveShape}
-              label={labelRenderer}
+              label={showLabels ? labelRenderer : false}
               labelLine={false}
               onMouseEnter={(_, idx) => { if (pointerType.current !== 'touch') setActiveIndex(idx); }}
               onMouseLeave={() => { if (pointerType.current !== 'touch') setActiveIndex(undefined); }}
