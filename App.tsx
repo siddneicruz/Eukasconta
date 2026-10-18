@@ -49,6 +49,7 @@ import {
   remapMasters, remapMeta, remapReceipts,
 } from './services/taxonomyDedupe';
 import { loadDeptFilter, saveDeptFilter } from './services/deptFilter';
+import { looksLikeXlsx, mergePlanilha, mergeStores, readPlanilha } from './services/planilhaImport';
 import { loadCuts, saveCuts } from './services/cuts';
 import { auditCategoriesWithAI } from './services/geminiService';
 import { buildAndSyncMasterProducts } from './services/productMasterService';
@@ -772,6 +773,50 @@ const App: React.FC = () => {
       }
   };
 
+  // Planilha de compras consolidada (.xlsx), no modo mesclar: entram só os cupons que faltam e, nos que já existem,
+  // só se preenche o que estiver vazio (categoria "Outros" e código). Nada é apagado nem sobrescrito.
+  const importPlanilha = async (file: File) => {
+      restore.before('importar a planilha de compras');
+      setGlobalLoading(true);
+      setLoadingText('LENDO A PLANILHA...');
+      try {
+          const plan = await readPlanilha(file);
+          if (!plan) {
+              showNotification('Essa planilha não é a de compras consolidadas (precisa da aba "Compras Consolidadas"). Nada foi importado.', 9000);
+              return;
+          }
+          const out = await mergePlanilha(
+              plan,
+              { establishments, masterProducts, categories, existing: receiptsRef.current },
+              (d, t) => setLoadingText(`MESCLANDO A PLANILHA... ${d} DE ${t}`),
+          );
+          const enrichedById = new Map(out.enriched.map(r => [r.id, r] as const));
+          const stores = mergeStores(establishments, out.stores, out.added);
+          if (out.added.length > 0 || enrichedById.size > 0) {
+              const fresh = (prev: Receipt[]) => out.added.filter(a => !prev.some(ex => ex.id === a.id));
+              receiptsRef.current = [...fresh(receiptsRef.current), ...receiptsRef.current.map(r => enrichedById.get(r.id) ?? r)];
+              setReceipts(prev => [...fresh(prev), ...prev.map(r => enrichedById.get(r.id) ?? r)]);
+          }
+          if (stores.added > 0 || stores.filled > 0) setEstablishments(prev => mergeStores(prev, out.stores, out.added).list);
+          const parts: string[] = [];
+          if (out.added.length > 0) parts.push(`${out.added.length} ${out.added.length === 1 ? 'cupom novo' : 'cupons novos'} (${out.items} itens)`);
+          if (out.enriched.length > 0) parts.push(`${out.enriched.length} ${out.enriched.length === 1 ? 'cupom que já existia foi completado' : 'cupons que já existiam foram completados'} (${out.categoriesFilled} ${out.categoriesFilled === 1 ? 'categoria' : 'categorias'}${out.codesFilled > 0 ? `, ${out.codesFilled} ${out.codesFilled === 1 ? 'código' : 'códigos'}` : ''})`);
+          if (out.unchanged > 0) parts.push(`${out.unchanged} já estavam completos`);
+          if (stores.added > 0) parts.push(`${stores.added} ${stores.added === 1 ? 'loja nova' : 'lojas novas'}`);
+          if (stores.filled > 0) parts.push(`${stores.filled} ${stores.filled === 1 ? 'loja completada' : 'lojas completadas'} (apelido, CEP, cidade)`);
+          if (out.added.length > 0 && out.uncategorized > 0) parts.push(`${out.uncategorized} ${out.uncategorized === 1 ? 'item ficou' : 'itens ficaram'} em "Outros"`);
+          showNotification(parts.length > 0 && (out.added.length > 0 || out.enriched.length > 0 || stores.added > 0 || stores.filled > 0)
+              ? `Planilha mesclada: ${parts.join('; ')}.`
+              : 'A planilha não trouxe nada novo: tudo o que está nela já estava no app.', 14000);
+          if (out.added.length > 0) setView('history');
+      } catch (e: any) {
+          console.error('Erro ao importar a planilha:', e);
+          showNotification(`Não consegui importar a planilha: ${String(e?.message || e)}`, 8000);
+      } finally {
+          setGlobalLoading(false);
+      }
+  };
+
   const handleImportData = async (file: File) => {
       // Arquivo de ponto de restauração: entra na lista de pontos e não mexe nos dados de agora
       try {
@@ -781,6 +826,10 @@ const App: React.FC = () => {
       let txts: TxtFile[] | null = null;
       try { txts = await readTxtReceipts(file); } catch { /* não deu para ler como texto: segue como backup comum */ }
       if (txts) { await importTxtReceipts(txts); return; }
+      // Planilha de compras (.xlsx)
+      let isSheet = false;
+      try { isSheet = await looksLikeXlsx(file); } catch { /* segue como backup comum */ }
+      if (isSheet) { await importPlanilha(file); return; }
       restore.before('importar um arquivo');
       setGlobalLoading(true); 
       setLoadingText("RESTAURANDO ESTÚDIO...");

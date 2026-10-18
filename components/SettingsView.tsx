@@ -343,8 +343,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <BackupCard icon={Download} label="Exportar" sub="Backup JSON/ZIP" onClick={onExportData} testId="export-backup"
                     note={fileBackupAt ? <>Último: <b className="text-zinc-300 font-semibold">{whenText(fileBackupAt, now)}</b> · {agoText(fileBackupAt, now)}</> : 'Nunca exportado'} />
                 {onExportTxtZip && <BackupCard icon={FileText} label="Cupons TXT" sub="Um .txt por cupom, em .zip" onClick={onExportTxtZip} />}
-                <BackupCard icon={Upload} label="Importar" sub="Backup ou cupons .txt" onClick={() => fileInputRef.current?.click()} />
-                <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if(f && onImportData) onImportData(f); }} accept={isNativeApp() ? '*/*' : '.json,.zip,.txt,application/json,application/zip,text/plain'} className="hidden" />
+                <BackupCard icon={Upload} label="Importar" sub="Backup, cupons .txt ou planilha" onClick={() => fileInputRef.current?.click()} />
+                <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if(f && onImportData) onImportData(f); }} accept={isNativeApp() ? '*/*' : '.json,.zip,.txt,.xlsx,application/json,application/zip,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'} className="hidden" />
                 
                 <button onClick={() => setShowResetConfirm(true)} className="p-6 bg-red-950/5 border border-red-900/10 rounded-3xl flex flex-col items-center justify-center gap-3 group hover:bg-red-900/20 transition-all">
                     <AlertTriangle className="w-6 h-6 text-red-900 group-hover:text-red-500" />
