@@ -3,16 +3,18 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
     Plus, Trash2, Edit3, ChevronDown, ChevronRight, 
     Layers, Save, X, AlertCircle,
-    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2
+    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2, Copy
 } from 'lucide-react';
 import { getCategoryIcon, getCategoryColor, getCustomMeta, matchIconByKeyword } from './Dashboard';
 import * as LucideIcons from 'lucide-react';
 import { ShoppingBag } from 'lucide-react';
-import { TaxonomyNode, TaxonomySource, DEFAULT_TAXONOMY_STRING } from '../types';
+import { TaxonomyNode, TaxonomySource, DEFAULT_TAXONOMY_STRING, Receipt } from '../types';
 import { resolveNodeStyle, slugify, migrateLegacyTaxonomy, levelTaxonomy } from '../services/taxonomyService';
 import { parseTaxonomyWorkbook, downloadTaxonomyTemplate, TaxonomyImportError } from '../services/taxonomyImportService';
 import { generateId } from '../services/idUtils';
 import { titleCase } from '../services/textFormat';
+import { MergeResult, addHiddenDefaults, detectDuplicates, loadHiddenDefaults, visibleDuplicates } from '../services/taxonomyDedupe';
+import { DuplicateCategoriesSheet, MergeWithSheet } from './DuplicateCategoriesSheet';
 
 // Classes estáticas (o Tailwind só gera classes que aparecem por completo no
 // código-fonte; \`ml-${depth * 4}\` nunca funcionaria, pois é montada em tempo
@@ -46,9 +48,30 @@ interface TaxonomyEditorProps {
   taxonomy: TaxonomyNode[];
   onUpdateTaxonomy: (newTaxonomy: TaxonomyNode[]) => void;
   onEditIcon?: (category: string) => void;
+  // Compras (para mostrar quanto cada categoria tem) e o que fazer depois de juntar categorias repetidas
+  receipts?: Receipt[];
+  onMergeCategories?: (res: MergeResult, oldTaxonomy: TaxonomyNode[], summary: string) => void;
 }
 
-const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxonomy, onEditIcon }) => {
+const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxonomy, onEditIcon, receipts = [], onMergeCategories }) => {
+    const [dupOpen, setDupOpen] = useState(false);
+    const [mergeWithId, setMergeWithId] = useState<string | null>(null);
+    const [ignoredTick, setIgnoredTick] = useState(0);
+    const dupInfo = useMemo(() => {
+        const { shown } = visibleDuplicates(detectDuplicates(taxonomy));
+        let ignored: string[] = [];
+        try { const a = JSON.parse(localStorage.getItem('eukasconta_dup_cat_ignored') || '[]'); if (Array.isArray(a)) ignored = a; } catch { /* sem armazenamento */ }
+        const open = shown.filter(g => !ignored.includes(g.id));
+        return { total: open.length, equal: open.filter(g => g.kind === 'igual').length };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [taxonomy, dupOpen, ignoredTick]);
+    // Da lista de repetidas a folha continua aberta (dá para seguir juntando); do "Juntar com…" ela fecha.
+    const applyMerge = (res: MergeResult, summary: string) => {
+        setMergeWithId(null); setIgnoredTick(t => t + 1);
+        if (onMergeCategories) onMergeCategories(res, taxonomy, summary);
+        else onUpdateTaxonomy(res.taxonomy);
+    };
+
     const [expandedNodes, setExpandedNodes] = useState<string[]>([]);
     const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
@@ -69,7 +92,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
         setIsLeveling(true);
         try {
             const referenceNodes = migrateLegacyTaxonomy(DEFAULT_TAXONOMY_STRING);
-            const { merged, addedCount } = levelTaxonomy(taxonomy, referenceNodes);
+            const { merged, addedCount } = levelTaxonomy(taxonomy, referenceNodes, loadHiddenDefaults());
             onUpdateTaxonomy(merged);
             setLevelFeedback(addedCount > 0
                 ? `Nivelado: ${addedCount} categoria(s)/item(ns) novo(s) adicionado(s). Nada existente foi alterado.`
@@ -84,7 +107,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
         setIsLeveling(true);
         try {
             const referenceNodes = await parseTaxonomyWorkbook(file);
-            const { merged, addedCount } = levelTaxonomy(taxonomy, referenceNodes);
+            const { merged, addedCount } = levelTaxonomy(taxonomy, referenceNodes, loadHiddenDefaults());
             onUpdateTaxonomy(merged);
             setLevelFeedback(addedCount > 0
                 ? `Planilha nivelada: ${addedCount} categoria(s)/item(ns) novo(s) adicionado(s).`
@@ -167,6 +190,12 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
         };
         findDescendants(id);
 
+        // departamento de fábrica apagado de propósito não volta sozinho na próxima abertura
+        const gone = taxonomy.find(n => n.id === id);
+        if (gone && gone.level === 1 && gone.sourceType === TaxonomySource.SYSTEM) {
+            const isDefault = migrateLegacyTaxonomy(DEFAULT_TAXONOMY_STRING).some(d => d.level === 1 && d.slug === gone.slug);
+            if (isDefault && !taxonomy.some(n => n.level === 1 && n.id !== id && n.slug === gone.slug)) addHiddenDefaults([gone.slug]);
+        }
         onUpdateTaxonomy(taxonomy.filter(node => !idsToDelete.has(node.id)));
     };
 
@@ -239,6 +268,9 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                         )}
                         <button onClick={() => { setEditingNodeId(node.id); setEditValue(node.name); }} className="p-1 md:p-1.5 text-zinc-500 hover:text-luxury-gold">
                             <Edit3 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                        </button>
+                        <button onClick={() => setMergeWithId(node.id)} title="Juntar com outra" aria-label={`Juntar ${node.name} com outra`} data-testid="tax-merge-with" className="p-1 md:p-1.5 text-zinc-500 hover:text-luxury-gold">
+                            <GitMerge className="w-3 h-3 md:w-3.5 md:h-3.5" />
                         </button>
                         <button onClick={() => handleDelete(node.id)} className="p-1 md:p-1.5 text-zinc-500 hover:text-red-500">
                             <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
@@ -377,6 +409,17 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                 </div>
             )}
 
+            {dupInfo.total > 0 && (
+                <div className="mx-6 mt-5 flex items-center gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 px-4 py-3" data-testid="tax-dup-banner">
+                    <Copy className="w-4 h-4 text-luxury-gold shrink-0" />
+                    <p className="flex-1 min-w-0 text-[12.5px] leading-snug text-zinc-200">
+                        <span className="font-bold text-luxury-gold">{dupInfo.total} {dupInfo.total === 1 ? 'grupo de categorias repetidas' : 'grupos de categorias repetidas'}</span>
+                        {dupInfo.equal > 0 ? <span className="text-zinc-400"> · {dupInfo.equal} {dupInfo.equal === 1 ? 'idêntico' : 'idênticos'}</span> : null}
+                    </p>
+                    <button onClick={() => setDupOpen(true)} data-testid="tax-dup-review" className="shrink-0 h-9 px-4 rounded-xl bg-luxury-gold text-black text-xs font-bold">Revisar</button>
+                </div>
+            )}
+
             <div className="p-6 space-y-4">
                 {l1Nodes.map(node => renderNode(node))}
 
@@ -394,6 +437,9 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                     A taxonomia inteligente usa herança visual. Se um nível inferior não tem ícone/cor, ele herda do pai.
                 </span>
             </div>
+
+            {dupOpen && <DuplicateCategoriesSheet taxonomy={taxonomy} receipts={receipts} onApply={applyMerge} onClose={() => { setDupOpen(false); setIgnoredTick(t => t + 1); }} />}
+            {mergeWithId && <MergeWithSheet taxonomy={taxonomy} receipts={receipts} sourceId={mergeWithId} onApply={applyMerge} onClose={() => setMergeWithId(null)} />}
         </div>
     );
 };

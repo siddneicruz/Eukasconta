@@ -9,6 +9,7 @@ import {
 import { Receipt, Establishment, TaxonomyNode, AILearningEntry, MasterProduct } from '../types';
 import { getCategoryIcon, getCategoryColor } from './Dashboard';
 import TaxonomyEditor from './TaxonomyEditor';
+import type { MergeResult } from '../services/taxonomyDedupe';
 import ProductMappingEditor from './ProductMappingEditor';
 import AILearningManager from './AILearningManager';
 import AISettingsPanel from './AISettingsPanel';
@@ -32,6 +33,8 @@ import type { UnifyPlan } from './ProductUnifySheet';
 interface SettingsViewProps {
   taxonomy: TaxonomyNode[];
   onUpdateTaxonomy: (newTaxonomy: TaxonomyNode[]) => void;
+  // Juntar categorias repetidas: o app acerta compras, metas e filtros junto
+  onMergeCategories?: (res: MergeResult, oldTaxonomy: TaxonomyNode[], summary: string) => void;
   onBack: () => void;
   onClearData?: () => void;
   onExportData?: () => void; 
@@ -120,7 +123,7 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 );
 
 const SettingsView: React.FC<SettingsViewProps> = ({ 
-  taxonomy, onUpdateTaxonomy, onClearData, onExportData, onExportTxtZip, onImportData, 
+  taxonomy, onUpdateTaxonomy, onMergeCategories, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
   receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, restore, 
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
@@ -205,7 +208,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
       {settingsTab === 'taxonomy' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-              <TaxonomyEditor taxonomy={taxonomy} onUpdateTaxonomy={onUpdateTaxonomy} onEditIcon={onEditIcon} />
+              <TaxonomyEditor taxonomy={taxonomy} onUpdateTaxonomy={onUpdateTaxonomy} onEditIcon={onEditIcon} receipts={receipts} onMergeCategories={onMergeCategories} />
           </div>
       )}
 

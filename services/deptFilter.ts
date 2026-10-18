@@ -358,7 +358,7 @@ export const useDeptFilter = (storageKey: string = DEPT_FILTER_KEY): [DeptFilter
     saveDeptFilter(next, storageKey);
   }, [storageKey]);
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => { if (e.key === storageKey) setFilter(loadDeptFilter(storageKey)); };
+    const onStorage = (e: StorageEvent) => { if (!e.key || e.key === storageKey) setFilter(loadDeptFilter(storageKey)); };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, [storageKey]);

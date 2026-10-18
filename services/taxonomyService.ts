@@ -1,6 +1,7 @@
 
 import { TaxonomyNode, TaxonomySource, AILearningEntry } from '../types';
 import { generateId } from './idUtils';
+import { sameKey } from './taxonomyDedupe';
 
 export const slugify = (text: string) => {
     return text
@@ -122,12 +123,14 @@ export const migrateLegacyTaxonomy = (legacyString: string): TaxonomyNode[] => {
     return nodes;
 };
 
-export const syncMissingDefaultTaxonomy = (existingNodes: TaxonomyNode[], defaultString: string): TaxonomyNode[] => {
+export const syncMissingDefaultTaxonomy = (existingNodes: TaxonomyNode[], defaultString: string, hiddenSlugs: string[] = []): TaxonomyNode[] => {
     const defaultNodes = migrateLegacyTaxonomy(defaultString);
     const existingSlugs = new Set(existingNodes.map(n => n.slug));
+    // Departamento de fábrica que a pessoa juntou em outro (ou apagou) não volta sozinho: era isso que recriava as duplicadas.
+    const hidden = new Set(hiddenSlugs);
     
     // Simplistic approach: if a L1 (Master category) from default is completely missing in existing, add it and its children.
-    const missingMasterNodes = defaultNodes.filter(n => n.level === 1 && !existingSlugs.has(n.slug));
+    const missingMasterNodes = defaultNodes.filter(n => n.level === 1 && !existingSlugs.has(n.slug) && !hidden.has(n.slug));
     
     if (missingMasterNodes.length === 0) return existingNodes;
 
@@ -159,13 +162,17 @@ export const syncMissingDefaultTaxonomy = (existingNodes: TaxonomyNode[], defaul
 // sem duplicar o que já existe e sem tocar em nada que o usuário já tem.
 export const levelTaxonomy = (
     existingNodes: TaxonomyNode[],
-    referenceNodes: TaxonomyNode[]
+    referenceNodes: TaxonomyNode[],
+    hiddenRootSlugs: string[] = []
 ): { merged: TaxonomyNode[]; addedCount: number } => {
+    const hidden = new Set(hiddenRootSlugs);
     const pathKey = (node: TaxonomyNode, nodes: TaxonomyNode[]): string => {
         const parts: string[] = [];
         let current: TaxonomyNode | undefined = node;
         while (current) {
-            parts.unshift(current.slug);
+            // Pelo NOME (sem acento, caixa ou plural), não pelo slug: a árvore de fábrica e a das planilhas gravam o slug de
+            // jeito diferente ("bazar-automotivo" x "automotivo"), e comparar por ele recriava toda subcategoria já existente.
+            parts.unshift(sameKey(current.name) || current.slug);
             current = current.parentId ? nodes.find(n => n.id === current!.parentId) : undefined;
         }
         return parts.join('/');
@@ -183,6 +190,8 @@ export const levelTaxonomy = (
     ordered.forEach(refNode => {
         const key = pathKey(refNode, referenceNodes);
         if (pathToId.has(key)) return; // já existe no caminho completo — não duplica
+        // departamento que a pessoa juntou em outro: não recria (os filhos dele ficam sem pai e também são pulados)
+        if (refNode.level === 1 && hidden.has(refNode.slug)) return;
 
         const parentKey = refNode.parentId
             ? pathKey(referenceNodes.find(n => n.id === refNode.parentId)!, referenceNodes)

@@ -18,6 +18,8 @@ const STOP = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'com', 'para', 'em', 
 
 const tokensOf = (s: string): string[] => fold(s).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
 const slug = (s: string): string => tokensOf(s).join(' ');
+/** O nome de um grupo/item como entra nas chaves (g:/i:). */
+export const layerSlug = slug;
 
 export const REST_LABEL = 'Outros itens';
 

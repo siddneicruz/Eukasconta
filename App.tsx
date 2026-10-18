@@ -44,6 +44,12 @@ import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, Dashbo
 import { diagnostics } from './services/diagnosticService';
 import { auditAndRepairReceipt, cleanCNPJ, formatCNPJ } from './services/productNormalization';
 import { resolveNodeStyle, migrateLegacyTaxonomy, findBestMatch, syncMissingDefaultTaxonomy } from './services/taxonomyService';
+import {
+  MergeResult, addHiddenDefaults, buildRemapper, droppedDefaultRoots, loadHiddenDefaults, remapFilterKeys, remapGoals, remapLearning,
+  remapMasters, remapMeta, remapReceipts,
+} from './services/taxonomyDedupe';
+import { loadDeptFilter, saveDeptFilter } from './services/deptFilter';
+import { loadCuts, saveCuts } from './services/cuts';
 import { auditCategoriesWithAI } from './services/geminiService';
 import { buildAndSyncMasterProducts } from './services/productMasterService';
 import { unifyGroups, splitDesc, ProductGroup } from './services/productUnify';
@@ -188,7 +194,7 @@ const App: React.FC = () => {
               if (!hasLevel4) {
                   return migrateLegacyTaxonomy(DEFAULT_TAXONOMY_STRING);
               }
-              return syncMissingDefaultTaxonomy(parsed, DEFAULT_TAXONOMY_STRING);
+              return syncMissingDefaultTaxonomy(parsed, DEFAULT_TAXONOMY_STRING, loadHiddenDefaults());
           }
           
           return migrateLegacyTaxonomy(DEFAULT_TAXONOMY_STRING);
@@ -384,6 +390,41 @@ const App: React.FC = () => {
           return alias === undefined ? e : { ...e, cnpj: cleanCNPJ(e.cnpj), aliasName: alias };
       }));
       showNotification(list.length === 1 ? "1 apelido atualizado." : `${list.length} apelidos atualizados.`);
+  };
+
+  // Juntar categorias repetidas: a árvore nova entra e tudo que apontava para as antigas passa a apontar para a que ficou
+  // (itens dos cupons, produtos mestres, aprendizado da IA, metas, cor/ícone, filtro de categorias e recortes).
+  const handleMergeCategories = (res: MergeResult, oldTax: TaxonomyNode[], summary: string) => {
+      if (res.removed === 0) return;
+      restore.before('juntar categorias repetidas');
+      const rm = buildRemapper(oldTax, res.taxonomy, res.idMap);
+      const itemsChanged = remapReceipts(receipts, rm).items;
+      setTaxonomy(res.taxonomy);
+      if (itemsChanged > 0) setReceipts(prev => remapReceipts(prev, rm).receipts);
+      setMasterProducts(prev => remapMasters(prev, rm));
+      setAiLearning(prev => remapLearning(prev, rm));
+      try {
+          const readJson = (k: string) => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch { return {}; } };
+          const goals = readJson('eukasconta_category_goals');
+          const nextGoals = remapGoals(goals, rm);
+          if (JSON.stringify(nextGoals) !== JSON.stringify(goals)) localStorage.setItem('eukasconta_category_goals', JSON.stringify(nextGoals));
+          const names: { from: string; to: string }[] = [];
+          const byOld = new Map(oldTax.map(n => [n.id, n] as const));
+          const byNew = new Map(res.taxonomy.map(n => [n.id, n] as const));
+          res.idMap.forEach((to, from) => { const a = byOld.get(from), b = byNew.get(to); if (a && b && a.level <= 2 && b.level <= 2) names.push({ from: a.name.trim(), to: b.name.trim() }); });
+          const meta = readJson('eukasconta_category_meta');
+          const nextMeta = remapMeta(meta, rm, names);
+          if (nextMeta !== meta) localStorage.setItem('eukasconta_category_meta', JSON.stringify(nextMeta));
+          const f = loadDeptFilter();
+          if (f.keys.length > 0) saveDeptFilter({ ...f, keys: remapFilterKeys(f.keys, rm) });
+          const cuts = loadCuts();
+          if (cuts.length > 0) saveCuts(cuts.map(c => ({ ...c, filter: { ...c.filter, keys: remapFilterKeys(c.filter.keys, rm) } })));
+          const defaultRoots = migrateLegacyTaxonomy(DEFAULT_TAXONOMY_STRING).filter(n => n.level === 1).map(n => n.slug);
+          addHiddenDefaults(droppedDefaultRoots(oldTax, res.taxonomy, res.idMap, defaultRoots));
+          window.dispatchEvent(new Event('storage'));
+          setMetaVersion(v => v + 1);
+      } catch { /* sem armazenamento: as compras e a árvore já foram acertadas */ }
+      showNotification(`${summary}.${itemsChanged > 0 ? ` ${itemsChanged} ${itemsChanged === 1 ? 'item das compras' : 'itens das compras'} passou para a categoria que ficou.` : ''}`, 7000);
   };
 
   const handleUnifyEstablishments = () => {
@@ -1221,6 +1262,7 @@ const App: React.FC = () => {
                         onOpenAlerts={() => setView('alerts')}
                         taxonomy={taxonomy}
                         onUpdateTaxonomy={setTaxonomy}
+                        onMergeCategories={handleMergeCategories}
                         onBack={() => setView('dashboard')} 
                         receipts={receipts} 
                         restore={restore}
