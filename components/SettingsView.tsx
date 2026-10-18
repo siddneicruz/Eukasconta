@@ -6,13 +6,15 @@ import {
     Upload, RefreshCw, Calculator, Eraser, History as HistoryIcon, Clock, 
     FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText
 } from 'lucide-react';
-import { Receipt, SystemSnapshot, Establishment, TaxonomyNode, AILearningEntry, MasterProduct } from '../types';
+import { Receipt, Establishment, TaxonomyNode, AILearningEntry, MasterProduct } from '../types';
 import { getCategoryIcon, getCategoryColor } from './Dashboard';
 import TaxonomyEditor from './TaxonomyEditor';
 import ProductMappingEditor from './ProductMappingEditor';
 import AILearningManager from './AILearningManager';
 import AISettingsPanel from './AISettingsPanel';
 import CloudAccountPanel from './CloudAccountPanel';
+import RestorePointsPanel from './RestorePointsPanel';
+import type { RestorePointsApi } from '../services/useRestorePoints';
 import { isNativeApp } from '../services/platform';
 import type { CloudApi } from '../services/useCloud';
 import type { BackupApi } from '../services/useCloudBackup';
@@ -52,10 +54,7 @@ interface SettingsViewProps {
   onEditEstablishment?: (est: Establishment) => void;
   // Vários apelidos de uma vez (sugestões da IA já revisadas)
   onApplyAliases?: (list: { cnpj: string; originalName: string; aliasName: string }[]) => void;
-  snapshots: SystemSnapshot[];
-  onCreateSnapshot: (name: string) => void;
-  onRestoreSnapshot: (id: string) => void;
-  onDeleteSnapshot: (id: string) => void;
+  restore: RestorePointsApi;
   onEditIcon?: (category: string) => void;
   onUnifyEstablishments?: () => void;
   aiLearning: AILearningEntry[];
@@ -122,12 +121,10 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 const SettingsView: React.FC<SettingsViewProps> = ({ 
   taxonomy, onUpdateTaxonomy, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
-  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, snapshots, onCreateSnapshot, onRestoreSnapshot, onDeleteSnapshot,
+  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, restore, 
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showSnapshotModal, setShowSnapshotModal] = useState(false);
-  const [newSnapshotName, setNewSnapshotName] = useState('');
   const [iconSearch, setIconSearch] = useState('');
   const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account'>((initialTab as any) || 'taxonomy');
   const [expandedAesthetics, setExpandedAesthetics] = useState<string[]>([]);
@@ -355,44 +352,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
       {settingsTab === 'system' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-12">
-            <div className="p-5 sm:p-8 bg-white/[0.02] border border-white/5 rounded-[2.5rem] relative overflow-hidden">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                    <div>
-                        <h3 className="text-xl font-serif text-white uppercase tracking-tight flex items-center gap-3">
-                            <HistoryIcon className="w-5 h-5 text-luxury-gold" /> Checkpoints de Auditoria
-                        </h3>
-                        <p className="text-zinc-500 text-[11px] uppercase font-bold mt-1 tracking-[0.08em]">Snapshots de integridade do sistema</p>
-                    </div>
-                    <button onClick={() => setShowSnapshotModal(true)} className="flex items-center gap-3 bg-luxury-gold text-black px-6 py-3 rounded-2xl font-bold text-[11px] uppercase tracking-[0.08em] hover:bg-white transition-all shadow-lg shadow-luxury-gold/10">
-                        <Plus className="w-4 h-4" /> Criar Snapshot
-                    </button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {snapshots.length === 0 ? (
-                        <div className="col-span-full py-12 border border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center text-zinc-700 gap-3">
-                            <Clock className="w-8 h-8 opacity-20" />
-                            <span className="text-[11px] uppercase tracking-[0.08em] font-bold">Aguardando primeiro checkpoint</span>
-                        </div>
-                    ) : (
-                        snapshots.map(snap => (
-                            <div key={snap.id} className="bg-black/40 border border-white/5 p-5 rounded-2xl flex items-center justify-between group hover:border-luxury-gold/30 transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/5 flex items-center justify-center font-serif text-luxury-gold font-bold text-lg">{snap.version}</div>
-                                    <div>
-                                        <div className="text-zinc-200 font-bold text-xs uppercase tracking-tight truncate max-w-[150px]">{snap.name}</div>
-                                        <div className="text-xs text-zinc-500 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(snap.timestamp).toLocaleString('pt-BR')}</div>
-                                    </div>
-                                </div>
-                                <div className="flex gap-1">
-                                    <button onClick={() => onRestoreSnapshot(snap.id)} className="p-3 text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all" title="Restaurar"><RefreshCw className="w-5 h-5" /></button>
-                                    <button onClick={() => onDeleteSnapshot(snap.id)} className="p-3 text-red-500 hover:bg-red-500/10 rounded-xl transition-all" title="Deletar"><Trash2 className="w-5 h-5" /></button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
+            <RestorePointsPanel restore={restore} cloudBackupOn={Boolean(backup?.signedIn)} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <ActionBlock icon={Calculator} title="Audit consistency" desc="Auditoria de portfólio" onClick={onAuditPrices} primary />
@@ -417,24 +377,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
       )}
 
-      {showSnapshotModal && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-              <div className="w-full max-w-sm bg-[#0c0c0e] border border-white/10 rounded-[2.5rem] p-6 sm:p-10 shadow-2xl">
-                  <h3 className="text-2xl font-serif text-white mb-6 uppercase text-center tracking-tighter">Checkpoint</h3>
-                  <input type="text" placeholder="Nome identificador..." value={newSnapshotName} onChange={e => setNewSnapshotName(e.target.value)} className="w-full bg-black border border-white/5 rounded-xl py-4 px-6 text-sm text-zinc-100 focus:border-luxury-gold outline-none mb-8 text-center" autoFocus />
-                  <div className="flex flex-col gap-3">
-                      <button onClick={() => {onCreateSnapshot(newSnapshotName); setNewSnapshotName(''); setShowSnapshotModal(false);}} className="w-full py-4 rounded-xl bg-luxury-gold text-black font-bold text-[11px] uppercase tracking-[0.08em] shadow-xl shadow-luxury-gold/10">Salvar Estado</button>
-                      <button onClick={() => setShowSnapshotModal(false)} className="w-full py-4 rounded-xl bg-white/5 text-zinc-500 font-bold text-[11px] uppercase tracking-[0.08em]">Abortar</button>
-                  </div>
-              </div>
-          </div>
-      )}
-
       {showResetConfirm && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
               <div className="w-full max-w-sm bg-[#0c0c0e] border border-red-900/20 rounded-[2.5rem] p-6 sm:p-10 text-center shadow-2xl">
                   <h3 className="text-2xl font-serif text-red-500 mb-2 uppercase tracking-tighter">Hard Reset?</h3>
-                  <p className="text-zinc-500 text-[11px] mb-10 leading-relaxed uppercase tracking-wider">Esta ação removerá permanentemente todos os registros, auditorias e snapshots do estúdio.</p>
+                  <p className="text-zinc-500 text-[11px] mb-10 leading-relaxed uppercase tracking-wider">Esta ação removerá permanentemente todos os registros e auditorias deste aparelho. Antes de apagar, o estado de agora fica guardado na lista de pontos de restauração; os pontos já criados continuam lá (exclua-os antes se quiser apagá-los também).</p>
                   <div className="flex flex-col gap-3">
                       <button onClick={() => { if(onClearData) onClearData(); setShowResetConfirm(false); }} className="w-full py-4 rounded-xl bg-red-600 text-white font-bold text-[11px] uppercase tracking-[0.08em]">Executar Limpeza Total</button>
                       <button onClick={() => setShowResetConfirm(false)} className="w-full py-4 rounded-xl bg-white/5 text-zinc-500 font-bold text-[11px] uppercase tracking-[0.08em]">Manter Dados</button>

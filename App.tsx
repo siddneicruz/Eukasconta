@@ -29,6 +29,8 @@ import AlertsView, { AlertDraft } from './components/AlertsView';
 import ScanSuggestionsSheet from './components/ScanSuggestionsSheet';
 import { useCloud } from './services/useCloud';
 import { useCloudBackup } from './services/useCloudBackup';
+import { useRestorePoints } from './services/useRestorePoints';
+import { readPointText } from './services/restorePoints';
 import { deleteCloudReceipt } from './services/cloudService';
 import ConfirmDialog from './components/ConfirmDialog';
 // O mapa traz a biblioteca de mapas junto; só é baixado quando a pessoa abre a tela.
@@ -36,7 +38,7 @@ const EstablishmentsMapView = lazy(() => import('./components/EstablishmentsMapV
 import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
 
-import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, SystemSnapshot, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
+import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
 import { diagnostics } from './services/diagnosticService';
 import { auditAndRepairReceipt, cleanCNPJ, formatCNPJ } from './services/productNormalization';
 import { resolveNodeStyle, migrateLegacyTaxonomy, findBestMatch, syncMissingDefaultTaxonomy } from './services/taxonomyService';
@@ -229,13 +231,6 @@ const App: React.FC = () => {
       } catch (e) { return []; }
   });
 
-  const [snapshots, setSnapshots] = useState<SystemSnapshot[]>(() => {
-      try {
-          const stored = localStorage.getItem('eukasconta_snapshots');
-          return stored ? JSON.parse(stored) : [];
-      } catch (e) { return []; }
-  });
-
   // Padrão: sempre o mês atual (do dia 1 até hoje); a pessoa pode trocar no filtro (7 dias, 30 dias, ano, período...).
   const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>({
       year: currentYearMonth().year,
@@ -323,13 +318,6 @@ const App: React.FC = () => {
       localStorage.setItem('eukasconta_establishments', JSON.stringify(establishments));
   }, [establishments]);
 
-  useEffect(() => {
-      try {
-          localStorage.setItem('eukasconta_snapshots', JSON.stringify(snapshots));
-      } catch (e) {
-          console.error("Erro ao persistir snapshots:", e);
-      }
-  }, [snapshots]);
 
   const updateEstablishmentTableFromReceipts = () => {
       setEstablishments(prev => {
@@ -372,6 +360,8 @@ const App: React.FC = () => {
   const handleSaveStore = (prev: Establishment, draft: StoreDraft): string | null => {
       const res = applyStoreEdit(prev, draft, establishments, receipts);
       if ('error' in res) return res.error;
+      // mudar o nome ou o CNPJ da loja reescreve os cupons dela: guarda um ponto antes
+      if (res.identityChanged) restore.before('mudar o nome ou o CNPJ de uma loja');
       setEstablishments(res.establishments);
       if (res.identityChanged) {
           // O cupom guarda o nome e o CNPJ da loja: corrige junto, senão o histórico perde a ligação com o cadastro.
@@ -395,6 +385,7 @@ const App: React.FC = () => {
   };
 
   const handleUnifyEstablishments = () => {
+      restore.before('unificar estabelecimentos');
       setGlobalLoading(true);
       setLoadingText("UNIFICANDO ESTABELECIMENTOS...");
       
@@ -489,9 +480,12 @@ const App: React.FC = () => {
       return { icon: 'FolderOpen', color: '#D4AF37' };
   };
 
+  // um aviso novo cancela o timer do anterior (senão o timer velho apagava o aviso novo antes da hora)
+  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showNotification = (msg: string, ms = 4000) => {
+    if (notificationTimer.current) clearTimeout(notificationTimer.current);
     setNotification(msg);
-    setTimeout(() => setNotification(null), ms);
+    notificationTimer.current = setTimeout(() => { notificationTimer.current = null; setNotification(null); }, ms);
   };
 
   // Nuvem (Supabase): conta, avisos, alertas e preços compartilhados. Só age com a pessoa logada.
@@ -504,6 +498,8 @@ const App: React.FC = () => {
   // Backup automático na conta: dados e chave de IA voltam sozinhos ao entrar depois de reinstalar o app.
   const backupTrigger = useMemo(() => ({}), [receipts, taxonomy, establishments, masterProducts, aiLearning, categories]);
   const backup = useCloudBackup({ userId: cloud.user?.id ?? null, trigger: backupTrigger, onToast: (msg) => showNotification(msg, 6000) });
+  // Pontos de restauração: cópias completas dos dados, no aparelho (manual, um por dia e antes de ações arriscadas)
+  const restore = useRestorePoints({ onToast: (msg) => showNotification(msg, 7000) });
   const [alertDraft, setAlertDraft] = useState<AlertDraft | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
   const openAlertDraft = (d: AlertDraft) => { cloud.dismissSuggestions(); setAlertDraft(d); setView('alerts'); };
@@ -548,37 +544,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener(STORAGE_FULL_EVENT, onFull);
   }, []);
 
-
-  const handleCreateSnapshot = (name: string) => {
-      try {
-          const categoryMeta = JSON.parse(localStorage.getItem('eukasconta_category_meta') || '{}');
-          const categoryGoals = JSON.parse(localStorage.getItem('eukasconta_category_goals') || '{}');
-          const safeId = Date.now().toString(36) + Math.random().toString(36).substring(2);
-          const newSnapshot: SystemSnapshot = {
-              id: safeId, timestamp: Date.now(), name: name.trim() || `Checkpoint #${snapshots.length + 1}`,
-              version: snapshots.length + 1,
-              data: { receipts: [...receipts], taxonomy: [...taxonomy], aiLearning: [...aiLearning], categoryMeta, categoryGoals, establishments: [...establishments] }
-          };
-          const newSnapshots = [newSnapshot, ...snapshots].slice(0, 10);
-          localStorage.setItem('eukasconta_snapshots', JSON.stringify(newSnapshots));
-          setSnapshots(newSnapshots);
-          showNotification("Snapshot criado com sucesso.");
-      } catch (e: any) { alert("Erro ao criar snapshot: " + e.message); }
-  };
-
-  const handleRestoreSnapshot = (id: string) => {
-      const snap = snapshots.find(s => s.id === id);
-      if (!snap) return;
-      if (window.confirm(`Deseja restaurar o sistema para "${snap.name}"?`)) {
-          setReceipts(snap.data.receipts); 
-          if (snap.data.taxonomy) setTaxonomy(snap.data.taxonomy);
-          if (snap.data.aiLearning) setAiLearning(snap.data.aiLearning);
-          if (snap.data.establishments) setEstablishments(snap.data.establishments);
-          localStorage.setItem('eukasconta_category_meta', JSON.stringify(snap.data.categoryMeta));
-          localStorage.setItem('eukasconta_category_goals', JSON.stringify(snap.data.categoryGoals || {}));
-          setView('dashboard'); showNotification(`Sistema restaurado!`);
-      }
-  };
 
   const handleUpdateReceipt = (updatedReceipt: Receipt) => {
       setReceipts(prev => prev.map(r => r.id === updatedReceipt.id ? updatedReceipt : r));
@@ -717,6 +682,11 @@ const App: React.FC = () => {
   };
 
   const handleImportData = async (file: File) => {
+      // Arquivo de ponto de restauração: entra na lista de pontos e não mexe nos dados de agora
+      try {
+          if ((await readPointText(file)) !== null) { await restore.importFile(file); return; }
+      } catch { /* não deu para ler como ponto: segue como backup comum */ }
+      restore.before('importar um arquivo');
       setGlobalLoading(true); 
       setLoadingText("RESTAURANDO ESTÚDIO...");
       setImportLogs([]);
@@ -846,6 +816,7 @@ const App: React.FC = () => {
   };
 
   const handleUpdateBatchMapping = (mappings: { description: string, newCategory: string }[], opts: { silent?: boolean } = {}) => {
+      if (!opts.silent) restore.before('trocar categorias em lote');
       // 1. Instantly update receipts state
       setReceipts(prev => {
           return prev.map(receipt => {
@@ -910,6 +881,7 @@ const App: React.FC = () => {
 
   // Junta produtos escolhidos pela pessoa num só: os cupons ficam como estão, o catálogo passa a tratar todos os nomes como um item
   const handleUnifyProducts = (plan: UnifyPlan) => {
+      restore.before('unificar produtos');
       setMasterProducts(prev => unifyGroups(prev, plan.groups, { name: plan.name, category: plan.category }).masters);
       // A categoria escolhida vale para todas as compras desses itens (e a IA aprende com ela)
       const mappings = plan.groups
@@ -943,11 +915,13 @@ const App: React.FC = () => {
           seen.add(key);
           return true;
       });
+      if (clean.length < initialCount) restore.before('limpar duplicatas');
       setReceipts(clean);
       showNotification(`Cleanup concluído. ${initialCount - clean.length} duplicatas removidas.`);
   };
 
   const handleAuditPrices = async () => {
+      restore.before('auditar preços com IA');
       setGlobalLoading(true);
       setLoadingText("AUDITANDO CONSISTÊNCIA COM IA...");
       
@@ -1193,23 +1167,22 @@ const App: React.FC = () => {
                         onUpdateTaxonomy={setTaxonomy}
                         onBack={() => setView('dashboard')} 
                         receipts={receipts} 
-                        snapshots={snapshots} 
+                        restore={restore}
                         establishments={establishments}
                         onUpdateEstablishment={handleUpdateEstablishment}
                         onEditEstablishment={setEditingStore}
                         onApplyAliases={handleApplyAliases}
                         onClearData={() => {
+                            // Antes de apagar tudo, guarda um ponto de restauração (os pontos não são apagados pelo Hard Reset)
+                            restore.before('apagar tudo');
                             // Hard Reset também apaga a cópia da conta; senão ela voltaria no próximo login
-                            const wipe = () => { localStorage.clear(); setReceipts([]); setTaxonomy([]); setSnapshots([]); setEstablishments([]); showNotification("Hard Reset concluído."); };
+                            const wipe = () => { localStorage.clear(); setReceipts([]); setTaxonomy([]); setEstablishments([]); showNotification("Hard Reset concluído."); };
                             if (cloud.user) backup.deleteRemote().catch(() => { /* sem rede: a cópia fica e pode ser apagada depois em Conta */ }).finally(wipe);
                             else wipe();
                         }} 
                         onExportData={() => handleExportData()}
                         onExportTxtZip={() => handleExportTxtZip()} 
                         onImportData={handleImportData} 
-                        onCreateSnapshot={handleCreateSnapshot} 
-                        onRestoreSnapshot={handleRestoreSnapshot} 
-                        onDeleteSnapshot={(id) => setSnapshots(prev => prev.filter(s => s.id !== id))}
                         onUpdateBatchMapping={handleUpdateBatchMapping}
                         masterProducts={masterProducts}
                         onUnifyProducts={handleUnifyProducts}

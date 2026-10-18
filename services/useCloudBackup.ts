@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import { isNativeApp } from './platform';
+import { safetyPoint } from './restorePoints';
 import {
   BackupMeta, applyData, applySecretsIfMissing, clearBackupSecrets, collectLocal, deleteBackup, fetchBackupData,
   fetchBackupMeta, fingerprint, localReceiptCount, mergeData, uploadBackup,
@@ -245,6 +246,8 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
     try {
       const data = await fetchBackupData(uid);
       if (!data || Object.keys(data).length === 0) throw new Error('Não há backup nesta conta.');
+      // a conta vai trocar o que está aqui: guarda um ponto de restauração do estado de agora
+      await safetyPoint('restaurar da conta');
       if (applyData(data) === 0) throw new Error('Não deu para gravar os dados neste aparelho.');
       const meta = await fetchBackupMeta(uid).catch(() => null);
       if (meta) applySecretsIfMissing(meta.secrets);
@@ -269,6 +272,7 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
         setStatus('restoring');
         const data = await fetchBackupData(uid);
         if (!data) throw new Error('Não há backup nesta conta.');
+        await safetyPoint('juntar com a conta');
         const res = mergeData(data);
         // o resultado da junção vai de volta para a conta, então os dois ficam iguais
         const snap = collectLocal();

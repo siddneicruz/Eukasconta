@@ -4,22 +4,13 @@
 // O backup é um mapa "chave do localStorage -> texto", então qualquer dado novo do app entra
 // sem mexer neste arquivo (basta a chave começar com "eukasconta_").
 import { supabase } from './supabaseClient';
+import { PREFIX, isSecretKey, isDeviceOnly, safeGet, collectLocal, fingerprint, localReceiptCount, applyData, applySecretsIfMissing } from './localData';
+import type { LocalSnapshot } from './localData';
 
-const PREFIX = 'eukasconta_';
-
-// Chaves de IA e escolhas ligadas a elas: vão na coluna "secrets", só se a pessoa deixar.
-const SECRET_PREFIXES = ['eukasconta_byok_', 'eukasconta_active_ai_provider', 'eukasconta_openrouter_model_'];
-
-// Ficam só neste aparelho: controle da própria nuvem, diagnóstico, simulador, e os checkpoints
-// (cada um é uma cópia inteira dos dados e multiplicaria o tamanho do backup) e o que diz respeito ao mapa salvo.
-const DEVICE_ONLY = [
-  /^eukasconta_cloud_/,
-  /^eukasconta_backup_/,
-  /^eukasconta_diagnostics$/,
-  /^eukasconta_emulator_prefs$/,
-  /^eukasconta_snapshots$/,
-  /^eukasconta_maps_/,
-];
+// O que é "dado do app" neste aparelho (quais chaves contam e como ler e gravar) mora em localData.ts;
+// é reexportado aqui para quem já importava daqui.
+export { collectLocal, fingerprint, localReceiptCount, applyData, applySecretsIfMissing };
+export type { LocalSnapshot };
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -32,48 +23,6 @@ export interface BackupRow extends BackupMeta {
   data: Record<string, string>;
   secrets: Record<string, string>;
 }
-
-export interface LocalSnapshot {
-  data: Record<string, string>;
-  secrets: Record<string, string>;
-  receiptCount: number;
-}
-
-const isSecretKey = (k: string) => SECRET_PREFIXES.some(p => k === p || k.startsWith(p));
-const isDeviceOnly = (k: string) => DEVICE_ONLY.some(r => r.test(k));
-
-const safeGet = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };
-
-export const localReceiptCount = (): number => {
-  const raw = safeGet('eukasconta_data');
-  if (!raw) return 0;
-  try { const v = JSON.parse(raw); return Array.isArray(v) ? v.length : 0; } catch { return 0; }
-};
-
-export const collectLocal = (): LocalSnapshot => {
-  const data: Record<string, string> = {};
-  const secrets: Record<string, string> = {};
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k || !k.startsWith(PREFIX)) continue;
-      const v = localStorage.getItem(k);
-      if (v === null) continue;
-      if (isSecretKey(k)) { if (v.trim()) secrets[k] = v; continue; }
-      if (isDeviceOnly(k)) continue;
-      data[k] = v;
-    }
-  } catch { /* sem acesso ao armazenamento: devolve o que deu */ }
-  return { data, secrets, receiptCount: localReceiptCount() };
-};
-
-// Impressão digital barata para saber se algo mudou desde o último envio.
-export const fingerprint = (snap: { data: Record<string, string>; secrets: Record<string, string> }): string => {
-  let h = 5381, n = 0;
-  const feed = (s: string) => { for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; n += s.length; };
-  [snap.data, snap.secrets].forEach(obj => Object.keys(obj).sort().forEach(k => { feed(k); feed('='); feed(obj[k]); feed(';'); }));
-  return `${n}:${h >>> 0}`;
-};
 
 const asStringMap = (v: unknown): Record<string, string> => {
   const out: Record<string, string> = {};
@@ -125,28 +74,6 @@ export const deleteBackup = async (userId: string): Promise<void> => {
 };
 
 /* ───────────────────────── aplicar no aparelho ───────────────────────── */
-
-// Grava os dados do backup neste aparelho (a tela precisa recarregar depois para lê-los).
-export const applyData = (data: Record<string, string>): number => {
-  let n = 0;
-  Object.entries(data).forEach(([k, v]) => {
-    if (!k.startsWith(PREFIX) || isSecretKey(k) || isDeviceOnly(k)) return;
-    try { localStorage.setItem(k, v); n++; } catch { /* sem espaço: segue com o resto */ }
-  });
-  return n;
-};
-
-// Traz as chaves de IA do backup só para os provedores que este aparelho ainda não tem;
-// nunca troca uma chave que a pessoa já colou aqui. Devolve quantas entraram.
-export const applySecretsIfMissing = (secrets: Record<string, string>): number => {
-  let n = 0;
-  Object.entries(secrets).forEach(([k, v]) => {
-    if (!k.startsWith(PREFIX) || !isSecretKey(k) || !v.trim()) return;
-    if (safeGet(k)) return;
-    try { localStorage.setItem(k, v); n++; } catch { /* ignora */ }
-  });
-  return n;
-};
 
 // Junta o backup da conta com o que já existe neste aparelho, sem perder nada de nenhum dos dois:
 // cupons = união (mesmo id ou mesma loja+dia+valor contam como o mesmo cupom, vale o do aparelho);
