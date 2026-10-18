@@ -31,6 +31,7 @@ const RECEIPT_JSON_SCHEMA = {
         properties: {
           description: { type: 'string' },
           code: { type: 'string', description: 'Código do produto impresso na linha do item: código de barras (8 a 14 dígitos) ou código interno da loja, só os caracteres do código, sem espaços. Use ? no lugar de um dígito ilegível. Vazio se a linha não tem código.' },
+          eggCount: { type: 'number', description: 'Só em itens de ovo: quantos ovos vêm na embalagem, se a linha disser (30 OVOS, C/20, DUZIA = 12). 0 se não disser.' },
           quantity: { type: 'number' },
           unitType: { type: 'string' },
           unitPrice: { type: 'number' },

@@ -20,7 +20,7 @@ import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
 import EstablishmentEditSheet from './components/EstablishmentEditSheet';
 import { applyStoreEdit, StoreDraft } from './services/establishmentEdit';
-import { rekeyStoreCodes, applyCodeEdit, CodeOp } from './services/productCodes';
+import { rekeyStoreCodes, applyCodeEdit, CodeOp, normStoreKey } from './services/productCodes';
 import SettingsView from './components/SettingsView';
 import DiagnosticPanel from './components/DiagnosticPanel';
 import ManualEntryForm from './components/ManualEntryForm';
@@ -582,6 +582,39 @@ const App: React.FC = () => {
 
   const handleUpdateReceipt = (updatedReceipt: Receipt) => {
       setReceipts(prev => prev.map(r => r.id === updatedReceipt.id ? updatedReceipt : r));
+  };
+
+  // Ovos: as outras compras do mesmo item (mesmo nome, mesma loja) que ainda não têm a quantidade de ovos escolhida
+  const sameEggTargets = (src: Receipt, index: number): { rid: string; idx: number }[] => {
+      const it = src.items[index];
+      if (!it) return [];
+      const store = normStoreKey(src.cnpj || src.establishmentName);
+      const desc = (it.description || '').trim().toUpperCase();
+      const out: { rid: string; idx: number }[] = [];
+      receipts.forEach(r => {
+          if (normStoreKey(r.cnpj || r.establishmentName) !== store) return;
+          (r.items || []).forEach((x, i) => {
+              if (r.id === src.id && i === index) return;
+              if ((x.description || '').trim().toUpperCase() !== desc) return;
+              if (Number(x.eggCount) > 0) return;
+              out.push({ rid: r.id, idx: i });
+          });
+      });
+      return out;
+  };
+  const handleApplyEggSame = (src: Receipt, index: number): number => {
+      const count = Number(src.items[index]?.eggCount);
+      if (!(count > 0)) return 0;
+      const targets = sameEggTargets(src, index);
+      if (!targets.length) return 0;
+      const byReceipt = new Map<string, Set<number>>();
+      targets.forEach(t => { const set = byReceipt.get(t.rid) || new Set<number>(); set.add(t.idx); byReceipt.set(t.rid, set); });
+      setReceipts(prev => prev.map(r => {
+          const idxs = byReceipt.get(r.id);
+          return idxs ? { ...r, items: r.items.map((x, i) => (idxs.has(i) ? { ...x, eggCount: count } : x)) } : r;
+      }));
+      showNotification(`${count} ovos aplicados em ${targets.length} ${targets.length === 1 ? 'compra' : 'compras'}.`);
+      return targets.length;
   };
 
   // Excluir lançamento: sempre pergunta antes; só apaga no "Excluir" da mensagem de confirmação.
@@ -1282,7 +1315,7 @@ const App: React.FC = () => {
       )}
 
       {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onClose={() => setEditingStore(null)} />}
-      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} />}
+      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}
       {pendingDelete && (
         <ConfirmDialog
           title="Excluir este lançamento?"

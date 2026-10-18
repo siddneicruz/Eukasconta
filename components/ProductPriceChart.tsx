@@ -100,6 +100,9 @@ const ClickLayer: React.FC<ClickLayerProps> = ({ points, onPick }) => {
   return <rect className="click-layer" data-testid="click-layer" x={plot.x} y={plot.y} width={plot.width} height={plot.height} fill="transparent" style={{ cursor: 'pointer' }} onClick={handle} />;
 };
 
+// DZ lê melhor como "dúzia" (ovos)
+const unitName = (u: string) => (u === 'DZ' ? 'dúzia' : u);
+
 const HoverTip = ({ active, payload, pins, avg, unit }: any) => {
   if (!active || !payload || !payload.length) return null;
   const p: SeriesPoint = payload[0].payload;
@@ -108,9 +111,9 @@ const HoverTip = ({ active, payload, pins, avg, unit }: any) => {
   return (
     <div className="bg-zinc-950 border border-white/10 px-3 py-2 rounded-xl shadow-2xl backdrop-blur-md min-w-[120px] pointer-events-none">
       <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-[0.1em] mb-1">{shortDate(p.date)}</p>
-      <p className="text-luxury-gold font-sans text-base leading-none">{brl.format(p.price)}<span className="text-xs text-zinc-500 font-sans ml-1">/{unit}</span></p>
+      <p className="text-luxury-gold font-sans text-base leading-none">{brl.format(p.price)}<span className="text-xs text-zinc-500 font-sans ml-1">/{unitName(unit)}</span></p>
       <p className="text-xs mt-1 font-bold" style={{ color: pctColor(d, false) }}>{fmtPct(d)} vs média</p>
-      <p className="text-xs text-zinc-500 mt-1">{num.format(p.qty)} {unit}{p.count > 1 ? ` · ${p.count} compras` : ''}</p>
+      <p className="text-xs text-zinc-500 mt-1">{num.format(p.qty)} {unitName(unit)}{p.count > 1 ? ` · ${p.count} compras` : ''}</p>
     </div>
   );
 };
@@ -197,7 +200,7 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
               {units.map(u => (
                 <button key={u} onClick={() => onUnitChange && onUnitChange(u)}
                   className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${u === unit ? 'bg-luxury-gold text-black' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                  {u}
+                  {unitName(u)}
                 </button>
               ))}
             </div>
@@ -210,7 +213,7 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
           <>
             <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mb-4">
               <span className="text-3xl md:text-4xl font-serif font-bold tracking-tighter text-white leading-none">{brl.format(avg)}</span>
-              <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] pb-0.5">média paga / {unit}</span>
+              <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] pb-0.5">média paga / {unitName(unit)}</span>
               {points.length > 1 && last && (
                 <span className="text-xs font-bold pb-0.5" style={{ color: pctColor(lastDelta, light) }}>
                   última compra {fmtPct(lastDelta)} vs média

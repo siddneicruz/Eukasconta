@@ -1,6 +1,7 @@
 import { Receipt, ReceiptItem, MasterProduct, ItemFilter } from '../types';
 import { titleCase } from './textFormat';
 import { HistoryItem, normalizeUnit } from './productPriceStats';
+import { priceBasis } from './eggs';
 
 /* Busca de itens: índice dos produtos comprados (para o autocompletar), filtro por item e
    projeção dos cupons só com as linhas escolhidas. Tudo local, sobre os cupons que já estão no aparelho. */
@@ -67,14 +68,16 @@ export const toHistoryItems = (receipts: Receipt[], match: (item: ReceiptItem) =
   receipts.forEach(r => {
     (r.items || []).forEach((item, idx) => {
       if (!match(item)) return;
-      const unitPrice = Number(item.unitPrice);
+      // ovo com a quantidade conhecida vira preço da dúzia (quantidade em dúzias); o dinheiro gasto continua o do cupom
+      const basis = priceBasis(item);
+      const unitPrice = basis.unitPrice;
       if (!(unitPrice > 0)) return;
       out.push({
         key: `${r.id}:${idx}`,
         unitPrice,
-        quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
-        totalPrice: Number(item.totalPrice) || unitPrice,
-        unitType: item.unitType,
+        quantity: basis.quantity,
+        totalPrice: Number(item.totalPrice) || Number(item.unitPrice),
+        unitType: basis.unitType,
         date: r.date,
         establishment: nameOf ? nameOf(r.establishmentName, r.cnpj) : r.establishmentName,
       });
@@ -125,8 +128,9 @@ export const buildItemIndex = (receipts: Receipt[], masters: MasterProduct[] = [
       g.descs.add(key);
       g.count += 1;
       g.stores.add(r.establishmentName);
-      const price = Number(item.unitPrice);
-      if (price > 0 && (r.date || '') >= g.lastDate) { g.lastDate = r.date || ''; g.lastPrice = price; g.lastUnit = normalizeUnit(item.unitType); }
+      const basis = priceBasis(item);
+      const price = basis.unitPrice;
+      if (price > 0 && (r.date || '') >= g.lastDate) { g.lastDate = r.date || ''; g.lastPrice = price; g.lastUnit = normalizeUnit(basis.unitType); }
       const row = rowMap.get(key);
       if (row) row.count += 1; else rowMap.set(key, { fold: fold(item.description), count: 1 });
     });

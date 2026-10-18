@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Receipt, ReceiptItem } from '../types';
 import { generateId } from '../services/idUtils';
+import EggCountPicker from './EggCountPicker';
+import { isEggItem } from '../services/eggs';
 import { Save, X, Plus, Trash2, Calendar, Clock, MapPin, Store, Hash, Globe, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface ManualEntryFormProps {
@@ -258,6 +260,11 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                                   <Trash2 className="w-5 h-5" />
                               </button>
                           </div>
+                          {isEggItem(item) && (
+                              <div className="md:col-span-12">
+                                  <EggCountPicker item={item} testId={`egg-picker-new-${index}`} onChange={n => updateItem(index, 'eggCount', n)} />
+                              </div>
+                          )}
                       </div>
                   ))}
               </div>

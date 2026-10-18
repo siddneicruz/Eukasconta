@@ -1,5 +1,6 @@
 import { Receipt, ReceiptItem } from '../types';
 import { normalizeProductName } from './productNormalization';
+import { priceBasis, eggNeedsCount } from './eggs';
 
 // Preço de um produto (menor, teto, médio) olhando TODO o histórico de cupons.
 // Não depende do período escolhido na tela: um preço de setembro continua valendo em outubro.
@@ -10,6 +11,8 @@ export interface PriceObservation {
   date: string;
   establishment: string;
   description: string;
+  // Ovo sem a quantidade da bandeja: o preço é de uma bandeja de tamanho desconhecido e não entra na conta da dúzia
+  eggPending?: boolean;
 }
 
 export interface PriceStats {
@@ -35,6 +38,7 @@ const UNIT_ALIASES: Record<string, string> = {
   ML: 'ML', MILILITRO: 'ML', MILILITROS: 'ML',
   PCT: 'PCT', PACOTE: 'PCT', PACOTES: 'PCT',
   CX: 'CX', CAIXA: 'CX', CAIXAS: 'CX',
+  DZ: 'DZ', DZA: 'DZ', DUZIA: 'DZ', DUZIAS: 'DZ',
 };
 export const normalizeUnit = (raw?: string | null): string => {
   const k = stripAccentsUpper(String(raw || '')).replace(/[^A-Z0-9]/g, '');
@@ -70,17 +74,23 @@ export const collectPriceObservations = (receipts: Receipt[], genericName: strin
   receipts.forEach(r => {
     (r.items || []).forEach(item => {
       if (!itemBelongsToProduct(item, genericName, subCategoryName)) return;
-      const p = Number(item.unitPrice);
+      // ovo com a quantidade conhecida entra pelo preço da dúzia (o resto fica como no cupom)
+      const basis = priceBasis(item);
+      const p = basis.unitPrice;
       if (!(p > 0)) return;
       out.push({
         unitPrice: p,
-        unitType: normalizeUnit(item.unitType),
+        unitType: normalizeUnit(basis.unitType),
         date: r.date,
         establishment: r.establishmentName,
         description: item.description,
+        ...(eggNeedsCount(item) ? { eggPending: true } : {}),
       });
     });
   });
+  // Quando já há ovos com a quantidade conhecida (preço da dúzia), os de bandeja sem quantidade ficam de fora do
+  // menor/teto/médio: misturar o preço de uma bandeja qualquer com o da dúzia dava um teto falso.
+  if (out.some(o => o.eggPending) && out.some(o => !o.eggPending)) return out.filter(o => !o.eggPending);
   return out;
 };
 

@@ -9,6 +9,8 @@ import { downloadFile } from '../services/nativeFiles';
 import { titleCase } from '../services/textFormat';
 import { useStoreNames } from './StoreNamesContext';
 import { generateReceiptText } from '../services/receiptText';
+import EggCountPicker from './EggCountPicker';
+import { isEggItem } from '../services/eggs';
 
 interface ReceiptDetailProps {
   receipt: Receipt;
@@ -22,6 +24,9 @@ interface ReceiptDetailProps {
   categories: string[];
   knownEstablishments?: string[];
   knownProducts?: string[];
+  // Ovos: quantas outras compras do mesmo item (mesma loja) ainda estão sem a quantidade, e o atalho que copia a escolha para elas
+  eggSameCount?: (receipt: Receipt, index: number) => number;
+  onApplyEggSame?: (receipt: Receipt, index: number) => number;
 }
 
 interface CategoryGroupProps {
@@ -31,9 +36,12 @@ interface CategoryGroupProps {
   onEditItem: (itemIndex: number, newCategory: string) => void;
   allItems: ReceiptItem[];
   availableCategories: string[];
+  onEggCount?: (itemIndex: number, count: number | undefined) => void;
+  eggSame?: (itemIndex: number) => number;
+  onEggApplySame?: (itemIndex: number) => void;
 }
 
-const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, onEditItem, allItems, availableCategories }) => {
+const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, onEditItem, allItems, availableCategories, onEggCount, eggSame, onEggApplySame }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null);
 
@@ -110,6 +118,14 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, o
                                 )}
                             </div>
                         </div>
+                        {onEggCount && isEggItem(item) && (
+                            <div className="mt-2">
+                                <EggCountPicker item={item} testId={`egg-picker-${originalIndex}`}
+                                    onChange={n => onEggCount(originalIndex, n)}
+                                    sameCount={eggSame ? eggSame(originalIndex) : 0}
+                                    onApplySame={onEggApplySame ? () => onEggApplySame(originalIndex) : undefined} />
+                            </div>
+                        )}
                         {isEditing && (
                             <div className="mt-2 animate-in fade-in slide-in-from-top-1 bg-zinc-900/80 p-2 rounded-lg border border-luxury-gold/20">
                                 <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1 block">Mover para Categoria:</label>
@@ -248,7 +264,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
     );
 };
 
-const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [] }) => {
+const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [], eggSameCount, onApplyEggSame }) => {
   const { aliasOf } = useStoreNames();
   const [viewMode, setViewMode] = useState<'cards' | 'thermal'>('thermal'); // abre no cupom em TXT; o Estruturado fica na aba da direita
   const [isEditing, setIsEditing] = useState(false);
@@ -273,6 +289,14 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
   const handleEditItemCategory = (index: number, newCategory: string) => {
     const updatedItems = [...receipt.items];
     updatedItems[index] = { ...updatedItems[index], category: newCategory };
+    onUpdateReceipt({ ...receipt, items: updatedItems });
+  };
+
+  // Ovos: guarda (ou tira) a quantidade de ovos da bandeja deste item
+  const handleEggCount = (index: number, count: number | undefined) => {
+    const updatedItems = [...receipt.items];
+    const { eggCount: _drop, ...rest } = updatedItems[index];
+    updatedItems[index] = count && count > 0 ? { ...rest, eggCount: count } : rest;
     onUpdateReceipt({ ...receipt, items: updatedItems });
   };
 
@@ -428,6 +452,11 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                               <div className="col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Vl. Un</label><input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateEditedItem(idx, 'unitPrice', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right text-zinc-200"/></div>
                               <div className="col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Total</label><input type="number" step="0.01" value={item.totalPrice} onChange={(e) => updateEditedItem(idx, 'totalPrice', Number(e.target.value))} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right font-bold text-luxury-gold"/></div>
                               <div className="col-span-1 flex justify-center pt-1"><button onClick={() => removeEditedItem(idx)} className="text-zinc-600 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+                              {isEggItem(item) && (
+                                  <div className="md:col-span-12">
+                                      <EggCountPicker item={item} testId={`egg-picker-edit-${idx}`} onChange={n => updateEditedItem(idx, 'eggCount', n)} />
+                                  </div>
+                              )}
                           </div>
                       ))}
                   </div>
@@ -463,7 +492,10 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                 </div>
                 <div className="space-y-1 pb-10">
                     {groupedItems.map(([category, data]) => (
-                        <CategoryGroup key={category} category={category} items={data.items} total={data.total} onEditItem={handleEditItemCategory} allItems={receipt.items} availableCategories={categories}/>
+                        <CategoryGroup key={category} category={category} items={data.items} total={data.total} onEditItem={handleEditItemCategory} allItems={receipt.items} availableCategories={categories}
+                          onEggCount={handleEggCount}
+                          eggSame={eggSameCount ? (i) => eggSameCount(receipt, i) : undefined}
+                          onEggApplySame={onApplyEggSame ? (i) => { onApplyEggSame(receipt, i); } : undefined}/>
                     ))}
                 </div>
                 </>

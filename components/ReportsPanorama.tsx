@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { DashboardConfig, Receipt } from '../types';
 import { normalizeUnit } from '../services/productPriceStats';
+import { priceBasis } from '../services/eggs';
 import { properCase } from '../services/textFormat';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -283,10 +284,13 @@ function analyse(receipts: Receipt[], config: DashboardConfig, displayName: Prop
   valid.forEach(r => {
     if (r.date > eIso) return;
     (r.items || []).forEach(it => {
-      const p = it.unitPrice || 0;
-      const desc = (it.description || '').trim();
-      if (!desc || p <= 0) return;
-      const k = `${desc.toUpperCase()}||${normalizeUnit(it.unitType)}||${r.cnpj || r.establishmentName}`;
+      // ovo com a quantidade conhecida é comparado pelo preço da dúzia (bandeja de 12 e de 30 não se misturam)
+      const basis = priceBasis(it);
+      const p = basis.unitPrice;
+      const raw = (it.description || '').trim();
+      if (!raw || p <= 0) return;
+      const desc = basis.eggs ? `${raw} (dúzia)` : raw;
+      const k = `${desc.toUpperCase()}||${normalizeUnit(basis.unitType)}||${r.cnpj || r.establishmentName}`;
       const o = obs.get(k) || { desc, store: fullName(r.establishmentName, displayName(r.establishmentName, r.cnpj)), pts: [] };
       o.pts.push({ d: r.date, p }); obs.set(k, o);
     });

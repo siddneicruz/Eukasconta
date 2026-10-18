@@ -5,6 +5,7 @@ import { ChevronLeft, Calendar, Clock, MapPin, ArrowUpRight, Hash, TrendingUp, D
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, ReferenceDot, Label } from 'recharts';
 import { getCategoryColor } from './Dashboard';
 import { deptKey, sameDept, masterOf, properCase } from '../services/textFormat';
+import { priceBasis } from '../services/eggs';
 import { useStoreNames } from './StoreNamesContext';
 
 interface EstablishmentDetailViewProps {
@@ -67,9 +68,11 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
       let maxItem = { price: 0, description: '', date: '', unitType: '' };
       relevantReceipts.forEach(r => {
           r.items.forEach(item => {
-              let effectivePrice = item.unitPrice || (item.quantity > 0 ? item.totalPrice / item.quantity : 0);
+              // ovo com a quantidade conhecida entra pelo preço da dúzia
+              const basis = priceBasis(item);
+              let effectivePrice = basis.unitPrice || (item.quantity > 0 ? item.totalPrice / item.quantity : 0);
               if (effectivePrice > maxItem.price) {
-                  maxItem = { price: effectivePrice, description: item.description, date: r.date, unitType: item.unitType || 'UN' };
+                  maxItem = { price: effectivePrice, description: item.description, date: r.date, unitType: basis.unitType || 'UN' };
               }
           });
       });

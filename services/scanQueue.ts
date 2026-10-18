@@ -5,7 +5,8 @@
 // gravado no histórico na hora (pelo `commit` que o App registra), então nada se perde se o app fechar
 // no meio de um lote grande.
 import { useSyncExternalStore } from 'react';
-import { Receipt, Establishment, MasterProduct } from '../types';
+import { Receipt, ReceiptItem, Establishment, MasterProduct } from '../types';
+import { isEggItem, cleanEggCount } from './eggs';
 import { parseReceiptImage, GeminiError } from './geminiService';
 import { getActiveProvider, getActiveProviderLabel } from './keyStorageService';
 import { applyRegistry, buildMasterIndex, learnEstablishment } from './registryLookupService';
@@ -317,7 +318,11 @@ const runBatch = async (files: File[], ctx: ScanContext, isRetry: boolean) => {
         const u = cleanNumber(item.unitPrice);
         const t = cleanNumber(item.totalPrice);
         if (q <= 0) q = 1;
-        return { ...item, code: cleanCode(item.code) || undefined, quantity: q, unitPrice: u, totalPrice: t };
+        // Ovo: guarda quantos ovos vêm na embalagem só quando a leitura trouxe um número que vale (0 = a linha não dizia)
+        const eggs = isEggItem(item) ? cleanEggCount(item.eggCount) : undefined;
+        const read: ReceiptItem = { ...item, code: cleanCode(item.code) || undefined, quantity: q, unitPrice: u, totalPrice: t };
+        if (eggs) read.eggCount = eggs; else delete read.eggCount;
+        return read;
       });
       calculatedItems = calculatedItems.map(item => {
         const q = item.quantity;

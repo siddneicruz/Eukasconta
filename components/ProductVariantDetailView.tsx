@@ -13,6 +13,7 @@ import ProductPriceChart from './ProductPriceChart';
 import ItemPeriodBar, { ItemPeriod, periodFromConfig } from './ItemPeriodBar';
 import { useStoreNames } from './StoreNamesContext';
 import NearbyPricesCard, { NearbySample } from './NearbyPricesCard';
+import { priceBasis, eggNeedsCount } from '../services/eggs';
 import type { CloudApi } from '../services/useCloud';
 import type { AlertDraft } from './AlertsView';
 import {
@@ -42,6 +43,11 @@ interface ProductVariantDetailViewProps {
 interface HistRow extends HistoryItem {
   description: string;
   receipt: Receipt;
+  // Ovo levado para a dúzia: o que o cupom trazia (para a consulta de preços por perto) e quantos ovos tem a bandeja
+  rawUnitPrice: number;
+  rawUnitType?: string;
+  eggs: number | null;
+  eggPending: boolean;      // ovo sem a quantidade da bandeja: falta informar no cupom
 }
 
 const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
@@ -96,13 +102,18 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
       receipts.forEach(r => {
           (r.items || []).forEach((item, idx) => {
               if (!itemBelongsToProduct(item, genericName, subCategoryName)) return;
+              const basis = priceBasis(item);
               rows.push({
                   key: `${r.id}#${idx}`,
                   description: item.description,
-                  unitPrice: Number(item.unitPrice) || 0,
-                  quantity: Number(item.quantity) || 0,
+                  unitPrice: basis.unitPrice,
+                  quantity: basis.eggs ? basis.quantity : Number(item.quantity) || 0,
                   totalPrice: Number(item.totalPrice) || 0,
-                  unitType: item.unitType,
+                  unitType: basis.unitType,
+                  rawUnitPrice: Number(item.unitPrice) || 0,
+                  rawUnitType: item.unitType,
+                  eggs: basis.eggs,
+                  eggPending: eggNeedsCount(item),
                   date: r.date,
                   establishment: nameOf(r.establishmentName, r.cnpj),
                   receipt: r,
@@ -144,9 +155,9 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
   // Compra mais recente (com CNPJ válido): é com ela que o produto é reconhecido no cadastro comum.
   const nearbySample = useMemo<NearbySample | null>(() => {
       const last = [...allHistory]
-          .filter(r => (r.receipt.cnpj || '').replace(/\D/g, '').length === 14 && r.unitPrice > 0)
+          .filter(r => (r.receipt.cnpj || '').replace(/\D/g, '').length === 14 && r.rawUnitPrice > 0)
           .sort((a, b) => b.date.localeCompare(a.date) || b.key.localeCompare(a.key))[0];
-      return last ? { description: last.description, cnpj: last.receipt.cnpj, unitType: last.unitType, unitPrice: last.unitPrice } : null;
+      return last ? { description: last.description, cnpj: last.receipt.cnpj, unitType: last.rawUnitType, unitPrice: last.rawUnitPrice } : null;
   }, [allHistory]);
 
   const stores = useMemo(() => Array.from(new Set(periodRows.map(i => i.establishment))), [periodRows]);
@@ -337,6 +348,8 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
                                               <p className="text-xs text-zinc-300 font-mono tabular-nums truncate">
                                                   {qtyFmt.format(r.quantity)} {u} <span className="text-zinc-600">·</span> {brl.format(r.totalPrice)}
                                               </p>
+                                              {r.eggs && <p className="text-xs text-zinc-500 truncate mt-0.5" data-testid="egg-row-note">bandeja de {r.eggs} ovos · preço da dúzia</p>}
+                                              {r.eggPending && <p className="text-xs text-luxury-gold truncate mt-0.5" data-testid="egg-row-pending">quantos ovos? toque para informar</p>}
                                               {!singleStore && <p className="text-xs text-zinc-500 truncate mt-0.5">{r.establishment}</p>}
                                           </div>
                                           {(isMin || isMax) && (

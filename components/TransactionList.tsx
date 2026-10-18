@@ -11,6 +11,7 @@ import ItemPriceInsight from './ItemPriceInsight';
 import { useStoreNames } from './StoreNamesContext';
 import { makeItemMatcher, textFilter, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel, normalizeUnit } from '../services/productPriceStats';
+import { priceBasis } from '../services/eggs';
 
 interface TransactionListProps {
   receipts: Receipt[];
@@ -374,7 +375,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                                             <span className="flex items-center gap-1 shrink-0 tabular-nums"><Clock className="w-3 h-3" />{receipt.time || '12:00'}</span>
                                             {rowInfo.get(receipt.id) ? (
                                                 <span className="truncate" data-testid="row-item-lines">
-                                                    {rowInfo.get(receipt.id)!.lines.slice(0, 2).map(i => `${brl.format(Number(i.unitPrice) || 0)}/${normalizeUnit(i.unitType).toLowerCase()} · ${titleCase(i.description)}`).join('  |  ')}
+                                                    {rowInfo.get(receipt.id)!.lines.slice(0, 2).map(i => { const b = priceBasis(i); return `${brl.format(b.unitPrice)}/${b.eggs ? 'dz' : normalizeUnit(i.unitType).toLowerCase()} · ${titleCase(i.description)}`; }).join('  |  ')}
                                                     {rowInfo.get(receipt.id)!.lines.length > 2 ? ` +${rowInfo.get(receipt.id)!.lines.length - 2}` : ''}
                                                 </span>
                                             ) : (
