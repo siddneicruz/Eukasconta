@@ -3,6 +3,7 @@ import * as Recharts from 'recharts';
 import { LineChart as LineChartIcon, X } from 'lucide-react';
 import { Receipt, DashboardConfig } from '../types';
 import CategoryCompareBox from './CategoryCompareBox';
+import { useLayers } from './LayersContext';
 import {
   CompareOption, buildCompareSeries, computeCompareStats, chipLabel,
 } from '../services/categoryCompare';
@@ -59,13 +60,14 @@ const CompareTooltip = ({ active, payload, lines }: any) => {
 
 const CompareCard: React.FC<Props> = ({ options, chosen, onToggle, max, receipts, config }) => {
   const chartRef = useRef<HTMLDivElement>(null);
+  const layers = useLayers();
   const width = useElementWidth(chartRef);
   const plotWidth = Math.max(120, width - TL_AXIS_Y_WIDTH - TL_MARGIN_RIGHT);
 
   const ids = useMemo(() => chosen.map(c => c.id), [chosen]);
   const idsKey = ids.join('|');
-  const stats = useMemo(() => computeCompareStats(receipts, ids), [receipts, idsKey]);
-  const cmp = useMemo(() => buildCompareSeries(receipts, ids, config, plotWidth), [receipts, idsKey, config, plotWidth]);
+  const stats = useMemo(() => computeCompareStats(receipts, ids, layers), [receipts, idsKey, layers]);
+  const cmp = useMemo(() => buildCompareSeries(receipts, ids, config, plotWidth, new Date(), layers), [receipts, idsKey, config, plotWidth, layers]);
 
   const opts = chosen.map(c => c.opt);
   const lines: LineDef[] = chosen.map((c, i) => ({ key: cmp.keys[i], label: chipLabel(c.opt, opts), color: c.color }));

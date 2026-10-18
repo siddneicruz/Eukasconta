@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, Establishment, MasterProduct } from '../types';
+import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, Establishment, MasterProduct, TaxonomyNode } from '../types';
 import { 
   TrendingUp, Store, PieChart as PieChartIcon, ChevronLeft, ChevronRight,
   DollarSign, ShoppingBag, BarChart3, Calendar, Search, Download, Package,
@@ -16,6 +16,9 @@ import { downloadFile } from '../services/nativeFiles';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH, TL_AXIS_Y_WIDTH, renderTimelineYTick } from '../services/chartFormat';
 import CompareCard, { ChosenCompare } from './CompareCard';
 import CutsPanel from './CutsPanel';
+import CategoryCompareBox from './CategoryCompareBox';
+import { useLayers } from './LayersContext';
+import { fold } from '../services/itemSearch';
 import { buildCompareOptions, bySpend, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
 
 const { 
@@ -33,6 +36,7 @@ interface ReportsProps {
   onSelectEstablishment?: (name: string) => void;
   masterProducts?: MasterProduct[];
   onUpdateMasterProducts?: (masters: MasterProduct[]) => void;
+  taxonomy?: TaxonomyNode[];
 }
 
 const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
@@ -58,13 +62,15 @@ const Reports: React.FC<ReportsProps> = ({
   onAddManual, 
   onSelectEstablishment,
   masterProducts = [],
-  onUpdateMasterProducts
+  onUpdateMasterProducts,
+  taxonomy = [],
 }) => {
+  const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
   // O que está sendo comparado (departamentos e categorias das compras do usuário) e a cor de cada um
   const [sel, setSel] = useState<CompareSelection[]>([]);
   const [rankingId, setRankingId] = useState<string | null>(null);
   const selInit = useRef(false);
-  const [goalItem, setGoalItem] = useState<string>(''); 
+  const [goalId, setGoalId] = useState<string>('');   // o que está sendo auditado: departamento, categoria, grupo ou item
   const [activeSection, setActiveSection] = useState<'panorama' | 'overview' | 'cuts' | 'goals' | 'catalog'>('panorama');
   const [cutSelId, setCutSelId] = useState<string | null>(null);
   const [tempGoalValue, setTempGoalValue] = useState<string>('');
@@ -498,20 +504,10 @@ const Reports: React.FC<ReportsProps> = ({
     downloadFile(blob, `cadastro_produtos_${fileDate}_${fileTime}.csv`).catch(() => { /* sem permissão para compartilhar */ });
   };
 
-  const taxonomyOptions = useMemo(() => {
-      const options: string[] = [];
-      const masters = new Set<string>();
-      DEFAULT_CATEGORIES.forEach(cat => {
-          masters.add(cat.split(' - ')[0]);
-          options.push(cat);
-      });
-      return [...Array.from(masters).sort(), ...options.sort()];
-  }, []);
-
   const handleSaveGoal = () => {
       const val = parseFloat(tempGoalValue);
-      if (!isNaN(val) && goalItem) {
-          const newGoals = { ...goals, [goalItem]: val };
+      if (!isNaN(val) && goalId && goalKey) {
+          const newGoals = { ...goals, [goalKey]: val };
           setGoals(newGoals);
           localStorage.setItem('eukasconta_category_goals', JSON.stringify(newGoals));
           window.dispatchEvent(new Event('storage'));
@@ -554,7 +550,16 @@ const Reports: React.FC<ReportsProps> = ({
   }, [receipts, config]);
 
   // Opções do Comparativo: saem das compras de verdade, então acompanham as categorias que o usuário usa hoje
-  const compareOptions = useMemo(() => buildCompareOptions(receipts, filteredReceipts), [receipts, filteredReceipts]);
+  const compareOptions = useMemo(() => buildCompareOptions(receipts, filteredReceipts, { layers }), [receipts, filteredReceipts, layers]);
+
+  // Auditoria de metas: mesmas opções do Comparativo, mas com toda a estrutura de categorias (dá para pôr meta antes de comprar)
+  const goalOptions = useMemo(() => buildCompareOptions(receipts, filteredReceipts, { layers, taxonomy, includeUnused: true }), [receipts, filteredReceipts, layers, taxonomy]);
+  const goalOpt = useMemo(() => goalOptions.find(o => o.id === goalId), [goalOptions, goalId]);
+  // metas antigas foram gravadas com o nome da categoria ("Hortifruti - Frutas"): acha a mesma, sem ligar para caixa e acento
+  const goalKey = goalOpt ? (Object.keys(goals).find(k => fold(k) === fold(goalOpt.full)) ?? goalOpt.full) : '';
+  const goalValue = goalKey ? (goals[goalKey] || 0) : 0;
+  const goalMatch = useMemo(() => (goalId ? matcherFor(goalId, layers) : () => false), [goalId, layers]);
+  const toggleGoal = (id: string) => setGoalId(prev => (prev === id ? '' : id));
   const optionById = useMemo(() => new Map(compareOptions.map(o => [o.id, o] as [string, CompareOption])), [compareOptions]);
 
   // Na primeira vez com dados, já compara os 3 departamentos que mais gastaram no período
@@ -587,7 +592,7 @@ const Reports: React.FC<ReportsProps> = ({
 
   const getTimelineData = (targetCategories: string[], isSingleItem: boolean = false) => {
       const dataPoints: any[] = [];
-      const metaValue = isSingleItem ? (goals[targetCategories[0]] || 0) : 0;
+      const metaValue = isSingleItem ? goalValue : 0;
       
       const start = config.quickFilter === 'custom' && config.customStartDate ? new Date(config.customStartDate + 'T12:00:00') : null;
       const end = config.quickFilter === 'custom' && config.customEndDate ? new Date(config.customEndDate + 'T12:00:00') : null;
@@ -631,7 +636,7 @@ const Reports: React.FC<ReportsProps> = ({
                           const sub = i.category;
                           const master = sub.split(' - ')[0];
                           if (isSingleItem) {
-                              if (sub === targetCategories[0] || sub.startsWith(targetCategories[0] + ' - ')) {
+                              if (goalMatch(i.category, i.description)) {
                                   dayMap[r.date].value += i.totalPrice;
                               }
                           } else if (targetCategories.includes(master)) {
@@ -665,7 +670,7 @@ const Reports: React.FC<ReportsProps> = ({
                               const sub = i.category;
                               const master = sub.split(' - ')[0];
                               if (isSingleItem) {
-                                  if (sub === targetCategories[0] || sub.startsWith(targetCategories[0] + ' - ')) {
+                                  if (goalMatch(i.category, i.description)) {
                                       point.value += i.totalPrice;
                                   }
                               } else if (targetCategories.includes(master)) {
@@ -696,7 +701,7 @@ const Reports: React.FC<ReportsProps> = ({
                           const sub = i.category;
                           const master = sub.split(' - ')[0];
                           if (isSingleItem) {
-                              if (sub === targetCategories[0] || sub.startsWith(targetCategories[0] + ' - ')) {
+                              if (goalMatch(i.category, i.description)) {
                                   point.value += i.totalPrice;
                               }
                           } else if (targetCategories.includes(master)) {
@@ -721,7 +726,7 @@ const Reports: React.FC<ReportsProps> = ({
                       const sub = i.category;
                       const master = sub.split(' - ')[0];
                       if (isSingleItem) {
-                          if (sub === targetCategories[0] || sub.startsWith(targetCategories[0] + ' - ')) {
+                          if (goalMatch(i.category, i.description)) {
                               point.value += i.totalPrice;
                           }
                       } else if (targetCategories.includes(master)) {
@@ -737,17 +742,17 @@ const Reports: React.FC<ReportsProps> = ({
   };
 
   const goalPerfData = useMemo(() => {
-      if (!goalItem) return [];
-      return getTimelineData([goalItem], true);
-  }, [filteredReceipts, goalItem, goals, config, receipts]);
+      if (!goalId) return [];
+      return getTimelineData([goalId], true);
+  }, [filteredReceipts, goalId, goalValue, goalMatch, config, receipts]);
 
   const establishmentRankData = useMemo(() => {
     if (!rankingId) return [];
-    const matches = matcherFor(rankingId);
+    const matches = matcherFor(rankingId, layers);
     const agg: Record<string, { total: number, cnpj: string }> = {};
     filteredReceipts.forEach(r => {
         r.items.forEach(item => {
-            if (matches(String(item.category || ''))) {
+            if (matches(String(item.category || ''), item.description)) {
                 if (!agg[r.establishmentName]) agg[r.establishmentName] = { total: 0, cnpj: r.cnpj };
                 agg[r.establishmentName].total += item.totalPrice;
             }
@@ -761,7 +766,7 @@ const Reports: React.FC<ReportsProps> = ({
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5); 
-  }, [filteredReceipts, rankingId, establishments]);
+  }, [filteredReceipts, rankingId, establishments, layers]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
       if (active && payload && payload.length) {
@@ -966,19 +971,21 @@ const Reports: React.FC<ReportsProps> = ({
 
               {activeSection === 'goals' && (<>
               {/* AUDITÓRIO DE METAS - LARGO E NA BASE COM FILTRO NO CABEÇALHO */}
-              <div className="bg-[#121214] border border-white/5 rounded-[2rem] p-6 md:p-8 shadow-2xl overflow-hidden relative group">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none" />
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 relative z-10">
+              <div className="bg-[#121214] border border-white/5 rounded-[2rem] p-6 md:p-8 shadow-2xl relative group" data-testid="goals-card">
+                    <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none"><div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 blur-[80px] rounded-full" /></div>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 relative z-20">
                         <div className="flex items-center gap-3">
                             <Goal className="w-5 h-5 text-blue-400" />
                             <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">Auditório de Metas</h3>
                         </div>
-                        <div className="flex flex-col md:flex-row items-center gap-3 flex-1 md:justify-end">
-                            <select value={goalItem} onChange={(e) => setGoalItem(e.target.value)} className="w-full md:w-64 bg-black/40 border border-white/5 rounded-2xl p-3 text-[11px] text-zinc-200 font-bold uppercase tracking-[0.08em] outline-none focus:border-luxury-gold/40 transition-all cursor-pointer">
-                                <option value="">Selecione para auditar...</option>
-                                {taxonomyOptions.map(opt => <option key={opt} value={opt} className="bg-zinc-950">{opt}</option>)}
-                            </select>
-                            {goalItem && (
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-1 md:justify-end">
+                            <div className="w-full md:w-80">
+                                <CategoryCompareBox
+                                    options={goalOptions} selected={goalId ? [goalId] : []} max={1} single
+                                    onToggle={toggleGoal} testId="goal-search"
+                                    placeholder="Selecione para auditar..." valueLabel={goalOpt?.full} />
+                            </div>
+                            {goalId && (
                                 <div className="flex gap-2 w-full md:w-auto">
                                     <input type="number" value={tempGoalValue} onChange={(e) => setTempGoalValue(e.target.value)} placeholder="Teto..." className="w-full md:w-32 bg-black/60 border border-white/10 rounded-2xl px-4 py-3 text-xs text-luxury-gold font-bold outline-none focus:border-luxury-gold/40" />
                                     <button onClick={handleSaveGoal} className="p-3 bg-luxury-gold text-black rounded-xl hover:bg-white transition-all shadow-lg shadow-luxury-gold/10"><Save className="w-4 h-4" /></button>
@@ -987,7 +994,7 @@ const Reports: React.FC<ReportsProps> = ({
                         </div>
                     </div>
                     <div className="relative z-10">
-                        {goalItem ? (
+                        {goalId ? (
                             <div className="h-[240px] md:h-[350px] w-full animate-in fade-in slide-in-from-top-2">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={goalPerfData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
@@ -1000,7 +1007,7 @@ const Reports: React.FC<ReportsProps> = ({
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTickX} dy={15} />
                                         <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
                                         <Tooltip content={<CustomTooltip />} />
-                                        <ReferenceLine y={goals[goalItem] || 0} stroke="#D4AF37" strokeDasharray="8 8" strokeWidth={2} />
+                                        <ReferenceLine y={goalValue} stroke="#D4AF37" strokeDasharray="8 8" strokeWidth={2} />
                                         <Area type="monotone" dataKey="value" name="REALIZADO" stroke="#D4AF37" strokeWidth={3} fillOpacity={1} fill="url(#colorGoal)" animationDuration={2000} dot={{ r: 4, fill: '#000', stroke: '#D4AF37', strokeWidth: 2 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} />
                                         <Line type="monotone" dataKey="delta" name="DIFERENÇA" stroke="transparent" dot={false} activeDot={false} />
                                     </AreaChart>
@@ -1009,7 +1016,7 @@ const Reports: React.FC<ReportsProps> = ({
                         ) : (
                             <div className="h-[200px] md:h-[300px] flex flex-col items-center justify-center opacity-20 gap-4">
                                 <PieChartIcon className="w-12 h-12" />
-                                <span className="text-[11px] uppercase tracking-[0.08em] font-bold">Selecione um departamento para auditar metas</span>
+                                <span className="text-[11px] uppercase tracking-[0.08em] font-bold">Selecione uma categoria ou item para auditar metas</span>
                             </div>
                         )}
                     </div>

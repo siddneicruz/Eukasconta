@@ -20,7 +20,7 @@ import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
 import EstablishmentEditSheet from './components/EstablishmentEditSheet';
 import { applyStoreEdit, StoreDraft } from './services/establishmentEdit';
-import { rekeyStoreCodes, applyCodeEdit, CodeOp, normStoreKey } from './services/productCodes';
+import { rekeyStoreCodes, applyCodeEdit, CodeOp, normStoreKey, codeKind } from './services/productCodes';
 import SettingsView from './components/SettingsView';
 import DiagnosticPanel from './components/DiagnosticPanel';
 import ManualEntryForm from './components/ManualEntryForm';
@@ -31,12 +31,14 @@ import { useCloud } from './services/useCloud';
 import { useCloudBackup } from './services/useCloudBackup';
 import { useRestorePoints } from './services/useRestorePoints';
 import { readPointText } from './services/restorePoints';
+import { readTxtReceipts, parseReceiptTexts, applyTxtImport, TxtFile } from './services/receiptTextImport';
 import { deleteCloudReceipt } from './services/cloudService';
 import ConfirmDialog from './components/ConfirmDialog';
 // O mapa traz a biblioteca de mapas junto; só é baixado quando a pessoa abre a tela.
 const EstablishmentsMapView = lazy(() => import('./components/EstablishmentsMapView'));
 import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
+import { LayersProvider } from './components/LayersContext';
 
 import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
 import { diagnostics } from './services/diagnosticService';
@@ -681,11 +683,63 @@ const App: React.FC = () => {
       } catch (err: any) { alert("Erro ao exportar vault: " + err.message); } finally { setGlobalLoading(false); }
   };
 
+  // Cupons em texto (um .txt, ou um .zip só de .txt): entram no histórico sem mexer no resto dos dados.
+  // O código de cada item (código de barras do fabricante ou da loja) vem junto e o catálogo aprende com ele.
+  const importTxtReceipts = async (files: TxtFile[]) => {
+      restore.before('importar cupons em texto');
+      setGlobalLoading(true);
+      setLoadingText('LENDO CUPONS...');
+      try {
+          const batch = parseReceiptTexts(files, c => codeKind(c) === 'ean');
+          if (batch.receipts.length === 0) {
+              showNotification(batch.empty > 0
+                  ? `Nenhum cupom importado: ${batch.empty === 1 ? 'o cupom não tem' : `os ${batch.empty} cupons não têm`} itens.`
+                  : 'Esse arquivo não parece um cupom em texto. Nada foi importado.', 8000);
+              return;
+          }
+          const out = await applyTxtImport(
+              batch.receipts,
+              { establishments, masterProducts, categories, existing: receiptsRef.current },
+              (d, t) => setLoadingText(`LENDO CUPONS... ${d} DE ${t}`),
+          );
+          if (out.added.length > 0) {
+              receiptsRef.current = [...out.added, ...receiptsRef.current];
+              setReceipts(prev => [...out.added.filter(a => !prev.some(ex => ex.id === a.id)), ...prev]);
+          }
+          const n = out.added.length;
+          const parts: string[] = [n === 0
+              ? (out.duplicates === 1 ? 'Esse cupom já estava no histórico' : `Esses ${out.duplicates} cupons já estavam no histórico`)
+              : `${n} ${n === 1 ? 'cupom importado' : 'cupons importados'} (${out.items} itens)`];
+          if (n > 0 && out.withEan + out.withStoreCode + out.withSuspectCode > 0) {
+              const c: string[] = [];
+              if (out.withEan) c.push(`${out.withEan} com código de barras do fabricante`);
+              if (out.withStoreCode) c.push(`${out.withStoreCode} com código da loja`);
+              if (out.withSuspectCode) c.push(`${out.withSuspectCode} com código de barras de dígito errado`);
+              parts.push(c.join(', '));
+          }
+          if (n > 0 && out.duplicates > 0) parts.push(`${out.duplicates} já existiam`);
+          if (batch.empty > 0) parts.push(`${batch.empty} sem itens, ignorados`);
+          if (batch.invalid > 0) parts.push(`${batch.invalid} não eram cupom`);
+          if (n > 0 && out.uncategorized > 0) parts.push(`${out.uncategorized} itens ficaram em "Outros" (sem categoria no catálogo)`);
+          showNotification(`${parts.join('; ')}.`, 14000);
+          if (n > 0) setView('history');
+      } catch (e: any) {
+          console.error('Erro ao importar cupons em texto:', e);
+          showNotification(`Não consegui importar os cupons: ${String(e?.message || e)}`, 8000);
+      } finally {
+          setGlobalLoading(false);
+      }
+  };
+
   const handleImportData = async (file: File) => {
       // Arquivo de ponto de restauração: entra na lista de pontos e não mexe nos dados de agora
       try {
           if ((await readPointText(file)) !== null) { await restore.importFile(file); return; }
       } catch { /* não deu para ler como ponto: segue como backup comum */ }
+      // Cupons em texto
+      let txts: TxtFile[] | null = null;
+      try { txts = await readTxtReceipts(file); } catch { /* não deu para ler como texto: segue como backup comum */ }
+      if (txts) { await importTxtReceipts(txts); return; }
       restore.before('importar um arquivo');
       setGlobalLoading(true); 
       setLoadingText("RESTAURANDO ESTÚDIO...");
@@ -990,6 +1044,7 @@ const App: React.FC = () => {
 
   return (
     <StoreNamesProvider establishments={establishments}>
+    <LayersProvider taxonomy={taxonomy}>
     <div className="flex flex-col h-[100dvh] bg-black text-zinc-100 font-sans overflow-hidden">
       {globalLoading && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
@@ -1139,6 +1194,7 @@ const App: React.FC = () => {
                         establishments={establishments} 
                         masterProducts={masterProducts}
                         onUpdateMasterProducts={setMasterProducts}
+                        taxonomy={taxonomy}
                     />
                 )}
                 {view === 'scanner' && <Scanner onFinish={() => setView('history')} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} />}
@@ -1312,6 +1368,7 @@ const App: React.FC = () => {
           logs={importLogs} 
       />
     </div>
+    </LayersProvider>
     </StoreNamesProvider>
   );
 };

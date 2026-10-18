@@ -3,6 +3,7 @@ import * as Recharts from 'recharts';
 import { Plus, X, Filter, Pencil, ArrowLeftRight, CalendarRange, PieChart as PieChartIcon, Store, Undo2 } from 'lucide-react';
 import { Receipt } from '../types';
 import CutEditorSheet from './CutEditorSheet';
+import { useLayers } from './LayersContext';
 import { getCategoryColor } from './Dashboard';
 import {
   Cut, analyzeCut, cutTitle, loadCuts, rangeLabel, saveCuts,
@@ -52,11 +53,12 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
   const width = useElementWidth(chartRef);
   const plotWidth = Math.max(120, width - TL_AXIS_Y_WIDTH - TL_MARGIN_RIGHT);
   const [allDepts, setAllDepts] = useState(false);
+  const layers = useLayers();
 
-  const a = useMemo(() => analyzeCut(receipts, cut, plotWidth), [receipts, cut, plotWidth]);
+  const a = useMemo(() => analyzeCut(receipts, cut, plotWidth), [receipts, cut, plotWidth, layers]);
   const options = useMemo(
-    () => buildDeptOptions(receipts, receipts.filter(r => r.date >= cut.from && r.date <= cut.to)),
-    [receipts, cut.from, cut.to],
+    () => buildDeptOptions(receipts, receipts.filter(r => r.date >= cut.from && r.date <= cut.to), layers),
+    [receipts, cut.from, cut.to, layers],
   );
 
   const active = isDeptFilterActive(cut.filter);

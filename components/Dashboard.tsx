@@ -35,6 +35,7 @@ import * as LucideIcons from 'lucide-react';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
 import DeptFilterSheet from './DeptFilterSheet';
+import { useLayers } from './LayersContext';
 import { useDeptFilter, isDeptFilterActive, invertDeptFilter, deptFilterLabel, deptLabelFor, applyDeptFilter, buildDeptOptions } from '../services/deptFilter';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel } from '../services/productPriceStats';
@@ -407,6 +408,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const [filtersOpen, setFiltersOpen] = useState(false);
   // Filtro de categorias: fica gravado no aparelho (não some ao limpar os outros filtros)
   const [deptFilter, setDeptFilter] = useDeptFilter();
+  const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
   const [deptSheetOpen, setDeptSheetOpen] = useState(false);
   const deptActive = isDeptFilterActive(deptFilter);
   const hasFilters = !!(!isCurrentMonthPeriod(config) || config.establishment || config.item);
@@ -454,9 +456,9 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 
   // Com categorias tiradas (ou só algumas escolhidas), cada cupom fica só com as linhas que entram, e vale a soma delas
   const filteredReceipts = useMemo(
-    () => [...applyDeptFilter(periodReceipts, deptFilter)].sort((a, b) => b.date.localeCompare(a.date)),
-    [periodReceipts, deptFilter]);
-  const deptOptions = useMemo(() => buildDeptOptions(receipts, periodReceipts), [receipts, periodReceipts]);
+    () => [...applyDeptFilter(periodReceipts, deptFilter, layers)].sort((a, b) => b.date.localeCompare(a.date)),
+    [periodReceipts, deptFilter, layers]);
+  const deptOptions = useMemo(() => buildDeptOptions(receipts, periodReceipts, layers), [receipts, periodReceipts, layers]);
   const deptLabel = deptFilterLabel(deptFilter, k => deptLabelFor(deptOptions, k));
 
   // Resumo do item escolhido no período, e as compras dele para o gráfico de preço

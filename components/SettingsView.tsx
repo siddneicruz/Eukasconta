@@ -19,6 +19,7 @@ import { isNativeApp } from '../services/platform';
 import type { CloudApi } from '../services/useCloud';
 import type { BackupApi } from '../services/useCloudBackup';
 import { formatCNPJ } from '../services/productNormalization';
+import StoreIndexList from './StoreIndexList';
 import { titleCase } from '../services/textFormat';
 import { AppMark, PDLogo } from './Brand';
 import NicknameSuggestSheet from './NicknameSuggestSheet';
@@ -240,34 +241,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                       <p className="text-sm text-zinc-500 text-center py-10">Nenhuma loja encontrada.</p>
                   )}
 
-                  {/* Celular: um cartão por loja */}
-                  <div className="md:hidden space-y-2.5">
-                      {filteredEstablishments.map((est) => (
-                          <div key={`${(est.cnpj || '').replace(/\D/g, '')}|${est.originalName}`} className="rounded-2xl border border-white/5 bg-zinc-900/30 p-4">
-                              <p className="text-sm font-semibold text-zinc-100 leading-snug break-words">{titleCase(est.originalName)}</p>
-                              <p className="text-xs text-zinc-500 mt-1 break-words">
-                                  <span className="tabular-nums">{formatCNPJ(est.cnpj) || 'Pessoa física'}</span>
-                                  {(est.city || est.state) && <> · {[titleCase(est.city), est.state].filter(Boolean).join(' - ')}</>}
-                              </p>
-                              {est.address && <p className="text-xs text-zinc-600 mt-0.5 break-words" data-testid="store-address">{est.address}</p>}
-                              <label className="block mt-3">
-                                  <span className="block text-xs text-zinc-400 font-medium mb-1.5">Apelido</span>
-                                  <input
-                                    type="text"
-                                    value={est.aliasName || ''}
-                                    onChange={e => onUpdateEstablishment({...est, aliasName: e.target.value})}
-                                    placeholder="Como você chama esta loja"
-                                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold placeholder:text-zinc-600 placeholder:font-normal"
-                                  />
-                              </label>
-                              {onEditEstablishment && (
-                                  <button type="button" onClick={() => onEditEstablishment(est)} data-testid="store-edit-open"
-                                      className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-xs font-bold hover:border-luxury-gold/40 hover:text-luxury-gold transition-colors">
-                                      <Edit2 className="w-3.5 h-3.5" /> Editar todos os dados
-                                  </button>
-                              )}
-                          </div>
-                      ))}
+                  {/* Celular: lista compacta em ordem alfabética, com barra de letras e lápis para editar */}
+                  <div className="md:hidden">
+                      <StoreIndexList stores={filteredEstablishments} onUpdate={onUpdateEstablishment} onEditAll={onEditEstablishment} />
                   </div>
 
                   {/* Tela grande: tabela */}
@@ -364,8 +340,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <BackupCard icon={Download} label="Exportar" sub="Backup JSON/ZIP" onClick={onExportData} testId="export-backup"
                     note={fileBackupAt ? <>Último: <b className="text-zinc-300 font-semibold">{whenText(fileBackupAt, now)}</b> · {agoText(fileBackupAt, now)}</> : 'Nunca exportado'} />
                 {onExportTxtZip && <BackupCard icon={FileText} label="Cupons TXT" sub="Um .txt por cupom, em .zip" onClick={onExportTxtZip} />}
-                <BackupCard icon={Upload} label="Importar" sub="Restaurar backup" onClick={() => fileInputRef.current?.click()} />
-                <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if(f && onImportData) onImportData(f); }} accept={isNativeApp() ? '*/*' : '.json,.zip,application/json,application/zip'} className="hidden" />
+                <BackupCard icon={Upload} label="Importar" sub="Backup ou cupons .txt" onClick={() => fileInputRef.current?.click()} />
+                <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if(f && onImportData) onImportData(f); }} accept={isNativeApp() ? '*/*' : '.json,.zip,.txt,application/json,application/zip,text/plain'} className="hidden" />
                 
                 <button onClick={() => setShowResetConfirm(true)} className="p-6 bg-red-950/5 border border-red-900/10 rounded-3xl flex flex-col items-center justify-center gap-3 group hover:bg-red-900/20 transition-all">
                     <AlertTriangle className="w-6 h-6 text-red-900 group-hover:text-red-500" />

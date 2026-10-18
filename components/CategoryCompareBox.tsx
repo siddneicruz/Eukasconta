@@ -4,8 +4,9 @@ import { CompareOption, bySpend, deptId } from '../services/categoryCompare';
 import { fold } from '../services/itemSearch';
 import { brlAxis } from '../services/chartFormat';
 
-/* Campo para escolher o que comparar: digita e as sugestões aparecem (autocompletar), ou abre a lista
-   de departamentos e toca na seta de um deles para ver as categorias. Escolher de novo tira da comparação. */
+/* Campo para escolher uma categoria: digita e as sugestões aparecem (autocompletar), ou abre a lista de departamentos e
+   toca na seta de um deles para descer: categoria, grupo e item (4 níveis). Escolher de novo tira da escolha.
+   Serve ao Comparativo (várias, até `max`) e à auditoria de metas (`single`: uma só, e a lista fecha ao escolher). */
 
 interface Props {
   options: CompareOption[];
@@ -14,13 +15,17 @@ interface Props {
   onToggle: (id: string) => void;
   testId?: string;
   placeholder?: string;
+  single?: boolean;
+  valueLabel?: string;      // o que está escolhido (modo `single`), mostrado no próprio campo
 }
 
-interface Row { opt: CompareOption; indent: boolean; kids: number; expanded: boolean; flat: boolean }
+interface Row { opt: CompareOption; depth: number; kids: number; expanded: boolean; flat: boolean; crumb: string }
 
 const MAX_RESULTS = 40;
 
-const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle, testId = 'compare-search', placeholder = 'Buscar categoria' }) => {
+const LEVEL_ORDER: Record<string, number> = { dept: 0, cat: 1, grp: 2, rest: 2, item: 3 };
+
+const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle, testId = 'compare-search', placeholder = 'Buscar categoria', single = false, valueLabel }) => {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -30,29 +35,47 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
   const listRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
-  const full = selected.length >= max;
+  const full = !single && selected.length >= max;
   const q = fold(query);
 
-  const depts = useMemo(() => options.filter(o => o.kind === 'dept').sort(bySpend), [options]);
-  const catsByDept = useMemo(() => {
-    const m = new Map<string, CompareOption[]>();
-    options.filter(o => o.kind === 'cat').sort(bySpend).forEach(o => {
-      const k = deptId(o.dept);
-      const arr = m.get(k);
-      if (arr) arr.push(o); else m.set(k, [o]);
+  const byId = useMemo(() => new Map(options.map(o => [o.id, o] as [string, CompareOption])), [options]);
+  const parentOf = (o: CompareOption): string | null => {
+    const p = o.parent ?? (o.kind === 'cat' ? deptId(o.dept) : null);
+    return p && byId.has(p) ? p : null;
+  };
+  const { roots, kidsOf } = useMemo(() => {
+    const kids = new Map<string, CompareOption[]>();
+    const top: CompareOption[] = [];
+    options.forEach(o => {
+      const p = o.parent ?? (o.kind === 'cat' ? deptId(o.dept) : null);
+      if (p && byId.has(p)) {
+        const arr = kids.get(p);
+        if (arr) arr.push(o); else kids.set(p, [o]);
+      } else top.push(o);
     });
-    return m;
-  }, [options]);
+    kids.forEach(arr => arr.sort(bySpend));
+    return { roots: top.sort(bySpend), kidsOf: kids };
+  }, [options, byId]);
+
+  // "Açougue › Carne Bovina › Cortes Nobres": o caminho até a opção, sem ela mesma
+  const crumbOf = (o: CompareOption): string => {
+    const names: string[] = [];
+    let p = parentOf(o);
+    let guard = 0;
+    while (p && guard++ < 6) { const po = byId.get(p); if (!po) break; names.unshift(po.label); p = parentOf(po); }
+    return names.join(' › ');
+  };
 
   const rows: Row[] = useMemo(() => {
     if (!q) {
       const out: Row[] = [];
-      depts.forEach(d => {
-        const kids = catsByDept.get(d.id) || [];
-        const isOpen = expanded.has(d.id);
-        out.push({ opt: d, indent: false, kids: kids.length, expanded: isOpen, flat: false });
-        if (isOpen) kids.forEach(c => out.push({ opt: c, indent: true, kids: 0, expanded: false, flat: false }));
-      });
+      const walk = (o: CompareOption, depth: number) => {
+        const kids = kidsOf.get(o.id) || [];
+        const isOpen = expanded.has(o.id);
+        out.push({ opt: o, depth, kids: kids.length, expanded: isOpen, flat: false, crumb: '' });
+        if (isOpen) kids.forEach(k => walk(k, depth + 1));
+      };
+      roots.forEach(r => walk(r, 0));
       return out;
     }
     const tokens = q.split(' ').filter(Boolean);
@@ -61,11 +84,11 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
       .sort((a, b) => {
         const sa = fold(a.label).startsWith(tokens[0]) ? 0 : 1;
         const sb = fold(b.label).startsWith(tokens[0]) ? 0 : 1;
-        return sa - sb || (a.kind === b.kind ? 0 : a.kind === 'dept' ? -1 : 1) || bySpend(a, b);
+        return sa - sb || (LEVEL_ORDER[a.kind] - LEVEL_ORDER[b.kind]) || bySpend(a, b);
       })
       .slice(0, MAX_RESULTS)
-      .map(o => ({ opt: o, indent: false, kids: 0, expanded: false, flat: true }));
-  }, [q, depts, catsByDept, expanded, options]);
+      .map(o => ({ opt: o, depth: 0, kids: 0, expanded: false, flat: true, crumb: crumbOf(o) }));
+  }, [q, roots, kidsOf, expanded, options]);
 
   useEffect(() => { setActive(q && rows.length ? 0 : -1); }, [q, rows.length]);
 
@@ -142,12 +165,12 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
         spellCheck={false}
         enterKeyHint="done"
         data-testid={`${testId}-input`}
-        placeholder={placeholder}
+        placeholder={valueLabel || placeholder}
         value={query}
         onChange={e => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        className="w-full bg-white/5 border border-white/5 rounded-xl py-2.5 pl-10 pr-11 text-[13px] text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-luxury-gold/40 transition-colors"
+        className={`w-full bg-white/5 border border-white/5 rounded-xl py-2.5 pl-10 pr-11 text-[13px] text-zinc-200 focus:outline-none focus:border-luxury-gold/40 transition-colors ${valueLabel ? 'placeholder:text-zinc-200 placeholder:font-semibold' : 'placeholder:text-zinc-500'}`}
       />
       {query ? (
         <button type="button" aria-label="Limpar a busca" data-testid={`${testId}-clear`}
@@ -187,8 +210,12 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
           ) : rows.map((r, i) => {
             const sel = isSel(r.opt.id);
             const dis = blocked(r.opt.id);
+            const k = r.opt.kind;
+            const titleCls = k === 'dept' ? 'text-[14px] font-semibold text-zinc-100' : k === 'cat' ? 'text-[13px] font-medium text-zinc-200' : k === 'item' ? 'text-[12.5px] font-normal text-zinc-300' : 'text-[13px] font-medium text-zinc-300';
+            const caption = k === 'dept' ? 'Departamento inteiro' : k === 'cat' ? r.opt.dept : r.crumb;
             return (
-              <div key={r.opt.id} className={`flex items-stretch rounded-xl transition-colors ${i === active ? 'bg-luxury-gold/10' : 'hover:bg-white/5'} ${r.indent ? 'ml-5' : ''}`}>
+              <div key={r.opt.id} style={r.depth ? { marginLeft: r.depth * 16 } : undefined}
+                className={`flex items-stretch rounded-xl transition-colors ${i === active ? 'bg-luxury-gold/10' : 'hover:bg-white/5'}`}>
                 <button
                   type="button"
                   id={`${listId}-${i}`}
@@ -197,7 +224,8 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
                   aria-disabled={dis || undefined}
                   data-row={i}
                   data-testid="compare-suggestion"
-                  data-kind={r.opt.kind}
+                  data-kind={k}
+                  data-level={r.opt.level ?? (k === 'dept' ? 1 : 2)}
                   data-selected={sel ? 'true' : 'false'}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => pick(i)}
@@ -207,15 +235,15 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
                     {sel && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate ${r.opt.kind === 'dept' ? 'text-[14px] font-semibold text-zinc-100' : 'text-[13px] font-medium text-zinc-200'}`}>{r.opt.label}</span>
-                    {r.flat && <span className="block text-[11px] text-zinc-500 leading-snug truncate">{r.opt.kind === 'dept' ? 'Departamento inteiro' : r.opt.dept}</span>}
+                    <span className={`block truncate ${titleCls}`}>{r.opt.label}</span>
+                    {r.flat && <span className="block text-[11px] text-zinc-500 leading-snug truncate">{caption}</span>}
                   </span>
                   <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums">{r.opt.total > 0 ? brlAxis(r.opt.total) : ''}</span>
                 </button>
                 {r.kids > 0 && (
                   <button
                     type="button"
-                    aria-label={r.expanded ? `Esconder categorias de ${r.opt.label}` : `Ver categorias de ${r.opt.label}`}
+                    aria-label={r.expanded ? `Esconder o que há dentro de ${r.opt.label}` : `Ver o que há dentro de ${r.opt.label}`}
                     aria-expanded={r.expanded}
                     data-testid="compare-expand"
                     onClick={() => toggleExpand(r.opt.id)}

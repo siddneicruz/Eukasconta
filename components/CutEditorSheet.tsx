@@ -4,6 +4,7 @@ import { X, Filter, ArrowLeftRight, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
 import PeriodPicker from './PeriodPicker';
 import DeptFilterSheet from './DeptFilterSheet';
+import { useLayers } from './LayersContext';
 import { Cut, cutReceipts, dayCount, newCutId } from '../services/cuts';
 import {
   DeptFilter, NO_DEPT_FILTER, buildDeptOptions, deptFilterLabel, deptLabelFor, invertDeptFilter, isDeptFilterActive,
@@ -45,9 +46,10 @@ const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose })
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
   }, []);
 
+  const layers = useLayers();
   const ready = Boolean(from && to);
   const inRange = useMemo(() => (ready ? receipts.filter(r => r.date >= from && r.date <= to) : receipts), [receipts, from, to, ready]);
-  const options = useMemo(() => buildDeptOptions(receipts, inRange), [receipts, inRange]);
+  const options = useMemo(() => buildDeptOptions(receipts, inRange, layers), [receipts, inRange, layers]);
   const active = isDeptFilterActive(filter);
   const filterText = deptFilterLabel(filter, k => deptLabelFor(options, k));
 
@@ -55,7 +57,7 @@ const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose })
     if (!ready) return null;
     const list = cutReceipts(receipts, from, to, filter);
     return { count: list.length, total: list.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0) };
-  }, [receipts, from, to, filter, ready]);
+  }, [receipts, from, to, filter, ready, layers]);
 
   const save = () => {
     if (!ready) return;
