@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Browser } from '@capacitor/browser';
-import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X, WifiOff } from 'lucide-react';
+import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X, WifiOff, Pencil } from 'lucide-react';
 import { Receipt, Establishment } from '../types';
 import { geocodeMissingEstablishments, needsGeocoding } from '../services/geocodingService';
 import { fetchRoute, haversineKm, formatDistance, formatDuration, navigationLinks, RouteResult, LatLng } from '../services/routingService';
@@ -19,6 +19,8 @@ interface MapViewProps {
   establishments: Establishment[];
   /** grava o endereço já localizado (ou a falha) no cadastro da loja */
   onPatchEstablishment: (est: Establishment, patch: Partial<Establishment>) => void;
+  /** abre a folha com todos os dados da loja para editar */
+  onEditEstablishment?: (est: Establishment) => void;
   onBack: () => void;
 }
 
@@ -121,15 +123,30 @@ const meIcon = L.divIcon({
 
 // Perto o bastante para ver as ruas ao redor de quem apertou "minha localização"
 const ME_ZOOM = 16;
+// Ao abrir, o mapa mostra 1 km ao redor de quem está olhando
+const START_RADIUS_M = 1000;
 
 const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number, number][] | null; all: [number, number][]; targetId: string | null; focusMe: number }> = ({ me, target, path, all, targetId, focusMe }) => {
   const map = useMap();
-  const didAll = useRef(false);
+  // 'me' = 1 km ao redor de você · 'all' = todas as lojas · null = ainda nada
+  const placed = useRef<'me' | 'all' | null>(null);
   const hadTarget = useRef(false);
-  // Depois de "minha localização", a rota que chega (ou a loja mais perto que muda) não afasta o mapa de novo:
-  // só uma loja escolhida pela pessoa volta a enquadrar tudo.
+  const fitCount = useRef(0);
+  const touched = useRef(false);
+  // Depois de "minha localização", a loja escolhida que muda não afasta o mapa de novo
   const focusedOn = useRef<{ targetId: string | null } | null>(null);
-  // loja escolhida / rota pronta: enquadra você + a loja (ou a rota inteira)
+
+  // A pessoa mexeu no mapa (arrastou, deu zoom, tocou): daí em diante o mapa não pula sozinho para a posição dela.
+  useEffect(() => {
+    const el = map.getContainer();
+    const mark = () => { touched.current = true; };
+    map.on('dragstart', mark);
+    el.addEventListener('wheel', mark, { passive: true });
+    el.addEventListener('touchstart', mark, { passive: true });
+    return () => { map.off('dragstart', mark); el.removeEventListener('wheel', mark); el.removeEventListener('touchstart', mark); };
+  }, [map]);
+
+  // loja escolhida pela pessoa: enquadra você + a loja (ou a rota inteira)
   useEffect(() => {
     if (!target) return;
     hadTarget.current = true;
@@ -139,20 +156,32 @@ const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number
     if (pts.length === 1) map.setView(pts[0], 15);
     else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 16 });
   }, [targetId, path, me?.lat, me?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-  // nada escolhido: mostra todas as lojas (na primeira vez e sempre que a escolha é desfeita)
+
+  // nada escolhido: o mapa abre em 1 km ao redor de você; sem a sua localização, mostra todas as lojas.
+  // Volta para cá também quando a escolha é desfeita.
   useEffect(() => {
-    if (target || all.length === 0) return;
-    if (didAll.current && !hadTarget.current) return;
-    didAll.current = true;
-    hadTarget.current = false;
-    const pts: [number, number][] = me ? [...all, [me.lat, me.lng]] : all;
-    if (pts.length === 1) map.setView(pts[0], 14);
-    else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15 });
-  }, [all.length, target]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (target) return;
+    const comeback = hadTarget.current;
+    if (me && (placed.current !== 'me' || comeback) && (!touched.current || comeback)) {
+      placed.current = 'me'; hadTarget.current = false;
+      const bounds = L.latLng(me.lat, me.lng).toBounds(START_RADIUS_M * 2);
+      map.setView([me.lat, me.lng], map.getBoundsZoom(bounds, false), { animate: false });
+      return;
+    }
+    // sem a sua localização: mostra todas as lojas, e enquadra de novo a cada loja que acaba de ser localizada (até a pessoa mexer no mapa)
+    if (!me && all.length > 0 && (comeback || (!touched.current && (placed.current !== 'all' || fitCount.current !== all.length)))) {
+      placed.current = 'all'; fitCount.current = all.length; hadTarget.current = false;
+      const pts = all;
+      if (pts.length === 1) map.setView(pts[0], 14);
+      else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15 });
+    }
+  }, [all.length, target, me?.lat, me?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // "Minha localização": fecha o mapa em cima de você
   useEffect(() => {
     if (focusMe === 0 || !me) return;
     focusedOn.current = { targetId };
+    placed.current = 'me';
     map.flyTo([me.lat, me.lng], ME_ZOOM, { duration: 0.8 });
   }, [focusMe]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
@@ -173,7 +202,7 @@ const CenterWatcher: React.FC<{ onCenter: (lat: number, lng: number) => void }> 
 
 /* ───────────── tela ───────────── */
 
-const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishments, onPatchEstablishment, onBack }) => {
+const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishments, onPatchEstablishment, onEditEstablishment, onBack }) => {
   const namer = useStoreNames();
   const light = useIsLight();
 
@@ -264,6 +293,8 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const [manual, setManual] = useState<{ id: string | null } | null>(null);
   const selectedId = manual ? manual.id : nearestId;
   const selected = useMemo(() => stores.find(s => s.id === selectedId) || null, [stores, selectedId]);
+  // só a loja que a pessoa tocou move o mapa; a mais perto (escolhida sozinha) só aparece no cartão e na rota
+  const picked = manual && manual.id ? selected : null;
   const [route, setRoute] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; data: RouteResult | null }>({ status: 'idle', data: null });
 
   const meKey = me ? `${me.lat.toFixed(4)},${me.lng.toFixed(4)}` : '';
@@ -324,7 +355,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
 
       <div ref={mapBox} className="bg-zinc-950 border border-white/5 rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative scroll-mt-20">
         <div className={`h-[340px] md:h-[520px] w-full relative z-0 ${!light && !(maps.useVector && maps.opened) ? 'map-dark' : ''}`} data-testid="map-canvas">
-          <MapContainer center={center} zoom={stores.length ? 12 : 4} scrollWheelZoom style={{ width: '100%', height: '100%', background: light ? '#f4f4f5' : '#09090b' }}>
+          <MapContainer center={center} zoom={stores.length ? 12 : 4} zoomSnap={0.25} scrollWheelZoom style={{ width: '100%', height: '100%', background: light ? '#f4f4f5' : '#09090b' }}>
             {/* espera ler o que está salvo antes de escolher a base: evita pedir imagens online à toa */}
             {!maps.savedLoaded ? null : maps.useVector && maps.opened ? (
               <OfflineVectorLayer archive={maps.opened.archive} dark={!light} maxDataZoom={maps.opened.maxzoom} />
@@ -337,7 +368,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
             )}
             <CenterWatcher onCenter={(lat, lng) => setViewCenter({ lat, lng })} />
             <ZoomWatcher onZoom={setZoom} />
-            <Framer me={me} target={selected ? { lat: selected.lat, lng: selected.lng } : null} path={route.data?.path || null} all={allPoints} targetId={selected?.id || null} focusMe={focusMe} />
+            <Framer me={me} target={picked ? { lat: picked.lat, lng: picked.lng } : null} path={picked ? route.data?.path || null : null} all={allPoints} targetId={picked?.id || null} focusMe={focusMe} />
             {route.data && (
               <>
                 <Polyline positions={route.data.path} pathOptions={{ color: light ? '#ffffff' : '#000000', weight: 9, opacity: 0.75, lineCap: 'round', lineJoin: 'round' }} />
@@ -384,6 +415,12 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               <p className="text-base font-bold text-white leading-tight truncate" data-testid="map-selected-name">{selected.name}</p>
               {selected.address && <p className="text-xs text-zinc-500 mt-0.5 leading-snug">{selected.address}</p>}
             </div>
+            {onEditEstablishment && (
+              <button onClick={() => onEditEstablishment(selected.est)} aria-label="Editar dados da loja" data-testid="map-edit-store"
+                className="shrink-0 -mt-1 w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 hover:text-luxury-gold hover:bg-white/5 active:bg-white/10">
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
             <button onClick={() => setManual({ id: null })} aria-label="Fechar e tirar a rota" data-testid="map-clear"
               className="shrink-0 -mr-1 -mt-1 w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 active:bg-white/10">
               <X className="w-5 h-5" />
@@ -480,9 +517,16 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           </div>
           <div className="flex flex-wrap gap-2">
             {notFound.map(e => (
-              <span key={`${e.cnpj}|${e.originalName}`} className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 text-[11px] text-zinc-400 font-bold truncate max-w-[220px]">
-                {namer.nameOf(e.originalName, e.cnpj)}
-              </span>
+              onEditEstablishment ? (
+                <button key={`${e.cnpj}|${e.originalName}`} onClick={() => onEditEstablishment(e)} data-testid="map-notfound-edit"
+                  className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 text-[11px] text-zinc-400 font-bold truncate max-w-[220px] hover:border-luxury-gold/40 hover:text-luxury-gold">
+                  {namer.nameOf(e.originalName, e.cnpj)}
+                </button>
+              ) : (
+                <span key={`${e.cnpj}|${e.originalName}`} className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 text-[11px] text-zinc-400 font-bold truncate max-w-[220px]">
+                  {namer.nameOf(e.originalName, e.cnpj)}
+                </span>
+              )
             ))}
           </div>
         </div>

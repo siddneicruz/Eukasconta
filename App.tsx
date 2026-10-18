@@ -18,6 +18,9 @@ import Reports from './components/Reports';
 import ProductHistoryView from './components/ProductHistoryView';
 import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
+import EstablishmentEditSheet from './components/EstablishmentEditSheet';
+import { applyStoreEdit, StoreDraft } from './services/establishmentEdit';
+import { rekeyStoreCodes } from './services/productCodes';
 import SettingsView from './components/SettingsView';
 import DiagnosticPanel from './components/DiagnosticPanel';
 import ManualEntryForm from './components/ManualEntryForm';
@@ -286,6 +289,8 @@ const App: React.FC = () => {
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [selectedProductGeneric, setSelectedProductGeneric] = useState<string | null>(null);
   const [selectedEstablishment, setSelectedEstablishment] = useState<string | null>(null);
+  // Loja aberta para editar todos os dados (Config > Lojas e Mapa)
+  const [editingStore, setEditingStore] = useState<Establishment | null>(null);
 
   useEffect(() => {
       localStorage.setItem('eukasconta_data', JSON.stringify(receipts));
@@ -361,6 +366,22 @@ const App: React.FC = () => {
           const isMatch = (cleanCNPJ(e.cnpj) === cleanCNPJ(updated.cnpj) && e.originalName === updated.originalName);
           return isMatch ? { ...updated, cnpj: cleanCNPJ(updated.cnpj) } : e;
       }));
+  };
+
+  // Todos os dados da loja de uma vez (folha "Dados da loja"). Devolve o texto do erro, ou null quando gravou.
+  const handleSaveStore = (prev: Establishment, draft: StoreDraft): string | null => {
+      const res = applyStoreEdit(prev, draft, establishments, receipts);
+      if ('error' in res) return res.error;
+      setEstablishments(res.establishments);
+      if (res.identityChanged) {
+          // O cupom guarda o nome e o CNPJ da loja: corrige junto, senão o histórico perde a ligação com o cadastro.
+          setReceipts(res.receipts);
+          setMasterProducts(prevMasters => rekeyStoreCodes(prevMasters, [prev.cnpj, prev.originalName], res.next.cnpj || res.next.originalName));
+      }
+      showNotification(res.changedReceipts > 0
+          ? `Loja salva. ${res.changedReceipts === 1 ? '1 cupom corrigido' : `${res.changedReceipts} cupons corrigidos`}.`
+          : "Dados da loja salvos.");
+      return null;
   };
 
   // Vários apelidos de uma vez (sugestões da IA já revisadas pela pessoa)
@@ -1113,6 +1134,7 @@ const App: React.FC = () => {
                             receipts={receipts}
                             establishments={establishments}
                             onPatchEstablishment={(est, patch) => setEstablishments(prev => prev.map(e => (e.cnpj === est.cnpj && e.originalName === est.originalName ? { ...e, ...patch } : e)))}
+                            onEditEstablishment={setEditingStore}
                             onBack={() => setView('dashboard')}
                         />
                     </Suspense>
@@ -1133,6 +1155,7 @@ const App: React.FC = () => {
                         snapshots={snapshots} 
                         establishments={establishments}
                         onUpdateEstablishment={handleUpdateEstablishment}
+                        onEditEstablishment={setEditingStore}
                         onApplyAliases={handleApplyAliases}
                         onClearData={() => {
                             // Hard Reset também apaga a cópia da conta; senão ela voltaria no próximo login
@@ -1249,6 +1272,7 @@ const App: React.FC = () => {
           </div>
       )}
 
+      {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onClose={() => setEditingStore(null)} />}
       {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} />}
       {pendingDelete && (
         <ConfirmDialog

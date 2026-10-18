@@ -17,6 +17,7 @@ import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanDescriptionForMatching } from './productMasterService';
 import { ruleCategoryFor } from './categoryRules';
 import { cleanCNPJ, formatCNPJ } from './productNormalization';
+import { CodeIndex, CodeVia, buildCodeIndex, cleanCode, identifyByCode, leadingCode } from './productCodes';
 
 /* ───────────────────────────── CNPJ ───────────────────────────── */
 
@@ -113,7 +114,7 @@ export const findEstablishment = (
 
 export interface MasterIndex {
   byAlias: Map<string, MasterProduct>;
-  byStoreCode: Map<string, MasterProduct>; // `${chaveDaLoja}|${códigoDoItem}`
+  codes: CodeIndex;                        // código de barras do fabricante e código de cada loja
   fuzzy: { master: MasterProduct; clean: string; words: Set<string> }[];
 }
 
@@ -126,13 +127,9 @@ const wordsOf = (clean: string): string[] => clean.split(' ').filter(w => w.leng
 // para cada item de cada cupom.
 export const buildMasterIndex = (masters: MasterProduct[] = []): MasterIndex => {
   const byAlias = new Map<string, MasterProduct>();
-  const byStoreCode = new Map<string, MasterProduct>();
   const fuzzy: MasterIndex['fuzzy'] = [];
   for (const m of masters) {
     (m.aliases || []).forEach(a => { const k = (a || '').trim().toUpperCase(); if (k && !byAlias.has(k)) byAlias.set(k, m); });
-    Object.entries(m.establishmentCodes || {}).forEach(([store, code]) => {
-      if (store && code) byStoreCode.set(`${store}|${code}`, m);
-    });
     const clean = cleanDescriptionForMatching(m.description);
     fuzzy.push({ master: m, clean, words: new Set(wordsOf(clean)) });
     // Produto unificado à mão: cada nome que a pessoa juntou também serve de modelo para os próximos cupons.
@@ -146,7 +143,7 @@ export const buildMasterIndex = (masters: MasterProduct[] = []): MasterIndex => 
       });
     }
   }
-  return { byAlias, byStoreCode, fuzzy };
+  return { byAlias, codes: buildCodeIndex(masters), fuzzy };
 };
 
 // Mesma conta de calculateSimilarity (productMasterService), com o catálogo já preparado.
@@ -160,24 +157,60 @@ const similarity = (itemClean: string, itemWords: string[], f: MasterIndex['fuzz
   return inter / union;
 };
 
+// Semelhança "frouxa" para conferir um nome lido contra um produto que o código já apontou. Compara com o nome do
+// produto e com cada nome que já apareceu para ele, e aceita abreviação (FAT = FATIADO), porque cupom abrevia à vontade.
+export const looseSimilarity = (description: string, master: MasterProduct): number => {
+  const clean = cleanDescriptionForMatching((description || '').toUpperCase());
+  const words = wordsOf(clean);
+  if (words.length === 0) return 0;
+  let best = 0;
+  for (const name of [master.description, ...(master.aliases || [])]) {
+    const c = cleanDescriptionForMatching((name || '').toUpperCase());
+    if (!c) continue;
+    if (c === clean) return 1;
+    const theirs = wordsOf(c);
+    if (theirs.length === 0) continue;
+    const set = new Set(theirs);
+    let inter = 0;
+    words.forEach(w => { if (set.has(w)) inter++; });
+    const jaccard = inter / new Set([...words, ...theirs]).size;
+    let near = 0;
+    words.forEach(w => { if (theirs.some(x => x === w || x.startsWith(w) || w.startsWith(x))) near++; });
+    best = Math.max(best, jaccard, near / words.length);
+  }
+  return best;
+};
+
+export interface MasterHit {
+  master: MasterProduct;
+  by: 'alias' | 'code' | 'similar';
+  /** só quando by = 'code': o código era inteiro (ean/store) ou foi deduzido de um código com defeito (~) */
+  via?: CodeVia;
+  /** só quando by = 'code': o nome lido estava ilegível, o código decidiu sozinho */
+  nameUnreadable?: boolean;
+}
+
+// itemCode = código lido na linha do item; sem ele, vale o número que vinha colado no começo do nome (cupons antigos).
 export const findMasterProduct = (
   description: string,
   storeKey: string,
   index: MasterIndex,
-): { master: MasterProduct; by: 'alias' | 'code' | 'similar' } | null => {
+  itemCode?: string,
+): MasterHit | null => {
   const raw = (description || '').trim();
-  if (!raw) return null;
+  const code = cleanCode(itemCode) || cleanCode(leadingCode(raw));
+  if (!raw && !code) return null;
   const upper = raw.toUpperCase();
 
-  const alias = index.byAlias.get(upper);
+  const alias = raw ? index.byAlias.get(upper) : undefined;
   if (alias) return { master: alias, by: 'alias' };
 
-  // Mesmo código impresso no cupom da mesma loja = mesmo produto, mesmo que a descrição varie.
-  const codeMatch = raw.match(/^(\d{3,14})\b/);
-  if (codeMatch && storeKey) {
-    const byCode = index.byStoreCode.get(`${storeKey}|${codeMatch[1]}`);
-    if (byCode) return { master: byCode, by: 'code' };
+  // O código do produto (de barras, ou da mesma loja) acha o produto mesmo com o nome rasurado, cortado ou diferente.
+  if (code) {
+    const d = identifyByCode(code, storeKey, upper, index.codes, looseSimilarity);
+    if (d) return { master: d.hit.master, by: 'code', via: d.hit.via, nameUnreadable: !d.readable };
   }
+  if (!raw) return null;
 
   const clean = cleanDescriptionForMatching(upper);
   const words = wordsOf(clean);
@@ -244,9 +277,13 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
   ctx.categories.forEach(c => canonical.set(stripKey(c), c));
   const valid = new Set(ctx.categories);
 
-  let known = 0, recategorized = 0, normalizedCats = 0, ruled = 0;
+  let known = 0, recategorized = 0, normalizedCats = 0, ruled = 0, byCode = 0, repaired = 0;
   receipt.items = (input.items || []).map((item: ReceiptItem) => {
     const next: ReceiptItem = { ...item };
+
+    // O código lido vai limpo (sem espaço nem pontuação); código que não presta some em vez de ficar como lixo.
+    const code = cleanCode(next.code);
+    if (code) next.code = code; else delete next.code;
 
     // Categoria fora da lista só por diferença de maiúsculas/acentos: usa a grafia oficial.
     if (next.category && !valid.has(next.category)) {
@@ -254,9 +291,18 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
       if (fixed) { next.category = fixed; normalizedCats++; }
     }
 
-    const hit = findMasterProduct(next.description, storeKey, ctx.masterIndex);
+    const hit = findMasterProduct(next.description, storeKey, ctx.masterIndex, next.code);
     if (hit) {
       known++;
+      if (hit.by === 'code') {
+        byCode++;
+        // Nome ilegível: o produto que o código apontou dá o nome ao item (o que saiu da foto fica guardado ao lado).
+        if (hit.nameUnreadable && hit.master.description) {
+          next.readDescription = next.description;
+          next.description = hit.master.description;
+          repaired++;
+        }
+      }
       const mc = hit.master.category;
       // Só confia na categoria do catálogo se ela existe na taxonomia atual e é específica.
       if (mc && mc !== 'Outros' && valid.has(mc) && mc !== next.category) {
@@ -274,6 +320,9 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
 
   if (receipt.items.length > 0 && known > 0) {
     notes.push(`${known} de ${receipt.items.length} itens já estão no catálogo${recategorized ? `; categoria do catálogo aplicada em ${recategorized}` : ''}.`);
+  }
+  if (byCode > 0) {
+    notes.push(`${byCode} ${byCode === 1 ? 'item reconhecido' : 'itens reconhecidos'} pelo código do produto${repaired ? `; em ${repaired} o nome estava ilegível e usei o nome do cadastro` : ''}.`);
   }
   if (ruled > 0) {
     notes.push(`${ruled} ${ruled === 1 ? 'item de carne trabalhada (linguiça, bacon) foi' : 'itens de carne trabalhada (linguiça, bacon) foram'} para a categoria de embutidos.`);

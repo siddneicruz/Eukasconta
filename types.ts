@@ -6,6 +6,11 @@ export interface ReceiptItem {
   totalPrice: number;
   category: string;
   unitType?: string;
+  // Código do produto impresso na linha do item do cupom (código de barras ou código interno da loja), sem espaços.
+  // "?" marca um dígito que não deu para ler.
+  code?: string;
+  // Como o nome saiu da foto, quando ele estava ilegível e o app o trocou pelo nome do produto achado pelo código.
+  readDescription?: string;
 }
 
 export interface Receipt {
@@ -30,6 +35,8 @@ export interface Establishment {
     address?: string;
     city?: string;
     state?: string;
+    // CEP (89885-000); vem do endereço do cupom ou é digitado
+    cep?: string;
     // Geocodificação (endereço -> coordenadas), feita uma única vez por
     // estabelecimento e guardada aqui para nunca ser refeita — a política de
     // uso do Nominatim exige cache dos resultados.
@@ -39,6 +46,8 @@ export interface Establishment {
     geocodedAt?: number;
     // true = só achou a cidade (centro dela), não o endereço exato da loja
     geocodeApprox?: boolean;
+    // true = a pessoa digitou a posição: a busca automática não mexe mais nela
+    geocodeManual?: boolean;
 }
 
 export interface MasterProduct {
@@ -47,7 +56,11 @@ export interface MasterProduct {
   unitType: string;       // Standard unit (KG, UN, etc)
   category: string;       // Standard Category
   aliases: string[];      // Raw item descriptions that map to this parent
-  establishmentCodes: Record<string, string>; // Maps establishment name/CNPJ to raw item code at that store
+  // Código que cada loja usa para este produto. Chave = CNPJ (só dígitos) ou "n:nome" quando a loja não tem CNPJ.
+  // Um código só continua texto; se a loja já usou mais de um para o mesmo produto, vira lista.
+  establishmentCodes: Record<string, string | string[]>;
+  // Código de barras do fabricante (EAN/GTIN): é o mesmo em qualquer loja.
+  eans?: string[];
   curated?: boolean;      // Unificado pela pessoa: o que ela juntou vale mais que as regras automáticas e ensina o catálogo
 }
 
