@@ -37,6 +37,8 @@ export interface Establishment {
     longitude?: number;
     geocodeStatus?: 'pending' | 'found' | 'not_found';
     geocodedAt?: number;
+    // true = só achou a cidade (centro dela), não o endereço exato da loja
+    geocodeApprox?: boolean;
 }
 
 export interface MasterProduct {

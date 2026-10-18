@@ -37,11 +37,17 @@ const throttledFetch = (url: string): Promise<Response> => {
 export interface GeocodeResult {
   latitude: number;
   longitude: number;
+  /** true = só achou a cidade (centro dela), não o endereço da loja */
+  approx?: boolean;
 }
 
+type GeoInput = Pick<Establishment, 'address' | 'city' | 'state'> & Partial<Pick<Establishment, 'originalName'>>;
+
 // Cupom fiscal costuma trazer o endereço "solto" (rua, número e bairro na mesma linha), que a busca estruturada
-// nem sempre entende. Por isso a primeira tentativa é estruturada (rua/cidade/estado) e, se não achar nada, a
-// segunda é uma busca de texto livre com o endereço inteiro. As duas passam pela mesma fila de 1 por segundo.
+// nem sempre entende. Por isso a primeira tentativa é estruturada (rua/cidade/estado) e, se não achar nada, as
+// seguintes vão afrouxando: texto livre com o endereço inteiro, endereço limpo (sem "S/N"), nome da loja na cidade
+// e, por último, o centro da cidade (a loja aparece no mapa, marcada como posição aproximada).
+// Todas passam pela mesma fila de 1 por segundo.
 const pickFirst = (data: any): GeocodeResult | null => {
   if (!Array.isArray(data) || data.length === 0) return null;
   const latitude = parseFloat(data[0].lat);
@@ -56,31 +62,80 @@ const query = async (params: URLSearchParams): Promise<GeocodeResult | null> => 
   return pickFirst(await res.json());
 };
 
-// Consulta um único estabelecimento. Retorna null quando o endereço não é
-// encontrado (endereço incompleto é comum em cupom fiscal) — nesse caso o
-// chamador ainda deve marcar geocodeStatus: 'not_found' para não tentar de
-// novo a cada visita à tela do mapa. Falha de rede lança erro (a versão sem "Strict" engole e devolve null).
-const geocodeStrict = async (est: Pick<Establishment, 'address' | 'city' | 'state'>): Promise<GeocodeResult | null> => {
-  if (!est.address && !est.city) return null;
+const freeText = (q: string) => query(new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'br', q }));
 
-  const structured = new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'br' });
-  if (est.address) structured.set('street', est.address);
-  if (est.city) structured.set('city', est.city);
-  if (est.state) structured.set('state', est.state);
-  const first = await query(structured);
-  if (first) return first;
+const NO_NUMBER = /^(?:S\s*\/\s*N|S\.\s*N\.?|SN|SEM\s+N[UÚ]MERO)$/i;
 
-  const text = [est.address, est.city, est.state, 'Brasil'].filter(Boolean).join(', ');
-  return await query(new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'br', q: text }));
+/** "AVENIDA SANTA CATARINA, SN, CENTRO" -> rua, número (se houver) e bairro */
+export const splitAddress = (address: string | undefined): { street: string; number: string; district: string } => {
+  const parts = String(address || '').replace(/\s+/g, ' ').split(/\s*,\s*/).map(p => p.trim()).filter(Boolean);
+  const street = (parts[0] || '').replace(/\s*-\s*(?:CENTRO|CEP.*)$/i, '').trim();
+  const rest = parts.slice(1);
+  const number = rest.find(p => /^\d{1,6}[A-Za-z]?$/.test(p)) || '';
+  const district = rest.find(p => p !== number && !NO_NUMBER.test(p) && !/^CEP\b/i.test(p)) || '';
+  return { street, number, district };
 };
 
-export const geocodeEstablishment = async (est: Pick<Establishment, 'address' | 'city' | 'state'>): Promise<GeocodeResult | null> => {
+// Tira "LTDA", "EIRELI"... e o sufixo de filial ("- F01") do nome, para procurar a loja pelo nome.
+const shortName = (name: string | undefined): string =>
+  String(name || '')
+    .replace(/\s+-\s+.*$/, '')
+    .replace(/\b(LTDA|EIRELI|EPP|MEI|ME|S\/?A|CIA)\b\.?/gi, ' ')
+    .replace(/\s+/g, ' ').trim();
+
+// Consulta um único estabelecimento. Retorna null quando nada é encontrado (nem a cidade) — nesse caso o
+// chamador ainda deve marcar geocodeStatus: 'not_found' para não tentar de novo a cada visita à tela do mapa.
+// Falha de rede lança erro (a versão sem "Strict" engole e devolve null).
+const geocodeStrict = async (est: GeoInput): Promise<GeocodeResult | null> => {
+  if (!est.address && !est.city) return null;
+
+  if (est.address) {
+    const structured = new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'br' });
+    structured.set('street', est.address);
+    if (est.city) structured.set('city', est.city);
+    if (est.state) structured.set('state', est.state);
+    const first = await query(structured);
+    if (first) return first;
+  }
+
+  const tried = new Set<string>();
+  const attempt = async (q: string): Promise<GeocodeResult | null> => {
+    const key = q.toLowerCase();
+    if (!q.trim() || tried.has(key)) return null;
+    tried.add(key);
+    return freeText(q);
+  };
+
+  const text = [est.address, est.city, est.state, 'Brasil'].filter(Boolean).join(', ');
+  let hit = await attempt(text);
+  if (hit) return hit;
+
+  const { street, number, district } = splitAddress(est.address);
+  if (street) {
+    hit = await attempt([[street, number].filter(Boolean).join(' '), district, est.city, est.state, 'Brasil'].filter(Boolean).join(', '));
+    if (hit) return hit;
+  }
+
+  const name = shortName(est.originalName);
+  if (name && est.city) {
+    hit = await attempt([name, est.city, est.state, 'Brasil'].filter(Boolean).join(', '));
+    if (hit) return hit;
+  }
+
+  if (est.city) {
+    hit = await attempt([est.city, est.state, 'Brasil'].filter(Boolean).join(', '));
+    if (hit) return { ...hit, approx: true };
+  }
+  return null;
+};
+
+export const geocodeEstablishment = async (est: GeoInput): Promise<GeocodeResult | null> => {
   try { return await geocodeStrict(est); }
   catch { return null; } // sem rede, CORS, etc. — trata como "não encontrado" desta vez
 };
 
-// Lojas que ficaram "não encontradas" antes da busca de texto livre existir ganham mais uma chance (uma só).
-const RETRY_NOT_FOUND_BEFORE = Date.parse('2026-10-14T00:00:00Z');
+// Lojas que ficaram "não encontradas" antes das buscas mais flexíveis (endereço limpo, nome da loja, centro da cidade) existirem ganham mais uma chance (uma só).
+const RETRY_NOT_FOUND_BEFORE = Date.parse('2026-10-19T00:00:00Z');
 
 /** Precisa (ou merece nova) consulta de endereço? */
 export const needsGeocoding = (e: Establishment): boolean =>
@@ -100,7 +155,7 @@ export const geocodeMissingEstablishments = async (
     // Sem internet não é "endereço não encontrado": para por aqui e deixa para a próxima vez, sem marcar ninguém.
     try { result = await geocodeStrict(est); } catch { return; }
     if (result) {
-      onUpdate(est, { ...result, geocodeStatus: 'found', geocodedAt: Date.now() });
+      onUpdate(est, { latitude: result.latitude, longitude: result.longitude, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: result.approx ? true : undefined });
     } else {
       onUpdate(est, { geocodeStatus: 'not_found', geocodedAt: Date.now() });
     }

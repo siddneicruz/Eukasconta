@@ -53,6 +53,7 @@ interface MapStore {
   visits: number;
   lastDate: string;
   km: number | null;       // em linha reta, a partir de você
+  approx: boolean;         // só se achou a cidade, não o endereço
 }
 
 const openExternal = (url: string) => {
@@ -73,25 +74,38 @@ const useIsLight = () => {
 
 /* ───────────── marcadores ───────────── */
 
-// Pino em forma de gota (cor da marca). A loja escolhida fica maior e mais clara.
+// Pino em forma de gota (cor da marca). A loja escolhida fica maior e mais clara; a mais perto, com anel.
+// De longe (zoom baixo, muitas lojas juntas) viram bolinhas, para não virar uma mancha escura.
 // Os ícones são criados uma vez só: trocar o objeto a cada desenho faria o Leaflet recolocar todos os pinos.
 const pinCache = new Map<string, L.DivIcon>();
-const pinIcon = (selected: boolean, nearest: boolean) => {
-  const key = `${selected ? 1 : 0}${nearest ? 1 : 0}`;
+const pinIcon = (selected: boolean, nearest: boolean, compact: boolean, light: boolean) => {
+  const key = `${selected ? 1 : 0}${nearest ? 1 : 0}${compact ? 1 : 0}${light ? 1 : 0}`;
   const hit = pinCache.get(key);
   if (hit) return hit;
-  const px = selected ? 44 : 32;
-  const color = selected ? '#F2D36B' : nearest ? '#D4AF37' : '#A9812A';
-  const icon = L.divIcon({
-    className: '',
-    html: `<div style="width:${px}px;height:${px}px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));">
+  const color = selected ? '#F2D36B' : nearest ? '#D4AF37' : '#B8902E';
+  // contorno que destaca o pino do mapa nos dois temas (claro no escuro, escuro no claro)
+  const edge = light ? '#3a2a05' : '#ffffff';
+  let icon: L.DivIcon;
+  if (compact && !selected && !nearest) {
+    icon = L.divIcon({
+      className: '',
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid ${edge};box-shadow:0 0 0 1px rgba(0,0,0,.25);"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+  } else {
+    const px = selected ? 42 : nearest ? 34 : 28;
+    icon = L.divIcon({
+      className: '',
+      html: `<div style="width:${px}px;height:${px}px;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.35));">
       <svg viewBox="0 0 24 24" width="${px}" height="${px}">
-        <path d="M12 0C6.5 0 2 4.5 2 10c0 7.5 10 14 10 14s10-6.5 10-14c0-5.5-4.5-10-10-10z" fill="${color}" stroke="#000" stroke-opacity=".7" stroke-width=".6"/>
-        <circle cx="12" cy="10" r="4" fill="#000" fill-opacity=".6"/>
+        <path d="M12 1C6.9 1 3 5 3 10c0 6.8 9 13 9 13s9-6.2 9-13c0-5-3.9-9-9-9z" fill="${color}" stroke="${edge}" stroke-opacity=".95" stroke-width="1.4" stroke-linejoin="round"/>
+        <circle cx="12" cy="10" r="3.4" fill="${edge}" fill-opacity=".92"/>
       </svg></div>`,
-    iconSize: [px, px],
-    iconAnchor: [px / 2, px],
-  });
+      iconSize: [px, px],
+      iconAnchor: [px / 2, px - 1],
+    });
+  }
   pinCache.set(key, icon);
   return icon;
 };
@@ -105,14 +119,22 @@ const meIcon = L.divIcon({
 
 /* ───────────── enquadramento ───────────── */
 
-const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number, number][] | null; all: [number, number][]; targetId: string | null }> = ({ me, target, path, all, targetId }) => {
+// Perto o bastante para ver as ruas ao redor de quem apertou "minha localização"
+const ME_ZOOM = 16;
+
+const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number, number][] | null; all: [number, number][]; targetId: string | null; focusMe: number }> = ({ me, target, path, all, targetId, focusMe }) => {
   const map = useMap();
   const didAll = useRef(false);
   const hadTarget = useRef(false);
+  // Depois de "minha localização", a rota que chega (ou a loja mais perto que muda) não afasta o mapa de novo:
+  // só uma loja escolhida pela pessoa volta a enquadrar tudo.
+  const focusedOn = useRef<{ targetId: string | null } | null>(null);
   // loja escolhida / rota pronta: enquadra você + a loja (ou a rota inteira)
   useEffect(() => {
     if (!target) return;
     hadTarget.current = true;
+    if (focusedOn.current && focusedOn.current.targetId === targetId) return;
+    focusedOn.current = null;
     const pts: [number, number][] = path && path.length > 1 ? path : me ? [[me.lat, me.lng], [target.lat, target.lng]] : [[target.lat, target.lng]];
     if (pts.length === 1) map.setView(pts[0], 15);
     else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 16 });
@@ -127,6 +149,19 @@ const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number
     if (pts.length === 1) map.setView(pts[0], 14);
     else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15 });
   }, [all.length, target]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "Minha localização": fecha o mapa em cima de você
+  useEffect(() => {
+    if (focusMe === 0 || !me) return;
+    focusedOn.current = { targetId };
+    map.flyTo([me.lat, me.lng], ME_ZOOM, { duration: 0.8 });
+  }, [focusMe]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+};
+
+// Zoom atual (para trocar pinos por bolinhas quando está longe)
+const ZoomWatcher: React.FC<{ onZoom: (z: number) => void }> = ({ onZoom }) => {
+  const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) });
+  useEffect(() => { onZoom(map.getZoom()); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 };
 
@@ -147,19 +182,21 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const [loc, setLoc] = useState<{ status: 'idle' | 'loading' | 'ok' | 'denied' | 'error'; msg: string }>({ status: 'idle', msg: '' });
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const locate = useCallback(async () => {
+  const [focusMe, setFocusMe] = useState(0);
+  const locate = useCallback(async (focus = false) => {
     setLoc({ status: 'loading', msg: '' });
     try {
       const p = await getCurrentPosition();
       if (!alive.current) return;
       setMe(p); setLoc({ status: 'ok', msg: '' });
+      if (focus) setFocusMe(n => n + 1);
     } catch (e: any) {
       if (!alive.current) return;
       const msg = String(e?.message || 'Não consegui obter sua localização.');
       setLoc({ status: /negada/i.test(msg) ? 'denied' : 'error', msg });
     }
   }, []);
-  useEffect(() => { locate(); }, [locate]);
+  useEffect(() => { locate(false); }, [locate]);
 
   /* endereços -> coordenadas (uma vez por loja; o resultado fica guardado no cadastro) */
   const [geo, setGeo] = useState({ running: false, done: 0, total: 0 });
@@ -199,6 +236,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           lat, lng,
           spent: a.spent, visits: a.visits, lastDate: a.last,
           km: me ? haversineKm(me, { lat, lng }) : null,
+          approx: !!e.geocodeApprox,
         };
       });
   }, [establishments, receipts, namer, me]);
@@ -217,6 +255,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   );
   const maps = useOfflineMaps(mapPoints);
   const [viewCenter, setViewCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [zoom, setZoom] = useState(12);
   const outside = maps.useVector && !!maps.opened && !!viewCenter && !maps.opened.covers(viewCenter.lat, viewCenter.lng);
 
   /* loja escolhida e rota */
@@ -279,7 +318,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
         <div className="flex items-center gap-3 mb-3 px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/10 text-xs text-zinc-400" data-testid="map-loc-msg">
           <LocateFixed className="w-4 h-4 shrink-0 text-zinc-500" />
           <span className="flex-1 min-w-0">{loc.status === 'denied' ? 'Sem permissão de localização: não sei qual loja está mais perto. Libere a localização do app nas configurações do celular.' : loc.msg}</span>
-          <button onClick={locate} className="shrink-0 px-3 py-2 rounded-xl bg-luxury-gold/10 border border-luxury-gold/25 text-luxury-gold font-bold">Tentar de novo</button>
+          <button onClick={() => locate(true)} className="shrink-0 px-3 py-2 rounded-xl bg-luxury-gold/10 border border-luxury-gold/25 text-luxury-gold font-bold">Tentar de novo</button>
         </div>
       )}
 
@@ -297,7 +336,8 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               />
             )}
             <CenterWatcher onCenter={(lat, lng) => setViewCenter({ lat, lng })} />
-            <Framer me={me} target={selected ? { lat: selected.lat, lng: selected.lng } : null} path={route.data?.path || null} all={allPoints} targetId={selected?.id || null} />
+            <ZoomWatcher onZoom={setZoom} />
+            <Framer me={me} target={selected ? { lat: selected.lat, lng: selected.lng } : null} path={route.data?.path || null} all={allPoints} targetId={selected?.id || null} focusMe={focusMe} />
             {route.data && (
               <>
                 <Polyline positions={route.data.path} pathOptions={{ color: light ? '#ffffff' : '#000000', weight: 9, opacity: 0.75, lineCap: 'round', lineJoin: 'round' }} />
@@ -308,7 +348,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               <Marker
                 key={s.id}
                 position={[s.lat, s.lng]}
-                icon={pinIcon(s.id === selectedId, s.id === nearestId)}
+                icon={pinIcon(s.id === selectedId, s.id === nearestId, zoom < 14, light)}
                 zIndexOffset={s.id === selectedId ? 1000 : s.id === nearestId ? 500 : 0}
                 eventHandlers={{ click: () => setManual({ id: s.id }) }}
               />
@@ -317,7 +357,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           </MapContainer>
 
           <button
-            onClick={locate} disabled={loc.status === 'loading'} aria-label="Usar minha localização" data-testid="map-locate"
+            onClick={() => locate(true)} disabled={loc.status === 'loading'} aria-label="Usar minha localização" data-testid="map-locate"
             className="absolute top-3 right-3 z-[1000] w-11 h-11 rounded-2xl bg-black/70 backdrop-blur border border-white/15 text-luxury-gold flex items-center justify-center shadow-xl active:scale-95 disabled:opacity-60"
           >
             {loc.status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : <LocateFixed className="w-5 h-5" />}
@@ -406,6 +446,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
                     <p className="text-[11px] text-zinc-500 truncate">
                       {s.visits} {s.visits === 1 ? 'compra' : 'compras'} · {brl(s.spent)}{s.lastDate ? ` · última ${dayMonth(s.lastDate)}` : ''}
                     </p>
+                    {s.approx && <p className="text-[10px] text-amber-500/80 truncate" data-testid="map-store-approx">Posição aproximada: centro da cidade</p>}
                   </div>
                   {s.km !== null && (
                     <div className="text-right shrink-0">
