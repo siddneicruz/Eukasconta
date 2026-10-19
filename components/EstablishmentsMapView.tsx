@@ -13,6 +13,8 @@ import { useStoreNames } from './StoreNamesContext';
 import { useOfflineMaps } from '../services/useOfflineMaps';
 import OfflineVectorLayer from './OfflineVectorLayer';
 import OfflineMapCard from './OfflineMapCard';
+import MapStoreSearch from './MapStoreSearch';
+import { SearchableStore } from '../services/mapSearch';
 import { PoiCard, PoiMarkers, MapTap, ViewWatcher, StorePickerSheet, PickableStore } from './MapPois';
 import { usePois } from '../services/usePois';
 import { Bbox, Poi, boxAround, distanceM, nameMatch, poisNear, suggestPoi } from '../services/poiService';
@@ -138,7 +140,7 @@ const ME_ZOOM = 16;
 // Ao abrir, o mapa mostra 1 km ao redor de quem está olhando
 const START_RADIUS_M = 1000;
 
-const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number, number][] | null; all: [number, number][]; targetId: string | null; focusMe: number }> = ({ me, target, path, all, targetId, focusMe }) => {
+const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number, number][] | null; all: [number, number][]; targetId: string | null; focusMe: number; focus: { lat: number; lng: number; zoom: number; n: number } }> = ({ me, target, path, all, targetId, focusMe, focus }) => {
   const map = useMap();
   // 'me' = 1 km ao redor de você · 'all' = todas as lojas · null = ainda nada
   const placed = useRef<'me' | 'all' | null>(null);
@@ -188,6 +190,13 @@ const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number
       else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15 });
     }
   }, [all.length, target, me?.lat, me?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Busca: leva o mapa até a loja que a pessoa escolheu (quando ela já era a loja escolhida, o enquadramento acima não se repete)
+  useEffect(() => {
+    if (focus.n === 0) return;
+    focusedOn.current = null;
+    map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), focus.zoom), { duration: 0.6 });
+  }, [focus.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Minha localização": fecha o mapa em cima de você
   useEffect(() => {
@@ -256,14 +265,17 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   }, [pending.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* lojas com posição, somando o que foi gasto em cada uma */
-  const stores: MapStore[] = useMemo(() => {
-    const agg = new Map<string, { spent: number; visits: number; last: string }>();
+  const agg = useMemo(() => {
+    const m = new Map<string, { spent: number; visits: number; last: string }>();
     receipts.forEach(r => {
       const k = storeKey(r.cnpj, r.establishmentName);
-      const a = agg.get(k) || { spent: 0, visits: 0, last: '' };
+      const a = m.get(k) || { spent: 0, visits: 0, last: '' };
       a.spent += r.totalAmount || 0; a.visits += 1; if ((r.date || '') > a.last) a.last = r.date || '';
-      agg.set(k, a);
+      m.set(k, a);
     });
+    return m;
+  }, [receipts]);
+  const stores: MapStore[] = useMemo(() => {
     return establishments
       .filter(e => e.geocodeStatus === 'found' && typeof e.latitude === 'number' && typeof e.longitude === 'number')
       .map(e => {
@@ -280,7 +292,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           approx: !!e.geocodeApprox,
         };
       });
-  }, [establishments, receipts, namer, me]);
+  }, [establishments, agg, namer, me]);
 
   const sorted = useMemo(
     () => [...stores].sort((a, b) => (a.km !== null && b.km !== null ? a.km - b.km : b.spent - a.spent)),
@@ -307,6 +319,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const selected = useMemo(() => stores.find(s => s.id === selectedId) || null, [stores, selectedId]);
   // só a loja que a pessoa tocou move o mapa; a mais perto (escolhida sozinha) só aparece no cartão e na rota
   const picked = manual && manual.id ? selected : null;
+  const [focus, setFocus] = useState({ lat: 0, lng: 0, zoom: 16, n: 0 });
   const [route, setRoute] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; data: RouteResult | null }>({ status: 'idle', data: null });
 
   const meKey = me ? `${me.lat.toFixed(4)},${me.lng.toFixed(4)}` : '';
@@ -428,6 +441,34 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
     mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  /* busca de estabelecimento (logo abaixo do mapa) */
+  const searchItems: SearchableStore[] = useMemo(() => establishments.map(e => {
+    const id = `${e.cnpj}|${e.originalName}`;
+    const st = stores.find(x => x.est === e);
+    const a = agg.get(storeKey(e.cnpj, e.originalName));
+    return {
+      id, name: namer.nameOf(e.originalName, e.cnpj), original: e.originalName || '', alias: e.aliasName || '',
+      address: e.address || '', city: e.city || '', cnpj: e.cnpj || '',
+      km: st ? st.km : null, spent: a?.spent ?? 0, visits: a?.visits ?? 0, located: !!st,
+    };
+  }), [establishments, stores, agg, namer]);
+  const searchPoisPool = useMemo(() => [...viewPois.pois, ...pinPois.pois], [viewPois.pois, pinPois.pois]);
+  const searchPickStore = (id: string) => {
+    const st = stores.find(x => x.id === id);
+    if (!st) return;
+    setMoving(null); setSelectedPoi(null);
+    const already = manual?.id === id;
+    setManual({ id });
+    mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (already) setFocus(f => ({ lat: st.lat, lng: st.lng, zoom: 16, n: f.n + 1 }));
+  };
+  const searchPickPoi = (p: Poi) => {
+    setMoving(null);
+    setSelectedPoi(p);
+    mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setFocus(f => ({ lat: p.lat, lng: p.lng, zoom: 17, n: f.n + 1 }));
+  };
+
   const retryNotFound = () => {
     notFound.forEach(e => onPatchEstablishment(e, { geocodeStatus: undefined, geocodedAt: undefined }));
   };
@@ -487,7 +528,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
             <ZoomWatcher onZoom={setZoom} />
             <ViewWatcher onView={(bbox, z) => setView({ bbox, zoom: z })} />
             <MapTap enabled={!!moving} onTap={(lat, lng) => setMoving(m => (m ? { ...m, lat, lng } : m))} />
-            <Framer me={me} target={picked ? { lat: picked.lat, lng: picked.lng } : null} path={picked ? route.data?.path || null : null} all={allPoints} targetId={picked?.id || null} focusMe={focusMe} />
+            <Framer me={me} target={picked ? { lat: picked.lat, lng: picked.lng } : null} path={picked ? route.data?.path || null : null} all={allPoints} targetId={picked?.id || null} focusMe={focusMe} focus={focus} />
             {route.data && (
               <>
                 <Polyline positions={route.data.path} pathOptions={{ color: light ? '#ffffff' : '#000000', weight: 9, opacity: 0.75, lineCap: 'round', lineJoin: 'round' }} />
@@ -573,6 +614,16 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
           )}
         </div>
       </div>
+
+      {/* Buscar estabelecimento: as lojas das suas compras e as do mapa que já carregaram */}
+      {!moving && (
+        <MapStoreSearch
+          stores={searchItems} pois={searchPoisPool} selectedId={selectedId} isMine={p => !!mineAt(p)}
+          onPickStore={searchPickStore} onPickPoi={searchPickPoi}
+          onEditStore={onEditEstablishment ? (id => { const e = establishments.find(x => `${x.cnpj}|${x.originalName}` === id); if (e) onEditEstablishment(e); }) : undefined}
+          showingPois={showPois}
+        />
+      )}
 
       {/* Uma loja que o mapa mostra (toque no ícone) */}
       {selectedPoi && !moving && (

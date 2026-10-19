@@ -330,8 +330,8 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-3xl bg-black border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh] animate-in zoom-in-95 duration-300 relative">
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center ${isEditing ? 'p-2 md:p-4' : 'p-4'} bg-black/80 backdrop-blur-sm animate-in fade-in duration-300`}>
+      <div className={`w-full max-w-3xl bg-black border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden ${isEditing ? 'max-h-full md:max-h-[95vh]' : 'max-h-[95vh]'} animate-in zoom-in-95 duration-300 relative`} data-testid="receipt-modal">
         {!isEditing && (
             <>
                 <div className="absolute top-1/2 -translate-y-1/2 -left-12 hidden md:flex flex-col gap-4">
@@ -343,84 +343,51 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
             </>
         )}
 
-        <div className="p-5 border-b border-white/10 bg-surface/30 flex justify-between items-start shrink-0">
-          <div className="pr-8 flex-1 min-w-0">
-             <div className="flex items-center gap-2 mb-2">
-                 {!isEditing && (
-                     <>
-                        <button onClick={onPrev} disabled={!hasPrev} className="md:hidden p-1 bg-white/5 rounded text-zinc-400 disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-                        <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] border border-white/10 px-2 py-0.5 rounded">Detalhes</span>
-                        <button onClick={onNext} disabled={!hasNext} className="md:hidden p-1 bg-white/5 rounded text-zinc-400 disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
-                     </>
-                 )}
-                 {isEditing && (
-                     <span className="text-[11px] text-luxury-gold bg-luxury-gold/10 border border-luxury-gold/20 px-2 py-0.5 rounded uppercase tracking-[0.08em] font-bold flex items-center gap-1"><Edit2 className="w-3 h-3" /> Modo Edição</span>
-                 )}
-             </div>
+        {isEditing ? (
+          <div className="px-3 py-2 md:px-5 md:py-3 border-b border-white/10 bg-surface/30 flex justify-between items-center gap-2 shrink-0" data-testid="edit-topbar">
+            <span className="text-[11px] text-luxury-gold bg-luxury-gold/10 border border-luxury-gold/20 px-2 py-0.5 rounded uppercase tracking-[0.08em] font-bold flex items-center gap-1"><Edit2 className="w-3 h-3" /> Modo Edição</span>
+            <div className="flex gap-2">
+              <button onClick={() => setIsEditing(false)} aria-label="Cancelar edição" className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-500 transition-colors bg-black/20"><X className="w-5 h-5" /></button>
+              <button onClick={handleSaveEdit} aria-label="Salvar edição" className="p-2 rounded-full bg-luxury-gold hover:bg-[#B5952F] text-black shadow-lg shadow-luxury-gold/20 transition-colors"><Save className="w-5 h-5" /></button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 border-b border-white/10 bg-surface/30 flex justify-between items-start shrink-0">
+            <div className="pr-8 flex-1 min-w-0">
+               <div className="flex items-center gap-2 mb-2">
+                   {!isEditing && (
+                       <>
+                          <button onClick={onPrev} disabled={!hasPrev} className="md:hidden p-1 bg-white/5 rounded text-zinc-400 disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
+                          <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] border border-white/10 px-2 py-0.5 rounded">Detalhes</span>
+                          <button onClick={onNext} disabled={!hasNext} className="md:hidden p-1 bg-white/5 rounded text-zinc-400 disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
+                       </>
+                   )}
+               </div>
              
-             {isEditing ? (
-                 <div className="space-y-4 mt-2">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[11px] uppercase text-zinc-500 font-bold block mb-1">CNPJ</label>
-                            <input type="text" value={editedReceipt.cnpj} onChange={(e) => updateHeader('cnpj', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-300 focus:border-luxury-gold outline-none" />
-                        </div>
-                        <div>
-                            <label className="text-[11px] uppercase text-zinc-500 font-bold block mb-1">Estabelecimento</label>
-                            <input type="text" list="est-list-edit" value={editedReceipt.establishmentName} onChange={(e) => updateHeader('establishmentName', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-lg font-serif text-white focus:border-luxury-gold outline-none" />
-                        </div>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                         <div>
-                             <label className="text-[11px] uppercase text-zinc-500 font-bold block mb-1">Data</label>
-                             <input type="date" value={editedReceipt.date} onChange={(e) => updateHeader('date', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200" />
-                         </div>
-                         <div>
-                             <label className="text-[11px] uppercase text-zinc-500 font-bold block mb-1">Hora</label>
-                             <input type="time" step="1" value={editedReceipt.time} onChange={(e) => updateHeader('time', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200" />
-                         </div>
-                         <div>
-                             <label className="text-[11px] uppercase text-zinc-500 font-bold block mb-1">Cidade</label>
-                             <input type="text" value={editedReceipt.city} onChange={(e) => updateHeader('city', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200" />
-                         </div>
-                         <div>
-                             <label className="text-[11px] uppercase text-zinc-500 font-bold block mb-1">UF</label>
-                             <input type="text" maxLength={2} value={editedReceipt.state} onChange={(e) => updateHeader('state', e.target.value.toUpperCase())} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200 uppercase" />
-                         </div>
-                     </div>
-                 </div>
-             ) : (
-                <>
-                    {aliasOf(receipt.establishmentName, receipt.cnpj) ? (
-                        <>
-                            <h2 className="text-xl md:text-2xl font-serif text-zinc-100 font-medium line-clamp-3 break-words leading-snug" data-testid="receipt-store-alias">{aliasOf(receipt.establishmentName, receipt.cnpj)}</h2>
-                            <p className="text-xs text-zinc-500 mt-1 break-words" title="Nome como veio no cupom">{titleCase(receipt.establishmentName)}</p>
-                        </>
-                    ) : (
-                        <h2 className="text-xl md:text-2xl font-serif text-zinc-100 font-medium line-clamp-3 break-words leading-snug">{receipt.establishmentName}</h2>
-                    )}
-                    <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-xs text-zinc-500 uppercase tracking-wide">
-                        <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{receipt.date.split('-').reverse().join('/')}<span className="text-zinc-700 mx-1">|</span>{receipt.time || '--:--'}</div>
-                        <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{receipt.city}{receipt.state ? ` - ${receipt.state}` : ''}</div>
-                    </div>
-                </>
-             )}
+                  <>
+                      {aliasOf(receipt.establishmentName, receipt.cnpj) ? (
+                          <>
+                              <h2 className="text-xl md:text-2xl font-serif text-zinc-100 font-medium line-clamp-3 break-words leading-snug" data-testid="receipt-store-alias">{aliasOf(receipt.establishmentName, receipt.cnpj)}</h2>
+                              <p className="text-xs text-zinc-500 mt-1 break-words" title="Nome como veio no cupom">{titleCase(receipt.establishmentName)}</p>
+                          </>
+                      ) : (
+                          <h2 className="text-xl md:text-2xl font-serif text-zinc-100 font-medium line-clamp-3 break-words leading-snug">{receipt.establishmentName}</h2>
+                      )}
+                      <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-xs text-zinc-500 uppercase tracking-wide">
+                          <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{receipt.date.split('-').reverse().join('/')}<span className="text-zinc-700 mx-1">|</span>{receipt.time || '--:--'}</div>
+                          <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{receipt.city}{receipt.state ? ` - ${receipt.state}` : ''}</div>
+                      </div>
+                  </>
+            </div>
+            <div className="flex gap-2">
+                  <>
+                      <button onClick={() => setIsEditing(true)} aria-label="Editar lançamento" className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-luxury-gold transition-colors bg-black/20"><Edit2 className="w-5 h-5" /></button>
+                      {onDelete && <button onClick={onDelete} aria-label="Excluir lançamento" data-testid="delete-receipt" className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-400 transition-colors bg-black/20"><Trash2 className="w-5 h-5" /></button>}
+                      <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors bg-black/20"><X className="w-5 h-5" /></button>
+                  </>
+            </div>
           </div>
-          <div className="flex gap-2">
-              {!isEditing ? (
-                <>
-                    <button onClick={() => setIsEditing(true)} aria-label="Editar lançamento" className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-luxury-gold transition-colors bg-black/20"><Edit2 className="w-5 h-5" /></button>
-                    {onDelete && <button onClick={onDelete} aria-label="Excluir lançamento" data-testid="delete-receipt" className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-400 transition-colors bg-black/20"><Trash2 className="w-5 h-5" /></button>}
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors bg-black/20"><X className="w-5 h-5" /></button>
-                </>
-              ) : (
-                <>
-                    <button onClick={() => setIsEditing(false)} className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-500 transition-colors bg-black/20"><X className="w-5 h-5" /></button>
-                    <button onClick={handleSaveEdit} className="p-2 rounded-full bg-luxury-gold hover:bg-[#B5952F] text-black shadow-lg shadow-luxury-gold/20 transition-colors"><Save className="w-5 h-5" /></button>
-                </>
-              )}
-          </div>
-        </div>
+        )}
 
         {!isEditing && (
             <div className="flex border-b border-white/5 bg-black/40 shrink-0">
@@ -429,10 +396,37 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
             </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#09090b] custom-scrollbar">
+        <div className={`flex-1 overflow-y-auto ${isEditing ? 'p-3 md:p-6' : 'p-4 md:p-6'} bg-[#09090b] custom-scrollbar`}>
           {isEditing ? (
-              <div className="space-y-4">
-                  <div className="flex justify-between items-center mb-2 px-1">
+              <div className="space-y-3">
+                  {/* dados do cupom em grade de 12 colunas: 3 linhas no celular, na largura toda; rolam junto com os itens */}
+                  <div className="grid grid-cols-12 gap-x-2 gap-y-2 p-3 rounded-lg bg-zinc-900/40 border border-white/5" data-testid="edit-header-fields">
+                      <div className="col-span-12">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Estabelecimento</label>
+                          <input type="text" list="est-list-edit" value={editedReceipt.establishmentName} onChange={(e) => updateHeader('establishmentName', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-base font-serif text-white focus:border-luxury-gold outline-none" />
+                      </div>
+                      <div className="col-span-6">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">CNPJ</label>
+                          <input type="text" value={editedReceipt.cnpj} onChange={(e) => updateHeader('cnpj', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-300 focus:border-luxury-gold outline-none" />
+                      </div>
+                      <div className="col-span-6">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Data</label>
+                          <input type="date" value={editedReceipt.date} onChange={(e) => updateHeader('date', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200 focus:border-luxury-gold outline-none" />
+                      </div>
+                      <div className="col-span-5">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Hora</label>
+                          <input type="time" step="1" value={editedReceipt.time} onChange={(e) => updateHeader('time', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1.5 py-1.5 text-[13px] text-zinc-200 focus:border-luxury-gold outline-none" />
+                      </div>
+                      <div className="col-span-5">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Cidade</label>
+                          <input type="text" value={editedReceipt.city} onChange={(e) => updateHeader('city', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200 focus:border-luxury-gold outline-none" />
+                      </div>
+                      <div className="col-span-2">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">UF</label>
+                          <input type="text" maxLength={2} value={editedReceipt.state} onChange={(e) => updateHeader('state', e.target.value.toUpperCase())} className="w-full bg-black border border-white/10 rounded px-1 py-1.5 text-sm text-center text-zinc-200 uppercase focus:border-luxury-gold outline-none" />
+                      </div>
+                  </div>
+                  <div className="flex justify-between items-center px-1">
                       <h3 className="text-xs uppercase tracking-[0.08em] text-zinc-400 font-bold">Itens da Compra</h3>
                       <button type="button" onClick={addEmptyItem} className="flex items-center gap-1 text-[11px] uppercase font-bold text-luxury-gold hover:underline"><Plus className="w-3 h-3"/> Novo Item</button>
                   </div>
@@ -499,12 +493,12 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
           )}
         </div>
 
-        <div className="p-6 bg-surface/20 border-t border-white/10 flex justify-between items-center relative z-20 shrink-0">
+        <div className={`${isEditing ? 'px-4 py-3 md:p-6' : 'p-6'} bg-surface/20 border-t border-white/10 flex justify-between items-center relative z-20 shrink-0`}>
             <div className="flex flex-col">
                 <span className="text-zinc-500 font-sans text-xs uppercase tracking-wider mb-1">Total da Transação</span>
                 {receipt.cnpj && <span className="text-xs text-zinc-500 font-mono">CNPJ: {formatCNPJ(receipt.cnpj)}</span>}
             </div>
-            <span className={`text-3xl font-serif font-medium ${isEditing ? 'text-white' : 'text-luxury-gold'}`}>
+            <span className={`${isEditing ? 'text-2xl md:text-3xl text-white' : 'text-3xl text-luxury-gold'} font-serif font-medium`}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(isEditing ? editedReceipt.totalAmount : receipt.totalAmount)}
             </span>
         </div>
