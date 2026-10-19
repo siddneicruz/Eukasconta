@@ -39,7 +39,8 @@ const StoreDuplicatesSheet: React.FC<Props> = ({ establishments, receipts, onMer
 
   const [on, setOn] = useState<Record<string, boolean>>({});
   const [keepOf, setKeepOf] = useState<Record<string, string>>({});
-  const [outOf, setOutOf] = useState<Record<string, string[]>>({});
+  // Quem só tem indício fraco (ex.: outra filial com CNPJ certo e diferente no mesmo endereço) começa de fora do grupo
+  const [outOf, setOutOf] = useState<Record<string, string[]>>(() => Object.fromEntries(ruleGroups.filter(g => g.weak && g.weak.length > 0).map(g => [g.id, [...g.weak!]])));
 
   const [phase, setPhase] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
   const [progress, setProgress] = useState<[number, number]>([0, 1]);
@@ -204,6 +205,11 @@ const StoreDuplicatesSheet: React.FC<Props> = ({ establishments, receipts, onMer
                             {m.spent > 0 && <> · {money(m.spent)}</>}
                           </p>
                           {isKeep && !out && <p className="text-[11px] font-bold text-luxury-gold mt-0.5" data-testid="dup-keep-label">Fica este</p>}
+                          {g.weak?.includes(m.key) && (
+                            <p className="text-[11px] text-amber-400 mt-0.5" data-testid="dup-weak-note">
+                              {out ? 'Tem outro CNPJ certo: pode ser outra filial. Fica de fora; toque em Voltar se for a mesma loja.' : 'Tem outro CNPJ certo: confira se é a mesma loja.'}
+                            </p>
+                          )}
                         </div>
                         {!isKeep && (
                           <button type="button" onClick={() => toggleOut(g, m.key)} data-testid="dup-exclude"

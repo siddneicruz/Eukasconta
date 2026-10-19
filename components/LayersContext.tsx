@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { TaxonomyNode } from '../types';
 import { LayerIndex, EMPTY_LAYERS, buildLayerIndex, setActiveLayers } from '../services/categoryLayers';
 import { LAYER_PINS_EVENT, LAYER_PINS_KEY, loadLayerPins } from '../services/layerPins';
+import { setActiveStructure, structureKeys } from '../services/categoryAlign';
 
 // Entrega a todas as telas as camadas 3 e 4 da estrutura de categorias, sem passar a taxonomia por cada componente.
 const Ctx = createContext<LayerIndex>(EMPTY_LAYERS);
@@ -21,6 +22,8 @@ export const LayersProvider: React.FC<{ taxonomy: TaxonomyNode[]; children: Reac
     const built = buildLayerIndex(taxonomy, pins);
     // as funções puras (filtros, recortes) usam este mesmo índice quando ninguém passa outro
     setActiveLayers(built);
+    // e a Estrutura: as listas de escolha marcam o que as compras têm e ela não
+    setActiveStructure(structureKeys(taxonomy));
     return built;
   }, [taxonomy, pins]);
   return <TaxCtx.Provider value={taxonomy}><Ctx.Provider value={idx}>{children}</Ctx.Provider></TaxCtx.Provider>;

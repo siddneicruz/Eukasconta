@@ -29,14 +29,14 @@ const stem = (t: string): string => {
   return t;
 };
 
-const tokensOf = (s: string): string[] =>
+export const tokensOf = (s: string): string[] =>
   fold(s).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(t => t && !STOP.has(t)).map(stem);
 
 /** Chave de igualdade: palavras sem acento, sem "de/e/com", no singular e em ordem ("Pães e Bolos" = "Bolos e Pães"). */
 export const sameKey = (name: string): string => Array.from(new Set(tokensOf(name))).sort().join(' ');
 
 /** Os pedaços de um nome composto: "Açougue e Peixaria" → ["acougue", "peixaria"]. */
-const segmentsOf = (name: string): string[] =>
+export const segmentsOf = (name: string): string[] =>
   name.split(/\s+e\s+|\s*[,/&]\s*|\s+ou\s+/i).map(sameKey).filter(Boolean);
 
 // nomes diferentes que querem dizer o mesmo (já sem acento e no singular)

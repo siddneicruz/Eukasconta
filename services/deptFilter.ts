@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Receipt } from '../types';
 import { catKey, deptKey, masterOf, properCase } from './textFormat';
 import { LayerIndex, buildLayerOpts, getActiveLayers, isLayerKey, itemKeys } from './categoryLayers';
+import { catOutside, deptOutside } from './categoryAlign';
 
 /* Filtro de categorias que fica gravado no aparelho.
    Dois modos com a mesma lista:
@@ -97,6 +98,8 @@ export interface DeptOption {
   total: number;          // gasto no período
   level?: 1 | 2 | 3 | 4;
   parent?: string | null; // chave de quem está logo acima (categoria, para grupo e "outros itens"; grupo, para item)
+  /** existe nas compras mas não na Estrutura de Taxonomia (ver categoryAlign.ts) */
+  outside?: boolean;
 }
 
 interface DeptAcc { name: string; variants: Map<string, number>; total: number }
@@ -146,18 +149,18 @@ export const buildDeptOptions = (all: Receipt[], period: Receipt[], layers: Laye
   const out: DeptOption[] = [];
   depts.forEach((d, key) => {
     const label = properCase(topVariant(d.variants)) || NO_CATEGORY_LABEL;
-    out.push({ key, kind: 'dept', label, full: label, dept: key, total: d.total, level: 1, parent: null });
+    out.push({ key, kind: 'dept', label, full: label, dept: key, total: d.total, level: 1, parent: null, ...(deptOutside(label) ? { outside: true } : {}) });
   });
   cats.forEach((c, key) => {
     const deptLabel = properCase(topVariant(depts.get(c.dept)!.variants)) || NO_CATEGORY_LABEL;
     if (key.startsWith('own:')) {
       // só aparece como linha própria quando o departamento tem subcategorias
       if ((subCount.get(c.dept) || 0) === 0) return;
-      out.push({ key: `c:${c.dept}`, kind: 'cat', label: NO_SUBCATEGORY_LABEL, full: `${deptLabel} - ${NO_SUBCATEGORY_LABEL}`, dept: c.dept, total: c.total, level: 2, parent: c.dept });
+      out.push({ key: `c:${c.dept}`, kind: 'cat', label: NO_SUBCATEGORY_LABEL, full: `${deptLabel} - ${NO_SUBCATEGORY_LABEL}`, dept: c.dept, total: c.total, level: 2, parent: c.dept, ...(deptOutside(deptLabel) ? { outside: true } : {}) });
       return;
     }
     const sub = properCase(topVariant(c.variants).split(' - ').slice(1).join(' - '));
-    out.push({ key, kind: 'cat', label: sub, full: `${deptLabel} - ${sub}`, dept: c.dept, total: c.total, level: 2, parent: c.dept });
+    out.push({ key, kind: 'cat', label: sub, full: `${deptLabel} - ${sub}`, dept: c.dept, total: c.total, level: 2, parent: c.dept, ...(catOutside(`${deptLabel} - ${sub}`) ? { outside: true } : {}) });
   });
 
   // camadas 3 e 4 (grupo, item e "outros itens"), só das categorias que aparecem nas compras
@@ -167,9 +170,9 @@ export const buildDeptOptions = (all: Receipt[], period: Receipt[], layers: Laye
     const cat = catByKey.get(`c:${l.catKey}`);
     if (!cat) return;
     const full = l.kind === 'item' || (l.kind === 'rest' && l.level === 4) ? `${cat.full} - ${l.groupLabel} - ${l.label}` : `${cat.full} - ${l.label}`;
-    out.push({ key: l.key, kind: l.kind, label: l.label, full, dept: cat.dept, total: l.total, level: l.level, parent: l.parent });
+    out.push({ key: l.key, kind: l.kind, label: l.label, full, dept: cat.dept, total: l.total, level: l.level, parent: l.parent, ...(cat.outside ? { outside: true } : {}) });
   });
-  return out.sort((a, b) => b.total - a.total || a.full.localeCompare(b.full, 'pt-BR'));
+  return out.sort((a, b) => Number(!!a.outside) - Number(!!b.outside) || b.total - a.total || a.full.localeCompare(b.full, 'pt-BR'));
 };
 
 /** Nome da opção a partir da chave (se ela não existe mais nas compras, deixa a chave com iniciais maiúsculas). */

@@ -233,7 +233,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                 onChange={(e) => handleInitiateChange(g, e.target.value)}
                 className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-[13px] text-zinc-200 focus:border-luxury-gold/50 outline-none cursor-pointer font-medium truncate"
             >
-                {!categoriesList.includes(g.category) && <option value={g.category}>{g.category}</option>}
+                {!categoriesList.includes(g.category) && <option value={g.category}>{g.category} (fora da Estrutura)</option>}
                 {categoriesList.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                 ))}

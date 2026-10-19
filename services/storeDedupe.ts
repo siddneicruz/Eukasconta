@@ -11,6 +11,9 @@
 //   3. CNPJs diferentes, mesmo nome e MESMO endereço        → CNPJ lido errado (alta se só um confere nos dígitos
 //      verificadores, senão média)
 //   4. nome parecido (um contido no outro) na mesma cidade, um deles sem CNPJ → média
+//   5. CNPJ quase igual (dígito trocado ou cortado pela leitura da foto) e nome igual, cortado ou com erro de leitura,
+//      sem endereço ou cidade que desmintam → alta; um sobre o outro, só um CNPJ certo e o outro completo e também certo
+//      (filial de verdade) fica "de fora" do grupo até a pessoa conferir
 // Nunca junta: cidades diferentes, filiais (CNPJ com a mesma raiz e endereço diferente) nem lojas de nomes diferentes
 // que só dividem o endereço (shopping).
 
@@ -125,24 +128,55 @@ export const validDocument = (raw: unknown): boolean => {
   return false;
 };
 
+const levenshtein = (a: string, b: string): number => {
+  if (a === b) return 0;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+};
+
+/** Quantos dígitos separam dois CNPJs lidos de foto (corte no fim conta só os dígitos diferentes do começo); null se não dá para comparar.
+ *  Dois CNPJs completos e certos que diferem são duas empresas/filiais: nunca são "quase iguais". */
+export const cnpjGap = (a: unknown, b: unknown): number | null => {
+  const x = digits(a), y = digits(b);
+  if (x.length < 12 || y.length < 12 || x.length > 14 || y.length > 14) return null;
+  if (x === y) return x.length < 14 ? 0 : null;     // 14 iguais é "Mesmo CNPJ", outra regra
+  if (x.length === 14 && y.length === 14 && validDocument(x) && validDocument(y)) return null;
+  const [sh, lo] = x.length <= y.length ? [x, y] : [y, x];
+  return sh.length === lo.length ? levenshtein(sh, lo) : levenshtein(sh, lo.slice(0, sh.length));
+};
+
 /* ───────────────────────────── endereço e cidade ───────────────────────────── */
 
 type Compat = 'igual' | 'diferente' | 'desconhecida';
+/** Cidade: 'parcial' quando uma é pedaço da outra ("Chapecó" e "Águas de Chapecó"): o cupom às vezes traz só uma parte. */
+type CityRel = Compat | 'parcial';
 
 const cityKey = (e: Pick<Establishment, 'city'>): string => {
-  const k = cityTokens(e.city).join(' ');
+  let t = cityTokens(e.city);
+  if (t.length > 1 && UFS.has(t[t.length - 1])) t = t.slice(0, -1);      // "CHAPECO SC" → "chapeco"
+  const k = t.join(' ');
   return UFS.has(k) ? '' : k;      // "SC" sozinho não é cidade
 };
-const cityCompat = (a: Establishment, b: Establishment): Compat => {
+const cityCompat = (a: Establishment, b: Establishment): CityRel => {
   const x = cityKey(a), y = cityKey(b);
   if (!x || !y) return 'desconhecida';
-  return x === y ? 'igual' : 'diferente';
+  if (x === y) return 'igual';
+  const tx = x.split(' '), ty = y.split(' ');
+  const [small, big] = tx.length <= ty.length ? [tx, ty] : [ty, tx];
+  return small.length < big.length && small.every(t => big.includes(t)) ? 'parcial' : 'diferente';
 };
 
 const STREET_NOISE = new Set(['avenida', 'av', 'rua', 'r', 'travessa', 'tv', 'rodovia', 'rod', 'estrada', 'est', 'alameda', 'al', 'praca', 'pca', 'br', 'sc', 'km']);
 const addrParts = (e: Pick<Establishment, 'address'>): { street: string[]; number: string } => {
   const first = String(e.address ?? '').split(/\s*[-–]?\s*CEP\b/i)[0];
-  const segs = first.split(',').map(s => s.trim());
+  const segs = first.split(',').map(x => x.trim()).filter(Boolean);       // "AV X,, 473" (vírgula dupla) não perde o número
+  // "471, CENTRO, ..." (a leitura perdeu o nome da rua): só o número é conhecido
+  if (segs[0] && /^\d+[a-z]?$/i.test(segs[0])) return { street: [], number: segs[0].match(/\d+/)![0] };
   const street = fold(segs[0]).split(/[^a-z0-9]+/).filter(t => t && !STREET_NOISE.has(t));
   const number = (segs[1] || '').match(/\d+/)?.[0] ?? '';
   return { street, number };
@@ -180,6 +214,8 @@ export interface StoreGroup {
   reasons: string[];
   source: 'regra' | 'ia';
   aiConfirmed?: boolean;
+  /** Cadastros ligados ao grupo só por evidência fraca (ex.: outra filial com CNPJ certo no mesmo endereço): começam de fora. */
+  weak?: string[];
 }
 
 export const memberStats = (establishments: Establishment[], receipts: Receipt[]): StoreMember[] => {
@@ -241,7 +277,36 @@ const profile = (m: StoreMember): Prof => {
   return { m, d: idOf(m.est.cnpj), core, full, vague };
 };
 
-export const relate = (pa: Prof, pb: Prof): Relation | null => {
+/** Nomes que são o mesmo cortado no fim ("COOPERATIVA AGROI"), com uma letra lida errada ou com a mesma sigla (apelido) escolhida pela pessoa. */
+const looseName = (pa: Prof, pb: Prof): boolean => {
+  if (pa.vague || pb.vague) return false;
+  const x = pa.full, y = pb.full;
+  if (x && y) {
+    if (x === y) return true;
+    const [sh, lo] = x.length <= y.length ? [x, y] : [y, x];
+    if (sh.length >= 8 && lo.startsWith(sh)) return true;
+    if (sh.length >= 10 && levenshtein(sh, lo) <= Math.max(2, Math.round(lo.length * 0.12))) return true;
+  }
+  if (nameRelation(pa.core, pb.core) === 'igual') return true;
+  const al = fold(pa.m.est.aliasName).trim(), bl = fold(pb.m.est.aliasName).trim();
+  return al.length >= 3 && al === bl;
+};
+
+/** CNPJ lido com defeito (dígito trocado ou cortado) + nome igual, cortado ou com erro de leitura = a mesma loja lida mal. */
+const relateNear = (pa: Prof, pb: Prof): Relation | null => {
+  const a = pa.m.est, b = pb.m.est;
+  const gap = cnpjGap(a.cnpj, b.cnpj);
+  if (gap === null || gap > 2 || cityCompat(a, b) === 'diferente' || !looseName(pa, pb)) return null;
+  const addr = addressCompat(a, b);
+  if (addr === 'diferente' || (gap > 1 && addr !== 'igual')) return null;
+  // CNPJ cortado que só "quase" bate com o CNPJ completo e certo de outra loja: pode ser a outra filial; só vale como indício
+  const cut = (x: string, y: string) => x.length < 14 && y.length === 14 && validDocument(y);
+  const dx = digits(a.cnpj), dy = digits(b.cnpj);
+  if (gap > 0 && (cut(dx, dy) || cut(dy, dx))) return { strength: 'media', reason: 'CNPJ cortado parecido com o de outra loja, mesmo nome', differentIds: true };
+  return { strength: 'alta', reason: 'CNPJ quase igual (lido com defeito no cupom) e mesmo nome', differentIds: true };
+};
+
+const relateBase = (pa: Prof, pb: Prof): Relation | null => {
   const a = pa.m.est, b = pb.m.est;
   if (pa.d && pa.d === pb.d) return { strength: 'alta', reason: 'Mesmo CNPJ', differentIds: false };
   const city = cityCompat(a, b);
@@ -249,7 +314,12 @@ export const relate = (pa: Prof, pb: Prof): Relation | null => {
 
   if (pa.d && pb.d) {
     if (rel !== 'igual' || city === 'diferente' || pa.vague || pb.vague) return null;
-    if (addressCompat(a, b) !== 'igual') return null;            // endereço diferente ou sem endereço: pode ser filial
+    const addr = addressCompat(a, b);
+    if (addr !== 'igual') {
+      // os dois CNPJs estão errados e o nome e a cidade batem: não dá para saber qual é o certo; a pessoa confere
+      if (!pa.m.cnpjOk && !pb.m.cnpjOk && addr === 'desconhecida' && city === 'igual') return { strength: 'media', reason: 'Mesmo nome e cidade; os dois CNPJs estão com dígito errado', differentIds: true };
+      return null;                                                  // endereço diferente ou sem endereço: pode ser filial
+    }
     if (pa.m.cnpjOk !== pb.m.cnpjOk) return { strength: 'alta', reason: 'Mesmo nome e endereço; um dos CNPJs foi lido errado', differentIds: true };
     return { strength: 'media', reason: 'Mesmo nome e endereço, mas CNPJ diferente', differentIds: true };
   }
@@ -260,12 +330,21 @@ export const relate = (pa: Prof, pb: Prof): Relation | null => {
     if (pa.vague || pb.vague) return pa.full === pb.full && city === 'igual' ? { strength: 'media', reason: 'Mesmo nome, um sem CNPJ', differentIds: false } : null;
     return city === 'igual'
       ? { strength: 'alta', reason: pa.d || pb.d ? 'Mesmo nome, um deles sem CNPJ' : 'Mesmo nome e cidade', differentIds: false }
-      : { strength: 'media', reason: 'Mesmo nome, cidade não informada em um deles', differentIds: false };
+      : { strength: 'media', reason: city === 'parcial' ? 'Mesmo nome, cidade parecida' : 'Mesmo nome, cidade não informada em um deles', differentIds: false };
   }
   if ((rel === 'contido' || rel === 'parecido') && city === 'igual' && !pa.vague && !pb.vague) {
     return { strength: 'media', reason: 'Nome parecido na mesma cidade', differentIds: false };
   }
   return null;
+};
+
+export const relate = (pa: Prof, pb: Prof): Relation | null => {
+  const base = relateBase(pa, pb);
+  if (base && base.strength === 'alta') return base;
+  const near = relateNear(pa, pb);
+  if (!near) return base;
+  if (!base) return near;
+  return near.strength === 'alta' ? near : base;        // vale o mais certo; empatando, a explicação mais específica (a de antes)
 };
 
 /** Cadastros com o mesmo nome e cidade só se juntam se a união não misturar CNPJs diferentes sem motivo. */
@@ -288,15 +367,30 @@ export const findStoreGroups = (establishments: Establishment[], receipts: Recei
   const ids = profs.map(p => new Set(p.d ? [p.d] : []));
   const reasons = profs.map(() => new Set<string>());
   const strong = profs.map(() => true);
-  edges.forEach(({ i, j, rel }) => {
-    const a = find(i), b = find(j);
-    if (a === b) { reasons[a].add(rel.reason); if (rel.strength === 'media') strong[a] = false; return; }
-    const union = new Set([...ids[a], ...ids[b]]);
-    if (union.size > 1 && ids[a].size > 0 && ids[b].size > 0 && !rel.differentIds) return;
+  const size = profs.map(() => 1);
+  const weak = profs.map(() => new Set<number>());       // cadastros ligados só por evidência fraca ("média") a um grupo sólido
+  const join = (a: number, b: number, rel: Relation) => {      // b entra em a
     parent[b] = a;
+    size[a] += size[b];
     ids[b].forEach(x => ids[a].add(x));
     reasons[b].forEach(x => reasons[a].add(x));
+    weak[b].forEach(x => weak[a].add(x));
     reasons[a].add(rel.reason);
+  };
+  edges.forEach(({ i, j, rel }) => {
+    const a = find(i), b = find(j);
+    if (a === b) { reasons[a].add(rel.reason); return; }      // mais um indício dentro de um grupo que já está formado: não muda a certeza
+    const union = new Set([...ids[a], ...ids[b]]);
+    if (union.size > 1 && ids[a].size > 0 && ids[b].size > 0 && !rel.differentIds) return;
+    if (rel.strength === 'media') {
+      const solidA = size[a] >= 2 && strong[a], solidB = size[b] >= 2 && strong[b];
+      if (solidA && solidB) return;                           // dois grupos já certos não se juntam por indício fraco
+      if (solidA !== solidB) {
+        const [g, o, oi] = solidA ? [a, b, j] : [b, a, i];
+        if (size[o] === 1) { join(g, o, rel); weak[g].add(oi); return; }     // uma loja solta ligada a um grupo certo: entra "de fora"
+      }
+    }
+    join(a, b, rel);
     strong[a] = strong[a] && strong[b] && rel.strength === 'alta';
   });
 
@@ -306,8 +400,14 @@ export const findStoreGroups = (establishments: Establishment[], receipts: Recei
   byRoot.forEach((idx, root) => {
     if (idx.length < 2) return;
     const ms = idx.map(i => members[i]);
-    const keep = pickKeep(ms);
-    groups.push({ id: groupId(ms), members: ms.sort((a, b) => (a.key === keep.key ? -1 : b.key === keep.key ? 1 : b.receipts - a.receipts)), keep: keep.key, confidence: strong[root] ? 'alta' : 'media', reasons: Array.from(reasons[root]), source: 'regra' });
+    const weakKeys = idx.filter(i => weak[root].has(i)).map(i => members[i].key);
+    const solid = ms.filter(m => !weakKeys.includes(m.key));
+    const keep = pickKeep(solid.length > 0 ? solid : ms);
+    groups.push({
+      id: groupId(ms), members: ms.sort((x, y) => (x.key === keep.key ? -1 : y.key === keep.key ? 1 : y.receipts - x.receipts)), keep: keep.key,
+      confidence: strong[root] ? 'alta' : 'media', reasons: Array.from(reasons[root]), source: 'regra',
+      ...(weakKeys.length > 0 ? { weak: weakKeys } : {}),
+    });
   });
   // alta primeiro; depois as que mais mexem em cupons
   const weight = (g: StoreGroup) => g.members.reduce((s, m) => s + m.receipts, 0);
@@ -315,7 +415,7 @@ export const findStoreGroups = (establishments: Establishment[], receipts: Recei
 };
 
 /** Quantos cadastros sobrariam a menos se todos os grupos fossem juntados. */
-export const removableCount = (groups: StoreGroup[]): number => groups.reduce((s, g) => s + g.members.length - 1, 0);
+export const removableCount = (groups: StoreGroup[]): number => groups.reduce((s, g) => s + Math.max(0, g.members.length - (g.weak?.length ?? 0) - 1), 0);
 
 /* ───────────────────────────── candidatos para a IA ───────────────────────────── */
 
@@ -324,6 +424,8 @@ export const looseLink = (a: StoreMember, b: StoreMember): boolean => {
   if (cityCompat(a.est, b.est) === 'diferente' && !(idOf(a.est.cnpj) && idOf(a.est.cnpj) === idOf(b.est.cnpj))) return false;
   const da = idOf(a.est.cnpj), db = idOf(b.est.cnpj);
   if (da && db && da.length === 14 && db.length === 14 && da.slice(0, 8) === db.slice(0, 8)) return true;
+  const gap = cnpjGap(a.est.cnpj, b.est.cnpj);
+  if (gap !== null && gap <= 2) return true;
   // "posto", "farmácia" e afins aparecem em qualquer loja do ramo: não são motivo para comparar
   const ca = coreTokens(a.est).filter(t => !TYPE_WORDS.has(t)), cb = coreTokens(b.est).filter(t => !TYPE_WORDS.has(t));
   if (ca.some(t => t.length >= 5 && hasEq(cb, t))) return true;
@@ -336,16 +438,17 @@ export interface Unit { id: number; members: StoreMember[]; rep: StoreMember; gr
 export const buildUnits = (establishments: Establishment[], receipts: Receipt[], groups: StoreGroup[]): Unit[] => {
   const all = memberStats(establishments, receipts).filter(m => !isUnidentifiedName(m.est.originalName));
   const inGroup = new Map<string, StoreGroup>();
-  groups.forEach(g => g.members.forEach(m => inGroup.set(m.key, g)));
+  groups.forEach(g => g.members.forEach(m => { if (!g.weak?.includes(m.key)) inGroup.set(m.key, g); }));
   const units: Unit[] = [];
   const done = new Set<string>();
   all.forEach(m => {
     if (done.has(m.key)) return;
     const g = inGroup.get(m.key);
     if (g) {
-      g.members.forEach(x => done.add(x.key));
-      const rep = g.members.find(x => x.key === g.keep) || g.members[0];
-      units.push({ id: 0, members: g.members, rep, group: g });
+      const solid = g.members.filter(x => !g.weak?.includes(x.key));
+      solid.forEach(x => done.add(x.key));
+      const rep = solid.find(x => x.key === g.keep) || solid[0];
+      units.push({ id: 0, members: solid, rep, group: g });
     } else {
       done.add(m.key);
       units.push({ id: 0, members: [m], rep: m });

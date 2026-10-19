@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, Establishment, MasterProduct, TaxonomyNode } from '../types';
+import { Receipt, DashboardConfig, Establishment, MasterProduct, TaxonomyNode } from '../types';
+import { structureCategories } from '../services/categoryAlign';
 import { 
   TrendingUp, Store, PieChart as PieChartIcon, ChevronLeft, ChevronRight,
   DollarSign, ShoppingBag, BarChart3, Calendar, Search, Download, Package,
@@ -19,7 +20,7 @@ import CutsPanel from './CutsPanel';
 import CategoryCompareBox from './CategoryCompareBox';
 import { useLayers } from './LayersContext';
 import { fold } from '../services/itemSearch';
-import { buildCompareOptions, bySpend, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
+import { buildCompareOptions, bySpend, bySpendOnly, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
 
 const { 
   XAxis, YAxis, Tooltip, ResponsiveContainer, 
@@ -553,6 +554,8 @@ const Reports: React.FC<ReportsProps> = ({
   const compareOptions = useMemo(() => buildCompareOptions(receipts, filteredReceipts, { layers }), [receipts, filteredReceipts, layers]);
 
   // Auditoria de metas: mesmas opções do Comparativo, mas com toda a estrutura de categorias (dá para pôr meta antes de comprar)
+  // categorias da Estrutura de Taxonomia (lista do "Departamento Central" do catálogo)
+  const structCats = useMemo(() => structureCategories(taxonomy), [taxonomy]);
   const goalOptions = useMemo(() => buildCompareOptions(receipts, filteredReceipts, { layers, taxonomy, includeUnused: true }), [receipts, filteredReceipts, layers, taxonomy]);
   const goalOpt = useMemo(() => goalOptions.find(o => o.id === goalId), [goalOptions, goalId]);
   // metas antigas foram gravadas com o nome da categoria ("Hortifruti - Frutas"): acha a mesma, sem ligar para caixa e acento
@@ -566,7 +569,7 @@ const Reports: React.FC<ReportsProps> = ({
   useEffect(() => {
     if (selInit.current || compareOptions.length === 0) return;
     selInit.current = true;
-    const top = compareOptions.filter(o => o.kind === 'dept').sort(bySpend).slice(0, 3);
+    const top = compareOptions.filter(o => o.kind === 'dept').sort(bySpendOnly).slice(0, 3);
     setSel(top.map((o, i) => ({ id: o.id, color: CMP_COLORS[i] })));
   }, [compareOptions]);
 
@@ -1419,7 +1422,8 @@ const Reports: React.FC<ReportsProps> = ({
                                             onChange={e => setNewMasterCategory(e.target.value)}
                                             className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40 cursor-pointer uppercase font-bold font-mono"
                                         >
-                                            {DEFAULT_CATEGORIES.map(cat => (
+                                            {!!newMasterCategory && !structCats.includes(newMasterCategory) && <option value={newMasterCategory} className="bg-zinc-950">{newMasterCategory} (fora da Estrutura)</option>}
+                                            {structCats.map(cat => (
                                                 <option key={cat} value={cat} className="bg-zinc-950">{cat}</option>
                                             ))}
                                         </select>

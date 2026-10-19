@@ -2,6 +2,7 @@ import { Receipt, TaxonomyNode } from '../types';
 import { catKey, deptKey, masterOf, properCase } from './textFormat';
 import { buildEvolution, EvoConfig } from './evolutionSeries';
 import { LayerIndex, buildLayerOpts, getActiveLayers, itemKeys } from './categoryLayers';
+import { catOutside, deptOutside } from './categoryAlign';
 
 /* Comparativo de categorias: as opções vêm das compras do próprio usuário (nunca de uma lista fixa),
    cada opção é um departamento inteiro ("Hortifruti") ou uma categoria dele ("Hortifruti - Frutas"),
@@ -19,6 +20,8 @@ export interface CompareOption {
   items: number;     // linhas de item no período
   level?: 1 | 2 | 3 | 4;
   parent?: string | null;   // id de quem está logo acima
+  /** a categoria existe nas compras mas não na Estrutura de Taxonomia (ver categoryAlign.ts) */
+  outside?: boolean;
 }
 
 export const NO_CATEGORY = 'Sem categoria';
@@ -109,13 +112,16 @@ export const buildCompareOptions = (all: Receipt[], period: Receipt[], opts: Com
     const top = best(a);
     const dept = properCase(a.kind === 'dept' ? top : top.split(' - ')[0]) || NO_CATEGORY;
     const sub = a.kind === 'cat' ? properCase(top.split(' - ').slice(1).join(' - ')) : '';
+    const full = a.kind === 'dept' ? dept : `${dept} - ${sub}`;
+    const outside = a.kind === 'dept' ? deptOutside(dept) : catOutside(full);
     return {
       id, kind: a.kind, dept,
       label: a.kind === 'dept' ? dept : sub,
-      full: a.kind === 'dept' ? dept : `${dept} - ${sub}`,
+      full,
       total: a.total, items: a.items,
       level: a.kind === 'dept' ? 1 : 2,
       parent: a.kind === 'dept' ? null : deptId(a.dept),
+      ...(outside ? { outside: true } : {}),
     } as CompareOption;
   });
 
@@ -129,14 +135,19 @@ export const buildCompareOptions = (all: Receipt[], period: Receipt[], opts: Com
     out.push({
       id: l.key, kind: l.kind, label: l.label, dept: cat.dept, full, total: l.total, items: l.items,
       level: l.level, parent: l.parent,
+      ...(cat.outside ? { outside: true } : {}),
     });
   });
   return out;
 };
 
 /** Mais gasto no período primeiro; empate (ou sem gasto) em ordem alfabética. */
-export const bySpend = (a: CompareOption, b: CompareOption) =>
+export const bySpendOnly = (a: CompareOption, b: CompareOption) =>
   b.total - a.total || a.full.localeCompare(b.full, 'pt-BR');
+
+/** Como as listas de escolha ordenam: o que está na Estrutura de Taxonomia primeiro, o que ficou de fora no fim; dentro de cada parte, por gasto. */
+export const bySpend = (a: CompareOption, b: CompareOption) =>
+  Number(!!a.outside) - Number(!!b.outside) || bySpendOnly(a, b);
 
 export interface CompareSelection { id: string; color: string }
 

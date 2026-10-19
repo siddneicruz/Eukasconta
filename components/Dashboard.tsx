@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Receipt, DashboardConfig, DEFAULT_CATEGORIES, TaxonomyNode, MasterProduct } from '../types';
+import { Receipt, DashboardConfig, TaxonomyNode, MasterProduct } from '../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from 'recharts';
 import InteractiveDonut from './InteractiveDonut';
 import PercentRing from './PercentRing';

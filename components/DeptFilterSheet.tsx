@@ -7,6 +7,7 @@ import {
 } from '../services/deptFilter';
 import { fold } from '../services/itemSearch';
 import { brlAxis } from '../services/chartFormat';
+import { openAlignSheet } from '../services/categoryAlign';
 
 /* Folha para escolher o que entra na análise. Marcado = entra. Cada toque vale na hora (e fica gravado);
    "Pronto" só fecha. Dá para marcar um departamento inteiro ou descer por ele (seta à direita): categoria, grupo e item
@@ -43,6 +44,7 @@ const DeptFilterSheet: React.FC<Props> = ({
   testId = 'dept-sheet', z = 'z-[260]',
 }) => {
   const idx = useMemo(() => indexOptions(options), [options]);
+  const outsideCount = useMemo(() => options.filter(o => o.outside && (o.kind === 'dept' || o.kind === 'cat')).length, [options]);
   // "Desmarcar todas" só esvazia a folha; o filtro de verdade muda quando a pessoa marca a primeira coisa
   const [cleared, setCleared] = useState(false);
   const incReal = useMemo(() => includedLeaves(filter, idx), [filter, idx]);
@@ -167,6 +169,7 @@ const DeptFilterSheet: React.FC<Props> = ({
           <span className="min-w-0 flex-1">
             <span className={`block truncate ${size} ${state === 'none' ? 'text-zinc-500 line-through decoration-zinc-700' : weight}`}>{o.label}</span>
             {opts.caption && <span className="block truncate text-[11px] text-zinc-500 leading-snug">{opts.caption}</span>}
+            {o.outside && (o.kind === 'dept' || o.kind === 'cat') && <span className="block truncate text-[10.5px] text-zinc-500 leading-snug" data-testid="dept-outside-tag">fora da Estrutura</span>}
           </span>
           <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums">{o.total > 0 ? brlAxis(o.total) : ''}</span>
         </button>
@@ -236,6 +239,12 @@ const DeptFilterSheet: React.FC<Props> = ({
           </button>
         </div>
         <p className="px-5 pb-2 text-[11px] text-zinc-500 leading-snug" data-testid="dept-status">{status}</p>
+        {outsideCount > 0 && (
+          <div className="mx-5 mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2" data-testid="dept-outside">
+            <p className="min-w-0 flex-1 text-[11.5px] leading-snug text-zinc-400">{outsideCount} {outsideCount === 1 ? 'categoria está' : 'categorias estão'} fora da Estrutura de Taxonomia (no fim da lista).</p>
+            <button type="button" onClick={openAlignSheet} data-testid="dept-align" className="shrink-0 h-8 px-3 rounded-lg border border-luxury-gold/50 text-[11.5px] font-bold text-zinc-100">Alinhar</button>
+          </div>
+        )}
 
         {q && (
           <div className="px-5 pb-1.5 flex items-center justify-between gap-2" data-testid="dept-results-bar" data-scope={scope}>

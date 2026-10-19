@@ -52,6 +52,9 @@ import {
 import { loadDeptFilter, saveDeptFilter } from './services/deptFilter';
 import { looksLikeXlsx, mergePlanilha, mergeStores, readPlanilha } from './services/planilhaImport';
 import { loadCuts, saveCuts } from './services/cuts';
+import { AlignChoice, OPEN_ALIGN_EVENT, buildAlignIndex, buildAlignPlan, buildAlignRemapper, loadAliases, saveAliases, snapReceiptCategories } from './services/categoryAlign';
+import { LAYER_PINS_EVENT, LAYER_PINS_KEY, loadLayerPins } from './services/layerPins';
+import AlignCategoriesSheet from './components/AlignCategoriesSheet';
 import { auditCategoriesWithAI } from './services/geminiService';
 import { buildAndSyncMasterProducts } from './services/productMasterService';
 import { unifyGroups, splitDesc, ProductGroup } from './services/productUnify';
@@ -225,6 +228,18 @@ const App: React.FC = () => {
       });
       return list;
   }, [taxonomy]);
+
+  // Cupom novo entra já com a categoria da Estrutura (nome antigo conhecido, ou parecido com segurança)
+  const alignIndex = useMemo(() => buildAlignIndex(taxonomy), [taxonomy]);
+  const snapNew = (r: Receipt): Receipt => snapReceiptCategories([r], alignIndex, loadAliases()).receipts[0];
+
+  // Tela "Alinhar categorias": abre pelo botão da Estrutura e pelo aviso das listas de escolha
+  const [alignOpen, setAlignOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setAlignOpen(true);
+    window.addEventListener(OPEN_ALIGN_EVENT, open);
+    return () => window.removeEventListener(OPEN_ALIGN_EVENT, open);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('eukasconta_taxonomy', JSON.stringify(taxonomy));
@@ -450,6 +465,44 @@ const App: React.FC = () => {
       showNotification(`${summary}.${itemsChanged > 0 ? ` ${itemsChanged} ${itemsChanged === 1 ? 'item das compras' : 'itens das compras'} passou para a categoria que ficou.` : ''}`, 7000);
   };
 
+  // Alinhar categorias: cada nome antigo dos cupons passa para a categoria da Estrutura de Taxonomia.
+  // Itens, catálogo, metas, cores/ícones, filtro de categorias, recortes e fixações de grupo/item seguem o novo nome,
+  // e a escolha fica guardada para o cupom novo com o mesmo nome antigo entrar já certo.
+  const handleAlignCategories = (choices: AlignChoice[], summary: string) => {
+      if (choices.length === 0) return;
+      restore.before('alinhar categorias');
+      const plan = buildAlignPlan(taxonomy, receipts, masterProducts, loadAliases());
+      const rm = buildAlignRemapper(plan, choices);
+      const itemsChanged = remapReceipts(receipts, rm).items;
+      if (itemsChanged > 0) setReceipts(prev => remapReceipts(prev, rm).receipts);
+      setMasterProducts(prev => remapMasters(prev, rm));
+      try {
+          const readJson = (k: string) => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch { return {}; } };
+          const goals = readJson('eukasconta_category_goals');
+          const nextGoals = remapGoals(goals, rm);
+          if (JSON.stringify(nextGoals) !== JSON.stringify(goals)) localStorage.setItem('eukasconta_category_goals', JSON.stringify(nextGoals));
+          const meta = readJson('eukasconta_category_meta');
+          const nextMeta = remapMeta(meta, rm, []);
+          if (nextMeta !== meta) localStorage.setItem('eukasconta_category_meta', JSON.stringify(nextMeta));
+          const f = loadDeptFilter();
+          if (f.keys.length > 0) saveDeptFilter({ ...f, keys: rm.keysMany(f.keys) });
+          const cuts = loadCuts();
+          if (cuts.length > 0) saveCuts(cuts.map(c => ({ ...c, filter: { ...c.filter, keys: rm.keysMany(c.filter.keys) } })));
+          const pins = loadLayerPins();
+          const nextPins = rm.pins(pins);
+          if (JSON.stringify(nextPins) !== JSON.stringify(pins)) {
+              localStorage.setItem(LAYER_PINS_KEY, JSON.stringify(nextPins));
+              window.dispatchEvent(new Event(LAYER_PINS_EVENT));
+          }
+          const aliases = loadAliases();
+          choices.forEach(c => { if (c.from !== c.to) aliases[c.key] = c.to; });
+          saveAliases(aliases);
+          window.dispatchEvent(new Event('storage'));
+          setMetaVersion(v => v + 1);
+      } catch { /* sem armazenamento: as compras já foram acertadas */ }
+      showNotification(`${summary}.${itemsChanged > 0 ? ` ${itemsChanged} ${itemsChanged === 1 ? 'item das compras' : 'itens das compras'} passou para a categoria certa.` : ''}`, 7000);
+  };
+
   const handleUnifyEstablishments = () => {
       restore.before('unificar estabelecimentos');
       setGlobalLoading(true);
@@ -670,7 +723,7 @@ const App: React.FC = () => {
   const viewRef = useRef(view);
   viewRef.current = view;
   const commitScanned = (r: Receipt): boolean => {
-      const a = auditAndRepairReceipt(r);
+      const a = snapNew(auditAndRepairReceipt(r));
       const isDup = (ex: Receipt) => a.id === ex.id || (a.date === ex.date && Math.abs(a.totalAmount - ex.totalAmount) < 0.01 && a.establishmentName === ex.establishmentName);
       if (receiptsRef.current.some(isDup)) return false;
       receiptsRef.current = [a, ...receiptsRef.current];   // o próximo cupom do lote já enxerga este
@@ -702,7 +755,7 @@ const App: React.FC = () => {
     setReceipts(prev => {
         const uniqueList = [...prev];
         newReceipts.forEach(newR => {
-            const auditedR = auditAndRepairReceipt(newR);
+            const auditedR = snapNew(auditAndRepairReceipt(newR));
             const isDup = uniqueList.some(ex => (auditedR.id === ex.id) || (auditedR.date === ex.date && Math.abs(auditedR.totalAmount - ex.totalAmount) < 0.01 && auditedR.establishmentName === ex.establishmentName));
             if (!isDup) { uniqueList.unshift(auditedR); added++; }
         });
@@ -767,8 +820,9 @@ const App: React.FC = () => {
               (d, t) => setLoadingText(`LENDO CUPONS... ${d} DE ${t}`),
           );
           if (out.added.length > 0) {
-              receiptsRef.current = [...out.added, ...receiptsRef.current];
-              setReceipts(prev => [...out.added.filter(a => !prev.some(ex => ex.id === a.id)), ...prev]);
+              const added = out.added.map(snapNew);
+              receiptsRef.current = [...added, ...receiptsRef.current];
+              setReceipts(prev => [...added.filter(a => !prev.some(ex => ex.id === a.id)), ...prev]);
           }
           const n = out.added.length;
           const parts: string[] = [n === 0
@@ -1458,6 +1512,7 @@ const App: React.FC = () => {
           </div>
       )}
 
+      {alignOpen && <AlignCategoriesSheet taxonomy={taxonomy} receipts={receipts} masters={masterProducts} onApply={handleAlignCategories} onClose={() => setAlignOpen(false)} />}
       {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onClose={() => setEditingStore(null)} />}
       {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}
       {pendingDelete && (

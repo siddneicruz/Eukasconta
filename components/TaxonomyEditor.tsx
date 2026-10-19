@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
     Plus, Trash2, Edit3, ChevronDown, ChevronRight, 
     Layers, Save, X, AlertCircle,
-    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2, Copy, MoreHorizontal
+    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2, Copy, MoreHorizontal, ListChecks
 } from 'lucide-react';
 import { getCategoryIcon, getCategoryColor, getCustomMeta, matchIconByKeyword } from './Dashboard';
 import * as LucideIcons from 'lucide-react';
@@ -15,6 +15,7 @@ import { generateId } from '../services/idUtils';
 import { titleCase } from '../services/textFormat';
 import { MergeResult, addHiddenDefaults, detectDuplicates, loadHiddenDefaults, visibleDuplicates } from '../services/taxonomyDedupe';
 import { DuplicateCategoriesSheet, MergeWithSheet } from './DuplicateCategoriesSheet';
+import { buildAlignPlan, openAlignSheet, pendingRows, spellingRows } from '../services/categoryAlign';
 
 // Classes estáticas (o Tailwind só gera classes que aparecem por completo no
 // código-fonte; \`ml-${depth * 4}\` nunca funcionaria, pois é montada em tempo
@@ -57,6 +58,12 @@ interface TaxonomyEditorProps {
 
 const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxonomy, onEditIcon, receipts = [], onMergeCategories }) => {
     const [dupOpen, setDupOpen] = useState(false);
+    // nomes de categoria dos cupons que não são os da Estrutura (a tela "Alinhar categorias" corrige)
+    const alignInfo = useMemo(() => {
+        const plan = buildAlignPlan(taxonomy, receipts);
+        const rows = [...pendingRows(plan), ...spellingRows(plan)];
+        return { total: rows.length, items: rows.reduce((s, r) => s + r.items, 0) };
+    }, [taxonomy, receipts]);
     const [mergeWithId, setMergeWithId] = useState<string | null>(null);
     const [ignoredTick, setIgnoredTick] = useState(0);
     const dupInfo = useMemo(() => {
@@ -417,6 +424,17 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
             {levelFeedback && (
                 <div className="mx-8 mb-4 px-5 py-3 rounded-xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold text-xs font-bold animate-in fade-in slide-in-from-top-2">
                     {levelFeedback}
+                </div>
+            )}
+
+            {alignInfo.total > 0 && (
+                <div className="mx-6 mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3" data-testid="tax-align-banner" data-count={alignInfo.total}>
+                    <ListChecks className="w-4 h-4 text-luxury-gold shrink-0" />
+                    <p className="flex-1 min-w-0 text-[12.5px] leading-snug text-zinc-200">
+                        <span className="font-bold text-zinc-100">{alignInfo.total} {alignInfo.total === 1 ? 'nome de categoria' : 'nomes de categoria'}</span>
+                        <span className="text-zinc-400"> nos seus cupons {alignInfo.total === 1 ? 'não é igual' : 'não são iguais'} aos da Estrutura · {alignInfo.items} {alignInfo.items === 1 ? 'item' : 'itens'}</span>
+                    </p>
+                    <button onClick={openAlignSheet} data-testid="tax-align-open" className="shrink-0 h-9 px-4 rounded-xl bg-luxury-gold text-black text-xs font-bold">Alinhar</button>
                 </div>
             )}
 

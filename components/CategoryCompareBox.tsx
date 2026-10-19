@@ -3,6 +3,7 @@ import { Search, X, ChevronDown, ChevronRight, Check } from 'lucide-react';
 import { CompareOption, bySpend, deptId } from '../services/categoryCompare';
 import { fold } from '../services/itemSearch';
 import { brlAxis } from '../services/chartFormat';
+import { openAlignSheet } from '../services/categoryAlign';
 
 /* Campo para escolher uma categoria: digita e as sugestões aparecem (autocompletar), ou abre a lista de departamentos e
    toca na seta de um deles para descer: categoria, grupo e item (4 níveis). Escolher de novo tira da escolha.
@@ -159,6 +160,7 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
   };
 
   const showList = open;
+  const outsideCount = useMemo(() => options.filter(o => o.outside && (o.kind === 'dept' || o.kind === 'cat')).length, [options]);
   useEffect(() => { if (autoFocus) { inputRef.current?.focus(); setOpen(true); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -210,6 +212,12 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
           onMouseDown={e => e.preventDefault()}
           className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-[50vh] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl p-1.5 ${listClass}`}
         >
+          {outsideCount > 0 && (
+            <div className="mx-1 mb-1 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2" data-testid={`${testId}-outside`}>
+              <p className="min-w-0 flex-1 text-[11.5px] leading-snug text-zinc-400">{outsideCount} {outsideCount === 1 ? 'categoria está' : 'categorias estão'} fora da Estrutura de Taxonomia (no fim da lista).</p>
+              <button type="button" onClick={openAlignSheet} data-testid={`${testId}-align`} className="shrink-0 h-8 px-3 rounded-lg border border-luxury-gold/50 text-[11.5px] font-bold text-zinc-100">Alinhar</button>
+            </div>
+          )}
           {full && (
             <p className="px-3 py-2 text-[11px] text-zinc-500" data-testid={`${testId}-max`}>
               Máximo de {max} na comparação. Toque em uma marcada para tirar.
@@ -250,6 +258,7 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate ${titleCls}`}>{r.opt.label}</span>
                     {r.flat && <span className="block text-[11px] text-zinc-500 leading-snug truncate">{caption}</span>}
+                    {r.opt.outside && (k === 'dept' || k === 'cat') && <span className="block text-[10.5px] text-zinc-500 leading-snug" data-testid="compare-outside-tag">fora da Estrutura</span>}
                   </span>
                   <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums">{r.opt.total > 0 ? brlAxis(r.opt.total) : ''}</span>
                 </button>
