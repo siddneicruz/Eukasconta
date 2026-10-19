@@ -20,6 +20,7 @@ import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
 import EstablishmentEditSheet from './components/EstablishmentEditSheet';
 import { applyStoreEdit, StoreDraft } from './services/establishmentEdit';
+import { applyMergePlans, applyRedirects, loadRedirects, retargetRedirects, saveRedirects, type MergePlan } from './services/storeDedupe';
 import { rekeyStoreCodes, applyCodeEdit, CodeOp, normStoreKey, codeKind } from './services/productCodes';
 import SettingsView from './components/SettingsView';
 import DiagnosticPanel from './components/DiagnosticPanel';
@@ -298,6 +299,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
       localStorage.setItem('eukasconta_data', JSON.stringify(receipts));
+      // Cupom novo que chega com o nome de uma loja já juntada (a leitura da foto repete a grafia) entra direto na loja que ficou
+      const redirects = loadRedirects();
+      if (Object.keys(redirects).length > 0) {
+          const fixed = applyRedirects(receipts, redirects);
+          if (fixed.changed > 0) { setReceipts(fixed.receipts); return; }
+      }
       // Sincronizar tabela de estabelecimentos automaticamente ao adicionar novos recibos
       updateEstablishmentTableFromReceipts();
   }, [receipts]);
@@ -371,6 +378,7 @@ const App: React.FC = () => {
       if ('error' in res) return res.error;
       // mudar o nome ou o CNPJ da loja reescreve os cupons dela: guarda um ponto antes
       if (res.identityChanged) restore.before('mudar o nome ou o CNPJ de uma loja');
+      if (res.identityChanged) saveRedirects(retargetRedirects(loadRedirects(), { cnpj: prev.cnpj, name: prev.originalName }, { cnpj: res.next.cnpj, name: res.next.originalName }));
       setEstablishments(res.establishments);
       if (res.identityChanged) {
           // O cupom guarda o nome e o CNPJ da loja: corrige junto, senão o histórico perde a ligação com o cadastro.
@@ -381,6 +389,20 @@ const App: React.FC = () => {
           ? `Loja salva. ${res.changedReceipts === 1 ? '1 cupom corrigido' : `${res.changedReceipts} cupons corrigidos`}.`
           : "Dados da loja salvos.");
       return null;
+  };
+
+  // Juntar lojas repetidas: o cadastro encolhe, os cupons e os códigos de produto passam para a loja que fica,
+  // e o app lembra os nomes antigos para os próximos cupons já entrarem na loja certa.
+  const handleMergeStores = (plans: MergePlan[]) => {
+      if (plans.length === 0) return;
+      const out = applyMergePlans(plans, establishments, receipts, masterProducts, loadRedirects());
+      if (out.groups === 0) return;
+      restore.before('juntar lojas repetidas');
+      setEstablishments(out.establishments);
+      if (out.receiptsChanged > 0) setReceipts(out.receipts);
+      setMasterProducts(out.masters);
+      saveRedirects(out.redirects);
+      showNotification(`${out.removed === 1 ? '1 loja repetida foi juntada' : `${out.removed} lojas repetidas foram juntadas`}${out.receiptsChanged > 0 ? `. ${out.receiptsChanged === 1 ? '1 cupom passou' : `${out.receiptsChanged} cupons passaram`} para a loja que ficou` : ''}.`, 7000);
   };
 
   // Vários apelidos de uma vez (sugestões da IA já revisadas pela pessoa)
@@ -1319,6 +1341,7 @@ const App: React.FC = () => {
                         onUpdateEstablishment={handleUpdateEstablishment}
                         onEditEstablishment={setEditingStore}
                         onApplyAliases={handleApplyAliases}
+                        onMergeStores={handleMergeStores}
                         onClearData={() => {
                             // Antes de apagar tudo, guarda um ponto de restauração (os pontos não são apagados pelo Hard Reset)
                             restore.before('apagar tudo');

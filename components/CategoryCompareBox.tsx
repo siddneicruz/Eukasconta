@@ -17,6 +17,12 @@ interface Props {
   placeholder?: string;
   single?: boolean;
   valueLabel?: string;      // o que está escolhido (modo `single`), mostrado no próprio campo
+  /** Quais linhas podem ser escolhidas. Uma que não pode, só abre e fecha o que há dentro dela (se tiver). */
+  selectable?: (opt: CompareOption, kids: number) => boolean;
+  /** Abre a lista já com o cursor no campo (para telas que existem só para escolher). */
+  autoFocus?: boolean;
+  /** Classes a mais na lista (por exemplo, mais larga em tela grande). */
+  listClass?: string;
 }
 
 interface Row { opt: CompareOption; depth: number; kids: number; expanded: boolean; flat: boolean; crumb: string }
@@ -25,7 +31,7 @@ const MAX_RESULTS = 40;
 
 const LEVEL_ORDER: Record<string, number> = { dept: 0, cat: 1, grp: 2, rest: 2, item: 3 };
 
-const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle, testId = 'compare-search', placeholder = 'Buscar categoria', single = false, valueLabel }) => {
+const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle, testId = 'compare-search', placeholder = 'Buscar categoria', single = false, valueLabel, selectable, autoFocus = false, listClass = '' }) => {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -112,9 +118,14 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
   const isSel = (id: string) => selected.includes(id);
   const blocked = (id: string) => full && !isSel(id);
 
+  const kidCount = (id: string): number => (kidsOf.get(id) || []).length;
+  // no resultado da busca a lista é plana (r.kids = 0): o que há dentro vem da árvore
+  const locked = (r: Row): boolean => !!selectable && !selectable(r.opt, kidCount(r.opt.id));
+
   const pick = (i: number) => {
     const r = rows[i];
     if (!r || blocked(r.opt.id)) return;
+    if (locked(r)) { if (r.kids) toggleExpand(r.opt.id); return; }
     onToggle(r.opt.id);
     setQuery('');
     setOpen(false);
@@ -148,6 +159,7 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
   };
 
   const showList = open;
+  useEffect(() => { if (autoFocus) { inputRef.current?.focus(); setOpen(true); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div ref={boxRef} className="relative" data-testid={testId}>
@@ -193,10 +205,10 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
           id={listId}
           ref={listRef}
           role="listbox"
-          aria-multiselectable="true"
+          aria-multiselectable={single ? undefined : true}
           data-testid={`${testId}-list`}
           onMouseDown={e => e.preventDefault()}
-          className="absolute left-0 right-0 top-full mt-2 z-50 max-h-[50vh] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl p-1.5"
+          className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-[50vh] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl p-1.5 ${listClass}`}
         >
           {full && (
             <p className="px-3 py-2 text-[11px] text-zinc-500" data-testid={`${testId}-max`}>
@@ -209,10 +221,11 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
             </p>
           ) : rows.map((r, i) => {
             const sel = isSel(r.opt.id);
-            const dis = blocked(r.opt.id);
+            const lockedFlat = r.flat && locked(r);
+            const dis = blocked(r.opt.id) || lockedFlat;
             const k = r.opt.kind;
             const titleCls = k === 'dept' ? 'text-[14px] font-semibold text-zinc-100' : k === 'cat' ? 'text-[13px] font-medium text-zinc-200' : k === 'item' ? 'text-[12.5px] font-normal text-zinc-300' : 'text-[13px] font-medium text-zinc-300';
-            const caption = k === 'dept' ? 'Departamento inteiro' : k === 'cat' ? r.opt.dept : r.crumb;
+            const caption = lockedFlat ? 'Escolha uma categoria dentro dele' : k === 'dept' ? 'Departamento inteiro' : k === 'cat' ? r.opt.dept : r.crumb;
             return (
               <div key={r.opt.id} style={r.depth ? { marginLeft: r.depth * 16 } : undefined}
                 className={`flex items-stretch rounded-xl transition-colors ${i === active ? 'bg-luxury-gold/10' : 'hover:bg-white/5'}`}>

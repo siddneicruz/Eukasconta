@@ -4,6 +4,7 @@ import { Receipt, ReceiptItem } from '../types';
 import { generateId } from '../services/idUtils';
 import EggCountPicker from './EggCountPicker';
 import { isEggItem } from '../services/eggs';
+import ItemCategoryPicker from './ItemCategoryPicker';
 import { Save, X, Plus, Trash2, Calendar, Clock, MapPin, Store, Hash, Globe, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface ManualEntryFormProps {
@@ -228,30 +229,28 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
 
               <div className="space-y-3">
                   {items.map((item, index) => (
-                      <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 rounded-2xl bg-black border border-white/5 items-start relative group hover:border-white/10 transition-all">
-                          <div className="col-span-4">
+                      <div key={index} className="grid grid-cols-6 md:grid-cols-12 gap-3 p-4 rounded-2xl bg-black border border-white/5 items-start relative group hover:border-white/10 transition-all">
+                          <div className="col-span-6 md:col-span-4">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Descrição</label>
                               <input type="text" list="products-list-manual" value={item.description} onChange={e => updateItem(index, 'description', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-zinc-200 focus:border-luxury-gold outline-none" placeholder="Produto"/>
                           </div>
-                          <div className="col-span-3">
+                          <div className="col-span-6 md:col-span-3">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Categoria</label>
-                              <select value={item.category} onChange={e => updateItem(index, 'category', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-3 text-xs text-zinc-400 focus:border-luxury-gold outline-none">
-                                  {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                              </select>
+                              <ItemCategoryPicker category={item.category} description={item.description} categories={categories} testId={`new-item-cat-${index}`} onPick={c => updateItem(index, 'category', c)} />
                           </div>
-                          <div className="col-span-1">
+                          <div className="col-span-2 md:col-span-1">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Qtd</label>
                               <input type="number" value={item.quantity} onChange={e => updateItem(index, 'quantity', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-sm text-center text-zinc-200" />
                           </div>
-                          <div className="col-span-1">
+                          <div className="col-span-2 md:col-span-1">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Un</label>
                               <input type="text" value={item.unitType || 'UN'} onChange={e => updateItem(index, 'unitType', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-xs text-center text-zinc-200 uppercase" />
                           </div>
-                          <div className="col-span-1">
+                          <div className="col-span-2 md:col-span-1">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Unitário</label>
                               <input type="number" step="0.01" value={item.unitPrice} onChange={e => updateItem(index, 'unitPrice', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-sm text-right text-zinc-200" />
                           </div>
-                          <div className="col-span-1">
+                          <div className="col-span-5 md:col-span-1">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Total</label>
                               <input type="number" step="0.01" value={item.totalPrice} onChange={e => updateItem(index, 'totalPrice', Number(e.target.value))} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-2 text-sm text-right font-bold text-luxury-gold" />
                           </div>
@@ -261,7 +260,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                               </button>
                           </div>
                           {isEggItem(item) && (
-                              <div className="md:col-span-12">
+                              <div className="col-span-6 md:col-span-12">
                                   <EggCountPicker item={item} testId={`egg-picker-new-${index}`} onChange={n => updateItem(index, 'eggCount', n)} />
                               </div>
                           )}

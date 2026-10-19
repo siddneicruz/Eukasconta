@@ -11,6 +11,7 @@ import { useStoreNames } from './StoreNamesContext';
 import { generateReceiptText } from '../services/receiptText';
 import EggCountPicker from './EggCountPicker';
 import { isEggItem } from '../services/eggs';
+import ItemCategoryPicker from './ItemCategoryPicker';
 
 interface ReceiptDetailProps {
   receipt: Receipt;
@@ -112,7 +113,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, o
                                     <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unitPrice)}</span>
                                 </p>
                                 {!isEditing && (
-                                    <button onClick={() => setEditingItemIdx(originalIndex)} className="opacity-0 group-hover/item:opacity-100 text-xs text-luxury-gold hover:underline transition-all mt-1">
+                                    <button onClick={() => setEditingItemIdx(originalIndex)} className="md:opacity-0 md:group-hover/item:opacity-100 text-xs text-luxury-gold hover:underline transition-all mt-1" data-testid="item-move">
                                         Mover
                                     </button>
                                 )}
@@ -128,21 +129,14 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, o
                         )}
                         {isEditing && (
                             <div className="mt-2 animate-in fade-in slide-in-from-top-1 bg-zinc-900/80 p-2 rounded-lg border border-luxury-gold/20">
-                                <label className="text-[11px] uppercase text-zinc-500 font-bold mb-1 block">Mover para Categoria:</label>
-                                <select 
-                                    className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-luxury-gold/50"
-                                    defaultValue={category}
-                                    onChange={(e) => {
-                                        onEditItem(originalIndex, e.target.value);
-                                        setEditingItemIdx(null);
-                                    }}
-                                    autoFocus
-                                    onBlur={() => setEditingItemIdx(null)}
-                                >
-                                    {availableCategories.map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[11px] uppercase text-zinc-500 font-bold block">Mover para Categoria:</label>
+                                    <button type="button" onClick={() => setEditingItemIdx(null)} className="text-[11px] text-zinc-500 hover:text-white px-1" data-testid="move-cancel">Cancelar</button>
+                                </div>
+                                <ItemCategoryPicker
+                                    category={item.category || category} description={item.description} categories={availableCategories} testId="move-cat" autoFocus
+                                    onPick={(c) => { onEditItem(originalIndex, c); setEditingItemIdx(null); }}
+                                />
                             </div>
                         )}
                     </div>
@@ -444,16 +438,18 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                   </div>
                   <div className="space-y-2">
                       {editedReceipt.items.map((item, idx) => (
-                          <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 bg-zinc-900/50 border border-white/5 rounded-lg hover:bg-white/5 transition-colors items-start">
-                              <div className="col-span-4"><label className="md:hidden text-xs text-zinc-500 block mb-0.5">Descrição</label><input type="text" value={item.description} onChange={(e) => updateEditedItem(idx, 'description', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1 text-xs text-zinc-200"/></div>
-                              <div className="col-span-3"><label className="md:hidden text-xs text-zinc-500 block mb-1">Categoria</label><select value={item.category} onChange={(e) => updateEditedItem(idx, 'category', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1 text-xs text-zinc-300">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
-                              <div className="col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Qtd</label><input type="number" value={item.quantity} onChange={(e) => updateEditedItem(idx, 'quantity', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-center text-zinc-200"/></div>
-                              <div className="col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Un</label><input type="text" value={item.unitType || 'UN'} onChange={(e) => updateEditedItem(idx, 'unitType', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-center text-zinc-200 uppercase"/></div>
-                              <div className="col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Vl. Un</label><input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateEditedItem(idx, 'unitPrice', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right text-zinc-200"/></div>
-                              <div className="col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Total</label><input type="number" step="0.01" value={item.totalPrice} onChange={(e) => updateEditedItem(idx, 'totalPrice', Number(e.target.value))} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right font-bold text-luxury-gold"/></div>
-                              <div className="col-span-1 flex justify-center pt-1"><button onClick={() => removeEditedItem(idx)} className="text-zinc-600 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+                          <div key={idx} className="grid grid-cols-6 md:grid-cols-12 gap-2 p-3 bg-zinc-900/50 border border-white/5 rounded-lg hover:bg-white/5 transition-colors items-start">
+                              <div className="col-span-6 md:col-span-4"><label className="md:hidden text-xs text-zinc-500 block mb-0.5">Descrição</label><input type="text" value={item.description} onChange={(e) => updateEditedItem(idx, 'description', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1 text-xs text-zinc-200"/></div>
+                              <div className="col-span-6 md:col-span-3"><label className="md:hidden text-xs text-zinc-500 block mb-1">Categoria</label>
+                                  <ItemCategoryPicker category={item.category} description={item.description} categories={categories} testId={`item-cat-${idx}`} onPick={(c) => updateEditedItem(idx, 'category', c)} />
+                              </div>
+                              <div className="col-span-2 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Qtd</label><input type="number" value={item.quantity} onChange={(e) => updateEditedItem(idx, 'quantity', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-center text-zinc-200"/></div>
+                              <div className="col-span-2 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Un</label><input type="text" value={item.unitType || 'UN'} onChange={(e) => updateEditedItem(idx, 'unitType', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-center text-zinc-200 uppercase"/></div>
+                              <div className="col-span-2 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Vl. Un</label><input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateEditedItem(idx, 'unitPrice', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right text-zinc-200"/></div>
+                              <div className="col-span-5 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Total</label><input type="number" step="0.01" value={item.totalPrice} onChange={(e) => updateEditedItem(idx, 'totalPrice', Number(e.target.value))} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right font-bold text-luxury-gold"/></div>
+                              <div className="col-span-1 flex justify-center pt-1 md:pt-1"><button onClick={() => removeEditedItem(idx)} aria-label="Remover item" className="text-zinc-600 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
                               {isEggItem(item) && (
-                                  <div className="md:col-span-12">
+                                  <div className="col-span-6 md:col-span-12">
                                       <EggCountPicker item={item} testId={`egg-picker-edit-${idx}`} onChange={n => updateEditedItem(idx, 'eggCount', n)} />
                                   </div>
                               )}

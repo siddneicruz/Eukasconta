@@ -12,7 +12,11 @@ import { fold } from './itemSearch';
    Chaves (começam com a letra do nível, para não se confundir com as de departamento e categoria):
      g:<categoria>|<grupo>            grupo (camada 3)
      i:<categoria>|<grupo>|<item>     item (camada 4)
-     o:<categoria>                    "Outros itens" da categoria                                                     */
+     o:<categoria>                    "Outros itens" da categoria
+     o:<categoria>|<grupo>            "Outros itens" de um grupo que tem itens: o que casa com o grupo ("Carne Moída") mas
+                                      com nenhum item dele ("Moída de Patinho").
+   A pessoa também pode "fixar" uma descrição num grupo ou item (layerPins.ts): vale para todas as compras com aquela
+   descrição, na mesma categoria.                                                                                  */
 
 const STOP = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'com', 'para', 'em', 'a', 'o', 'as', 'os', 'no', 'na']);
 
@@ -34,6 +38,7 @@ export interface LayerNode {
   parentKey: string;      // acima dele: "c:<categoria>" (grupo) ou a chave do grupo (item)
   alts: { tokens: string[]; joined: string }[];   // jeitos de escrever o nome ("Leite integral / desnatado" tem dois)
   leaf: boolean;          // recebe itens de compra (item, ou grupo sem itens abaixo)
+  rest?: boolean;         // "Outros itens" de um grupo que tem itens
 }
 
 export interface LayerIndex {
@@ -42,9 +47,14 @@ export interface LayerIndex {
   leavesByCat: Map<string, LayerNode[]>;
   cache: Map<string, LayerNode | null>;
   keyCache: Map<string, ItemKeys>;
+  /** descrição fixada pela pessoa (pinKey) → chave do grupo/item */
+  pins: Map<string, string>;
 }
 
-export const EMPTY_LAYERS: LayerIndex = { nodes: [], byKey: new Map(), leavesByCat: new Map(), cache: new Map(), keyCache: new Map() };
+export const EMPTY_LAYERS: LayerIndex = { nodes: [], byKey: new Map(), leavesByCat: new Map(), cache: new Map(), keyCache: new Map(), pins: new Map() };
+
+/** Chave de uma descrição fixada: categoria + descrição, do jeito que a busca por nome enxerga (sem acento nem pontuação). */
+export const pinKey = (category: string | undefined | null, description: string | undefined | null): string => `${catKey(category)}\u0001${slug(String(description ?? ''))}`;
 
 const altsOf = (name: string) =>
   name.split(/\s*[/,]\s*|\s+ou\s+/i)
@@ -52,7 +62,7 @@ const altsOf = (name: string) =>
     .filter(a => a.tokens.length > 0);
 
 /** Monta o índice a partir da taxonomia (níveis 1 a 4). Nó órfão (sem o caminho completo até o departamento) é ignorado. */
-export const buildLayerIndex = (taxonomy: TaxonomyNode[]): LayerIndex => {
+export const buildLayerIndex = (taxonomy: TaxonomyNode[], pins: Record<string, string> = {}): LayerIndex => {
   if (!taxonomy || taxonomy.length === 0) return EMPTY_LAYERS;
   const byId = new Map<string, TaxonomyNode>();
   taxonomy.forEach(n => byId.set(n.id, n));
@@ -88,6 +98,8 @@ export const buildLayerIndex = (taxonomy: TaxonomyNode[]): LayerIndex => {
     if (n.level === 3) {
       const hasKids = (kidsCount.get(n.id) || 0) > 0;
       add({ key: groupKey, level: 3, catKey: ck, cat, groupKey, group: titleCase(l3.name), label: titleCase(l3.name), parentKey: `c:${ck}`, alts: altsOf(l3.name), leaf: !hasKids });
+      // grupo com itens: o que casa com o nome do grupo mas com nenhum item dele cai em "Outros itens" do próprio grupo
+      if (hasKids) add({ key: `o:${ck}|${g}`, level: 4, catKey: ck, cat, groupKey, group: titleCase(l3.name), label: REST_LABEL, parentKey: groupKey, alts: altsOf(l3.name), leaf: true, rest: true });
     } else {
       const it = slug(n.name);
       if (!it) return;
@@ -95,7 +107,7 @@ export const buildLayerIndex = (taxonomy: TaxonomyNode[]): LayerIndex => {
     }
   });
   if (nodes.length === 0) return EMPTY_LAYERS;
-  return { nodes, byKey, leavesByCat, cache: new Map(), keyCache: new Map() };
+  return { nodes, byKey, leavesByCat, cache: new Map(), keyCache: new Map(), pins: new Map(Object.entries(pins || {})) };
 };
 
 // A palavra do nome aparece na descrição? Aceita plural e variações curtas ("picanhas"), e o nome colado ("contrafile").
@@ -126,11 +138,16 @@ export const leafFor = (idx: LayerIndex, category: string | undefined | null, de
   const ckey = `${ck}\u0001${description || ''}`;
   const hit = idx.cache.get(ckey);
   if (hit !== undefined) return hit;
+  // fixado pela pessoa: vale antes de qualquer casamento por nome (se o grupo ou item ainda existe nesta categoria)
+  const pinned = idx.pins.size ? idx.byKey.get(idx.pins.get(pinKey(category, description)) || '') : undefined;
+  if (pinned && pinned.leaf && pinned.catKey === ck) { idx.cache.set(ckey, pinned); return pinned; }
   const dt = tokensOf(String(description || ''));
   const dj = dt.join('');
   let best: LayerNode | null = null, bestW = 0;
   for (const n of leaves) {
-    const w = weightOf(n, dt, dj);
+    const raw = weightOf(n, dt, dj);
+    // "outros itens" do grupo só vale quando nenhum item do grupo casou: peso mínimo, só desempata entre grupos
+    const w = n.rest ? (raw > 0 ? 0.01 + raw / 1000 : 0) : raw;
     if (w > bestW) { best = n; bestW = w; }
   }
   idx.cache.set(ckey, best);
@@ -155,7 +172,7 @@ export const itemKeys = (category: string | undefined | null, description: strin
   if (hit) return hit;
   const leaf = leafFor(idx, cat, description);
   const out: ItemKeys = leaf
-    ? { ...base, g: leaf.groupKey, i: leaf.level === 4 ? leaf.key : undefined }
+    ? { ...base, g: leaf.groupKey, i: leaf.level === 4 && !leaf.rest ? leaf.key : undefined, o: leaf.rest ? leaf.key : undefined }
     : { ...base, o: `o:${ck}` };
   idx.keyCache.set(k, out);
   return out;
@@ -189,7 +206,7 @@ export const buildLayerOpts = (all: Receipt[], period: Receipt[], idx: LayerInde
     return cur;
   };
   const ensureNode = (n: LayerNode): LayerOpt =>
-    ensure({ key: n.key, kind: n.level === 3 ? 'grp' : 'item', level: n.level, label: n.label, groupLabel: n.group, parent: n.parentKey, catKey: n.catKey });
+    ensure({ key: n.key, kind: n.rest ? 'rest' : n.level === 3 ? 'grp' : 'item', level: n.level, label: n.label, groupLabel: n.group, parent: n.parentKey, catKey: n.catKey });
   const visit = (receipts: Receipt[], count: boolean) => {
     receipts.forEach(r => (r.items || []).forEach(i => {
       const cat = String(i.category || '').trim();
@@ -210,6 +227,6 @@ export const buildLayerOpts = (all: Receipt[], period: Receipt[], idx: LayerInde
   };
   visit(all, false);
   visit(period, true);
-  if (includeUnused) idx.nodes.forEach(ensureNode);
+  if (includeUnused) idx.nodes.forEach(n => { if (!n.rest) ensureNode(n); });   // "outros itens" de grupo só aparece quando tem compra
   return Array.from(map.values());
 };

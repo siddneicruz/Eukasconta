@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
     Plus, Trash2, Edit3, ChevronDown, ChevronRight, 
     Layers, Save, X, AlertCircle,
-    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2, Copy
+    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2, Copy, MoreHorizontal
 } from 'lucide-react';
 import { getCategoryIcon, getCategoryColor, getCustomMeta, matchIconByKeyword } from './Dashboard';
 import * as LucideIcons from 'lucide-react';
@@ -19,7 +19,9 @@ import { DuplicateCategoriesSheet, MergeWithSheet } from './DuplicateCategoriesS
 // Classes estáticas (o Tailwind só gera classes que aparecem por completo no
 // código-fonte; \`ml-${depth * 4}\` nunca funcionaria, pois é montada em tempo
 // de execução — por isso a árvore não tinha recuo visual nenhum antes).
-const DEPTH_INDENT = ['ml-0', 'ml-4', 'ml-8', 'ml-12', 'ml-16', 'ml-20'];
+// O recuo é o MESMO a cada nível: cada nível já está dentro do anterior, então os recuos se somam sozinhos (antes cresciam
+// a cada nível e, somados, empurravam o nome do 3º e do 4º nível para fora da tela do celular).
+const LEVEL_INDENT = 'ml-2 md:ml-4';
 
 // Ícone com herança de verdade: tenta o próprio nó (personalizado ou por
 // palavra-chave) e, se nada bater, sobe para o pai — assim um rótulo
@@ -82,6 +84,8 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
     const masterInputRef = useRef<HTMLInputElement>(null);
 
     const [addingToParentId, setAddingToParentId] = useState<string | null>(null);
+    // celular: as ações de um nó só aparecem quando a pessoa toca nos "…" dele (assim o nome tem a linha toda)
+    const [actionsId, setActionsId] = useState<string | null>(null);
     const [newNodeName, setNewNodeName] = useState('');
 
     const [isLeveling, setIsLeveling] = useState(false);
@@ -215,13 +219,13 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
         const isRoot = depth === 0;
 
         return (
-            <div key={node.id} className={depth > 0 ? `${DEPTH_INDENT[Math.min(depth, DEPTH_INDENT.length - 1)]} border-l border-white/[0.06]` : ''}>
-                <div className={`flex items-center justify-between gap-2 group transition-colors ${
+            <div key={node.id} className={depth > 0 ? `${LEVEL_INDENT} border-l border-white/[0.06]` : ''}>
+                <div data-testid="tax-row" data-level={node.level} className={`flex flex-wrap md:flex-nowrap items-center justify-between gap-x-2 gap-y-1 group transition-colors ${
                     isRoot
                         ? 'p-2.5 md:p-3 mb-1.5 bg-white/[0.02] hover:bg-white/[0.05] rounded-xl'
-                        : 'py-2 md:py-2.5 pl-3 md:pl-4 pr-1 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02]'
-                }`}>
-                    <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                        : 'py-2 md:py-2.5 pl-2 md:pl-4 pr-1 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02]'
+                } ${actionsId === node.id ? 'bg-white/[0.04]' : ''}`}>
+                    <div className="flex items-center gap-1.5 md:gap-3 flex-1 min-w-0">
                         <button
                             onClick={() => children.length > 0 && toggleNode(node.id)}
                             className={`shrink-0 text-zinc-600 ${children.length > 0 ? 'hover:text-luxury-gold cursor-pointer' : 'opacity-0 pointer-events-none'}`}
@@ -249,8 +253,8 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                                 <button onClick={() => setEditingNodeId(null)} className="text-zinc-500"><X className="w-3.5 h-3.5" /></button>
                             </div>
                         ) : (
-                            <div className="flex flex-col min-w-0 flex-1">
-                                <span className={`${isRoot ? 'text-sm' : 'text-[13px]'} font-semibold text-zinc-100 leading-snug line-clamp-2 break-words`} title={node.name}>{titleCase(node.name)}</span>
+                            <div className={`flex flex-col min-w-0 flex-1 ${children.length > 0 ? 'cursor-pointer' : ''}`} onClick={() => children.length > 0 && toggleNode(node.id)}>
+                                <span className={`${isRoot ? 'text-sm' : 'text-[13px]'} font-semibold text-zinc-100 leading-snug break-words`} title={node.name} data-testid="tax-name">{titleCase(node.name)}</span>
                                 {isRoot && (
                                     <span className="text-xs text-zinc-500 font-medium">
                                         Nível {node.level} {isInherited && '· herdado'}
@@ -260,26 +264,33 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                         )}
                     </div>
 
-                    <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0">
+                    {children.length > 0 && !isEditing && (
+                        <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums" title={`${children.length} abaixo`} data-testid="tax-count">{children.length}</span>
+                    )}
+                    <button type="button" onClick={() => setActionsId(actionsId === node.id ? null : node.id)} aria-label={`Ações de ${node.name}`} aria-expanded={actionsId === node.id} data-testid="tax-actions-toggle"
+                        className={`md:hidden shrink-0 w-9 h-9 -my-1 flex items-center justify-center rounded-lg ${actionsId === node.id ? 'text-luxury-gold bg-luxury-gold/10' : 'text-zinc-500 active:bg-white/10'}`}>
+                        <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                    <div className={`${actionsId === node.id ? 'flex' : 'hidden'} md:flex w-full md:w-auto items-center justify-end gap-1 md:gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0`} data-testid="tax-actions">
                         {node.level < 4 && (
-                            <button onClick={() => setAddingToParentId(node.id)} className="p-1 md:p-1.5 text-zinc-500 hover:text-luxury-gold">
-                                <PlusCircle className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                            <button onClick={() => setAddingToParentId(node.id)} aria-label={`Adicionar abaixo de ${node.name}`} className="flex items-center gap-1.5 px-2.5 py-1.5 md:p-1.5 rounded-lg bg-white/5 md:bg-transparent text-[11px] font-bold text-zinc-300 md:text-zinc-500 hover:text-luxury-gold">
+                                <PlusCircle className="w-3.5 h-3.5" /><span className="md:hidden">Adicionar</span>
                             </button>
                         )}
-                        <button onClick={() => { setEditingNodeId(node.id); setEditValue(node.name); }} className="p-1 md:p-1.5 text-zinc-500 hover:text-luxury-gold">
-                            <Edit3 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                        <button onClick={() => { setEditingNodeId(node.id); setEditValue(node.name); setActionsId(null); }} aria-label={`Renomear ${node.name}`} className="flex items-center gap-1.5 px-2.5 py-1.5 md:p-1.5 rounded-lg bg-white/5 md:bg-transparent text-[11px] font-bold text-zinc-300 md:text-zinc-500 hover:text-luxury-gold">
+                            <Edit3 className="w-3.5 h-3.5" /><span className="md:hidden">Renomear</span>
                         </button>
-                        <button onClick={() => setMergeWithId(node.id)} title="Juntar com outra" aria-label={`Juntar ${node.name} com outra`} data-testid="tax-merge-with" className="p-1 md:p-1.5 text-zinc-500 hover:text-luxury-gold">
-                            <GitMerge className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                        <button onClick={() => setMergeWithId(node.id)} title="Juntar com outra" aria-label={`Juntar ${node.name} com outra`} data-testid="tax-merge-with" className="flex items-center gap-1.5 px-2.5 py-1.5 md:p-1.5 rounded-lg bg-white/5 md:bg-transparent text-[11px] font-bold text-zinc-300 md:text-zinc-500 hover:text-luxury-gold">
+                            <GitMerge className="w-3.5 h-3.5" /><span className="md:hidden">Juntar</span>
                         </button>
-                        <button onClick={() => handleDelete(node.id)} className="p-1 md:p-1.5 text-zinc-500 hover:text-red-500">
-                            <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                        <button onClick={() => handleDelete(node.id)} aria-label={`Excluir ${node.name}`} className="flex items-center gap-1.5 px-2.5 py-1.5 md:p-1.5 rounded-lg bg-white/5 md:bg-transparent text-[11px] font-bold text-zinc-300 md:text-zinc-500 hover:text-red-500">
+                            <Trash2 className="w-3.5 h-3.5" /><span className="md:hidden">Excluir</span>
                         </button>
                     </div>
                 </div>
 
                 {addingToParentId === node.id && (
-                    <div className="mt-2 ml-8 flex items-center gap-2 animate-in slide-in-from-left-2">
+                    <div className="mt-2 ml-4 md:ml-8 flex items-center gap-2 animate-in slide-in-from-left-2">
                         <input 
                             autoFocus
                             value={newNodeName}
@@ -420,7 +431,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                 </div>
             )}
 
-            <div className="p-6 space-y-4">
+            <div className="p-3 md:p-6 space-y-3 md:space-y-4">
                 {l1Nodes.map(node => renderNode(node))}
 
                 {l1Nodes.length === 0 && (

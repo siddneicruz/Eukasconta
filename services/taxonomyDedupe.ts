@@ -377,7 +377,7 @@ const keysOfNode = (node: TaxonomyNode, byId: Map<string, TaxonomyNode>): string
   if (node.level === 2) return [`c:${ck}`, `o:${ck}`];
   const g = layerSlug(names[2]);
   if (!g) return [];
-  if (node.level === 3) return [`g:${ck}|${g}`];
+  if (node.level === 3) return [`g:${ck}|${g}`, `o:${ck}|${g}`];
   const it = layerSlug(names[3]);
   return it ? [`i:${ck}|${g}|${it}`] : [];
 };

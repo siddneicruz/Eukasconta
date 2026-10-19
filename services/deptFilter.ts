@@ -166,7 +166,7 @@ export const buildDeptOptions = (all: Receipt[], period: Receipt[], layers: Laye
   buildLayerOpts(all, period, layers).forEach(l => {
     const cat = catByKey.get(`c:${l.catKey}`);
     if (!cat) return;
-    const full = l.kind === 'item' ? `${cat.full} - ${l.groupLabel} - ${l.label}` : `${cat.full} - ${l.label}`;
+    const full = l.kind === 'item' || (l.kind === 'rest' && l.level === 4) ? `${cat.full} - ${l.groupLabel} - ${l.label}` : `${cat.full} - ${l.label}`;
     out.push({ key: l.key, kind: l.kind, label: l.label, full, dept: cat.dept, total: l.total, level: l.level, parent: l.parent });
   });
   return out.sort((a, b) => b.total - a.total || a.full.localeCompare(b.full, 'pt-BR'));
