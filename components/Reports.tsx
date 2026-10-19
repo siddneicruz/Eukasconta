@@ -35,6 +35,8 @@ interface ReportsProps {
   onBack: () => void;
   onAddManual?: () => void;
   onSelectEstablishment?: (name: string) => void;
+  /** abre o cupom (a mesma tela do Histórico) */
+  onOpenReceipt?: (id: string) => void;
   masterProducts?: MasterProduct[];
   onUpdateMasterProducts?: (masters: MasterProduct[]) => void;
   taxonomy?: TaxonomyNode[];
@@ -62,6 +64,7 @@ const Reports: React.FC<ReportsProps> = ({
   onBack, 
   onAddManual, 
   onSelectEstablishment,
+  onOpenReceipt,
   masterProducts = [],
   onUpdateMasterProducts,
   taxonomy = [],
@@ -919,6 +922,7 @@ const Reports: React.FC<ReportsProps> = ({
                       displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments)}
                       onQuickRange={setQuickRange}
                       onSelectEstablishment={onSelectEstablishment}
+                      onOpenReceipt={onOpenReceipt}
                       onAddManual={onAddManual}
                   />
               )}
@@ -969,6 +973,7 @@ const Reports: React.FC<ReportsProps> = ({
                       displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments)}
                       selectedId={cutSelId}
                       onSelect={setCutSelId}
+                      onOpenReceipt={onOpenReceipt}
                   />
               )}
 

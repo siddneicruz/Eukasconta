@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as Recharts from 'recharts';
-import { Plus, X, Filter, Pencil, ArrowLeftRight, CalendarRange, PieChart as PieChartIcon, Store, Undo2 } from 'lucide-react';
+import { Plus, X, Filter, Pencil, ArrowLeftRight, CalendarRange, PieChart as PieChartIcon, Store, Undo2, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
 import CutEditorSheet from './CutEditorSheet';
+import ReceiptPickSheet from './ReceiptPickSheet';
+import { titleCase } from '../services/textFormat';
 import { useLayers } from './LayersContext';
 import { getCategoryColor } from './Dashboard';
 import {
-  Cut, analyzeCut, cutTitle, loadCuts, rangeLabel, saveCuts,
+  Cut, CutReceiptRef, analyzeCut, cutTitle, loadCuts, rangeLabel, saveCuts,
 } from '../services/cuts';
 import { buildDeptOptions, deptFilterLabel, deptLabelFor, invertDeptFilter, isDeptFilterActive } from '../services/deptFilter';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
@@ -21,6 +23,8 @@ interface Props {
   displayName: (name: string, cnpj: string) => string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** abre o cupom (a mesma tela do Histórico) */
+  onOpenReceipt?: (id: string) => void;
 }
 
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -46,14 +50,23 @@ interface ViewProps {
   displayName: (name: string, cnpj: string) => string;
   onEdit: () => void;
   onChangeFilter: (cut: Cut) => void;
+  onOpenReceipt?: (id: string) => void;
 }
 
-const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEdit, onChangeFilter }) => {
+const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEdit, onChangeFilter, onOpenReceipt }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(chartRef);
   const plotWidth = Math.max(120, width - TL_AXIS_Y_WIDTH - TL_MARGIN_RIGHT);
   const [allDepts, setAllDepts] = useState(false);
+  const [pick, setPick] = useState<{ title: string; subtitle: string; refs: CutReceiptRef[] } | null>(null);
   const layers = useLayers();
+
+  // Um cupom só: abre direto. Vários: lista curta para escolher qual.
+  const openRefs = (title: string, subtitle: string, refs: CutReceiptRef[]) => {
+    if (!onOpenReceipt || refs.length === 0) return;
+    if (refs.length === 1) onOpenReceipt(refs[0].id);
+    else setPick({ title, subtitle, refs });
+  };
 
   const a = useMemo(() => analyzeCut(receipts, cut, plotWidth), [receipts, cut, plotWidth, layers]);
   const options = useMemo(
@@ -165,11 +178,18 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
                 <p className="text-[14px] md:text-lg font-serif font-bold text-white tabular-nums leading-tight truncate" data-testid="cut-kpi-avg">{brl(a.perReceipt)}</p>
               </div>
             </div>
-            {a.peak && (
-              <p className="mt-2 text-[11px] text-zinc-500 tabular-nums" data-testid="cut-peak">
-                Dia que mais gastou: <span className="text-zinc-300 font-semibold">{rangeLabel(a.peak.date, a.peak.date)}</span> · {brl(a.peak.value)}
-              </p>
-            )}
+            {a.peak && (() => {
+              const pk = a.peak;
+              const text = <>Dia que mais gastou: <span className="text-zinc-300 font-semibold">{rangeLabel(pk.date, pk.date)}</span> · {brl(pk.value)}</>;
+              return onOpenReceipt ? (
+                <button type="button" onClick={() => openRefs(rangeLabel(pk.date, pk.date), `${pk.receipts.length} ${pk.receipts.length === 1 ? 'compra' : 'compras'} neste dia`, pk.receipts)}
+                  className="mt-2 -mx-1 px-1 min-h-[36px] w-full flex items-center justify-between gap-2 rounded-lg text-left text-[11px] text-zinc-500 tabular-nums hover:bg-white/5" data-testid="cut-peak">
+                  <span className="min-w-0">{text}</span><ChevronRight className="w-3.5 h-3.5 shrink-0 text-zinc-600" />
+                </button>
+              ) : (
+                <p className="mt-2 text-[11px] text-zinc-500 tabular-nums" data-testid="cut-peak">{text}</p>
+              );
+            })()}
           </>
         )}
       </div>
@@ -215,27 +235,47 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
             <Store className="w-3.5 h-3.5 text-emerald-500" /> Onde comprou
           </h3>
           <ul>
-            {stores.map(s => (
-              <li key={s.key} className="py-1.5" data-testid="cut-store-row">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 truncate text-[13px] text-zinc-200">
-                    {displayName(s.name, s.cnpj)} <span className="text-[11px] text-zinc-500">· {s.count} {s.count === 1 ? 'compra' : 'compras'}</span>
-                  </span>
-                  <span className="shrink-0 text-[13px] font-semibold text-white tabular-nums">{brl(s.value)}</span>
-                </div>
-                <div className="mt-1 h-[3px] rounded-full bg-white/5 overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-500/80" style={{ width: `${topStore > 0 ? Math.max(1.5, (s.value / topStore) * 100) : 0}%` }} />
-                </div>
-              </li>
-            ))}
+            {stores.map(s => {
+              const label = displayName(s.name, s.cnpj);
+              const body = (
+                <>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-[13px] text-zinc-200">
+                      {label} <span className="text-[11px] text-zinc-500">· {s.count} {s.count === 1 ? 'compra' : 'compras'}</span>
+                    </span>
+                    <span className="shrink-0 flex items-center gap-1 text-[13px] font-semibold text-white tabular-nums">
+                      {brl(s.value)}{onOpenReceipt && <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-[3px] rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-full rounded-full bg-emerald-500/80" style={{ width: `${topStore > 0 ? Math.max(1.5, (s.value / topStore) * 100) : 0}%` }} />
+                  </div>
+                </>
+              );
+              return (
+                <li key={s.key} data-testid="cut-store-row">
+                  {onOpenReceipt ? (
+                    <button type="button" onClick={() => openRefs(label.endsWith('..') ? titleCase(s.name) : label, `${s.count} ${s.count === 1 ? 'compra' : 'compras'} neste recorte`, s.receipts)}
+                      className="w-full text-left py-1.5 -mx-1 px-1 rounded-lg hover:bg-white/5 active:bg-white/10 transition-colors" style={{ width: 'calc(100% + 0.5rem)' }} data-testid="cut-store-open">
+                      {body}
+                    </button>
+                  ) : <div className="py-1.5">{body}</div>}
+                </li>
+              );
+            })}
           </ul>
         </div>
+      )}
+
+      {pick && (
+        <ReceiptPickSheet title={pick.title} subtitle={pick.subtitle} refs={pick.refs}
+          onPick={id => { setPick(null); onOpenReceipt?.(id); }} onClose={() => setPick(null)} />
       )}
     </div>
   );
 };
 
-const CutsPanel: React.FC<Props> = ({ receipts, displayName, selectedId, onSelect }) => {
+const CutsPanel: React.FC<Props> = ({ receipts, displayName, selectedId, onSelect, onOpenReceipt }) => {
   const [cuts, setCuts] = useState<Cut[]>(() => loadCuts());
   const [editor, setEditor] = useState<{ cut: Cut | null } | null>(null);
   const [undo, setUndo] = useState<{ cut: Cut } | null>(null);
@@ -334,6 +374,7 @@ const CutsPanel: React.FC<Props> = ({ receipts, displayName, selectedId, onSelec
               displayName={displayName}
               onEdit={() => setEditor({ cut: current })}
               onChangeFilter={replace}
+              onOpenReceipt={onOpenReceipt}
             />
           )}
         </>

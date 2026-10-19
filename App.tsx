@@ -69,6 +69,7 @@ import { isNativeApp } from './services/platform';
 import { STORAGE_FULL_EVENT } from './services/storageGuard';
 import { AppMark } from './components/Brand';
 
+import { normalizeReceiptList } from './services/receiptNumbers';
 const LUXURY_COLORS = [
     // Golds & Bronzes
     { name: 'Gold 1', hex: '#D4AF37' }, { name: 'Gold 2', hex: '#C5A028' }, { name: 'Gold 3', hex: '#B69119' }, 
@@ -178,7 +179,7 @@ const App: React.FC = () => {
   const [receipts, setReceipts] = useState<Receipt[]>(() => {
       try {
           const stored = localStorage.getItem('eukasconta_data');
-          return stored ? JSON.parse(stored) : [];
+          return stored ? normalizeReceiptList(JSON.parse(stored)) : [];
       } catch (e) { return []; }
   });
 
@@ -1357,6 +1358,7 @@ const App: React.FC = () => {
                         onBack={() => setView('dashboard')} 
                         onAddManual={() => setView('manual_entry')} 
                         onSelectEstablishment={(name) => { setSelectedEstablishment(name); setView('establishment_detail'); }} 
+                        onOpenReceipt={(id) => setSelectedReceiptId(id)} 
                         establishments={establishments} 
                         masterProducts={masterProducts}
                         onUpdateMasterProducts={setMasterProducts}

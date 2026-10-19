@@ -82,7 +82,9 @@ export const saveCuts = (cuts: Cut[]): void => {
 /* ───────────── análise ───────────── */
 
 export interface CutDept { key: string; name: string; value: number; pct: number }
-export interface CutStore { key: string; name: string; cnpj: string; value: number; count: number }
+/** Um cupom do recorte, para abrir o cupom a partir da loja ou do dia (valor = o que ele pesa neste recorte). */
+export interface CutReceiptRef { id: string; date: string; time: string; value: number; items: number }
+export interface CutStore { key: string; name: string; cnpj: string; value: number; count: number; receipts: CutReceiptRef[] }
 
 export interface CutAnalysis {
   days: number;               // dias do recorte
@@ -99,10 +101,12 @@ export interface CutAnalysis {
   series: EvoSeries;
   byDept: CutDept[];
   byStore: CutStore[];
-  peak: { date: string; value: number } | null;   // dia que mais gastou
+  peak: { date: string; value: number; receipts: CutReceiptRef[] } | null;   // dia que mais gastou
 }
 
 const inRange = (r: Receipt, from: string, to: string) => r.date >= from && r.date <= to;
+const refOf = (r: Receipt): CutReceiptRef => ({ id: r.id, date: r.date, time: r.time || '', value: Number(r.totalAmount) || 0, items: (r.items || []).length });
+const newestFirst = (a: CutReceiptRef, b: CutReceiptRef) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time);
 const sumReceipts = (list: Receipt[]) => list.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
 
 /** Cupons do recorte: dentro das datas e só com as categorias que entram. */
@@ -153,16 +157,18 @@ export const analyzeCut = (all: Receipt[], cut: Pick<Cut, 'from' | 'to' | 'filte
   list.forEach(r => {
     const key = r.cnpj || r.establishmentName;
     let g = st.get(key);
-    if (!g) { g = { key, name: r.establishmentName, cnpj: r.cnpj, value: 0, count: 0 }; st.set(key, g); }
-    g.value += Number(r.totalAmount) || 0; g.count += 1;
+    if (!g) { g = { key, name: r.establishmentName, cnpj: r.cnpj, value: 0, count: 0, receipts: [] }; st.set(key, g); }
+    g.value += Number(r.totalAmount) || 0; g.count += 1; g.receipts.push(refOf(r));
   });
+  st.forEach(g => g.receipts.sort(newestFirst));
   const byStore = Array.from(st.values()).sort((a, b) => b.value - a.value);
 
   // dia de maior gasto
   const perDate = new Map<string, number>();
   list.forEach(r => perDate.set(r.date, (perDate.get(r.date) || 0) + (Number(r.totalAmount) || 0)));
   let peak: CutAnalysis['peak'] = null;
-  perDate.forEach((value, date) => { if (!peak || value > peak.value) peak = { date, value }; });
+  perDate.forEach((value, date) => { if (!peak || value > peak.value) peak = { date, value, receipts: [] }; });
+  if (peak) { const day = (peak as { date: string }).date; peak = { ...(peak as NonNullable<CutAnalysis['peak']>), receipts: list.filter(r => r.date === day).map(refOf).sort(newestFirst) }; }
 
   return {
     days, elapsed, total, receipts: list.length, items,

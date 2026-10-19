@@ -17,7 +17,7 @@ export const generateReceiptText = (receipt: Receipt): string => {
         const idxStr = (idx + 1).toString().padStart(3, '0');
         let desc = item.description.toUpperCase();
         if (desc.length > 25) desc = desc.substring(0, 25);
-        return tableRow(idxStr, item.code || '', desc, `${item.quantity} ${item.unitType || 'UN'}`, item.unitPrice.toFixed(2), item.totalPrice.toFixed(2));
+        return tableRow(idxStr, item.code || '', desc, `${item.quantity} ${item.unitType || 'UN'}`, (Number(item.unitPrice) || 0).toFixed(2), (Number(item.totalPrice) || 0).toFixed(2));
     });
     const lineWidth = Math.max(MIN_WIDTH, ...rows.map(r => r.length));
     const center = (text: string) => {

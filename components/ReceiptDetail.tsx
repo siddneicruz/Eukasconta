@@ -11,6 +11,7 @@ import { useStoreNames } from './StoreNamesContext';
 import { generateReceiptText } from '../services/receiptText';
 import EggCountPicker from './EggCountPicker';
 import { isEggItem } from '../services/eggs';
+import { normalizeReceiptNumbers } from '../services/receiptNumbers';
 import ItemCategoryPicker from './ItemCategoryPicker';
 
 interface ReceiptDetailProps {
@@ -295,7 +296,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
   };
 
   const handleSaveEdit = () => {
-    onUpdateReceipt(editedReceipt);
+    onUpdateReceipt(normalizeReceiptNumbers(editedReceipt));
     setIsEditing(false);
   };
 
@@ -352,9 +353,9 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
             </div>
           </div>
         ) : (
-          <div className="p-5 border-b border-white/10 bg-surface/30 flex justify-between items-start shrink-0">
-            <div className="pr-8 flex-1 min-w-0">
-               <div className="flex items-center gap-2 mb-2">
+          <div className="p-5 border-b border-white/10 bg-surface/30 shrink-0">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
                    {!isEditing && (
                        <>
                           <button onClick={onPrev} disabled={!hasPrev} className="md:hidden p-1 bg-white/5 rounded text-zinc-400 disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
@@ -363,6 +364,16 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                        </>
                    )}
                </div>
+              <div className="flex gap-2">
+                  <>
+                      <button onClick={() => setIsEditing(true)} aria-label="Editar lançamento" className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-luxury-gold transition-colors bg-black/20"><Edit2 className="w-5 h-5" /></button>
+                      {onDelete && <button onClick={onDelete} aria-label="Excluir lançamento" data-testid="delete-receipt" className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-400 transition-colors bg-black/20"><Trash2 className="w-5 h-5" /></button>}
+                      <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors bg-black/20"><X className="w-5 h-5" /></button>
+                  </>
+            </div>
+            </div>
+            <div className="min-w-0">
+
              
                   <>
                       {aliasOf(receipt.establishmentName, receipt.cnpj) ? (
@@ -377,13 +388,6 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                           <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{receipt.date.split('-').reverse().join('/')}<span className="text-zinc-700 mx-1">|</span>{receipt.time || '--:--'}</div>
                           <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{receipt.city}{receipt.state ? ` - ${receipt.state}` : ''}</div>
                       </div>
-                  </>
-            </div>
-            <div className="flex gap-2">
-                  <>
-                      <button onClick={() => setIsEditing(true)} aria-label="Editar lançamento" className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-luxury-gold transition-colors bg-black/20"><Edit2 className="w-5 h-5" /></button>
-                      {onDelete && <button onClick={onDelete} aria-label="Excluir lançamento" data-testid="delete-receipt" className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-400 transition-colors bg-black/20"><Trash2 className="w-5 h-5" /></button>}
-                      <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors bg-black/20"><X className="w-5 h-5" /></button>
                   </>
             </div>
           </div>

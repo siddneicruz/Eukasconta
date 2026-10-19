@@ -29,6 +29,8 @@ interface Props {
   displayName: (name: string, cnpj: string) => string;
   onQuickRange: (range: '7d' | '30d' | 'thisMonth' | 'thisYear') => void;
   onSelectEstablishment?: (name: string) => void;
+  /** abre o cupom (a mesma tela do Histórico) */
+  onOpenReceipt?: (id: string) => void;
   onAddManual?: () => void;
 }
 
@@ -143,7 +145,7 @@ interface SeriesRow {
 }
 interface Dept { name: string; value: number; share: number; prev: number; delta: number | null; color: string }
 type Tone = 'gold' | 'good' | 'bad' | 'info';
-interface Insight { icon: React.ComponentType<{ className?: string }>; tone: Tone; text: React.ReactNode }
+interface Insight { icon: React.ComponentType<{ className?: string }>; tone: Tone; text: React.ReactNode; /** cupom que a leitura cita: tocar abre */ open?: string }
 
 const DEPT_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#8B5CF6', '#06B6D4'];
 const DEPT_REST = '#71717a';
@@ -280,7 +282,7 @@ function analyse(receipts: Receipt[], config: DashboardConfig, displayName: Prop
   }));
 
   /* preços: mesmo produto, na mesma loja, primeira compra x última compra */
-  const obs = new Map<string, { desc: string; store: string; pts: { d: string; p: number }[] }>();
+  const obs = new Map<string, { desc: string; store: string; pts: { d: string; p: number; id: string }[] }>();
   valid.forEach(r => {
     if (r.date > eIso) return;
     (r.items || []).forEach(it => {
@@ -291,11 +293,11 @@ function analyse(receipts: Receipt[], config: DashboardConfig, displayName: Prop
       if (!raw || p <= 0) return;
       const desc = basis.eggs ? `${raw} (dúzia)` : raw;
       const k = `${desc.toUpperCase()}||${normalizeUnit(basis.unitType)}||${r.cnpj || r.establishmentName}`;
-      const o = obs.get(k) || { desc, store: fullName(r.establishmentName, displayName(r.establishmentName, r.cnpj)), pts: [] };
-      o.pts.push({ d: r.date, p }); obs.set(k, o);
+      const o = obs.get(k) || { desc, store: fullName(r.establishmentName, displayName(r.establishmentName, r.cnpj)), pts: [] as { d: string; p: number; id: string }[] };
+      o.pts.push({ d: r.date, p, id: r.id }); obs.set(k, o);
     });
   });
-  const moves: { desc: string; store: string; from: number; to: number; pct: number }[] = [];
+  const moves: { desc: string; store: string; from: number; to: number; pct: number; rid: string }[] = [];
   obs.forEach(o => {
     if (o.pts.length < 2) return;
     o.pts.sort((a, b) => a.d.localeCompare(b.d));
@@ -303,7 +305,7 @@ function analyse(receipts: Receipt[], config: DashboardConfig, displayName: Prop
     if (f.d === l.d || l.d < sIso) return;
     const pct = ((l.p - f.p) / f.p) * 100;
     if (Math.abs(pct) < 1) return;
-    moves.push({ desc: o.desc.replace(/^\d{3,14}\s*/, ''), store: o.store, from: f.p, to: l.p, pct });
+    moves.push({ desc: o.desc.replace(/^\d{3,14}\s*/, ''), store: o.store, from: f.p, to: l.p, pct, rid: l.id });
   });
   const rose = moves.filter(m => m.pct > 0).sort((a, b) => b.pct - a.pct).slice(0, 3);
   const fell = moves.filter(m => m.pct < 0).sort((a, b) => a.pct - b.pct).slice(0, 3);
@@ -329,7 +331,7 @@ function analyse(receipts: Receipt[], config: DashboardConfig, displayName: Prop
   const big = cur.reduce<Receipt | null>((a, r) => (!a || (r.totalAmount || 0) > (a.totalAmount || 0) ? r : a), null);
   if (big && cur.length >= 2) {
     insights.push({
-      icon: ShoppingBag, tone: 'info',
+      icon: ShoppingBag, tone: 'info', open: big.id,
       text: <>A maior compra foi de <strong className="text-white font-semibold">{brl.format(big.totalAmount || 0)}</strong> em <span className="capitalize">{nice(fullName(big.establishmentName, displayName(big.establishmentName, big.cnpj))).toLowerCase()}</span>, no dia {parseISO(big.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.</>,
     });
   }
@@ -500,7 +502,7 @@ const HeroTooltip = ({ active, payload, mode, prevLabel, monthly }: any) => {
 
 /* ───────────────────────────── componente ───────────────────────────── */
 
-const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQuickRange, onSelectEstablishment, onAddManual }) => {
+const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQuickRange, onSelectEstablishment, onOpenReceipt, onAddManual }) => {
   const light = useIsLight();
   const reduced = usePrefersReducedMotion();
   const ready = useReady();
@@ -664,9 +666,20 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
             <CardTitle icon={Sparkles} kicker="Leituras" title="O que os números dizem" />
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {a.insights.map((it, i) => (
-                <li key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-                  <span className={`shrink-0 p-2 rounded-xl ${TONE[it.tone]}`}><it.icon className="w-4 h-4" /></span>
-                  <p className="text-sm text-zinc-400 leading-relaxed">{it.text}</p>
+                <li key={i}>
+                  {it.open && onOpenReceipt ? (
+                    <button type="button" onClick={() => onOpenReceipt(it.open!)} data-testid="insight-open"
+                      className="w-full text-left flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/5 active:bg-white/10 transition-colors">
+                      <span className={`shrink-0 p-2 rounded-xl ${TONE[it.tone]}`}><it.icon className="w-4 h-4" /></span>
+                      <p className="flex-1 text-sm text-zinc-400 leading-relaxed">{it.text}</p>
+                      <ChevronRight className="w-4 h-4 mt-2 shrink-0 text-zinc-600" />
+                    </button>
+                  ) : (
+                    <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5">
+                      <span className={`shrink-0 p-2 rounded-xl ${TONE[it.tone]}`}><it.icon className="w-4 h-4" /></span>
+                      <p className="text-sm text-zinc-400 leading-relaxed">{it.text}</p>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -813,14 +826,28 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                     </p>
                     <ul className="space-y-2">
                       {g.list.map(m => (
-                        <li key={m.desc + m.store} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white truncate capitalize">{m.desc.toLowerCase()}</p>
-                            <p className="text-xs text-zinc-500 truncate"><span className="capitalize">{nice(m.store).toLowerCase()}</span> · {brl.format(m.from)} para {brl.format(m.to)}</p>
-                          </div>
-                          <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${g.up ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                            {g.up ? '+' : '−'}{Math.abs(Math.round(m.pct))}%
-                          </span>
+                        <li key={m.desc + m.store}>
+                          {(() => {
+                            const body = (
+                              <>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-white truncate capitalize">{m.desc.toLowerCase()}</p>
+                                  <p className="text-xs text-zinc-500 truncate"><span className="capitalize">{nice(m.store).toLowerCase()}</span> · {brl.format(m.from)} para {brl.format(m.to)}</p>
+                                </div>
+                                <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${g.up ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                  {g.up ? '+' : '−'}{Math.abs(Math.round(m.pct))}%
+                                </span>
+                              </>
+                            );
+                            return onOpenReceipt ? (
+                              <button type="button" onClick={() => onOpenReceipt(m.rid)} data-testid="mover-open"
+                                className="w-full text-left flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/5 active:bg-white/10 transition-colors">
+                                {body}<ChevronRight className="w-3.5 h-3.5 shrink-0 text-zinc-600" />
+                              </button>
+                            ) : (
+                              <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5">{body}</div>
+                            );
+                          })()}
                         </li>
                       ))}
                     </ul>

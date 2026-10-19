@@ -57,7 +57,9 @@ const keysOf = (category?: string | null): { d: string; c: string } => {
 };
 
 /** Cupons só com as linhas que entram. Cupom sem nenhuma linha some;
-    cupom que perdeu linhas passa a valer a soma das que sobraram; cupom intacto não muda. */
+    cupom que perdeu linhas passa a valer a soma das que sobraram; cupom intacto não muda.
+    Cupom que já veio sem itens (comprovante de cartão, só com o total) não tem categoria: "só estas" o deixa de fora
+    (senão o total dele entrava em qualquer recorte); "tudo menos estas" mantém, já que nada nele está na lista. */
 export const applyDeptFilter = (receipts: Receipt[], f: DeptFilter, layers: LayerIndex = getActiveLayers()): Receipt[] => {
   if (!isDeptFilterActive(f)) return receipts;
   const set = new Set(f.keys);
@@ -77,6 +79,7 @@ export const applyDeptFilter = (receipts: Receipt[], f: DeptFilter, layers: Laye
   const out: Receipt[] = [];
   receipts.forEach(r => {
     const items = r.items || [];
+    if (items.length === 0) { if (!only) out.push(r); return; }
     const kept = items.filter(i => keeps(i.category, i.description));
     if (kept.length === items.length) { out.push(r); return; }
     if (kept.length === 0) return;
