@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Browser } from '@capacitor/browser';
-import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X, WifiOff, Pencil } from 'lucide-react';
+import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X, WifiOff, Pencil, Move, CheckCircle2 } from 'lucide-react';
 import { Receipt, Establishment } from '../types';
 import { geocodeMissingEstablishments, needsGeocoding } from '../services/geocodingService';
 import { fetchRoute, haversineKm, formatDistance, formatDuration, navigationLinks, RouteResult, LatLng } from '../services/routingService';
@@ -13,6 +13,9 @@ import { useStoreNames } from './StoreNamesContext';
 import { useOfflineMaps } from '../services/useOfflineMaps';
 import OfflineVectorLayer from './OfflineVectorLayer';
 import OfflineMapCard from './OfflineMapCard';
+import { PoiCard, PoiMarkers, MapTap, ViewWatcher, StorePickerSheet, PickableStore } from './MapPois';
+import { usePois } from '../services/usePois';
+import { Bbox, Poi, boxAround, distanceM, nameMatch, poisNear, suggestPoi } from '../services/poiService';
 
 interface MapViewProps {
   receipts: Receipt[];
@@ -21,6 +24,8 @@ interface MapViewProps {
   onPatchEstablishment: (est: Establishment, patch: Partial<Establishment>) => void;
   /** abre a folha com todos os dados da loja para editar */
   onEditEstablishment?: (est: Establishment) => void;
+  /** cadastra uma loja que a pessoa achou no mapa (sem cupom ainda) */
+  onAddEstablishment?: (est: Establishment) => void;
   onBack: () => void;
 }
 
@@ -62,6 +67,13 @@ const openExternal = (url: string) => {
   if (isNativeApp()) Browser.open({ url }).catch(() => {});
   else window.open(url, '_blank', 'noopener');
 };
+
+// "Agora não" para a sugestão de mover o pino: guarda loja + nome do lugar do mapa
+const DISMISS_KEY = 'eukasconta_poi_dismissed';
+const readDismissed = (): string[] => {
+  try { const v = JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]'); return Array.isArray(v) ? v.filter((x: unknown) => typeof x === 'string') : []; } catch { return []; }
+};
+const writeDismissed = (list: string[]) => { try { localStorage.setItem(DISMISS_KEY, JSON.stringify(list.slice(-300))); } catch { /* sem espaço: ignora */ } };
 
 const useIsLight = () => {
   const read = () => typeof document !== 'undefined' && document.documentElement.classList.contains('light-theme');
@@ -202,7 +214,7 @@ const CenterWatcher: React.FC<{ onCenter: (lat: number, lng: number) => void }> 
 
 /* ───────────── tela ───────────── */
 
-const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishments, onPatchEstablishment, onEditEstablishment, onBack }) => {
+const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishments, onPatchEstablishment, onEditEstablishment, onAddEstablishment, onBack }) => {
   const namer = useStoreNames();
   const light = useIsLight();
 
@@ -309,10 +321,108 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
         .catch(() => { if (!ctrl.signal.aborted) setRoute({ status: 'error', data: null }); });
     }, 600);
     return () => { clearTimeout(timer); ctrl.abort(); };
-  }, [selected?.id, meKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected?.id, selected?.lat, selected?.lng, meKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* lojas do mapa (OpenStreetMap): ver, ligar a uma das minhas, adicionar, e mover o pino de uma loja */
+  const [showPois, setShowPois] = useState(() => { try { return localStorage.getItem('eukasconta_map_pois') === '1'; } catch { return false; } });
+  const toggleShowPois = () => setShowPois(v => { const n = !v; try { localStorage.setItem('eukasconta_map_pois', n ? '1' : '0'); } catch { /* ok */ } return n; });
+  const [view, setView] = useState<{ bbox: Bbox; zoom: number } | null>(null);
+  const [moving, setMoving] = useState<{ id: string; lat: number; lng: number } | null>(null);
+  const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
+  const [pickerFor, setPickerFor] = useState<Poi | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<string[]>(readDismissed);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 7000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const poiOpts = { archive: maps.opened?.archive ?? null, archiveZoom: maps.opened?.maxzoom, online: maps.online };
+  const poiZoomOk = !!view && view.zoom >= 14;
+  const viewPois = usePois((showPois || !!moving) && poiZoomOk ? view!.bbox : null, poiOpts);
+  const pinCenter = moving ? { lat: moving.lat, lng: moving.lng } : selected ? { lat: selected.lat, lng: selected.lng } : null;
+  const pinPois = usePois(pinCenter ? boxAround(pinCenter.lat, pinCenter.lng, moving ? 500 : 700) : null, poiOpts, 250);
+
+  // o lugar do mapa que parece ser a loja escolhida, quando o pino está longe dele
+  const suggestion = useMemo(() => {
+    if (!selected || moving || selected.est.geocodeManual) return null;
+    const s = suggestPoi([selected.est.originalName, selected.est.aliasName || '', selected.name], { lat: selected.lat, lng: selected.lng }, pinPois.pois, 600);
+    if (!s || s.meters < 40) return null;
+    if (dismissed.includes(`${selected.id}|${plain(s.poi.name)}`)) return null;
+    return s;
+  }, [selected, moving, pinPois.pois, dismissed]);
+
+  const storePins = useMemo(() => stores.map(s => ({ lat: s.lat, lng: s.lng })), [stores]);
+  const shownPois = useMemo(() => viewPois.pois.filter(p => p.id !== suggestion?.poi.id), [viewPois.pois, suggestion]);
+  const nearToMove = useMemo(() => (moving ? poisNear(moving, pinPois.pois, 400, 5) : []), [moving, pinPois.pois]);
+
+  const placeStore = (st: MapStore, lat: number, lng: number, message: string) => {
+    onPatchEstablishment(st.est, { latitude: lat, longitude: lng, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: undefined, geocodeManual: true });
+    setNotice(message);
+  };
+  const startMove = () => {
+    if (!selected) return;
+    setSelectedPoi(null);
+    setMoving({ id: selected.id, lat: selected.lat, lng: selected.lng });
+    mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });   // o mapa e os botões Salvar/Cancelar ficam à vista
+  };
+  const saveMove = () => {
+    const st = moving && stores.find(s => s.id === moving.id);
+    if (st && moving) placeStore(st, Number(moving.lat.toFixed(6)), Number(moving.lng.toFixed(6)), `Posição de “${st.name}” atualizada.`);
+    setMoving(null);
+  };
+  const movedBy = moving ? (() => { const st = stores.find(s => s.id === moving.id); return st ? distanceM(st.lat, st.lng, moving.lat, moving.lng) : 0; })() : 0;
+  const dismissSuggestion = () => {
+    if (!selected || !suggestion) return;
+    const next = [...dismissed, `${selected.id}|${plain(suggestion.poi.name)}`];
+    setDismissed(next); writeDismissed(next);
+  };
+  const acceptSuggestion = () => {
+    if (!selected || !suggestion) return;
+    placeStore(selected, suggestion.poi.lat, suggestion.poi.lng, `“${selected.name}” agora está em “${suggestion.poi.name}”, onde o mapa mostra.`);
+  };
+  const onPoiPick = (p: Poi) => {
+    if (moving) { setMoving(m => (m ? { ...m, lat: p.lat, lng: p.lng } : m)); return; }
+    setSelectedPoi(p);
+  };
+  // a loja minha que já está neste lugar (nome parecido e perto, ou praticamente em cima)
+  const mineAt = (p: Poi) => {
+    const hit = stores.find(s => {
+      const d = distanceM(s.lat, s.lng, p.lat, p.lng);
+      return d <= 15 || (d <= 60 && nameMatch([s.est.originalName, s.est.aliasName || '', s.name], p.name) >= 0.5);
+    });
+    return hit ? { name: hit.name } : null;
+  };
+  const pickable: PickableStore[] = useMemo(
+    () => establishments.map(e => {
+      const st = stores.find(s => s.est === e);
+      return { est: e, name: namer.nameOf(e.originalName, e.cnpj), address: fullAddress(e.address, e.city), lat: st ? st.lat : null, lng: st ? st.lng : null };
+    }),
+    [establishments, stores, namer]
+  );
+  const associate = (poi: Poi, target: PickableStore) => {
+    onPatchEstablishment(target.est, { latitude: poi.lat, longitude: poi.lng, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: undefined, geocodeManual: true });
+    setPickerFor(null); setSelectedPoi(null);
+    setManual({ id: `${target.est.cnpj}|${target.est.originalName}` });
+    setNotice(`“${target.name}” agora está em “${poi.name}”.`);
+  };
+  const addPoiAsStore = (p: Poi) => {
+    if (!onAddEstablishment) return;
+    const dup = establishments.find(e => !digits(e.cnpj) && plain(e.originalName) === plain(p.name));
+    if (dup) { setNotice(`“${p.name}” já está nas suas lojas.`); setSelectedPoi(null); return; }
+    // cidade e estado: os da loja sua mais perto (até 25 km)
+    let city = '', state = '', best = 25000;
+    stores.forEach(s => { const d = distanceM(s.lat, s.lng, p.lat, p.lng); if (d < best && s.est.city) { best = d; city = s.est.city || ''; state = s.est.state || ''; } });
+    onAddEstablishment({ cnpj: '', originalName: p.name, address: p.address || '', city, state, latitude: p.lat, longitude: p.lng, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeManual: true });
+    setSelectedPoi(null);
+    setManual({ id: `|${p.name}` });
+    setNotice(`“${p.name}” entrou nas suas lojas.`);
+  };
 
   const mapBox = useRef<HTMLDivElement>(null);
   const pick = (id: string) => {
+    setMoving(null); setSelectedPoi(null);
     if (id === selectedId) { setManual({ id: null }); return; }
     setManual({ id });
     mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -345,6 +455,13 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
         </div>
       )}
 
+      {notice && (
+        <div className="flex items-start gap-3 mb-3 px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-500 text-xs font-bold" data-testid="map-notice" role="status">
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" />
+          <span className="flex-1 min-w-0">{notice}</span>
+        </div>
+      )}
+
       {(loc.status === 'denied' || loc.status === 'error') && (
         <div className="flex items-center gap-3 mb-3 px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/10 text-xs text-zinc-400" data-testid="map-loc-msg">
           <LocateFixed className="w-4 h-4 shrink-0 text-zinc-500" />
@@ -368,6 +485,8 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
             )}
             <CenterWatcher onCenter={(lat, lng) => setViewCenter({ lat, lng })} />
             <ZoomWatcher onZoom={setZoom} />
+            <ViewWatcher onView={(bbox, z) => setView({ bbox, zoom: z })} />
+            <MapTap enabled={!!moving} onTap={(lat, lng) => setMoving(m => (m ? { ...m, lat, lng } : m))} />
             <Framer me={me} target={picked ? { lat: picked.lat, lng: picked.lng } : null} path={picked ? route.data?.path || null : null} all={allPoints} targetId={picked?.id || null} focusMe={focusMe} />
             {route.data && (
               <>
@@ -375,13 +494,30 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
                 <Polyline positions={route.data.path} pathOptions={{ color: '#D4AF37', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />
               </>
             )}
-            {stores.map(s => (
+            {(showPois || !!moving) && poiZoomOk && (
+              <PoiMarkers pois={shownPois} light={light} activeId={selectedPoi?.id} hideNear={storePins} onPick={onPoiPick} />
+            )}
+            {suggestion && <PoiMarkers pois={[suggestion.poi]} light={light} activeId={suggestion.poi.id} onPick={onPoiPick} />}
+            {selectedPoi && !moving && !(showPois && poiZoomOk && shownPois.some(p => p.id === selectedPoi.id)) && (
+              <PoiMarkers pois={[selectedPoi]} light={light} activeId={selectedPoi.id} onPick={onPoiPick} />
+            )}
+            {moving && (() => {
+              const st = stores.find(x => x.id === moving.id);
+              return st ? <Polyline positions={[[st.lat, st.lng], [moving.lat, moving.lng]]} pathOptions={{ color: '#F2D36B', weight: 3, dashArray: '6 8', opacity: 0.9 }} /> : null;
+            })()}
+            {moving && (
+              <Marker
+                position={[moving.lat, moving.lng]} draggable icon={pinIcon(true, false, false, light)} zIndexOffset={3000}
+                eventHandlers={{ dragend: e => { const ll = (e.target as L.Marker).getLatLng(); setMoving(m => (m ? { ...m, lat: ll.lat, lng: ll.lng } : m)); } }}
+              />
+            )}
+            {stores.filter(s => !(moving && moving.id === s.id)).map(s => (
               <Marker
                 key={s.id}
                 position={[s.lat, s.lng]}
                 icon={pinIcon(s.id === selectedId, s.id === nearestId, zoom < 14, light)}
                 zIndexOffset={s.id === selectedId ? 1000 : s.id === nearestId ? 500 : 0}
-                eventHandlers={{ click: () => setManual({ id: s.id }) }}
+                eventHandlers={{ click: () => { if (!moving) { setSelectedPoi(null); setManual({ id: s.id }); } } }}
               />
             ))}
             {me && <Marker position={[me.lat, me.lng]} icon={meIcon} zIndexOffset={2000} interactive={false} />}
@@ -394,17 +530,61 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
             {loc.status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : <LocateFixed className="w-5 h-5" />}
           </button>
 
-          {maps.opened && (
+          <button
+            onClick={toggleShowPois} aria-label="Mostrar as lojas do mapa" aria-pressed={showPois} data-testid="map-pois-toggle" data-on={showPois ? 'true' : 'false'}
+            className={`absolute top-[64px] right-3 z-[1000] w-11 h-11 rounded-2xl backdrop-blur border flex items-center justify-center shadow-xl active:scale-95 ${showPois ? 'bg-luxury-gold text-black border-luxury-gold' : 'bg-black/70 text-luxury-gold border-white/15'}`}
+          >
+            {showPois && viewPois.status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Store className="w-5 h-5" />}
+          </button>
+
+          {(showPois || moving) && (
+            <div className={`absolute ${moving ? 'bottom-[60px]' : 'bottom-14'} left-3 z-[1000] max-w-[78%] px-3 py-1.5 rounded-full bg-black/75 backdrop-blur border border-white/15 text-[11px] font-bold text-zinc-200 shadow-xl`} data-testid="map-pois-hint">
+              {!poiZoomOk ? 'Aproxime o mapa para ver as lojas'
+                : viewPois.status === 'loading' ? 'Procurando lojas…'
+                : viewPois.status === 'error' ? 'Sem internet e sem mapa salvo: não há lojas para mostrar'
+                : `${shownPois.length} ${shownPois.length === 1 ? 'loja' : 'lojas'} no mapa${viewPois.origin === 'salvo' ? ' (do mapa salvo)' : ''}`}
+            </div>
+          )}
+
+          {moving && (
+            <div className="absolute bottom-3 left-3 right-3 z-[1000] grid grid-cols-2 gap-2" data-testid="map-move-bar">
+              <button onClick={() => setMoving(null)} data-testid="map-move-cancel"
+                className="h-11 rounded-2xl bg-black/80 backdrop-blur border border-white/20 text-zinc-100 text-sm font-bold shadow-xl active:scale-[0.98] transition-transform">Cancelar</button>
+              <button onClick={saveMove} data-testid="map-move-save"
+                className="h-11 rounded-2xl bg-luxury-gold text-black text-sm font-bold shadow-xl active:scale-[0.98] transition-transform">Salvar posição</button>
+            </div>
+          )}
+
+          {maps.opened && !moving && (
             <button
-              onClick={() => maps.setSource(maps.useVector ? 'online' : 'saved')} data-testid="map-source-chip" data-mode={maps.useVector ? 'saved' : 'online'}
+              onClick={() => maps.setSource(maps.source === 'auto' ? 'saved' : maps.source === 'saved' ? 'online' : 'auto')}
+              data-testid="map-source-chip" data-mode={maps.useVector ? 'saved' : 'online'} data-source={maps.source}
               className="absolute bottom-3 left-3 z-[1000] max-w-[70%] flex items-center gap-1.5 pl-3 pr-3.5 h-9 rounded-full bg-black/75 backdrop-blur border border-white/15 text-[11px] font-bold text-luxury-gold shadow-xl active:scale-95"
             >
               <WifiOff className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{maps.useVector ? (outside ? 'Fora da área salva · ver online' : 'Mapa salvo no celular') : 'Mapa online · usar o salvo'}</span>
+              <span className="truncate">{
+                maps.source === 'auto'
+                  ? (maps.useVector ? (outside ? 'Sem internet · fora da área salva' : 'Sem internet · mapa salvo') : 'OpenStreetMap online · automático')
+                  : maps.source === 'saved'
+                    ? (outside ? 'Fora da área salva · ver online' : 'Mapa salvo no celular · fixo')
+                    : 'OpenStreetMap online · fixo'
+              }</span>
             </button>
           )}
         </div>
       </div>
+
+      {/* Uma loja que o mapa mostra (toque no ícone) */}
+      {selectedPoi && !moving && (
+        <PoiCard
+          poi={selectedPoi}
+          mine={mineAt(selectedPoi)}
+          fromMeM={me ? distanceM(me.lat, me.lng, selectedPoi.lat, selectedPoi.lng) : null}
+          onClose={() => setSelectedPoi(null)}
+          onAdd={onAddEstablishment ? () => addPoiAsStore(selectedPoi) : undefined}
+          onAssociate={() => setPickerFor(selectedPoi)}
+        />
+      )}
 
       {/* A loja escolhida: distância, tempo e atalho para o app de navegação */}
       {selected && links && (
@@ -421,12 +601,48 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
                 <Pencil className="w-4 h-4" />
               </button>
             )}
-            <button onClick={() => setManual({ id: null })} aria-label="Fechar e tirar a rota" data-testid="map-clear"
+            <button onClick={() => { setMoving(null); setManual({ id: null }); }} aria-label="Fechar e tirar a rota" data-testid="map-clear"
               className="shrink-0 -mr-1 -mt-1 w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 active:bg-white/10">
               <X className="w-5 h-5" />
             </button>
           </div>
 
+          {moving && moving.id === selected.id ? (
+            <div className="mt-3" data-testid="map-move-panel">
+              <p className="text-sm text-zinc-200 leading-snug">Arraste o pino ou toque no mapa onde a loja fica. Toque numa loja do mapa para colocar o pino nela.</p>
+              <p className="text-xs text-zinc-500 mt-1 tabular-nums" data-testid="map-move-delta">
+                {movedBy < 5 ? 'Na posição de antes' : `${formatDistance(movedBy / 1000)} de onde estava`}
+              </p>
+              {nearToMove.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2" data-testid="map-move-pois">
+                  {nearToMove.map(n => (
+                    <button key={n.poi.id} onClick={() => setMoving(m => (m ? { ...m, lat: n.poi.lat, lng: n.poi.lng } : m))} data-testid="map-move-poi"
+                      className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold text-zinc-200 active:scale-95 max-w-full truncate">
+                      {n.poi.name} · {formatDistance(n.meters / 1000)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {suggestion && (
+                <div className="mt-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 px-3.5 py-3" data-testid="map-suggest">
+                  <p className="text-xs text-zinc-200 leading-snug">
+                    O mapa mostra <b className="text-white">{suggestion.poi.name}</b> a <b className="text-white">{formatDistance(suggestion.meters / 1000)}</b> do pino. Parece ser esta loja: o pino pode estar fora do lugar.
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button onClick={acceptSuggestion} data-testid="map-suggest-accept"
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-luxury-gold text-black text-xs font-bold active:scale-[0.98] transition-transform">Mover para lá</button>
+                    <button onClick={dismissSuggestion} data-testid="map-suggest-dismiss"
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-xs font-bold active:scale-[0.98] transition-transform">Agora não</button>
+                  </div>
+                </div>
+              )}
+              <button onClick={startMove} data-testid="map-move-start"
+                className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-luxury-gold/50 text-zinc-100 text-sm font-bold active:scale-[0.98] transition-transform">
+                <Move className="w-4 h-4 text-luxury-gold" /> Mover marcador
+              </button>
           <div className="mt-3 text-sm" data-testid="map-route-info">
             {!me && <span className="text-zinc-400">Libere sua localização para traçar a rota até aqui.</span>}
             {me && route.status === 'loading' && <span className="inline-flex items-center gap-2 text-zinc-400"><Loader2 className="w-4 h-4 animate-spin" /> Traçando a rota…</span>}
@@ -450,10 +666,16 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               <Navigation className="w-4 h-4" /> Waze
             </button>
           </div>
+            </>
+          )}
         </div>
       )}
 
       <OfflineMapCard maps={maps} hasPoints={mapPoints.length > 0} />
+
+      {pickerFor && (
+        <StorePickerSheet poi={pickerFor} stores={pickable} onPick={t => associate(pickerFor, t)} onClose={() => setPickerFor(null)} />
+      )}
 
       {/* Lojas das suas compras, da mais perto para a mais longe */}
       {sorted.length > 0 && (
@@ -463,7 +685,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               {me ? 'Lojas das suas compras, da mais perto' : 'Lojas das suas compras'}
             </h3>
             {me && nearestId && selectedId !== nearestId && (
-              <button onClick={() => setManual(null)} data-testid="map-back-nearest"
+              <button onClick={() => { setMoving(null); setSelectedPoi(null); setManual(null); }} data-testid="map-back-nearest"
                 className="shrink-0 px-3 py-1.5 rounded-xl bg-luxury-gold/10 border border-luxury-gold/25 text-luxury-gold text-[11px] font-bold active:scale-95">
                 Ir para a mais perto
               </button>

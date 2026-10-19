@@ -1318,6 +1318,7 @@ const App: React.FC = () => {
                             establishments={establishments}
                             onPatchEstablishment={(est, patch) => setEstablishments(prev => prev.map(e => (e.cnpj === est.cnpj && e.originalName === est.originalName ? { ...e, ...patch } : e)))}
                             onEditEstablishment={setEditingStore}
+                            onAddEstablishment={est => setEstablishments(prev => (prev.some(e => cleanCNPJ(e.cnpj) === cleanCNPJ(est.cnpj) && e.originalName === est.originalName) ? prev : [...prev, est]))}
                             onBack={() => setView('dashboard')}
                         />
                     </Suspense>

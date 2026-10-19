@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapManifest, MapCell, SavedCell, OpenedMaps, DownloadProgress,
   cachedManifest, fetchManifest, cellsForPoints, listSaved, deleteSaved, downloadCells, openSaved,
-  getMapSource, setMapSource,
+  getMapSource, setMapSource, MapSource,
 } from './offlineMaps';
 
 export type DownloadState =
@@ -16,7 +16,14 @@ export const useOfflineMaps = (points: [number, number][]) => {
   const [savedLoaded, setSavedLoaded] = useState(false);
   const [manifest, setManifest] = useState<MapManifest | null>(() => cachedManifest());
   const [manifestState, setManifestState] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [source, setSourceState] = useState<'saved' | 'online'>(() => getMapSource());
+  const [source, setSourceState] = useState<MapSource>(() => getMapSource());
+  // com internet o mapa é o do OpenStreetMap (sempre o mais novo); sem internet, o que está salvo no celular
+  const [online, setOnline] = useState<boolean>(() => (typeof navigator === 'undefined' ? true : navigator.onLine !== false));
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    window.addEventListener('online', on); window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
   const [dl, setDl] = useState<DownloadState>({ status: 'idle' });
   const abortRef = useRef<AbortController | null>(null);
   const alive = useRef(true);
@@ -63,8 +70,7 @@ export const useOfflineMaps = (points: [number, number][]) => {
     try {
       await downloadCells(manifest, cells, progress => { if (alive.current) setDl({ status: 'running', progress }); }, ctrl.signal);
       await reloadSaved();
-      setMapSource('saved');
-      if (alive.current) { setSourceState('saved'); setDl({ status: 'idle' }); }
+      if (alive.current) setDl({ status: 'idle' });
     } catch (e: any) {
       await reloadSaved();   // células que já terminaram ficam salvas
       if (!alive.current) return;
@@ -87,13 +93,13 @@ export const useOfflineMaps = (points: [number, number][]) => {
     await reloadSaved();
   }, [reloadSaved]);
 
-  const setSource = useCallback((v: 'saved' | 'online') => { setMapSource(v); setSourceState(v); }, []);
-  const useVector = !!opened && source === 'saved';
+  const setSource = useCallback((v: MapSource) => { setMapSource(v); setSourceState(v); }, []);
+  const useVector = !!opened && (source === 'saved' || (source === 'auto' && !online));
 
   return {
     saved, savedLoaded, opened, manifest, manifestState, loadManifest,
     needed, missing, outdated,
-    source, setSource, useVector,
+    source, setSource, useVector, online,
     dl, download, update, cancel, remove,
   };
 };

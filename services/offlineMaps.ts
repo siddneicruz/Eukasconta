@@ -20,7 +20,7 @@ export interface SavedCell { id: string; bbox: Bbox; bytes: number; built: strin
 const DEFAULT_BASE = 'https://raw.githubusercontent.com/siddneicruz/Eukasconta/mapas';
 const KEY_BASE = 'eukasconta_maps_base';           // só para testes: aponta para outro servidor
 const KEY_MANIFEST = 'eukasconta_maps_manifest';    // última lista de células vista (para a tela abrir sem internet)
-const KEY_SOURCE = 'eukasconta_maps_source';        // 'saved' | 'online'
+const KEY_SOURCE = 'eukasconta_maps_source';        // 'auto' (padrão: online com internet, salvo sem) | 'saved' | 'online'
 
 const ls = {
   get: (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -29,8 +29,9 @@ const ls = {
 
 export const mapsBase = (): string => (ls.get(KEY_BASE) || DEFAULT_BASE).replace(/\/+$/, '');
 
-export const getMapSource = (): 'saved' | 'online' => (ls.get(KEY_SOURCE) === 'online' ? 'online' : 'saved');
-export const setMapSource = (v: 'saved' | 'online') => ls.set(KEY_SOURCE, v);
+export type MapSource = 'auto' | 'saved' | 'online';
+export const getMapSource = (): MapSource => { const v = ls.get(KEY_SOURCE); return v === 'saved' || v === 'online' ? v : 'auto'; };
+export const setMapSource = (v: MapSource) => ls.set(KEY_SOURCE, v);
 
 /* ───────────── catálogo ───────────── */
 
