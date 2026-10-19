@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
-import { LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
+import { LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, ShoppingCart, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
 import PhoneFrame from './components/PhoneFrame';
 import SideDrawer from './components/SideDrawer';
 import * as LucideIcons from 'lucide-react';
@@ -39,6 +39,7 @@ import ConfirmDialog from './components/ConfirmDialog';
 const EstablishmentsMapView = lazy(() => import('./components/EstablishmentsMapView'));
 import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
+import ShoppingListView from './components/ShoppingListView';
 import { LayersProvider } from './components/LayersContext';
 
 import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
@@ -628,6 +629,7 @@ const App: React.FC = () => {
 
   /* ── Android: botão voltar fecha o que estiver aberto e só então sai do app ── */
   const backHandlerRef = useRef<() => boolean>(() => false);
+  const shoppingBackRef = useRef<() => boolean>(() => false);
   backHandlerRef.current = () => {
     if (pendingDeleteId) { setPendingDeleteId(null); return true; }
     if (isDiagnosticOpen) { setIsDiagnosticOpen(false); return true; }
@@ -636,6 +638,7 @@ const App: React.FC = () => {
     if (selectedReceiptId) { setSelectedReceiptId(null); return true; }
     if (isDrawerOpen) { setIsDrawerOpen(false); return true; }
     if (cloud.suggestions.length > 0) { cloud.dismissSuggestions(); return true; }
+    if (view === 'shopping' && shoppingBackRef.current()) return true;
     if (view === 'product_variant_detail') { setView('subcategory_detail'); return true; }
     if (view === 'subcategory_detail') { setView('category_detail'); return true; }
     if (view === 'establishment_detail') { setView('reports'); return true; }
@@ -1250,6 +1253,7 @@ const App: React.FC = () => {
                 <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Alternar Tema">
                     {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
+                <button onClick={() => setView('shopping')} className={`p-2 transition-colors ${view === 'shopping' ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`} title="Lista de compras" aria-label="Lista de compras" data-testid="header-shopping"><ShoppingCart className="w-4 h-4" /></button>
                 <button onClick={() => setView('map')} className={`p-2 transition-colors ${view === 'map' ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`} title="Mapa" aria-label="Mapa" data-testid="header-map"><MapIcon className="w-4 h-4" /></button>
             </nav>
             <div className="flex md:hidden items-center gap-1">
@@ -1257,6 +1261,7 @@ const App: React.FC = () => {
                 <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-3 text-zinc-500 active:text-luxury-gold" aria-label="Alternar tema">
                     {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
+                <button onClick={() => setView('shopping')} className={`p-2.5 ${view === 'shopping' ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label="Lista de compras" data-testid="header-shopping-m"><ShoppingCart className="w-5 h-5" /></button>
                 <button onClick={() => setView('map')} className={`p-3 ${view === 'map' ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label="Mapa" data-testid="header-map-m"><MapIcon className="w-5 h-5" /></button>
             </div>
         </div>
@@ -1378,6 +1383,9 @@ const App: React.FC = () => {
                             onBack={() => setView('dashboard')}
                         />
                     </Suspense>
+                )}
+                {view === 'shopping' && (
+                    <ShoppingListView receipts={receipts} masters={masterProducts} onOpenReceipt={(id) => setSelectedReceiptId(id)} backRef={shoppingBackRef} />
                 )}
                 {view === 'alerts' && (
                     <AlertsView cloud={cloud} draft={alertDraft} onDraftConsumed={() => setAlertDraft(null)} onGoToAccount={goToAccount} onBack={() => setView('dashboard')} />

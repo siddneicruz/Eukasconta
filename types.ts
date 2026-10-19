@@ -161,6 +161,7 @@ export type ViewState =
   | 'settings' 
   | 'alerts'
   | 'map'
+  | 'shopping'
   | 'diagnostics';
 
 export type LogType = 'CLICK' | 'API_CALL' | 'SYSTEM_ERROR' | 'PERFORMANCE' | 'DATA_INTEGRITY' | 'SCANNER';
