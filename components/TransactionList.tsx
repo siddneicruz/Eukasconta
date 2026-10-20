@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Receipt, DashboardConfig, MasterProduct, ItemFilter, ReceiptItem } from '../types';
-import { ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, Copy } from 'lucide-react';
 import { normalizeProductName } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import PeriodFilterBar from './PeriodFilterBar';
@@ -28,6 +28,9 @@ interface TransactionListProps {
   // Busca por item (autocompletar usa o cadastro de produtos); o item escolhido fica na config, igual ao Início
   masterProducts?: MasterProduct[];
   onConfigChange?: (config: DashboardConfig) => void;
+  // Cupons repetidos (a mesma compra salva mais de uma vez): aviso discreto que abre a revisão
+  duplicateCount?: number;
+  onReviewDuplicates?: () => void;
 }
 
 const normalizeText = (text: string) => {
@@ -40,7 +43,7 @@ const LONG_PRESS_MS = 450;   // segurar o cupom por esse tempo mostra a lixeira
 const PRESS_SLOP_PX = 8;     // mexer o dedo mais que isso é rolagem, não um "segurar"
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config, masterProducts = [], onConfigChange }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config, masterProducts = [], onConfigChange, duplicateCount = 0, onReviewDuplicates }) => {
   const { nameOf } = useStoreNames();
   const [searchTerm, setSearchTerm] = useState('');
   const [establishmentFilter, setEstablishmentFilter] = useState('');
@@ -227,6 +230,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
       </div>
 
       {config && onConfigChange && <div className="-mb-3"><PeriodFilterBar config={config} onConfigChange={onConfigChange} /></div>}
+
+      {duplicateCount > 0 && onReviewDuplicates && (
+        <button type="button" onClick={onReviewDuplicates} data-testid="hist-dup" aria-label={`Revisar ${duplicateCount} cupons repetidos`}
+          className="-mb-3 self-start h-9 pl-2.5 pr-3 rounded-xl flex items-center gap-1.5 text-xs font-bold border filter-chip bg-luxury-gold/10 text-luxury-gold border-luxury-gold/25 active:opacity-80">
+          <Copy className="w-3.5 h-3.5" />
+          <span className="whitespace-nowrap">{duplicateCount} {duplicateCount === 1 ? 'cupom repetido' : 'cupons repetidos'} · revisar</span>
+        </button>
+      )}
 
       <div className="flex flex-col xl:flex-row ls:flex-row gap-4 ls:gap-2 items-start xl:items-center ls:items-center bg-black/40 p-1 rounded-2xl relative z-20">
         <div className="flex gap-2 w-full xl:flex-1">

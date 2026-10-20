@@ -35,6 +35,8 @@ import { readPointText } from './services/restorePoints';
 import { readTxtReceipts, parseReceiptTexts, applyTxtImport, TxtFile } from './services/receiptTextImport';
 import { deleteCloudReceipt } from './services/cloudService';
 import ConfirmDialog from './components/ConfirmDialog';
+import DuplicateReceiptsSheet from './components/DuplicateReceiptsSheet';
+import { isSameCupom, findDuplicateGroups, duplicateRemovalCount, loadIgnoredGroups } from './services/receiptDuplicates';
 // O mapa traz a biblioteca de mapas junto; só é baixado quando a pessoa abre a tela.
 const EstablishmentsMapView = lazy(() => import('./components/EstablishmentsMapView'));
 import { titleCase } from './services/textFormat';
@@ -635,6 +637,7 @@ const App: React.FC = () => {
     if (isDiagnosticOpen) { setIsDiagnosticOpen(false); return true; }
     if (isImportLogOpen) { setIsImportLogOpen(false); return true; }
     if (selectedCategoryForIcon) { setSelectedCategoryForIcon(null); return true; }
+    if (dupOpen) { setDupOpen(false); return true; }
     if (selectedReceiptId) { setSelectedReceiptId(null); return true; }
     if (isDrawerOpen) { setIsDrawerOpen(false); return true; }
     if (cloud.suggestions.length > 0) { cloud.dismissSuggestions(); return true; }
@@ -708,6 +711,10 @@ const App: React.FC = () => {
   // Excluir lançamento: sempre pergunta antes; só apaga no "Excluir" da mensagem de confirmação.
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const requestDeleteReceipt = (id: string) => setPendingDeleteId(id);
+  // Cupons repetidos (a mesma compra lida/salva mais de uma vez): contagem para o aviso do Histórico e tela de revisão
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupIgnored, setDupIgnored] = useState<string[]>(() => loadIgnoredGroups());
+  const dupCount = useMemo(() => duplicateRemovalCount(findDuplicateGroups(receipts).filter(g => !dupIgnored.includes(g.key))), [receipts, dupIgnored]);
   const pendingDelete = useMemo(() => receipts.find(r => r.id === pendingDeleteId) || null, [receipts, pendingDeleteId]);
   const confirmDeleteReceipt = () => {
       const target = pendingDelete;
@@ -728,7 +735,7 @@ const App: React.FC = () => {
   viewRef.current = view;
   const commitScanned = (r: Receipt): boolean => {
       const a = snapNew(auditAndRepairReceipt(r));
-      const isDup = (ex: Receipt) => a.id === ex.id || (a.date === ex.date && Math.abs(a.totalAmount - ex.totalAmount) < 0.01 && a.establishmentName === ex.establishmentName);
+      const isDup = (ex: Receipt) => isSameCupom(a, ex);
       if (receiptsRef.current.some(isDup)) return false;
       receiptsRef.current = [a, ...receiptsRef.current];   // o próximo cupom do lote já enxerga este
       setReceipts(prev => prev.some(isDup) ? prev : [a, ...prev]);
@@ -760,7 +767,7 @@ const App: React.FC = () => {
         const uniqueList = [...prev];
         newReceipts.forEach(newR => {
             const auditedR = snapNew(auditAndRepairReceipt(newR));
-            const isDup = uniqueList.some(ex => (auditedR.id === ex.id) || (auditedR.date === ex.date && Math.abs(auditedR.totalAmount - ex.totalAmount) < 0.01 && auditedR.establishmentName === ex.establishmentName));
+            const isDup = uniqueList.some(ex => isSameCupom(auditedR, ex));
             if (!isDup) { uniqueList.unshift(auditedR); added++; }
         });
         return uniqueList;
@@ -1131,17 +1138,19 @@ const App: React.FC = () => {
   };
 
   const handleCleanupDuplicates = () => {
-      const initialCount = receipts.length;
-      const seen = new Set();
-      const clean = receipts.filter(r => {
-          const key = `${r.establishmentName}-${r.date}-${r.totalAmount.toFixed(2)}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-      });
-      if (clean.length < initialCount) restore.before('limpar duplicatas');
-      setReceipts(clean);
-      showNotification(`Cleanup concluído. ${initialCount - clean.length} duplicatas removidas.`);
+      if (dupCount === 0) { showNotification('Nenhum cupom repetido encontrado.'); return; }
+      setDupOpen(true);
+  };
+  const removeDuplicates = (ids: string[]) => {
+      const gone = new Set(ids);
+      setDupOpen(false);
+      if (gone.size === 0) return;
+      restore.before('remover cupons repetidos');
+      setReceipts(prev => prev.filter(r => !gone.has(r.id)));
+      setSelectedReceiptId(prev => (prev && gone.has(prev) ? null : prev));
+      showNotification(`${gone.size} ${gone.size === 1 ? 'cupom repetido removido' : 'cupons repetidos removidos'}.`);
+      const uid = cloud.user?.id;
+      if (uid) ids.forEach(id => { deleteCloudReceipt(uid, id).catch(() => { /* a cópia na nuvem some no próximo envio */ }); });
   };
 
   const handleAuditPrices = async () => {
@@ -1354,7 +1363,7 @@ const App: React.FC = () => {
                 {view === 'establishment_detail' && selectedEstablishment && (
                     <EstablishmentDetailView establishmentName={selectedEstablishment} receipts={receipts} onBack={() => setView('reports')} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} />
                 )}
-                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onConfigChange={setDashboardConfig} masterProducts={masterProducts} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} />}
+                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onConfigChange={setDashboardConfig} masterProducts={masterProducts} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} duplicateCount={dupCount} onReviewDuplicates={() => setDupOpen(true)} />}
                 {view === 'reports' && (
                     <Reports 
                         receipts={receipts} 
@@ -1522,6 +1531,7 @@ const App: React.FC = () => {
           </div>
       )}
 
+      {dupOpen && <DuplicateReceiptsSheet receipts={receipts} onConfirm={removeDuplicates} onClose={() => setDupOpen(false)} onIgnoredChange={setDupIgnored} />}
       {alignOpen && <AlignCategoriesSheet taxonomy={taxonomy} receipts={receipts} masters={masterProducts} onApply={handleAlignCategories} onClose={() => setAlignOpen(false)} />}
       {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onClose={() => setEditingStore(null)} />}
       {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}

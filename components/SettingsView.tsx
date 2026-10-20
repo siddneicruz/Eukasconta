@@ -353,7 +353,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <ActionBlock icon={Calculator} title="Audit consistency" desc="Auditoria de portfólio" onClick={onAuditPrices} primary />
-                <ActionBlock icon={Eraser} title="Cleanup Engine" desc="Deduplicação inteligente" onClick={onCleanupDuplicates} />
+                <ActionBlock icon={Eraser} title="Cleanup Engine" desc="Revisar cupons repetidos" onClick={onCleanupDuplicates} />
                 <ActionBlock icon={RefreshCw} title="Sinc Cloud" desc="Taxonomia & IA" onClick={onReprocessCategories} />
             </div>
 
