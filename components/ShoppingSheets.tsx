@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Minus, Plus, Search, Check, Trash2, Pencil, Copy, Star } from 'lucide-react';
-import { Entry, History, LineCheck, Product, findProducts, fmtQty, round3, stepOf, unitLabel } from '../services/shoppingList';
+import { Entry, Group, History, LineCheck, Product, findProducts, fmtQty, round3, stepOf, unitLabel } from '../services/shoppingList';
+import { searchCatalog } from '../services/shoppingCatalog';
 
 /* Folhas da lista de compras: editar um item, adicionar item do histórico e confirmar. */
 
@@ -18,8 +19,11 @@ export const parseMoney = (txt: string): number | null => {
 };
 export const moneyText = (n: number | null | undefined): string => (n && n > 0 ? n.toFixed(2).replace('.', ',') : '');
 
-const Sheet: React.FC<{ title: string; subtitle?: string; onClose: () => void; testId: string; children: React.ReactNode }> = ({ title, subtitle, onClose, testId, children }) => {
+/** Folha de baixo para cima. `tall` = altura fixa (lista rolável); `footer` = barra de ações que fica sempre à vista. */
+export const Sheet: React.FC<{ title: string; subtitle?: string; onClose: () => void; testId: string; children: React.ReactNode; tall?: boolean; footer?: React.ReactNode }> = ({ title, subtitle, onClose, testId, children, tall = false, footer }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  // só fecha ao tocar no fundo se o toque COMEÇOU no fundo (um toque que começa na folha e termina fora não fecha)
+  const downOnBackdrop = useRef(false);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
@@ -35,9 +39,11 @@ const Sheet: React.FC<{ title: string; subtitle?: string; onClose: () => void; t
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
   }, []);
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose} data-testid={testId}>
+    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+      onPointerDown={e => { downOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={e => { if (e.target === e.currentTarget && downOnBackdrop.current) onClose(); }} data-testid={testId}>
       <div ref={panelRef} role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}
-        className="w-full sm:max-w-md max-h-[88dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        className={`w-full sm:max-w-md max-h-[88dvh] ${tall ? 'h-[88dvh]' : ''} flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]`}>
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="min-w-0 flex-1">
             <h3 className="text-[17px] font-serif text-white tracking-tight leading-tight break-words">{title}</h3>
@@ -45,7 +51,8 @@ const Sheet: React.FC<{ title: string; subtitle?: string; onClose: () => void; t
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="shrink-0 w-10 h-10 -mr-2 -mt-1 flex items-center justify-center rounded-xl text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
-        <div className="px-5 pb-2 overflow-y-auto">{children}</div>
+        <div className={`px-5 pb-2 overflow-y-auto min-h-0 ${tall ? 'flex-1' : ''}`}>{children}</div>
+        {footer && <div className="shrink-0 px-5 pt-2 border-t border-white/5">{footer}</div>}
       </div>
     </div>,
     document.body,
@@ -108,7 +115,7 @@ export const ItemSheet: React.FC<ItemSheetProps> = ({ entry, purchaseLabel, chec
 interface AddSheetProps {
   history: History;
   purchaseLabel: string;
-  onAdd: (p: Product | null, name: string) => void;
+  onAdd: (p: Product | null, name: string, group?: Group) => void;
   onClose: () => void;
 }
 
@@ -116,6 +123,8 @@ export const AddSheet: React.FC<AddSheetProps> = ({ history, purchaseLabel, onAd
   const [q, setQ] = useState('');
   const [added, setAdded] = useState<string[]>([]);
   const found = findProducts(history, q, 8);
+  // o que você nunca comprou, mas existe no catálogo (frutas, verduras e carnes)
+  const fresh = searchCatalog(history, q, 5).filter(c => !found.some(f => f.pid === c.id));
   const name = q.trim();
   return (
     <Sheet title="Adicionar item" subtitle={`Entra em ${purchaseLabel}`} onClose={onClose} testId="shop-add-sheet">
@@ -129,7 +138,7 @@ export const AddSheet: React.FC<AddSheetProps> = ({ history, purchaseLabel, onAd
           const done = added.includes(p.pid);
           return (
             <li key={p.pid}>
-              <button type="button" data-testid="shop-add-row" onClick={() => { onAdd(p, p.name); setAdded(a => [...a, p.pid]); }}
+              <button type="button" data-testid="shop-add-row" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(p, p.name); setAdded(a => [...a, p.pid]); }}
                 className="w-full text-left flex items-center gap-3 min-h-[56px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold text-zinc-100 truncate">{p.name}</span>
@@ -140,9 +149,24 @@ export const AddSheet: React.FC<AddSheetProps> = ({ history, purchaseLabel, onAd
             </li>
           );
         })}
+        {fresh.map(c => {
+          const done = added.includes(c.id);
+          return (
+            <li key={c.id}>
+              <button type="button" data-testid="shop-add-catalog" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(c.product, c.name, c.group === 'carne' ? 'churrasco' : c.group); setAdded(a => [...a, c.id]); }}
+                className="w-full text-left flex items-center gap-3 min-h-[56px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold text-zinc-100 truncate">{c.name}</span>
+                  <span className="block text-[11px] text-zinc-500 tabular-nums">{c.product.dept} · do catálogo, nunca comprou · sem preço</span>
+                </span>
+                {done ? <Check className="w-5 h-5 text-emerald-400 shrink-0" /> : <Plus className="w-5 h-5 text-luxury-gold shrink-0" />}
+              </button>
+            </li>
+          );
+        })}
         {name.length >= 2 && (
           <li>
-            <button type="button" data-testid="shop-add-free" onClick={() => { onAdd(null, name); setAdded(a => [...a, 'U:' + name]); }}
+            <button type="button" data-testid="shop-add-free" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(null, name); setAdded(a => [...a, 'U:' + name]); }}
               className="w-full text-left flex items-center gap-3 min-h-[52px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
               <span className="min-w-0 flex-1 text-[14px] text-zinc-300 truncate">Adicionar “{name}” como item novo</span>
               {added.includes('U:' + name) ? <Check className="w-5 h-5 text-emerald-400 shrink-0" /> : <Plus className="w-5 h-5 text-luxury-gold shrink-0" />}
@@ -150,7 +174,7 @@ export const AddSheet: React.FC<AddSheetProps> = ({ history, purchaseLabel, onAd
           </li>
         )}
       </ul>
-      {name.length >= 2 && !found.length && <p className="text-[12px] text-zinc-500 pb-2">Nada parecido nos seus cupons dos últimos 12 meses. O item novo entra sem preço: informe depois.</p>}
+      {name.length >= 2 && !found.length && !fresh.length && <p className="text-[12px] text-zinc-500 pb-2">Nada parecido nos seus cupons dos últimos 12 meses. O item novo entra sem preço: informe depois.</p>}
     </Sheet>
   );
 };
@@ -169,12 +193,12 @@ export const ConfirmSheet: React.FC<{ title: string; message: string; confirmLab
 
 /* ───────────────────────── renomear ───────────────────────── */
 
-export const RenameSheet: React.FC<{ name: string; onSave: (name: string) => void; onClose: () => void }> = ({ name, onSave, onClose }) => {
+export const RenameSheet: React.FC<{ name: string; onSave: (name: string) => void; onClose: () => void; mode?: 'rename' | 'save' }> = ({ name, onSave, onClose, mode = 'rename' }) => {
   const [txt, setTxt] = useState(name);
   const clean = txt.replace(/\s+/g, ' ').trim();
   const save = () => { if (clean) onSave(clean.slice(0, 60)); };
   return (
-    <Sheet title="Nome da lista" subtitle="Dê um nome para achar esta lista depois." onClose={onClose} testId="shop-rename-sheet">
+    <Sheet title={mode === 'save' ? 'Gravar lista' : 'Nome da lista'} subtitle={mode === 'save' ? 'Escolha um nome para achar esta lista depois, na sua coleção de listas.' : 'Dê um nome para achar esta lista depois.'} onClose={onClose} testId={mode === 'save' ? 'shop-save-sheet' : 'shop-rename-sheet'}>
       <label className="block">
         <span className="sr-only">Nome da lista</span>
         <input type="text" value={txt} onChange={e => setTxt(e.target.value)} maxLength={60} autoFocus data-testid="shop-rename-input"
@@ -184,7 +208,7 @@ export const RenameSheet: React.FC<{ name: string; onSave: (name: string) => voi
       </label>
       <div className="grid grid-cols-2 gap-2 mt-4 mb-2">
         <button type="button" onClick={onClose} className="h-12 rounded-xl border border-white/10 text-zinc-300 text-[14px] font-semibold">Cancelar</button>
-        <button type="button" onClick={save} disabled={!clean} data-testid="shop-rename-save" className="h-12 rounded-xl bg-luxury-gold text-black text-[14px] font-bold disabled:opacity-40 active:opacity-80">Salvar</button>
+        <button type="button" onClick={save} disabled={!clean} data-testid="shop-rename-save" className="h-12 rounded-xl bg-luxury-gold text-black text-[14px] font-bold disabled:opacity-40 active:opacity-80">{mode === 'save' ? 'Gravar' : 'Salvar'}</button>
       </div>
     </Sheet>
   );

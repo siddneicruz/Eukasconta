@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Minus, Plus, Sparkles, Wallet, CalendarDays, Apple, Beef, AlertTriangle, ChevronLeft, ChevronRight, ShoppingCart, Clock, Star, Pencil, ListPlus } from 'lucide-react';
+import { Minus, Plus, Sparkles, Wallet, CalendarDays, Apple, Beef, AlertTriangle, ChevronLeft, ChevronRight, ShoppingCart, Clock, Star, Pencil, ListPlus, ListChecks } from 'lucide-react';
 import {
   Setup, History, Mode, MonthPreset, LOOKBACKS, MONTHS, WEEKDAYS, WEEKDAYS_SHORT, addDays, daysInMonth, lookbackLabel, presetMonthDays, purchasesFromSetup, weekdayOf, shortDate,
 } from '../services/shoppingList';
 import { brl, parseMoney, moneyText } from './ShoppingSheets';
+import ShoppingCatalogSheet from './ShoppingCatalogSheet';
+import { CatGroup } from '../services/shoppingCatalog';
 
 /* Formulário da lista: quando vai ao mercado, quanto quer gastar, o que mais entra (frutas e verduras, churrasco) e se a IA ajuda. */
 
@@ -69,6 +71,25 @@ const Chip: React.FC<{ on: boolean; onClick: () => void; children: React.ReactNo
   </button>
 );
 
+/** Linha que abre o catálogo: mostra o que está escolhido (ou "Automático") e leva à folha de seleção. */
+const PoolRow: React.FC<{ label: string; summary: string; chosen: number; onClick: () => void; testId: string }> = ({ label, summary, chosen, onClick, testId }) => (
+  <button type="button" onClick={onClick} data-testid={testId} aria-label={`${label}: ${summary}`}
+    className="w-full min-h-[56px] px-3 py-2 rounded-xl border border-white/10 bg-white/[0.03] flex items-center gap-3 text-left active:bg-white/10">
+    <ListChecks className={`w-5 h-5 shrink-0 ${chosen ? 'text-luxury-gold' : 'text-zinc-500'}`} />
+    <span className="min-w-0 flex-1">
+      <span className="block text-[13px] font-semibold text-zinc-100">{label}</span>
+      <span className="block text-[11px] text-zinc-400 leading-snug" data-testid={`${testId}-sum`}>{summary}</span>
+    </span>
+    <span className="shrink-0 text-[12px] font-semibold text-luxury-gold">{chosen ? 'Alterar' : 'Escolher'}</span>
+  </button>
+);
+
+const poolSummary = (n: number, perWeek: number, auto: string): string => {
+  if (n === 0) return auto;
+  if (perWeek <= 0) return `${n} ${n === 1 ? 'escolhida' : 'escolhidas'} · 0 por semana, aumente acima`;
+  return n > perWeek ? `${n} escolhidas · sorteia ${perWeek} por semana` : `${n} ${n === 1 ? 'escolhida' : 'escolhidas'} · ${n === 1 ? 'entra' : 'entram'} em toda semana`;
+};
+
 const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasKey, error, editing, initialName = '', base, baseDefault = false, onSubmit, onCancel }) => {
   const [s, setS] = useState<Setup>(() => {
     const base: Setup = { ...initial, useAi: hasKey ? initial.useAi : false };
@@ -80,6 +101,7 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
   const [minTxt, setMinTxt] = useState(moneyText(initial.min));
   const [maxTxt, setMaxTxt] = useState(moneyText(initial.max));
   const patch = (p: Partial<Setup>) => setS(prev => ({ ...prev, ...p }));
+  const [catalog, setCatalog] = useState<CatGroup | null>(null);
 
   const purchases = useMemo(() => purchasesFromSetup(s, today), [s, today]);
   const horizon = purchases.reduce((sum, p) => sum + p.days, 0);
@@ -272,6 +294,14 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
             <div><p className="text-[11px] text-zinc-500 mb-1">Verduras e legumes</p><Stepper value={s.veggies} onChange={v => patch({ veggies: v })} min={0} max={12} label="verduras" testId="shop-veggies" /></div>
           </div>
         )}
+        {s.fruitVeg && (
+          <div className="mt-3 space-y-2">
+            <PoolRow label="Quais frutas" chosen={s.fruitPool.length} testId="shop-pick-fruit" onClick={() => setCatalog('fruta')}
+              summary={poolSummary(s.fruitPool.length, s.fruits, 'Automático · as que você mais compra')} />
+            <PoolRow label="Quais verduras e legumes" chosen={s.veggiePool.length} testId="shop-pick-veg" onClick={() => setCatalog('verdura')}
+              summary={poolSummary(s.veggiePool.length, s.veggies, 'Automático · as que você mais compra')} />
+          </div>
+        )}
       </Card>
 
       <Card icon={<Beef className="w-4 h-4" />} title="Churrasco semanal" sub="Programa a carne de um churrasco por semana, com as carnes que você já compra." testId="shop-ch">
@@ -295,6 +325,8 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
               <div><p className="text-[11px] text-zinc-500 mb-1">Carne por pessoa</p><Stepper value={s.grams} onChange={v => patch({ grams: v })} min={100} max={1000} step={50} label="gramas" testId="shop-grams" suffix=" g" /></div>
             </div>
             <p className="text-[11px] text-zinc-500 tabular-nums" data-testid="shop-ch-kg">≈ {((s.people * s.grams) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg de carne por churrasco.</p>
+            <PoolRow label="Quais carnes" chosen={s.meatPool.length} testId="shop-pick-meat" onClick={() => setCatalog('carne')}
+              summary={s.meatPool.length ? `${s.meatPool.length} ${s.meatPool.length === 1 ? 'escolhida' : 'escolhidas'} · alternam entre os churrascos` : 'Automático · as carnes que você já compra'} />
           </div>
         )}
       </Card>
@@ -339,6 +371,18 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
           );
         })()}
       </section>
+
+      {catalog && (
+        <ShoppingCatalogSheet
+          mode="pool" group={catalog} history={history}
+          title={catalog === 'fruta' ? 'Quais frutas' : catalog === 'verdura' ? 'Quais verduras e legumes' : 'Quais carnes do churrasco'}
+          subtitle={catalog === 'carne' ? 'Elas se alternam entre os churrascos.' : 'O sistema sorteia as da semana.'}
+          selected={catalog === 'fruta' ? s.fruitPool : catalog === 'verdura' ? s.veggiePool : s.meatPool}
+          perWeek={catalog === 'fruta' ? s.fruits : catalog === 'verdura' ? s.veggies : 0}
+          onClose={() => setCatalog(null)}
+          onConfirm={ids => { patch(catalog === 'fruta' ? { fruitPool: ids } : catalog === 'verdura' ? { veggiePool: ids } : { meatPool: ids }); setCatalog(null); }}
+        />
+      )}
     </div>
   );
 };

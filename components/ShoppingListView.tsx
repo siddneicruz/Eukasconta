@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ShoppingCart, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil,
+  ShoppingCart, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil, Save, Apple, Carrot, Beef,
 } from 'lucide-react';
 import { Receipt, MasterProduct } from '../types';
 import {
@@ -16,6 +16,8 @@ import { getActiveProviderLabel, hasAnyUserApiKey } from '../services/keyStorage
 import ShoppingSetup, { GenOptions } from './ShoppingSetup';
 import ShoppingProgress from './ShoppingProgress';
 import { AddSheet, ConfirmSheet, ItemSheet, ListMenuSheet, RenameSheet, brl } from './ShoppingSheets';
+import ShoppingCatalogSheet from './ShoppingCatalogSheet';
+import { CatGroup, resolveIds } from '../services/shoppingCatalog';
 
 /* Lista de compras: gera a partir dos cupons, divide por semana ou pelos dias do mês, respeita teto e mínimo,
    deixa marcar o que já está no carrinho e depois confere com os cupons escaneados. */
@@ -28,7 +30,7 @@ interface Props {
 }
 
 type Screen = 'home' | 'setup' | 'list';
-type SheetState = { kind: 'item'; pi: number; pid: string; group: Group } | { kind: 'add'; pi: number } | { kind: 'delete'; id: string } | { kind: 'menu' } | { kind: 'rename'; id: string } | null;
+type SheetState = { kind: 'item'; pi: number; pid: string; group: Group } | { kind: 'add'; pi: number } | { kind: 'catalog'; pi: number; group: CatGroup } | { kind: 'delete'; id: string } | { kind: 'menu' } | { kind: 'rename'; id: string } | { kind: 'save'; id: string } | null;
 
 interface Section { key: string; title: string; sub?: string; entries: Entry[] }
 
@@ -51,6 +53,7 @@ const sectionsOf = (entries: Entry[]): Section[] => {
 
 const pct = (a: number, b: number) => (b > 0 ? ((a - b) / b) * 100 : 0);
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Math.round(n))}%`;
+const savedLabel = (ts: number) => { const d = new Date(ts); const p = (n: number) => String(n).padStart(2, '0'); return `Gravada em ${p(d.getDate())}/${p(d.getMonth() + 1)} às ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '');
 
 const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit: () => void }> = ({ e, check, onToggle, onEdit }) => (
@@ -189,7 +192,15 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
   const update = (fn: (l: ShoppingList) => ShoppingList) => setLists(prev => prev.map(l => (l.id === activeId ? fn(l) : l)));
   const open = (id: string) => { setActiveId(id); setPi(0); setNotesOpen(false); setCutOpen(false); setScreen('list'); };
   const toggleBase = (id: string) => setBaseId(prev => (prev === id ? null : id));
-  const renameList = (id: string, name: string) => setLists(prev => prev.map(l => (l.id === id ? { ...l, name } : l)));
+  // dar nome é gravar: a lista passa a constar como gravada
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const say = (msg: string) => { setNotice(msg); if (noticeTimer.current) clearTimeout(noticeTimer.current); noticeTimer.current = setTimeout(() => setNotice(null), 3200); };
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
+  const renameList = (id: string, name: string, saved = false) => {
+    setLists(prev => prev.map(l => (l.id === id ? { ...l, name, savedAt: Date.now() } : l)));
+    if (saved) say(`Lista gravada: ${name}`);
+  };
   const removeList = (id: string) => {
     setLists(prev => prev.filter(l => l.id !== id));
     if (activeId === id) setActiveId(null);
@@ -282,8 +293,9 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
       if (ctl.cancelled) return;
       const plan = buildList(hist, {
         purchases, min: setup.min, max: setup.max,
-        fruitVeg: setup.fruitVeg ? { fruits: setup.fruits, veggies: setup.veggies } : null,
-        churrasco: setup.churrasco ? { weekday: setup.churrascoWeekday, people: setup.people, grams: setup.grams } : null,
+        fruitVeg: setup.fruitVeg ? { fruits: setup.fruits, veggies: setup.veggies, fruitPool: setup.fruitPool, veggiePool: setup.veggiePool } : null,
+        churrasco: setup.churrasco ? { weekday: setup.churrascoWeekday, people: setup.people, grams: setup.grams, pool: setup.meatPool } : null,
+        seed: Math.floor(Math.random() * 1e9),
       }, advice);
       const itemsOut = plan.purchases.reduce((n, p) => n + p.entries.length, 0);
       step('calculo', 'done', `${itemsOut} ${itemsOut === 1 ? 'item' : 'itens'} para ${days} ${days === 1 ? 'dia' : 'dias'}`);
@@ -446,6 +458,27 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
         <button type="button" onClick={() => setSheet({ kind: 'menu' })} aria-label="Mais ações da lista" data-testid="shop-menu" className="w-11 h-11 flex items-center justify-center rounded-xl border border-white/10 text-zinc-300 hover:text-luxury-gold"><MoreHorizontal className="w-4 h-4" /></button>
       </div>
 
+      {list.savedAt ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-2" data-testid="shop-saved" role="status">
+          <span className="shrink-0 w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center"><Check className="w-4 h-4 text-emerald-400" aria-hidden="true" /></span>
+          <p className="min-w-0 flex-1 text-[12px] leading-snug text-zinc-300">
+            <span className="block font-semibold text-emerald-400">Lista gravada</span>
+            <span className="block text-zinc-500 tabular-nums" data-testid="shop-saved-at">{savedLabel(list.savedAt)} · o que você mudar fica salvo sozinho</span>
+          </p>
+          <button type="button" onClick={() => setSheet({ kind: 'save', id: list.id })} data-testid="shop-save-again"
+            className="shrink-0 min-h-[40px] px-3 rounded-xl border border-white/10 text-[12px] font-semibold text-zinc-200 active:bg-white/5">Renomear</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setSheet({ kind: 'save', id: list.id })} data-testid="shop-save"
+          className="w-full min-h-[52px] rounded-2xl bg-luxury-gold text-black px-4 py-2 flex items-center justify-center gap-2.5 active:opacity-80 shadow-lg">
+          <Save className="w-5 h-5 shrink-0" aria-hidden="true" />
+          <span className="text-left leading-tight">
+            <span className="block text-[15px] font-bold">Gravar lista</span>
+            <span className="block text-[11px] font-medium text-black/70">Dê um nome e guarde na sua coleção</span>
+          </span>
+        </button>
+      )}
+
       <section className="bg-[#121214] border border-white/5 rounded-2xl p-4 shadow-xl" data-testid="shop-summary-card">
         <p className="text-[11px] text-zinc-500">Total estimado com os últimos preços</p>
         <p className="text-3xl font-serif font-bold text-white tabular-nums leading-tight" data-testid="shop-total">{brl(total)}</p>
@@ -558,9 +591,15 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
           ))
         )}
 
-        <div className="border-t border-white/5 p-3">
+        <div className="border-t border-white/5 p-3 space-y-2">
           <button type="button" onClick={() => setSheet({ kind: 'add', pi: idx })} data-testid="shop-add"
             className="w-full h-11 rounded-xl border border-dashed border-white/20 text-[13px] font-semibold text-zinc-300 hover:text-luxury-gold hover:border-luxury-gold/40 flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> Adicionar item</button>
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Escolher no catálogo">
+            {([['fruta', 'Frutas', Apple], ['verdura', 'Verduras', Carrot], ['carne', 'Carnes', Beef]] as const).map(([g, label, Icon]) => (
+              <button key={g} type="button" onClick={() => setSheet({ kind: 'catalog', pi: idx, group: g })} data-testid={`shop-cat-${g}`} aria-label={`Escolher ${label.toLowerCase()} no catálogo`}
+                className="h-11 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] font-semibold text-zinc-200 hover:text-luxury-gold hover:border-luxury-gold/40 flex items-center justify-center gap-1.5 active:bg-white/10"><Icon className="w-4 h-4 text-luxury-gold" /> {label}</button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -601,6 +640,14 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
       {sheet?.kind === 'rename' && (
         <RenameSheet name={lists.find(l => l.id === sheet.id)?.name || ''} onClose={() => setSheet(null)} onSave={n => { renameList(sheet.id, n); setSheet(null); }} />
       )}
+      {sheet?.kind === 'save' && (
+        <RenameSheet mode="save" name={lists.find(l => l.id === sheet.id)?.name || ''} onClose={() => setSheet(null)} onSave={n => { renameList(sheet.id, n, true); setSheet(null); }} />
+      )}
+      {notice && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-[320] max-w-[90vw] px-4 py-2.5 rounded-full bg-emerald-500 text-black text-[13px] font-bold shadow-2xl flex items-center gap-2" role="status" aria-live="polite" data-testid="shop-notice">
+          <Check className="w-4 h-4 shrink-0" aria-hidden="true" /><span className="truncate">{notice}</span>
+        </div>
+      )}
       {sheet?.kind === 'delete' && (
         <ConfirmSheet title="Apagar esta lista?" message="Só a lista é apagada. Seus cupons e o histórico continuam como estão." confirmLabel="Apagar"
           onClose={() => setSheet(null)} onConfirm={() => removeList(sheet.id)} />
@@ -613,11 +660,30 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
       )}
       {sheet?.kind === 'add' && (
         <AddSheet history={history} purchaseLabel={shortDate(list.purchases[sheet.pi].date)} onClose={() => setSheet(null)}
-          onAdd={(p, name) => {
+          onAdd={(p, name, group) => {
             const s = sheet;
             update(l => p
-              ? addManual(l, s.pi, { pid: p.pid, name: p.name, unit: p.unit, price: p.price, dept: p.dept, category: p.category, qty: Math.max(stepOf(p.unit), roundTo(p.typical, stepOf(p.unit))), priceDate: p.priceDate, store: p.store })
+              ? addManual(l, s.pi, { pid: p.pid, name: p.name, unit: p.unit, price: p.price, dept: p.dept, category: p.category, qty: Math.max(stepOf(p.unit), roundTo(p.typical, stepOf(p.unit))), priceDate: p.priceDate, store: p.store, ...(group ? { group } : {}) })
               : addManual(l, s.pi, { name }));
+          }} />
+      )}
+      {sheet?.kind === 'catalog' && (
+        <ShoppingCatalogSheet
+          mode="add" group={sheet.group} history={history}
+          title={sheet.group === 'fruta' ? 'Frutas' : sheet.group === 'verdura' ? 'Verduras e legumes' : 'Carnes do churrasco'}
+          subtitle={`Entram em ${shortDate(list.purchases[sheet.pi].date)}`}
+          taken={list.purchases[sheet.pi].entries.map(e => e.pid)}
+          onClose={() => setSheet(null)}
+          onConfirm={ids => {
+            const s = sheet;
+            const group: Group = s.group === 'carne' ? 'churrasco' : s.group;
+            const items = resolveIds(history, ids, s.group);
+            update(l => items.reduce((acc, i) => addManual(acc, s.pi, {
+              pid: i.id, name: i.name, unit: i.unit, price: i.price, dept: i.product.dept, category: i.product.category,
+              qty: Math.max(stepOf(i.unit), roundTo(i.product.typical, stepOf(i.unit))), priceDate: i.priceDate, store: i.product.store, group,
+            }), l));
+            setSheet(null);
+            if (items.length) say(`${items.length} ${items.length === 1 ? 'item entrou' : 'itens entraram'} em ${shortDate(list.purchases[s.pi].date)}`);
           }} />
       )}
     </div>

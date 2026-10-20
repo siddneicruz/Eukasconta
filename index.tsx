@@ -2,8 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { installStorageGuard } from './services/storageGuard';
+import { installKeyboardAvoid } from './services/keyboardAvoid';
 
 installStorageGuard();
+installKeyboardAvoid();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

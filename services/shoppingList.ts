@@ -3,6 +3,7 @@ import { priceBasis } from './eggs';
 import { normalizeUnit, stripAccentsUpper } from './productPriceStats';
 import { deptKey, masterOf, properCase, titleCase } from './textFormat';
 import { localTodayIso } from './productNormalization';
+import { resolveIds, seedFrom, shuffled, weekPick } from './shoppingCatalog';
 
 /* Lista de compras.
    Tudo aqui é conta feita sobre os cupons que já estão no aparelho: nada depende de internet nem de IA.
@@ -329,6 +330,10 @@ export interface Setup {
   fruitVeg: boolean;
   fruits: number;
   veggies: number;
+  /** cardápio escolhido no catálogo (ids); vazio = automático, pelo que a pessoa mais compra */
+  fruitPool: string[];
+  veggiePool: string[];
+  meatPool: string[];
   churrasco: boolean;
   churrascoWeekday: number;
   people: number;
@@ -345,7 +350,7 @@ export const lookbackLabel = (days: number): string =>
 export const defaultSetup = (today: string, cycle = 7): Setup => ({
   mode: 'single', days: clamp(Math.round(cycle), 3, 35), weekday: weekdayOf(today), weeks: 4,
   year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)), monthDays: [],
-  min: null, max: null, fruitVeg: false, fruits: 4, veggies: 5, churrasco: false, churrascoWeekday: 6, people: 4, grams: 400, useAi: true, lookback: 0,
+  min: null, max: null, fruitVeg: false, fruits: 4, veggies: 5, fruitPool: [], veggiePool: [], meatPool: [], churrasco: false, churrascoWeekday: 6, people: 4, grams: 400, useAi: true, lookback: 0,
 });
 
 export const weeklyPurchases = (weekday: number, weeks: number, today: string): PurchasePlan[] => {
@@ -385,6 +390,7 @@ const num = (v: unknown, lo: number, hi: number, dflt: number): number => {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? clamp(n, lo, hi) : dflt;
 };
+const ids = (v: unknown): string[] => Array.isArray(v) ? Array.from(new Set(v.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 90))).slice(0, 120) : [];
 const money = (v: unknown): number | null => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
@@ -405,6 +411,7 @@ export const sanitizeSetup = (raw: any, today: string, cycle = 7): Setup => {
     monthDays: Array.isArray(raw.monthDays) ? (Array.from(new Set(raw.monthDays.map((x: unknown) => Number(x)).filter((n: number) => Number.isInteger(n) && n >= 1 && n <= 31))) as number[]).sort((a, b) => a - b) : [],
     min: money(raw.min), max: money(raw.max),
     fruitVeg: !!raw.fruitVeg, fruits: num(raw.fruits, 0, 12, d.fruits), veggies: num(raw.veggies, 0, 12, d.veggies),
+    fruitPool: ids(raw.fruitPool), veggiePool: ids(raw.veggiePool), meatPool: ids(raw.meatPool),
     churrasco: !!raw.churrasco, churrascoWeekday: num(raw.churrascoWeekday, 0, 6, d.churrascoWeekday),
     people: num(raw.people, 1, 60, d.people), grams: num(raw.grams, 100, 1000, d.grams),
     useAi: raw.useAi !== false,
@@ -450,8 +457,10 @@ export interface PlanOptions {
   purchases: PurchasePlan[];
   min?: number | null;
   max?: number | null;
-  fruitVeg?: { fruits: number; veggies: number } | null;
-  churrasco?: { weekday: number; people: number; grams: number } | null;
+  fruitVeg?: { fruits: number; veggies: number; fruitPool?: string[]; veggiePool?: string[] } | null;
+  churrasco?: { weekday: number; people: number; grams: number; pool?: string[] } | null;
+  /** semente do sorteio do cardápio escolhido (a mesma semente dá a mesma lista) */
+  seed?: number;
 }
 
 export interface PlanResult { purchases: PlanPurchase[]; cut: CutLine[]; notes: string[] }
@@ -478,7 +487,7 @@ const CLASS_NAME: Record<MeatClass, string> = { bovina: 'carne bovina', linguica
 const CLASS_SCORE: Record<MeatClass, number> = { bovina: 66, linguica: 62, frango: 60, suina: 58 };
 const DEFAULTS: Partial<Record<MeatClass, string>> = { bovina: 'Picanha', linguica: 'Linguiça toscana', frango: 'Coxa e sobrecoxa de frango' };
 
-const planChurrasco = (h: History, c: NonNullable<PlanOptions['churrasco']>, P: PurchasePlan[]) => {
+const planChurrasco = (h: History, c: NonNullable<PlanOptions['churrasco']>, P: PurchasePlan[], seed = 0) => {
   const n = P.length;
   const notes: string[] = [];
   const claimed = new Set<string>();
@@ -494,14 +503,24 @@ const planChurrasco = (h: History, c: NonNullable<PlanOptions['churrasco']>, P: 
   }
   if (!occ.length) return { rows, claimed, notes };
 
+  // cardápio escolhido pela pessoa no catálogo (pode ter carne que ela nunca comprou); sem escolha, vale o que ela já compra
+  const chosen = c.pool && c.pool.length ? resolveIds(h, c.pool, 'carne') : null;
+  const chosenExtras: Product[] = [];
   const pool: Record<MeatClass, Product[]> = { bovina: [], linguica: [], frango: [], suina: [] };
   h.longProducts.filter(p => p.meat && (p.unit === 'KG' || (p.packKg && (p.unit === 'UN' || p.unit === 'PCT')))).sort(byUse)
-    .forEach(p => { pool[p.meat!].push(p); claimed.add(p.pid); });
+    .forEach(p => { if (!chosen) pool[p.meat!].push(p); claimed.add(p.pid); });
+  if (chosen) {
+    chosen.forEach(it => {
+      claimed.add(it.id);
+      if (it.cls && it.cls !== 'extra') pool[it.cls].push(it.product); else chosenExtras.push(it.product);
+    });
+    (Object.keys(pool) as MeatClass[]).forEach(k => { pool[k] = shuffled(pool[k], seed + seedFrom(k)); });
+  }
   const hasAny = (Object.keys(pool) as MeatClass[]).some(k => pool[k].length);
-  const classes = (Object.keys(pool) as MeatClass[]).filter(k => pool[k].length || (!hasAny && DEFAULTS[k]));
+  const classes = (Object.keys(pool) as MeatClass[]).filter(k => pool[k].length || (!chosen && !hasAny && DEFAULTS[k]));
   const shareSum = classes.reduce((s, k) => s + BASE_SHARE[k], 0);
   const totalKg = Math.max(0.2, (c.people * c.grams) / 1000);
-  if (!hasAny) notes.push('Não achei carne de churrasco nos seus cupons: coloquei sugestões sem preço. Informe o valor de cada uma.');
+  if (!hasAny && !chosen) notes.push('Não achei carne de churrasco nos seus cupons: coloquei sugestões sem preço. Informe o valor de cada uma.');
 
   const labelOf = (d: string) => `churrasco ${shortDate(d)}`;
   const addTo = (key: string, make: () => Row, idx: number, qty: number, date: string) => {
@@ -529,6 +548,15 @@ const planChurrasco = (h: History, c: NonNullable<PlanOptions['churrasco']>, P: 
         }), o.idx, kg, o.date);
       }
     });
+    const alho = (p: Product) => (p.unit === 'KG' ? 0.3 : Math.max(1, Math.ceil(c.people / 3)));
+    if (chosen) {
+      // só o que a pessoa escolheu (pão de alho, queijo coalho, carvão...), em todo churrasco
+      chosenExtras.forEach(p => {
+        const qty = /PAO DE ALHO/.test(stripAccentsUpper(p.name)) ? alho(p) : p.unit === 'KG' ? Math.max(0.2, p.typical) : 1;
+        addTo(p.pid, () => rowOf(p, 'churrasco', n, 64), o.idx, qty, o.date);
+      });
+      return;
+    }
     // carvão e pão de alho, se a pessoa já comprou
     const extra = (re: RegExp, qtyOf: (p: Product) => number) => {
       const p = h.longProducts.filter(x => re.test(stripAccentsUpper(x.name))).sort(byUse)[0];
@@ -537,17 +565,18 @@ const planChurrasco = (h: History, c: NonNullable<PlanOptions['churrasco']>, P: 
       addTo(p.pid, () => rowOf(p, 'churrasco', n, 64), o.idx, qtyOf(p), o.date);
     };
     extra(/CARVAO/, () => 1);
-    extra(/PAO DE ALHO/, p => (p.unit === 'KG' ? 0.3 : Math.max(1, Math.ceil(c.people / 3))));
+    extra(/PAO DE ALHO/, alho);
   });
 
   const kinds = classes.map(k => CLASS_NAME[k]).join(', ');
-  notes.push(`Churrasco ${WEEKDAYS[c.weekday]}: ${occ.length} ${occ.length === 1 ? 'vez' : 'vezes'}, ${c.people} pessoas × ${c.grams} g (${kinds}). As carnes do churrasco saem da lista comum para não contar duas vezes.`);
+  notes.push(`Churrasco ${WEEKDAYS[c.weekday]}: ${occ.length} ${occ.length === 1 ? 'vez' : 'vezes'}, ${c.people} pessoas × ${c.grams} g (${kinds || 'sem carnes escolhidas'}). As carnes do churrasco saem da lista comum para não contar duas vezes.`);
+  if (chosen) notes.push(`Carnes do churrasco: ${chosen.length} ${chosen.length === 1 ? 'escolhida' : 'escolhidas'} por você no catálogo${chosen.some(i => !i.bought) ? '; as que você nunca comprou ficam sem preço' : ''}.`);
   return { rows, claimed, notes };
 };
 
 /* — frutas e verduras da semana — */
 
-const planFruitVeg = (h: History, fv: NonNullable<PlanOptions['fruitVeg']>, P: PurchasePlan[], seasonal: Set<string>) => {
+const planFruitVeg = (h: History, fv: NonNullable<PlanOptions['fruitVeg']>, P: PurchasePlan[], seasonal: Set<string>, seed = 0) => {
   const n = P.length;
   const rows = new Map<string, Row>();
   const notes: string[] = [];
@@ -566,13 +595,19 @@ const planFruitVeg = (h: History, fv: NonNullable<PlanOptions['fruitVeg']>, P: P
     for (let k = 0; k < take && rest.length; k++) out.push(rest[(i * take + k) % rest.length]);
     return Array.from(new Set(out));
   };
+  const chosenCount: Record<string, number> = {};
   (['fruta', 'verdura'] as const).forEach(kind => {
     const want = kind === 'fruta' ? fv.fruits : fv.veggies;
-    const pool = poolOf(kind);
+    // cardápio escolhido no catálogo: sorteia entre eles, mudando a cada semana; sem escolha, o que a pessoa mais compra
+    const ids = kind === 'fruta' ? fv.fruitPool : fv.veggiePool;
+    const chosen = ids && ids.length ? resolveIds(h, ids, kind).map(i => i.product) : null;
+    const menu = chosen ? shuffled(chosen, seed + seedFrom(kind)) : null;
+    if (menu) chosenCount[kind] = menu.length;
+    const pool = menu || poolOf(kind);
     if (want > 0 && !pool.length) notes.push(`Sem ${kind === 'fruta' ? 'frutas' : 'verduras e legumes'} nos seus cupons para sugerir.`);
     P.forEach((pl, i) => {
       const scale = clamp(pl.days / 7, 0.5, 4);
-      pick(pool, want, i).forEach(p => {
+      (menu ? weekPick(menu, want, i) : pick(pool, want, i)).forEach(p => {
         let r = rows.get(p.pid);
         if (!r) { r = rowOf(p, kind, n, 55 + Math.min(30, p.buys * 3)); rows.set(p.pid, r); }
         const step = stepOf(p.unit);
@@ -580,7 +615,12 @@ const planFruitVeg = (h: History, fv: NonNullable<PlanOptions['fruitVeg']>, P: P
       });
     });
   });
-  if (rows.size) notes.push(`Frutas e verduras: ${fv.fruits} frutas e ${fv.veggies} verduras/legumes por semana, a partir do que você mais compra${seasonal.size ? ' (as de época primeiro)' : ''}.`);
+  if (rows.size) notes.push(`Frutas e verduras: ${fv.fruits} frutas e ${fv.veggies} verduras/legumes por semana${Object.keys(chosenCount).length < 2 ? `, a partir do que você mais compra${seasonal.size ? ' (as de época primeiro)' : ''}` : ''}.`);
+  (['fruta', 'verdura'] as const).forEach(kind => {
+    const m = chosenCount[kind];
+    const want = kind === 'fruta' ? fv.fruits : fv.veggies;
+    if (m && want > 0) notes.push(`${kind === 'fruta' ? 'Frutas' : 'Verduras e legumes'}: ${m <= want ? `as ${m} que você escolheu entram em toda compra` : `sorteei ${want} a cada compra entre as ${m} que você escolheu, trocando de uma para outra`}.`);
+  });
   return { rows, notes };
 };
 
@@ -598,13 +638,13 @@ export const buildList = (h: History, opts: PlanOptions, advice: Advice = {}): P
   const aiCut: CutLine[] = [];
 
   if (opts.churrasco) {
-    const ch = planChurrasco(h, opts.churrasco, P);
+    const ch = planChurrasco(h, opts.churrasco, P, opts.seed ?? 0);
     ch.rows.forEach(r => rows.push(r));
     ch.claimed.forEach(id => claimed.add(id));
     notes.push(...ch.notes);
   }
   if (opts.fruitVeg) {
-    const fv = planFruitVeg(h, opts.fruitVeg, P, new Set(advice.seasonal || []));
+    const fv = planFruitVeg(h, opts.fruitVeg, P, new Set(advice.seasonal || []), opts.seed ?? 0);
     fv.rows.forEach(r => { if (!claimed.has(r.pid)) rows.push(r); });
     notes.push(...fv.notes);
   }
@@ -751,6 +791,8 @@ export interface ShoppingList {
   purchases: PlanPurchase[];
   cut: CutLine[];
   notes: string[];
+  /** quando a pessoa apertou "Gravar" (ou deu nome) à lista; sem isso a lista fica salva sozinha, mas ainda sem "gravar" */
+  savedAt?: number;
 }
 
 export const entryCost = (e: Entry): number => (e.price > 0 ? e.price * e.qty : 0);
@@ -819,7 +861,7 @@ export const manualPlan = (purchases: PurchasePlan[]): PlanResult => ({
 
 /** Cópia para mexer sem estragar a original: carrinho limpo e nome novo. */
 export const duplicateList = (l: ShoppingList, name: string): ShoppingList => ({
-  ...l, id: newListId(), name, createdAt: localTodayIso(),
+  ...l, id: newListId(), name, createdAt: localTodayIso(), savedAt: undefined,
   purchases: l.purchases.map(p => ({ ...p, entries: p.entries.map(e => ({ ...e, cart: false })) })),
 });
 
@@ -879,7 +921,7 @@ export const restoreCut = (l: ShoppingList, pid: string, why?: CutLine['why']): 
   return withPurchases(l, purchases, l.cut.filter(x => x !== c));
 };
 
-export const addManual = (l: ShoppingList, pi: number, item: { pid?: string; name: string; unit?: string; price?: number; dept?: string; category?: string; qty?: number; priceDate?: string; store?: string }): ShoppingList => {
+export const addManual = (l: ShoppingList, pi: number, item: { pid?: string; name: string; unit?: string; price?: number; dept?: string; category?: string; qty?: number; priceDate?: string; store?: string; group?: Group; note?: string }): ShoppingList => {
   const name = item.name.trim();
   if (!name || !l.purchases[pi]) return l;
   const pid = item.pid || `U:${name.toUpperCase()}`;
@@ -890,7 +932,7 @@ export const addManual = (l: ShoppingList, pi: number, item: { pid?: string; nam
     if (p.entries.some(e => e.pid === pid)) return { ...p, entries: p.entries.map(e => (e.pid === pid ? { ...e, qty: round3(e.qty + qty) } : e)) };
     const entry: Entry = {
       pid, name, dept: item.dept || 'Outros', category: item.category || '', unit, price: item.price && item.price > 0 ? item.price : 0,
-      priceDate: item.priceDate || '', store: item.store || '', qty, group: 'manual', cart: false,
+      priceDate: item.priceDate || '', store: item.store || '', qty, group: item.group || 'manual', cart: false, ...(item.note ? { note: item.note } : {}),
     };
     return { ...p, entries: [...p.entries, entry].sort(entryOrder) };
   });

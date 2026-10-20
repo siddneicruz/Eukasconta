@@ -43,6 +43,18 @@
         background: #09090b;
       }
 
+      /* Teclado na tela (celular): a folha sobe para o topo e cabe na parte visível (ver services/keyboardAvoid.ts) */
+      @media (pointer: coarse) and (max-width: 639px) {
+        html.kb-open [role="dialog"][aria-modal="true"] {
+          max-height: var(--kb-visible, 54dvh) !important;
+          border-radius: 1.75rem !important;
+        }
+        html.kb-open div:has(> [role="dialog"][aria-modal="true"]) {
+          align-items: flex-start !important;
+          padding-top: max(env(safe-area-inset-top), 8px) !important;
+        }
+      }
+
       /* Light Theme Overrides */
       html.light-theme body {
         background-color: #f4f4f5; /* zinc-100 */
