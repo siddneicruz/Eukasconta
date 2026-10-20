@@ -252,7 +252,7 @@ Retorne apenas o JSON, sem markdown.
 // Pergunta de texto ao provedor que a pessoa escolheu (Claude, OpenRouter ou Gemini) e devolve o JSON lido.
 // Aqui os erros sobem (chave faltando, limite, rede): quem chama mostra a mensagem em vez de fingir que não houve resposta.
 // A pergunta deve pedir um OBJETO JSON (e não uma lista solta), porque é o formato que todos os provedores devolvem bem.
-export const askAiForJson = async (prompt: string): Promise<any> => {
+export const askAiForJson = async (prompt: string, opts: { budgetMs?: number } = {}): Promise<any> => {
   const claudeKey = resolveClaudeKey();
   if (claudeKey) {
     try {
@@ -264,7 +264,7 @@ export const askAiForJson = async (prompt: string): Promise<any> => {
   }
 
   const openRouterKey = resolveOpenRouterKey();
-  if (openRouterKey) return JSON.parse(await askOpenRouterForJson(openRouterKey, prompt));
+  if (openRouterKey) return JSON.parse(await askOpenRouterForJson(openRouterKey, prompt, opts.budgetMs));
 
   const apiKey = resolveGeminiApiKey();
   if (!apiKey) throw new GeminiError('Chave de IA não configurada. Adicione a sua em Config > Chave IA.', 'AUTH', false);

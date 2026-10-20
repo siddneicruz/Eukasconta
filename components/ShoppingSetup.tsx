@@ -1,11 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { Minus, Plus, Sparkles, Wallet, CalendarDays, Apple, Beef, Loader2, AlertTriangle, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
+import { Minus, Plus, Sparkles, Wallet, CalendarDays, Apple, Beef, AlertTriangle, ChevronLeft, ChevronRight, ShoppingCart, Clock, Star, Pencil, ListPlus } from 'lucide-react';
 import {
-  Setup, History, Mode, MonthPreset, MONTHS, WEEKDAYS, WEEKDAYS_SHORT, daysInMonth, presetMonthDays, purchasesFromSetup, weekdayOf, shortDate,
+  Setup, History, Mode, MonthPreset, LOOKBACKS, MONTHS, WEEKDAYS, WEEKDAYS_SHORT, addDays, daysInMonth, lookbackLabel, presetMonthDays, purchasesFromSetup, weekdayOf, shortDate,
 } from '../services/shoppingList';
 import { brl, parseMoney, moneyText } from './ShoppingSheets';
 
 /* Formulário da lista: quando vai ao mercado, quanto quer gastar, o que mais entra (frutas e verduras, churrasco) e se a IA ajuda. */
+
+/** Como gerar: com a IA, só pelo histórico dos cupons, ou uma lista vazia para montar à mão. */
+export interface GenOptions {
+  name: string;
+  mode: 'ai' | 'history' | 'manual';
+  fromBase: boolean;
+}
 
 interface Props {
   initial: Setup;
@@ -13,10 +20,15 @@ interface Props {
   history: History;
   aiLabel: string;
   hasKey: boolean;
-  busy: string | null;
   error: string | null;
   editing: boolean;
-  onSubmit: (s: Setup) => void;
+  /** nome atual da lista (ao ajustar uma lista que já existe) */
+  initialName?: string;
+  /** a lista base, se houver uma */
+  base: { name: string } | null;
+  /** começa já marcado para partir da lista base */
+  baseDefault?: boolean;
+  onSubmit: (s: Setup, o: GenOptions) => void;
   onCancel: () => void;
 }
 
@@ -57,12 +69,14 @@ const Chip: React.FC<{ on: boolean; onClick: () => void; children: React.ReactNo
   </button>
 );
 
-const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasKey, busy, error, editing, onSubmit, onCancel }) => {
+const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasKey, error, editing, initialName = '', base, baseDefault = false, onSubmit, onCancel }) => {
   const [s, setS] = useState<Setup>(() => {
     const base: Setup = { ...initial, useAi: hasKey ? initial.useAi : false };
     if (base.mode === 'month' && !base.monthDays.length) base.monthDays = presetMonthDays('semanal', base.year, base.month, today);
     return base;
   });
+  const [name, setName] = useState(initialName);
+  const [fromBase, setFromBase] = useState(!!base && baseDefault);
   const [minTxt, setMinTxt] = useState(moneyText(initial.min));
   const [maxTxt, setMaxTxt] = useState(moneyText(initial.max));
   const patch = (p: Partial<Setup>) => setS(prev => ({ ...prev, ...p }));
@@ -72,7 +86,8 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
   const min = parseMoney(minTxt) || null;
   const max = parseMoney(maxTxt) || null;
   const budgetErr = min && max && min > max ? 'O mínimo não pode ser maior que o teto.' : null;
-  const canSubmit = !busy && purchases.length > 0 && !budgetErr;
+  const canSubmit = purchases.length > 0 && !budgetErr;
+  const useBase = !!base && fromBase;
 
   // mês: de este mês até 3 meses à frente
   const nowYm = Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7)) - 1;
@@ -94,10 +109,15 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
   const avgFor = Math.round(history.perDay * horizon);
   const modes: { id: Mode; label: string }[] = [{ id: 'single', label: 'Uma compra' }, { id: 'weekly', label: 'Por semana' }, { id: 'month', label: 'Mês' }];
 
-  const submit = () => {
+  const submit = (mode: GenOptions['mode']) => {
     if (!canSubmit) return;
-    onSubmit({ ...s, min, max, useAi: hasKey && s.useAi });
+    if (mode === 'ai' && (!hasKey || useBase)) return;
+    onSubmit({ ...s, min, max, useAi: mode === 'ai' }, { name: name.replace(/\s+/g, ' ').trim().slice(0, 60), mode, fromBase: useBase });
   };
+
+  // quantas idas ao mercado cabem em cada período (o histórico guarda até 120)
+  const lastTrip = history.trips.length ? history.trips[history.trips.length - 1].date : today;
+  const tripsIn = (days: number): number => (days === 0 ? history.tripCount : history.trips.filter(t => t.date >= addDays(lastTrip, -days)).length);
 
   return (
     <div className="space-y-3" data-testid="shop-setup">
@@ -108,6 +128,28 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
           <p className="text-[11px] text-zinc-500 leading-snug">Os preços e as quantidades saem das suas últimas compras.</p>
         </div>
       </div>
+
+      <Card icon={<Pencil className="w-4 h-4" />} title="Nome da lista" sub="Opcional. Sem nome, o app dá um e você pode trocar depois." testId="shop-name-card">
+        <label className="block">
+          <span className="sr-only">Nome da lista</span>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} maxLength={60} data-testid="shop-name" placeholder="Ex.: Compras do mês"
+            className="w-full h-12 rounded-xl bg-white/5 border border-white/10 px-3 text-[16px] text-white outline-none focus:border-luxury-gold/60 placeholder:text-zinc-500" />
+        </label>
+      </Card>
+
+      {base && (
+        <Card icon={<Star className="w-4 h-4" />} title="Ponto de partida" sub="A lista base guarda o que você sempre compra." testId="shop-base-card">
+          <div className="space-y-2" role="radiogroup" aria-label="Ponto de partida">
+            {([[false, 'Pelas minhas compras', 'O app calcula com o histórico dos cupons.'], [true, `Pela lista base: ${base.name}`, 'Os itens e as quantidades dela, ajustados aos dias desta lista.']] as [boolean, string, string][]).map(([v, label, sub]) => (
+              <button key={String(v)} type="button" role="radio" aria-checked={fromBase === v} onClick={() => setFromBase(v)} data-testid={v ? 'shop-from-base' : 'shop-from-history'}
+                className={`w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 min-h-[56px] text-left transition-colors ${fromBase === v ? 'border-luxury-gold/50 bg-luxury-gold/[0.07]' : 'border-white/10'}`}>
+                <span className={`mt-0.5 shrink-0 w-4 h-4 rounded-full border-2 ${fromBase === v ? 'border-luxury-gold bg-luxury-gold' : 'border-zinc-500'}`} />
+                <span className="min-w-0"><span className="block text-[13.5px] font-semibold text-zinc-100 leading-snug break-words">{label}</span><span className="block text-[11.5px] text-zinc-500 leading-snug">{sub}</span></span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card icon={<CalendarDays className="w-4 h-4" />} title="Quando você vai às compras?" sub={history.empty ? undefined : `Você costuma ir ao mercado a cada ${history.cycle} dias.`} testId="shop-when">
         <div className="flex p-1 gap-1 bg-white/5 rounded-xl" role="tablist" aria-label="Tipo de lista">
@@ -183,6 +225,20 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
         </p>
       </Card>
 
+      {!useBase && !history.empty && (
+        <Card icon={<Clock className="w-4 h-4" />} title="Período analisado" sub="Quanto do seu histórico entra nas contas. Um período maior pega o que você compra de vez em quando." testId="shop-lookback-card">
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Período analisado">
+            {LOOKBACKS.map(d => (
+              <button key={d} type="button" role="radio" aria-checked={s.lookback === d} onClick={() => patch({ lookback: d })} data-testid={`shop-lookback-${d}`}
+                className={`min-h-[40px] px-3.5 rounded-xl border text-[13px] font-semibold transition-colors ${s.lookback === d ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>{lookbackLabel(d)}</button>
+            ))}
+          </div>
+          <p className="text-[11.5px] text-zinc-500 mt-2 leading-snug tabular-nums" data-testid="shop-lookback-info">
+            {s.lookback === 0 ? `Automático: as últimas semanas (${tripsIn(0)} ${tripsIn(0) === 1 ? 'ida' : 'idas'} ao mercado).` : `${lookbackLabel(s.lookback) === 'Tudo' ? 'Todo o histórico' : `Últimos ${lookbackLabel(s.lookback)}`}: ${tripsIn(s.lookback)} ${tripsIn(s.lookback) === 1 ? 'ida' : 'idas'} ao mercado.`}
+          </p>
+        </Card>
+      )}
+
       <Card icon={<Wallet className="w-4 h-4" />} title="Quanto quer gastar?" sub="Opcional. A lista se ajusta aos preços das suas últimas compras." testId="shop-budget">
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
@@ -243,25 +299,46 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
         )}
       </Card>
 
-      <Card icon={<Sparkles className="w-4 h-4" />} title={`IA: ${aiLabel}`} sub="Escolhe o período de compras que melhor representa a sua casa e ajusta as quantidades. Os preços vêm sempre dos seus cupons." testId="shop-ai-card">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[13px] text-zinc-300">Usar a IA</span>
-          <Toggle on={s.useAi && hasKey} onChange={v => patch({ useAi: v })} label="Usar a IA" testId="shop-ai" disabled={!hasKey} />
-        </div>
-        {!hasKey && <p className="text-[11px] text-amber-400 mt-2 leading-snug" data-testid="shop-ai-nokey">Nenhuma chave de IA salva: a lista usa só o histórico dos cupons. Cadastre a chave em Config &gt; Chave IA.</p>}
-      </Card>
-
       {error && (
         <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/5 px-3 py-2.5 text-[12px] text-rose-300" role="alert" data-testid="shop-error"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>
       )}
-      {history.empty && (
-        <p className="text-[12px] text-amber-400 leading-snug" data-testid="shop-empty-warning">Ainda não há cupons com itens: escaneie algumas compras para a lista ter o que usar.</p>
+      {history.empty && !useBase && (
+        <p className="text-[12px] text-amber-400 leading-snug" data-testid="shop-empty-warning">Ainda não há cupons com itens: escaneie algumas compras para a lista ter o que usar. Você ainda pode criar uma lista manual.</p>
       )}
 
-      <button type="button" onClick={submit} disabled={!canSubmit || history.empty} data-testid="shop-generate"
-        className="w-full h-12 rounded-2xl bg-luxury-gold text-black text-[15px] font-bold flex items-center justify-center gap-2 disabled:opacity-40 active:opacity-80">
-        {busy ? <><Loader2 className="w-5 h-5 animate-spin" /> <span data-testid="shop-busy">{busy}</span></> : <><ShoppingCart className="w-5 h-5" /> {editing ? 'Gerar de novo' : 'Gerar lista'}</>}
-      </button>
+      <section className="space-y-2" data-testid="shop-actions">
+        {(() => {
+          const aiOk = canSubmit && hasKey && !useBase && !history.empty;
+          const histOk = canSubmit && !(history.empty && !useBase);
+          const gold = 'bg-luxury-gold text-black';
+          const outline = 'border border-white/10 text-zinc-100';
+          const base = 'w-full min-h-[52px] rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 px-4 disabled:opacity-40 active:opacity-80';
+          const histLabel = useBase ? (editing ? 'Gerar de novo pela lista base' : 'Gerar pela lista base') : (editing ? 'Gerar de novo pelo histórico' : 'Gerar pelo histórico');
+          return (
+            <>
+              <button type="button" onClick={() => submit('ai')} disabled={!aiOk} data-testid="shop-generate-ai" className={`${base} ${hasKey && !useBase ? gold : outline}`}>
+                <Sparkles className="w-5 h-5 shrink-0" /> <span className="truncate">{editing ? 'Gerar de novo com IA' : 'Gerar com IA'} ({aiLabel})</span>
+              </button>
+              <p className="text-[11px] text-zinc-500 leading-snug px-1" data-testid="shop-ai-note">
+                {!hasKey
+                  ? <span className="text-amber-400" data-testid="shop-ai-nokey">Nenhuma chave de IA salva. Cadastre em Config &gt; Chave IA para gerar com IA; sem ela, use o histórico dos cupons.</span>
+                  : useBase
+                    ? 'Com a lista base a IA não entra: as quantidades já vêm dela.'
+                    : 'A IA escolhe o período e ajusta as quantidades; os preços vêm dos seus cupons. Se ela demorar ou falhar, a lista sai só pelo histórico.'}
+              </p>
+              <button type="button" onClick={() => submit('history')} disabled={!histOk} data-testid="shop-generate" className={`${base} ${hasKey && !useBase ? outline : gold}`}>
+                <ShoppingCart className="w-5 h-5 shrink-0" /> <span className="truncate">{histLabel}</span>
+              </button>
+              {!editing && (
+                <button type="button" onClick={() => submit('manual')} disabled={!canSubmit} data-testid="shop-manual" className={`${base} ${outline}`}>
+                  <ListPlus className="w-5 h-5 shrink-0" /> Criar lista manual
+                </button>
+              )}
+              {!editing && <p className="text-[11px] text-zinc-500 leading-snug px-1">Manual: uma lista vazia com as datas acima, para você adicionar os itens do seu jeito.</p>}
+            </>
+          );
+        })()}
+      </section>
     </div>
   );
 };

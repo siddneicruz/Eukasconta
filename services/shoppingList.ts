@@ -238,6 +238,7 @@ export interface AnalyzeOpts {
   today?: string;
   window?: { from?: string; to?: string };   // período que a IA (ou a pessoa) escolheu
   cycle?: number;
+  lookbackDays?: number;                     // período maior escolhido pela pessoa (a partir da última ida ao mercado)
 }
 
 /** Olha os cupons e descobre: quando a pessoa vai ao mercado, de quantos em quantos dias, e quanto de cada produto ela consome. */
@@ -266,13 +267,13 @@ export const analyzeHistory = (receipts: Receipt[], masters: MasterProduct[] = [
   const cycle = clamp(Math.round(o.cycle && o.cycle > 0 ? o.cycle : measured), 3, 35);
 
   let to = tripDays[tripDays.length - 1];
-  let from = addDays(to, -Math.max(56, cycle * 6));
+  let from = addDays(to, -Math.max(56, cycle * 6, o.lookbackDays && o.lookbackDays > 0 ? o.lookbackDays : 0));
   if (o.window?.to && isIso(o.window.to)) to = o.window.to > today ? today : o.window.to;
   if (o.window?.from && isIso(o.window.from)) from = o.window.from;
   let inWin = tripDays.filter(d => d >= from && d <= to);
   if (!inWin.length) {                                   // período que a IA propôs sem nenhuma ida: volta ao padrão
     to = tripDays[tripDays.length - 1];
-    from = addDays(to, -Math.max(56, cycle * 6));
+    from = addDays(to, -Math.max(56, cycle * 6, o.lookbackDays && o.lookbackDays > 0 ? o.lookbackDays : 0));
     inWin = tripDays.filter(d => d >= from && d <= to);
   }
   const fromTrip = inWin[0];
@@ -285,7 +286,7 @@ export const analyzeHistory = (receipts: Receipt[], masters: MasterProduct[] = [
   const firstDate = allDates[0];
   const longSpan = Math.max(60, Math.min(365, diffDays(firstDate, today) + 1));
 
-  const trips: TripInfo[] = tripDays.slice(-60).map(d => {
+  const trips: TripInfo[] = tripDays.slice(-120).map(d => {
     const g = byDate.get(d)!;
     return { date: d, stores: Array.from(g.stores), items: g.n, spend: Math.round(g.spend * 100) / 100 };
   });
@@ -333,12 +334,18 @@ export interface Setup {
   people: number;
   grams: number;              // carne por pessoa, em gramas
   useAi: boolean;
+  lookback: number;           // período analisado: 0 = automático (últimas semanas); senão, dias para trás a partir da última compra
 }
+
+/** Períodos de análise que a pessoa pode escolher (em dias; 0 = automático, 3650 = todo o histórico). */
+export const LOOKBACKS = [0, 90, 180, 365, 3650];
+export const lookbackLabel = (days: number): string =>
+  days === 0 ? 'Automático' : days >= 3650 ? 'Tudo' : days === 90 ? '3 meses' : days === 180 ? '6 meses' : days === 365 ? '12 meses' : `${days} dias`;
 
 export const defaultSetup = (today: string, cycle = 7): Setup => ({
   mode: 'single', days: clamp(Math.round(cycle), 3, 35), weekday: weekdayOf(today), weeks: 4,
   year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)), monthDays: [],
-  min: null, max: null, fruitVeg: false, fruits: 4, veggies: 5, churrasco: false, churrascoWeekday: 6, people: 4, grams: 400, useAi: true,
+  min: null, max: null, fruitVeg: false, fruits: 4, veggies: 5, churrasco: false, churrascoWeekday: 6, people: 4, grams: 400, useAi: true, lookback: 0,
 });
 
 export const weeklyPurchases = (weekday: number, weeks: number, today: string): PurchasePlan[] => {
@@ -401,6 +408,7 @@ export const sanitizeSetup = (raw: any, today: string, cycle = 7): Setup => {
     churrasco: !!raw.churrasco, churrascoWeekday: num(raw.churrascoWeekday, 0, 6, d.churrascoWeekday),
     people: num(raw.people, 1, 60, d.people), grams: num(raw.grams, 100, 1000, d.grams),
     useAi: raw.useAi !== false,
+    lookback: LOOKBACKS.includes(Number(raw.lookback)) ? Number(raw.lookback) : 0,
   };
 };
 
@@ -726,6 +734,12 @@ export interface BaseInfo {
   aiLabel?: string;
   note?: string;
   aiError?: string;
+  /** lista feita à mão: sem histórico por trás */
+  manual?: boolean;
+  /** nome da lista base de onde partiu */
+  base?: string;
+  /** período analisado escolhido (dias; 0 = automático) */
+  lookback?: number;
 }
 
 export interface ShoppingList {
@@ -761,6 +775,53 @@ export const listName = (s: Setup, purchases: PlanPurchase[]): string => {
   if (s.mode === 'weekly') return `Compras de ${purchases.length} ${purchases.length === 1 ? 'semana' : 'semanas'}`;
   return `Compra de ${shortDate(purchases[0]?.date || localTodayIso())}`;
 };
+
+/** Os produtos da lista base como se fossem o consumo da pessoa: o ritmo vem das quantidades da base e o preço, do último cupom. */
+export const baseProducts = (h: History, base: Pick<ShoppingList, 'purchases'>): Product[] => {
+  const days = base.purchases.reduce((n, p) => n + Math.max(1, p.days), 0) || 1;
+  const first = new Map<string, Entry>();
+  const sum = new Map<string, number>();
+  base.purchases.forEach(p => p.entries.forEach(e => {
+    if (e.group !== 'regular' && e.group !== 'manual') return;   // frutas, verduras e churrasco têm as próprias opções
+    sum.set(e.pid, (sum.get(e.pid) || 0) + e.qty);
+    if (!first.has(e.pid)) first.set(e.pid, e);
+  }));
+  const known = new Map<string, Product>();
+  h.longProducts.forEach(p => known.set(p.pid, p));
+  h.products.forEach(p => known.set(p.pid, p));
+  const out: Product[] = [];
+  sum.forEach((q, pid) => {
+    const e = first.get(pid)!;
+    const rate = q / days;
+    const k = known.get(pid);
+    if (k && k.unit === e.unit) {
+      out.push({ ...k, rate, buys: Math.max(2, k.buys), freq: Math.max(k.freq, 0.5), score: 100 + k.score / 100 });
+    } else {
+      out.push({
+        pid, name: e.name, dept: e.dept, category: e.category, unit: e.unit, price: e.price, priceDate: e.priceDate, store: e.store,
+        buys: 2, qty: q, typical: q / Math.max(1, base.purchases.length), rate, freq: 0.5, gap: null, daysSince: 0,
+        lastDate: e.priceDate || h.today, kind: kindOf(e.category), meat: null, packKg: null, score: 100,
+      });
+    }
+  });
+  return out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'pt-BR'));
+};
+
+/** O histórico trocado pelo consumo da lista base: a lista nova sai com os itens dela, nas quantidades certas para os dias novos. */
+export const withBase = (h: History, base: Pick<ShoppingList, 'purchases'>): History => ({ ...h, products: baseProducts(h, base) });
+
+/** Lista vazia, para a pessoa montar à mão. */
+export const manualPlan = (purchases: PurchasePlan[]): PlanResult => ({
+  purchases: purchases.map((p, i) => ({ id: `p${i + 1}`, date: p.date, days: p.days, entries: [] })),
+  cut: [],
+  notes: [],
+});
+
+/** Cópia para mexer sem estragar a original: carrinho limpo e nome novo. */
+export const duplicateList = (l: ShoppingList, name: string): ShoppingList => ({
+  ...l, id: newListId(), name, createdAt: localTodayIso(),
+  purchases: l.purchases.map(p => ({ ...p, entries: p.entries.map(e => ({ ...e, cart: false })) })),
+});
 
 /* — mexer na lista (sempre devolve uma lista nova) — */
 

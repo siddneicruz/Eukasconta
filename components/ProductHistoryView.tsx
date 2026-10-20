@@ -198,7 +198,7 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
               <History className="w-5 h-5 text-luxury-gold" />
               <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Histórico do Grupo: {subCategoryName.split(' - ')[1]}</h3>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
               {filteredContextReceipts.slice(0, 15).map((receipt) => {
                   const subTotal = receipt.items
                     .filter(i => i.category === subCategoryName)

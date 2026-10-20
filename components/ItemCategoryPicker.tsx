@@ -11,13 +11,17 @@ import { buildAlignIndex, inStructure, resolveCategory, structureKeys } from '..
 const ItemCategoryPicker: React.FC<{
   category: string;
   description: string;
+  /** todas as descrições a que a escolha vale (um produto reúne vários nomes do cupom); sem isto, só `description` */
+  descriptions?: string[];
   /** nomes de categoria que o app usa ("Departamento - Categoria") */
   categories: string[];
   /** a categoria do item mudou (ou foi escolhida de novo) */
   onPick: (category: string) => void;
   testId?: string;
   autoFocus?: boolean;
-}> = ({ category, description, categories, onPick, testId = 'item-cat', autoFocus = false }) => {
+  /** lista de muitos itens: não repete a frase "Agora: ..." em cada um (o aviso de fixação continua) */
+  compact?: boolean;
+}> = ({ category, description, descriptions, categories, onPick, testId = 'item-cat', autoFocus = false, compact = false }) => {
   const layers = useLayers();
   const taxonomy = useTaxonomy();
   const options = useMemo(() => pickOptions(taxonomy, layers), [taxonomy, layers]);
@@ -44,13 +48,15 @@ const ItemCategoryPicker: React.FC<{
   const choose = (id: string) => {
     const r = resolvePick(id, options, categories, layers);
     if (!r) return;
-    if (description.trim()) saveLayerPin(r.category, description, r.pin);
+    const all = descriptions && descriptions.length ? descriptions : [description];
+    all.forEach(d => { if (d.trim()) saveLayerPin(r.category, d, r.pin); });
     onPick(r.category);
   };
 
+  const many = !!descriptions && descriptions.length > 1;
   const hint = cur.pinned
-    ? `Fixado em ${cur.now ?? restText()}, para todas as compras de “${description.trim()}”.`
-    : cur.now ? `Agora: ${cur.now}. Escolha um grupo ou item para fixar esta descrição.` : '';
+    ? `Fixado em ${cur.now ?? restText()}, para ${many ? 'todas as compras deste produto' : `todas as compras de “${description.trim()}”`}.`
+    : cur.now && !compact ? `Agora: ${cur.now}. Escolha um grupo ou item para fixar ${many ? 'este produto' : 'esta descrição'}.` : '';
 
   return (
     <div ref={wrap} data-testid={testId}

@@ -4,6 +4,7 @@ import { ShoppingList, Setup, sanitizeSetup, isIso } from './shoppingList';
 
 export const SHOPPING_KEY = 'eukasconta_shopping_lists';
 export const SHOPPING_SETUP_KEY = 'eukasconta_shopping_setup';
+export const SHOPPING_BASE_KEY = 'eukasconta_shopping_base';
 
 const validList = (l: any): l is ShoppingList =>
   !!l && typeof l === 'object' && typeof l.id === 'string' && Array.isArray(l.purchases) && l.purchases.length > 0
@@ -35,4 +36,16 @@ export const loadSetup = (today: string, cycle = 7): Setup => {
 
 export const saveSetup = (s: Setup): void => {
   try { localStorage.setItem(SHOPPING_SETUP_KEY, JSON.stringify(s)); } catch { /* ignora */ }
+};
+
+/** Qual lista é a base (ponto de partida das listas novas). */
+export const loadBaseId = (): string | null => {
+  try { return localStorage.getItem(SHOPPING_BASE_KEY) || null; } catch { return null; }
+};
+
+export const saveBaseId = (id: string | null): void => {
+  try {
+    if (id) localStorage.setItem(SHOPPING_BASE_KEY, id);
+    else localStorage.removeItem(SHOPPING_BASE_KEY);
+  } catch { /* ignora */ }
 };

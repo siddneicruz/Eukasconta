@@ -1,6 +1,9 @@
 import { Receipt, MasterProduct } from '../types';
 import { askAiForJson } from './geminiService';
 import { Advice, BaseInfo, History, PurchasePlan, analyzeHistory, diffDays, isIso, roundTo, shortDate, stepOf, unitLabel } from './shoppingList';
+import { Emit, StepId, secs } from './shoppingProgress';
+import { getActiveProvider, getUserApiKey } from './keyStorageService';
+import { testOpenRouterKey } from './openrouterService';
 
 /* A IA escolhida pela pessoa (Gemini, Claude, OpenRouter...) opina em duas perguntas curtas:
    1) Em qual período de compras vale se basear? (tira festas, viagens, compras fora do comum e diz de quantos em quantos dias se vai ao mercado)
@@ -8,7 +11,7 @@ import { Advice, BaseInfo, History, PurchasePlan, analyzeHistory, diffDays, isIs
    A IA só sugere. Tudo que ela devolve passa por trava (datas dentro do histórico, quantidade limitada ao que a pessoa já comprou)
    e a lista continua sendo montada pelas contas locais, então sem IA ou com a IA fora do ar a lista sai igual, só que sem o refino. */
 
-export type Ask = (prompt: string) => Promise<any>;
+export type Ask = (prompt: string, opts?: { budgetMs?: number }) => Promise<any>;
 
 /** Os provedores devolvem o erro como um JSON inteiro; aqui sobra só a frase. */
 export const errorText = (err: any): string => {
@@ -24,11 +27,13 @@ const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2).replace('.',
 
 /* ───────────────────────── 1) período ───────────────────────── */
 
-export const buildPeriodPrompt = (h: History): string => `Você ajuda um app de gastos pessoais no Brasil a montar a lista de compras do mercado.
+export const buildPeriodPrompt = (h: History, fixed = false): string => `Você ajuda um app de gastos pessoais no Brasil a montar a lista de compras do mercado.
 Abaixo estão as idas ao mercado da pessoa (data, lojas, número de itens, gasto). Hoje é ${h.today}.
 
 Descubra:
-1. O PERÍODO de compras que melhor representa o consumo normal da casa para basear a próxima lista. Deixe de fora idas fora do comum (festa, viagem, compra gigante de estoque, feriado) e dados velhos demais. Use de 4 a 12 idas seguidas quando houver.
+1. ${fixed
+  ? `O período já foi escolhido pela pessoa (${h.window.from} a ${h.window.to}). Repita-o em "periodo", sem mudar.`
+  : 'O PERÍODO de compras que melhor representa o consumo normal da casa para basear a próxima lista. Deixe de fora idas fora do comum (festa, viagem, compra gigante de estoque, feriado) e dados velhos demais. Use de 4 a 12 idas seguidas quando houver.'}
 2. De quantos em quantos DIAS a pessoa costuma ir ao mercado nesse período (número inteiro entre 3 e 35).
 
 IDAS:
@@ -136,35 +141,169 @@ export interface Consulted {
   info: Pick<BaseInfo, 'source' | 'note' | 'aiError'>;
 }
 
-/** Roda as duas perguntas. Qualquer falha devolve o que já deu certo e a mensagem do erro (a lista sai pelas contas locais). */
+/** Quanto esperar a IA em cada etapa. Os modelos grátis às vezes ficam minutos na fila: melhor seguir sem ela do que travar. */
+export interface Limits { connectMs: number; periodMs: number; itemsMs: number }
+export const DEFAULT_LIMITS: Limits = { connectMs: 8_000, periodMs: 50_000, itemsMs: 90_000 };
+
+class Stop extends Error {
+  constructor(public kind: 'skip' | 'timeout', message: string) { super(message); }
+}
+
+/** Espera `p` por no máximo `ms`; `skip` (o toque em "Seguir sem a IA") encerra a espera na hora. */
+const limited = <T>(p: Promise<T>, ms: number, skip: Promise<void> | undefined, what: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Stop('timeout', `${what} não respondeu em ${secs(ms)}.`)), ms);
+    skip?.then(() => { clearTimeout(timer); reject(new Stop('skip', 'Você pediu para seguir sem a IA.')); });
+    p.then(v => { clearTimeout(timer); resolve(v); }, e => { clearTimeout(timer); reject(e); });
+  });
+
+export interface Link { ok: boolean; message: string }
+
+/** Confere a ligação com o provedor escolhido. No OpenRouter consulta a chave (não gasta pedido grátis); nos demais, vê se há chave. */
+export const checkLink = async (): Promise<Link> => {
+  const provider = getActiveProvider();
+  const key = getUserApiKey(provider);
+  if (!key) return { ok: false, message: 'Nenhuma chave de IA salva. Adicione em Config > Chave IA.' };
+  if (provider === 'openrouter') return testOpenRouterKey(key);
+  if (provider === 'anthropic') return { ok: true, message: 'Chave do Claude encontrada.' };
+  if (provider === 'gemini') return { ok: true, message: 'Chave do Gemini encontrada.' };
+  return { ok: false, message: 'Este provedor ainda não faz a lista. Escolha Claude, Gemini ou OpenRouter em Config > Chave IA.' };
+};
+
+export const describeHistory = (h: History): string =>
+  `${h.tripCount} ${h.tripCount === 1 ? 'ida ao mercado' : 'idas ao mercado'} de ${shortDate(h.window.from)} a ${shortDate(h.window.to)} · ciclo de ${h.cycle} dias · ${h.products.length} produtos`;
+
+export interface ConsultOptions {
+  today?: string;
+  ask?: Ask;
+  /** conferência da ligação (os testes trocam por uma falsa) */
+  link?: () => Promise<Link>;
+  /** andamento para o painel */
+  emit?: Emit;
+  /** resolve quando a pessoa toca em "Seguir sem a IA" */
+  skip?: Promise<void>;
+  limits?: Partial<Limits>;
+  /** rótulo do provedor para as frases do registro */
+  label?: string;
+  /** período maior escolhido pela pessoa (dias): a IA não o encurta, só diz o ritmo */
+  lookbackDays?: number;
+}
+
+/** Roda as etapas da IA, contando cada passo no painel. Qualquer falha devolve o que já deu certo e a mensagem do erro (a lista sai pelas contas locais). */
 export const consultAi = async (
   receipts: Receipt[],
   masters: MasterProduct[],
   ctx: ItemsContext,
-  opts: { today?: string; ask?: Ask } = {},
+  opts: ConsultOptions = {},
 ): Promise<Consulted> => {
   const ask = opts.ask || askAiForJson;
-  let history = analyzeHistory(receipts, masters, { today: opts.today });
+  const link = opts.link || checkLink;
+  const label = opts.label || 'a IA';
+  const lim: Limits = { ...DEFAULT_LIMITS, ...(opts.limits || {}) };
+  const emit: Emit = opts.emit || (() => {});
+  const step = (id: StepId, status: 'run' | 'done' | 'skip' | 'fail', detail?: string) => emit({ kind: 'step', step: id, status, detail });
+  const log = (text: string) => emit({ kind: 'log', text });
+  const skipAll = (from: 'conexao' | 'periodo' | 'itens', why: string) => {
+    const order = ['conexao', 'periodo', 'itens'] as const;
+    order.slice(order.indexOf(from)).forEach(id => step(id, 'skip', why));
+  };
+
+  const fixed = !!opts.lookbackDays && opts.lookbackDays > 0;
+  let history = analyzeHistory(receipts, masters, { today: opts.today, lookbackDays: opts.lookbackDays });
   const out: Consulted = { history, advice: {}, info: { source: 'historico' } };
   if (history.empty) return out;
 
+  /* 1) ligação */
+  step('conexao', 'run');
+  log(`Conectando a ${label}…`);
+  const t0 = Date.now();
   try {
-    const pa = parsePeriodAnswer(await ask(buildPeriodPrompt(history)), history);
-    if (pa.window || pa.cycle) {
-      history = analyzeHistory(receipts, masters, { today: opts.today, window: pa.window, cycle: pa.cycle });
+    const lk = await limited(link(), lim.connectMs, opts.skip, label);
+    if (!lk.ok) {
+      step('conexao', 'fail', lk.message);
+      log(`Sem ligação com ${label}: ${lk.message}`);
+      out.info = { source: 'historico', aiError: lk.message };
+      step('analise', 'run'); log('Analisando suas compras…');
+      step('analise', 'done', describeHistory(history)); log(describeHistory(history));
+      skipAll('periodo', 'Sem ligação com a IA');
+      return out;
+    }
+    step('conexao', 'done', lk.message);
+    log(`${label}: ${lk.message}`);
+  } catch (err: any) {
+    if (err instanceof Stop && err.kind === 'skip') {
+      step('conexao', 'skip', 'Seguindo sem a IA');
+      log('Você pediu para seguir sem a IA.');
+      step('analise', 'run'); step('analise', 'done', describeHistory(history)); log(describeHistory(history));
+      skipAll('periodo', 'Seguindo sem a IA');
+      return out;
+    }
+    // sem resposta da conferência: segue e tenta a consulta mesmo assim (ela tem o próprio limite)
+    step('conexao', 'done', 'Sem resposta rápida; tentando mesmo assim');
+    log(`${label} demorou a responder à conferência (${secs(Date.now() - t0)}). Tentando mesmo assim.`);
+  }
+
+  /* 2) análise das compras */
+  step('analise', 'run');
+  log('Analisando suas compras…');
+  step('analise', 'done', describeHistory(history));
+  log(describeHistory(history));
+
+  /* 3) período */
+  step('periodo', 'run');
+  log(`Enviando as ${history.trips.length} idas ao mercado para ${label} escolher o período…`);
+  const t1 = Date.now();
+  try {
+    const pa = parsePeriodAnswer(await limited(ask(buildPeriodPrompt(history, fixed), { budgetMs: lim.periodMs }), lim.periodMs, opts.skip, label), history);
+    if ((!fixed && pa.window) || pa.cycle) {
+      history = analyzeHistory(receipts, masters, { today: opts.today, window: fixed ? undefined : pa.window, cycle: pa.cycle, lookbackDays: opts.lookbackDays });
       out.history = history;
     }
     out.info = { source: 'ia', note: pa.note || undefined };
+    const what = fixed ? `o período que você escolheu (${shortDate(history.window.from)} a ${shortDate(history.window.to)})` : pa.window ? `${shortDate(history.window.from)} a ${shortDate(history.window.to)}` : 'o período já usado';
+    step('periodo', 'done', `${what} · ciclo de ${history.cycle} dias`);
+    log(`${label} respondeu em ${secs(Date.now() - t1)}: ${what}, ciclo de ${history.cycle} dias${pa.note ? ` — ${pa.note}` : ''}`);
   } catch (err: any) {
-    out.info = { source: 'historico', aiError: errorText(err) };
+    if (err instanceof Stop && err.kind === 'skip') {
+      step('periodo', 'skip', 'Seguindo sem a IA');
+      log('Você pediu para seguir sem a IA.');
+      skipAll('itens', 'Seguindo sem a IA');
+      return out;
+    }
+    const msg = err instanceof Stop ? err.message : errorText(err);
+    out.info = { source: 'historico', aiError: msg };
+    step('periodo', 'fail', msg);
+    log(`Falhou depois de ${secs(Date.now() - t1)}: ${msg}`);
+    log('Sigo só com as suas compras.');
+    skipAll('itens', 'A IA não respondeu');
     return out;
   }
 
+  /* 4) itens */
+  step('itens', 'run');
+  const ip = buildItemsPrompt(history, ctx);
+  log(`Enviando ${ip.ids.size} produtos para ${label} revisar as quantidades…`);
+  const t2 = Date.now();
   try {
-    const ip = buildItemsPrompt(history, ctx);
-    out.advice = parseItemsAnswer(await ask(ip.text), ip.ids);
+    out.advice = parseItemsAnswer(await limited(ask(ip.text, { budgetMs: lim.itemsMs }), lim.itemsMs, opts.skip, label), ip.ids);
+    const adj = Object.values(out.advice.items || {});
+    const changed = adj.filter(a => a.qty != null).length;
+    const dropped = adj.filter(a => a.drop != null).length;
+    const season = (out.advice.seasonal || []).length;
+    const parts = [`${changed} ${changed === 1 ? 'quantidade ajustada' : 'quantidades ajustadas'}`, `${dropped} ${dropped === 1 ? 'item fora' : 'itens fora'} da lista`];
+    if (ctx.fruitVeg) parts.push(`${season} ${season === 1 ? 'fruta/verdura de época' : 'frutas/verduras de época'}`);
+    step('itens', 'done', parts.join(' · '));
+    log(`${label} respondeu em ${secs(Date.now() - t2)}: ${parts.join(', ')}.`);
   } catch (err: any) {
-    out.info = { ...out.info, aiError: `A IA definiu o período, mas não refinou os itens: ${errorText(err)}` };
+    if (err instanceof Stop && err.kind === 'skip') {
+      step('itens', 'skip', 'Seguindo sem a IA');
+      log('Você pediu para seguir sem a IA. Fica o período que ela escolheu.');
+      return out;
+    }
+    const msg = err instanceof Stop ? err.message : errorText(err);
+    out.info = { ...out.info, aiError: `A IA definiu o período, mas não refinou os itens: ${msg}` };
+    step('itens', 'fail', msg);
+    log(`Falhou depois de ${secs(Date.now() - t2)}: ${msg}`);
   }
   return out;
 };

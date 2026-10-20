@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Minus, Plus, Search, Check, Trash2 } from 'lucide-react';
+import { X, Minus, Plus, Search, Check, Trash2, Pencil, Copy, Star } from 'lucide-react';
 import { Entry, History, LineCheck, Product, findProducts, fmtQty, round3, stepOf, unitLabel } from '../services/shoppingList';
 
 /* Folhas da lista de compras: editar um item, adicionar item do histórico e confirmar. */
@@ -166,3 +166,60 @@ export const ConfirmSheet: React.FC<{ title: string; message: string; confirmLab
     </div>
   </Sheet>
 );
+
+/* ───────────────────────── renomear ───────────────────────── */
+
+export const RenameSheet: React.FC<{ name: string; onSave: (name: string) => void; onClose: () => void }> = ({ name, onSave, onClose }) => {
+  const [txt, setTxt] = useState(name);
+  const clean = txt.replace(/\s+/g, ' ').trim();
+  const save = () => { if (clean) onSave(clean.slice(0, 60)); };
+  return (
+    <Sheet title="Nome da lista" subtitle="Dê um nome para achar esta lista depois." onClose={onClose} testId="shop-rename-sheet">
+      <label className="block">
+        <span className="sr-only">Nome da lista</span>
+        <input type="text" value={txt} onChange={e => setTxt(e.target.value)} maxLength={60} autoFocus data-testid="shop-rename-input"
+          onKeyDown={e => { if (e.key === 'Enter') save(); }}
+          placeholder="Ex.: Compras do mês"
+          className="w-full h-12 rounded-xl bg-white/5 border border-white/10 px-3 text-[16px] text-white outline-none focus:border-luxury-gold/60 placeholder:text-zinc-500" />
+      </label>
+      <div className="grid grid-cols-2 gap-2 mt-4 mb-2">
+        <button type="button" onClick={onClose} className="h-12 rounded-xl border border-white/10 text-zinc-300 text-[14px] font-semibold">Cancelar</button>
+        <button type="button" onClick={save} disabled={!clean} data-testid="shop-rename-save" className="h-12 rounded-xl bg-luxury-gold text-black text-[14px] font-bold disabled:opacity-40 active:opacity-80">Salvar</button>
+      </div>
+    </Sheet>
+  );
+};
+
+/* ───────────────────────── menu da lista ───────────────────────── */
+
+export const ListMenuSheet: React.FC<{
+  name: string;
+  isBase: boolean;
+  onRename: () => void;
+  onDuplicate: () => void;
+  onToggleBase: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}> = ({ name, isBase, onRename, onDuplicate, onToggleBase, onDelete, onClose }) => {
+  const Row: React.FC<{ icon: React.ReactNode; label: string; sub?: string; onClick: () => void; testId: string; danger?: boolean }> = ({ icon, label, sub, onClick, testId, danger }) => (
+    <button type="button" onClick={onClick} data-testid={testId}
+      className={`w-full flex items-center gap-3 min-h-[56px] px-2 rounded-xl text-left active:bg-white/5 ${danger ? 'text-rose-400' : 'text-zinc-100'}`}>
+      <span className={`shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center ${danger ? 'border-rose-500/30' : 'border-white/10 text-luxury-gold'}`}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-semibold leading-tight">{label}</span>
+        {sub && <span className="block text-[11.5px] text-zinc-500 leading-snug mt-0.5">{sub}</span>}
+      </span>
+    </button>
+  );
+  return (
+    <Sheet title={name} onClose={onClose} testId="shop-menu-sheet">
+      <div className="space-y-0.5 mb-2">
+        <Row icon={<Pencil className="w-4 h-4" />} label="Renomear" onClick={onRename} testId="shop-menu-rename" />
+        <Row icon={<Copy className="w-4 h-4" />} label="Duplicar" sub="Uma cópia com o carrinho vazio." onClick={onDuplicate} testId="shop-menu-duplicate" />
+        <Row icon={<Star className={`w-4 h-4 ${isBase ? 'fill-current' : ''}`} />} label={isBase ? 'Tirar de lista base' : 'Usar como lista base'}
+          sub={isBase ? 'As listas novas deixam de partir dela.' : 'As listas novas podem partir dos itens desta.'} onClick={onToggleBase} testId="shop-menu-base" />
+        <Row icon={<Trash2 className="w-4 h-4" />} label="Apagar lista" sub="Só a lista some. Cupons e histórico ficam." onClick={onDelete} testId="shop-menu-delete" danger />
+      </div>
+    </Sheet>
+  );
+};

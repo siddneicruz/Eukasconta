@@ -10,6 +10,7 @@ import { fold, queryTokens } from '../services/itemSearch';
 import { buildProductGroups, suggestClusters, ProductGroup, DupCluster } from '../services/productUnify';
 import { ProductUnifySheet, ProductDupSheet, UnifyPlan } from './ProductUnifySheet';
 import CategoryFixSheet from './CategoryFixSheet';
+import ItemCategoryPicker from './ItemCategoryPicker';
 import { suggestCategoryFixes } from '../services/categoryRules';
 import ProductCodesPanel, { StoreOption } from './ProductCodesPanel';
 import { CodeOp, codesOf } from '../services/productCodes';
@@ -225,20 +226,20 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
         });
     };
 
+    // Categoria pela mesma árvore com busca das outras telas; escolher grupo/item fixa todos os nomes do produto nele
     const categorySelect = (g: ProductGroup) => (
-        <label className="block mt-3">
+        <div className="mt-3" data-testid="prod-cat-wrap">
             <span className="sr-only">Categoria de {titleCase(g.name)}</span>
-            <select
-                value={g.category}
-                onChange={(e) => handleInitiateChange(g, e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-[13px] text-zinc-200 focus:border-luxury-gold/50 outline-none cursor-pointer font-medium truncate"
-            >
-                {!categoriesList.includes(g.category) && <option value={g.category}>{g.category} (fora da Estrutura)</option>}
-                {categoriesList.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                ))}
-            </select>
-        </label>
+            <ItemCategoryPicker
+                category={g.category}
+                description={g.descs[0]?.desc || g.name}
+                descriptions={g.descs.map(d => d.desc)}
+                categories={categoriesList}
+                onPick={(c) => handleInitiateChange(g, c)}
+                testId="prod-cat"
+                compact
+            />
+        </div>
     );
 
     return (

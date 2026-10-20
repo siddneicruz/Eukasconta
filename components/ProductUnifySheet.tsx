@@ -3,6 +3,7 @@ import { Merge, X, Sparkles } from 'lucide-react';
 import { ProductGroup, DupCluster } from '../services/productUnify';
 import { fold } from '../services/itemSearch';
 import { titleCase } from '../services/textFormat';
+import ItemCategoryPicker from './ItemCategoryPicker';
 
 /* Duas folhas de baixo para cima:
    - ProductUnifySheet: confirma a unificação (qual nome fica, em que categoria, quem entra).
@@ -62,6 +63,7 @@ export const ProductUnifySheet: React.FC<UnifyProps> = ({ groups, categories, on
 
   // categoria: a mais comprada entre as marcadas, até a pessoa escolher outra
   const [catPick, setCatPick] = useState('');
+  const [catFocus, setCatFocus] = useState(false);
   const topCategory = useMemo(() => {
     const votes = new Map<string, number>();
     checked.forEach(g => g.descs.forEach(d => votes.set(d.category, (votes.get(d.category) || 0) + d.count)));
@@ -70,7 +72,7 @@ export const ProductUnifySheet: React.FC<UnifyProps> = ({ groups, categories, on
     return best || checked[0]?.category || 'Outros';
   }, [checked]);
   const category = catPick || topCategory;
-  const categoryList = categories.includes(category) ? categories : [category, ...categories];
+  const allDescs = useMemo(() => checked.flatMap(g => g.descs.map(d => d.desc)), [checked]);
 
   const totals = useMemo(() => ({
     names: checked.reduce((s, g) => s + g.descs.length, 0),
@@ -140,13 +142,14 @@ export const ProductUnifySheet: React.FC<UnifyProps> = ({ groups, categories, on
             </div>
           </section>
 
-          <section>
+          <section onFocusCapture={() => setCatFocus(true)}
+            onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setCatFocus(false); }}>
             <h4 className="text-xs font-semibold text-zinc-400 mb-2 px-1">Categoria</h4>
-            <select value={category} onChange={e => setCatPick(e.target.value)} data-testid="unify-category"
-              className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-3 text-[13px] text-zinc-200 focus:border-luxury-gold/50 outline-none font-medium">
-              {categoryList.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <ItemCategoryPicker category={category} description={allDescs[0] || ''} descriptions={allDescs}
+              categories={categories} onPick={setCatPick} testId="unify-category" compact />
             <p className="text-xs text-zinc-500 mt-1.5 px-1">Todas as compras desses itens passam para esta categoria.</p>
+            {/* a lista de categorias abre por cima do que vem depois; este espaço dá onde rolar para vê-la inteira */}
+            {catFocus && <div aria-hidden="true" className="h-80" />}
           </section>
         </div>
 

@@ -765,9 +765,9 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                    />
                </div>
           </div>
-      <div className="lg:col-span-6 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-8 shadow-2xl relative overflow-hidden group flex flex-col">
+      <div className="lg:col-span-6 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-80 h-80 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-blue-500/10 transition-all duration-1000" />
-          <div className="flex justify-between items-center mb-6 relative z-10">
+          <div className="flex justify-between items-center mb-2 md:mb-6 relative z-10">
               <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Estabelecimento</h3>
               {config.establishment && (
                   <button
@@ -779,13 +779,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               )}
           </div>
           
-          <div className="h-[230px] md:h-[350px] w-full relative z-10">
+          <div className="h-[var(--est-h)] md:h-[350px] w-full relative z-10" style={{ ['--est-h' as any]: `${Math.max(1, Math.min(8, establishmentData.length)) * 25 + 6}px` }} data-testid="est-chart">
               <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                       data={establishmentData.slice(0, 8)}
                       layout="vertical"
                       margin={{ top: 0, right: 64, left: 0, bottom: 0 }}
-                      barCategoryGap={6}
+                      barCategoryGap={5}
                   >
                       <XAxis type="number" hide />
                       <YAxis type="category" dataKey="name" hide width={0} />
@@ -793,7 +793,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                           dataKey="value"
                           radius={[6, 6, 6, 6]}
                           animationDuration={1200}
-                          barSize={22}
+                          barSize={20}
                           onMouseEnter={(_, index) => setHoveredEstIdx(index)}
                           onMouseLeave={() => setHoveredEstIdx(null)}
                           onClick={(data: any) => data && onConfigChange({ ...config, establishment: config.establishment === data.name ? null : data.name })}
@@ -814,12 +814,12 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                                           {fits ? (
                                               <>
                                                   <text x={bx + 10} y={cy} dy={4} fill="#0a0a0a" fontSize={12} fontWeight={700}>{name}</text>
-                                                  <text x={bx + bw + 8} y={cy} dy={4} fill="#d4d4d8" fontSize={12} fontWeight={600}>{money}</text>
+                                                  <text x={bx + bw + 8} y={cy} dy={4} style={{ fill: 'var(--est-money-in, #d4d4d8)' }} fontSize={12} fontWeight={600}>{money}</text>
                                               </>
                                           ) : (
                                               <text x={bx + bw + 8} y={cy} dy={4} fontSize={12}>
-                                                  <tspan fill="#e4e4e7" fontWeight={700}>{name}</tspan>
-                                                  <tspan fill="#a1a1aa" fontWeight={600} dx={6}>{money}</tspan>
+                                                  <tspan style={{ fill: 'var(--est-name, #e4e4e7)' }} fontWeight={700}>{name}</tspan>
+                                                  <tspan style={{ fill: 'var(--est-money, #a1a1aa)' }} fontWeight={600} dx={6}>{money}</tspan>
                                               </text>
                                           )}
                                       </g>
@@ -834,8 +834,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
       </div>
 
-          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3 mb-10">
-              <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold px-1 mb-1 md:col-span-2">Departamentos</h3>
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-1 md:gap-3 mb-8 md:mb-10">
+              <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold px-1 mb-0 md:mb-1 md:col-span-2">Departamentos</h3>
               {chartData.map((cat, idx) => {
                   const Icon = getCategoryIcon(cat.name);
                   return (
@@ -848,20 +848,20 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                         aria-label={`Abrir ${cat.label}`}
                         onClick={() => onCategoryClick && onCategoryClick(cat.name)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCategoryClick && onCategoryClick(cat.name); } }}
-                        className="flex items-center justify-between p-2.5 md:p-5 bg-white/[0.01] border border-white/5 rounded-2xl hover:bg-white/[0.04] hover:border-luxury-gold/20 active:bg-white/[0.06] transition-all group relative overflow-hidden cursor-pointer focus:outline-none focus-visible:border-luxury-gold/50"
+                        className="flex items-center justify-between py-1 pl-1.5 pr-2.5 md:p-5 bg-white/[0.01] border border-white/5 rounded-xl md:rounded-2xl hover:bg-white/[0.04] hover:border-luxury-gold/20 active:bg-white/[0.06] transition-all group relative overflow-hidden cursor-pointer focus:outline-none focus-visible:border-luxury-gold/50"
                       >
-                          <div className="flex items-center gap-3 md:gap-4 z-10 min-w-0">
-                              <PercentRing percent={cat.percentage} color={cat.color} size={40}>
+                          <div className="flex items-center gap-2.5 md:gap-4 z-10 min-w-0">
+                              <PercentRing percent={cat.percentage} color={cat.color} size={32} strokeWidth={3}>
                                   <div
-                                    className="w-7 h-7 rounded-lg bg-black border border-white/10 flex items-center justify-center transition-all"
+                                    className="w-5 h-5 rounded-md bg-black border border-white/10 flex items-center justify-center transition-all"
                                     style={{ borderColor: `${cat.color}33` }}
                                   >
-                                      <Icon className="w-3.5 h-3.5" style={{ color: cat.color }} />
+                                      <Icon className="w-3 h-3" style={{ color: cat.color }} />
                                   </div>
                               </PercentRing>
                               <div className="flex flex-col min-w-0">
-                                  <span className="block text-[13px] font-semibold text-zinc-100 tracking-tight truncate" title={cat.label}>{cat.label}</span>
-                                  <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{cat.percentage.toFixed(1).replace('.', ',')}% do total</span>
+                                  <span className="block text-[13px] leading-tight font-semibold text-zinc-100 tracking-tight truncate" title={cat.label}>{cat.label}</span>
+                                  <span className="text-xs text-zinc-400 font-medium tabular-nums leading-tight">{cat.percentage.toFixed(1).replace('.', ',')}% do total</span>
                               </div>
                           </div>
                           <div className="flex items-center gap-1 z-10 shrink-0 pl-2">
@@ -879,7 +879,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               <History className="w-5 h-5 text-luxury-gold" />
               <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Relação de Aquisições por Fluxo</h3>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
               {filteredReceipts.slice(0, 12).map((receipt) => (
                   <ReceiptRow key={receipt.id} receipt={receipt} onClick={openOriginal} />
               ))}

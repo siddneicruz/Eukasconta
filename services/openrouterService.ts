@@ -291,13 +291,14 @@ const runWithFallback = async <T>(
   build: (model: string) => Omit<CallOptions, 'model' | 'timeoutMs'>,
   accept: (text: string) => T | null,
   task = 'ler este cupom',
+  totalMs: number = TIMING.totalMs,
 ): Promise<{ value: T; model: string }> => {
   const started = Date.now();
   const failures: Fail[] = [];
   const list = Array.from(new Set(candidates.filter(Boolean))).slice(0, MAX_CANDIDATES);
 
   for (const model of list) {
-    const remaining = TIMING.totalMs - (Date.now() - started);
+    const remaining = totalMs - (Date.now() - started);
     if (remaining < TIMING.minLeftMs) break;
     const timeoutMs = Math.min(TIMING.perAttemptMs, remaining);
 
@@ -305,7 +306,7 @@ const runWithFallback = async <T>(
 
     // Erro 400 costuma ser parâmetro opcional que o modelo não aceita: repete uma vez, sem eles.
     if (isFail(result) && result.status === 400 && !result.fatal) {
-      const left = TIMING.totalMs - (Date.now() - started);
+      const left = totalMs - (Date.now() - started);
       if (left >= TIMING.minLeftMs) result = await callOnce(apiKey, { ...build(model), model, timeoutMs: Math.min(TIMING.perAttemptMs, left), lean: true });
     }
 
@@ -372,7 +373,8 @@ export const parseReceiptWithOpenRouter = async (
 };
 
 // Tarefas de texto (auditoria de categorias). Devolve o JSON já validado, como texto.
-export const askOpenRouterForJson = async (apiKey: string, prompt: string): Promise<string> => {
+// `budgetMs`: tempo máximo de todas as tentativas juntas (sem ele, o mesmo teto da leitura de cupons).
+export const askOpenRouterForJson = async (apiKey: string, prompt: string, budgetMs?: number): Promise<string> => {
   const startTime = performance.now();
   const primary = getOpenRouterModel('text') || DEFAULT_TEXT_MODELS[0];
   const candidates = [primary, ...DEFAULT_TEXT_MODELS, FREE_ROUTER];
@@ -386,6 +388,7 @@ export const askOpenRouterForJson = async (apiKey: string, prompt: string): Prom
       return parsed === null ? null : JSON.stringify(parsed);
     },
     'responder',
+    budgetMs && budgetMs > 0 ? budgetMs : TIMING.totalMs,
   );
 
   diagnostics.log('API_CALL', `Texto via OpenRouter (${model})`, performance.now() - startTime);

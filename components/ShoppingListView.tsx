@@ -1,19 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ShoppingCart, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon,
+  ShoppingCart, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil,
 } from 'lucide-react';
 import { Receipt, MasterProduct } from '../types';
 import {
   Advice, BaseInfo, Entry, Group, LineCheck, PlanPurchase, PurchaseCheck, Setup, ShoppingList,
-  addManual, analyzeHistory, budgetState, buildList, cartTotal, cutTotal, entryCost, fmtQty, listName, listTotal, newListId,
+  addManual, analyzeHistory, budgetState, buildList, cartTotal, cutTotal, duplicateList, entryCost, fmtQty, listName, listTotal, lookbackLabel, manualPlan, newListId, withBase,
   purchaseTotal, purchasesFromSetup, removeEntry, restoreCut, roundTo, setAllCart, setPrice, setQty, shortDate, stepOf, toggleCart, unitLabel, validateList,
 } from '../services/shoppingList';
-import { consultAi } from '../services/shoppingListAI';
+import { consultAi, describeHistory } from '../services/shoppingListAI';
+import { ProgressEvent, ProgressState, StepId, applyEvent, initialProgress } from '../services/shoppingProgress';
 import { localTodayIso } from '../services/productNormalization';
-import { loadLists, loadSetup, saveLists, saveSetup } from '../services/shoppingStore';
+import { loadBaseId, loadLists, loadSetup, saveBaseId, saveLists, saveSetup } from '../services/shoppingStore';
 import { getActiveProviderLabel, hasAnyUserApiKey } from '../services/keyStorageService';
-import ShoppingSetup from './ShoppingSetup';
-import { AddSheet, ConfirmSheet, ItemSheet, brl } from './ShoppingSheets';
+import ShoppingSetup, { GenOptions } from './ShoppingSetup';
+import ShoppingProgress from './ShoppingProgress';
+import { AddSheet, ConfirmSheet, ItemSheet, ListMenuSheet, RenameSheet, brl } from './ShoppingSheets';
 
 /* Lista de compras: gera a partir dos cupons, divide por semana ou pelos dias do mês, respeita teto e mínimo,
    deixa marcar o que já está no carrinho e depois confere com os cupons escaneados. */
@@ -26,7 +28,7 @@ interface Props {
 }
 
 type Screen = 'home' | 'setup' | 'list';
-type SheetState = { kind: 'item'; pi: number; pid: string; group: Group } | { kind: 'add'; pi: number } | { kind: 'delete'; id: string } | null;
+type SheetState = { kind: 'item'; pi: number; pid: string; group: Group } | { kind: 'add'; pi: number } | { kind: 'delete'; id: string } | { kind: 'menu' } | { kind: 'rename'; id: string } | null;
 
 interface Section { key: string; title: string; sub?: string; entries: Entry[] }
 
@@ -153,10 +155,12 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
   const today = localTodayIso();
   const [lists, setLists] = useState<ShoppingList[]>(() => loadLists());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [baseId, setBaseId] = useState<string | null>(() => loadBaseId());
   const [screen, setScreen] = useState<Screen>('home');
   const [pi, setPi] = useState(0);
   const [sheet, setSheet] = useState<SheetState>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgressState | null>(null);
+  const gen = useRef<{ cancelled: boolean; skipAi: () => void } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -167,61 +171,152 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
   const history = useMemo(() => analyzeHistory(receipts, masters, { today }), [receipts, masters, today]);
 
   useEffect(() => { saveLists(lists); }, [lists]);
+  useEffect(() => { saveBaseId(baseId); }, [baseId]);
+  const baseList = lists.find(l => l.id === baseId) || null;
 
   const list = lists.find(l => l.id === activeId) || null;
   const checks = useMemo(() => (list ? validateList(list, receipts, masters, today) : []), [list, receipts, masters, today]);
 
+  const cancelGenerate = () => { if (gen.current) { gen.current.cancelled = true; gen.current.skipAi(); } };
   backRef.current = () => {
+    if (progress) { cancelGenerate(); return true; }
     if (sheet) { setSheet(null); return true; }
     if (screen !== 'home') { setScreen('home'); return true; }
     return false;
   };
-  useEffect(() => () => { backRef.current = () => false; }, [backRef]);
+  useEffect(() => () => { backRef.current = () => false; if (gen.current) { gen.current.cancelled = true; gen.current.skipAi(); } }, [backRef]);
 
   const update = (fn: (l: ShoppingList) => ShoppingList) => setLists(prev => prev.map(l => (l.id === activeId ? fn(l) : l)));
   const open = (id: string) => { setActiveId(id); setPi(0); setNotesOpen(false); setCutOpen(false); setScreen('list'); };
+  const toggleBase = (id: string) => setBaseId(prev => (prev === id ? null : id));
+  const renameList = (id: string, name: string) => setLists(prev => prev.map(l => (l.id === id ? { ...l, name } : l)));
+  const removeList = (id: string) => {
+    setLists(prev => prev.filter(l => l.id !== id));
+    if (activeId === id) setActiveId(null);
+    if (baseId === id) setBaseId(null);
+    setSheet(null);
+  };
+  const copyList = (id: string) => {
+    const l = lists.find(x => x.id === id);
+    if (!l) return;
+    const c = duplicateList(l, `${l.name} (cópia)`.slice(0, 60));
+    setLists(prev => { const i = prev.findIndex(x => x.id === id); const n = [...prev]; n.splice(i + 1, 0, c); return n; });
+    setSheet(null);
+    open(c.id);
+  };
 
-  const generate = async (setup: Setup) => {
+  const generate = async (setup: Setup, go: GenOptions) => {
     setError(null);
     saveSetup(setup);
     const t = localTodayIso();
     const purchases = purchasesFromSetup(setup, t);
     if (!purchases.length) { setError('Escolha ao menos um dia de compra.'); return; }
-    setBusy('Lendo seus cupons…');
+    const old = editingId ? lists.find(l => l.id === editingId) : null;
+    const baseSrc = go.fromBase && baseList ? baseList : null;
+
+    // lista manual: vazia, só com as datas; a pessoa adiciona os itens
+    if (go.mode === 'manual') {
+      const plan = manualPlan(purchases);
+      const next: ShoppingList = {
+        id: newListId(), name: go.name || listName(setup, plan.purchases), createdAt: t,
+        setup, info: { from: '', to: '', cycle: history.cycle, trips: 0, source: 'historico', manual: true },
+        purchases: plan.purchases, cut: [], notes: [],
+      };
+      setLists(prev => [next, ...prev]);
+      setEditingId(null);
+      open(next.id);
+      return;
+    }
+
+    const useAi = go.mode === 'ai' && hasKey && !baseSrc;
+    let skipAi: () => void = () => {};
+    const skip = new Promise<void>(res => { skipAi = res; });
+    const ctl = { cancelled: false, skipAi };
+    gen.current = ctl;
+
+    let prog = initialProgress({ ai: useAi, aiLabel, fruitVeg: !!setup.fruitVeg, churrasco: !!setup.churrasco });
+    const emit = (e: ProgressEvent) => { prog = applyEvent(prog, e); setProgress(prog); };
+    const step = (id: StepId, status: 'run' | 'done' | 'skip' | 'fail', detail?: string) => emit({ kind: 'step', step: id, status, detail });
+    const log = (text: string) => emit({ kind: 'log', text });
+    // as etapas de conta são rápidas: uma pausa curta deixa a pessoa ver cada uma passar
+    const pause = (ms = 380) => new Promise<void>(r => setTimeout(r, ms));
+    setProgress(prog);
+
     try {
-      let hist = analyzeHistory(receipts, masters, { today: t });
-      if (hist.empty) { setError('Não há cupons com itens para basear a lista.'); return; }
+      step('cupons', 'run');
+      const nItems = receipts.reduce((n, r) => n + (r.items?.length || 0), 0);
+      log(`Lendo ${receipts.length} ${receipts.length === 1 ? 'cupom salvo' : 'cupons salvos'} (${nItems} itens)…`);
+      await pause();
+      let hist = analyzeHistory(receipts, masters, { today: t, lookbackDays: setup.lookback });
+      if (hist.empty) {
+        step('cupons', 'fail', 'Nenhum cupom com itens');
+        setError('Não há cupons com itens para basear a lista.');
+        return;
+      }
+      step('cupons', 'done', `${receipts.length} ${receipts.length === 1 ? 'cupom' : 'cupons'} · ${nItems} itens`);
+
       let advice: Advice = {};
-      let info: BaseInfo = { from: hist.window.from, to: hist.window.to, cycle: hist.cycle, trips: hist.tripCount, source: 'historico' };
-      if (setup.useAi && hasKey) {
-        setBusy(`Consultando ${aiLabel}…`);
-        const c = await consultAi(receipts, masters, { purchases, fruitVeg: setup.fruitVeg, month: Number(purchases[0].date.slice(5, 7)) }, { today: t });
+      let info: BaseInfo = { from: hist.window.from, to: hist.window.to, cycle: hist.cycle, trips: hist.tripCount, source: 'historico', lookback: setup.lookback, ...(baseSrc ? { base: baseSrc.name } : {}) };
+      if (useAi) {
+        const c = await consultAi(receipts, masters, { purchases, fruitVeg: setup.fruitVeg, month: Number(purchases[0].date.slice(5, 7)) }, { today: t, emit, skip, label: aiLabel, lookbackDays: setup.lookback });
+        if (ctl.cancelled) { setError(null); return; }
         hist = c.history;
         advice = c.advice;
-        info = { from: hist.window.from, to: hist.window.to, cycle: hist.cycle, trips: hist.tripCount, source: c.info.source, note: c.info.note, aiError: c.info.aiError, aiLabel };
+        info = { from: hist.window.from, to: hist.window.to, cycle: hist.cycle, trips: hist.tripCount, source: c.info.source, note: c.info.note, aiError: c.info.aiError, aiLabel, lookback: setup.lookback };
+      } else {
+        step('analise', 'run');
+        log('Analisando suas compras…');
+        await pause();
+        step('analise', 'done', describeHistory(hist));
+        log(describeHistory(hist));
+        if (baseSrc) {
+          hist = withBase(hist, baseSrc);
+          log(`Partindo da lista base “${baseSrc.name}”: ${hist.products.length} ${hist.products.length === 1 ? 'item' : 'itens'}, ajustados aos dias desta lista.`);
+        } else if (go.mode === 'ai') log('Sem chave de IA salva: a lista sai só pelas suas compras.');
       }
-      setBusy('Montando a lista…');
+
+      const days = purchases.reduce((n, p) => n + p.days, 0);
+      step('calculo', 'run');
+      log(`Calculando o que comprar em ${days} ${days === 1 ? 'dia' : 'dias'}…`);
+      await pause();
+      if (ctl.cancelled) return;
       const plan = buildList(hist, {
         purchases, min: setup.min, max: setup.max,
         fruitVeg: setup.fruitVeg ? { fruits: setup.fruits, veggies: setup.veggies } : null,
         churrasco: setup.churrasco ? { weekday: setup.churrascoWeekday, people: setup.people, grams: setup.grams } : null,
       }, advice);
-      const old = editingId ? lists.find(l => l.id === editingId) : null;
+      const itemsOut = plan.purchases.reduce((n, p) => n + p.entries.length, 0);
+      step('calculo', 'done', `${itemsOut} ${itemsOut === 1 ? 'item' : 'itens'} para ${days} ${days === 1 ? 'dia' : 'dias'}`);
+
+      step('separacao', 'run');
+      await pause();
+      plan.purchases.forEach((p, i) => log(`Compra ${i + 1} · ${shortDate(p.date)} · ${p.entries.length} ${p.entries.length === 1 ? 'item' : 'itens'} · ${brl(purchaseTotal(p))}`));
+      plan.notes.forEach(n => log(n));
+      if (plan.cut.length) log(`${plan.cut.length} ${plan.cut.length === 1 ? 'item ficou' : 'itens ficaram'} de fora (você pode devolver na lista).`);
+      step('separacao', 'done', `${plan.purchases.length} ${plan.purchases.length === 1 ? 'compra' : 'compras'}${plan.notes.length ? ` · ${plan.notes.length} ${plan.notes.length === 1 ? 'aviso' : 'avisos'}` : ''}`);
+
+      step('montagem', 'run');
+      await pause(250);
+      if (ctl.cancelled) return;
       // ao gerar de novo, o que já estava no carrinho continua marcado (mesma data e mesmo produto)
       const carried = new Set<string>();
       old?.purchases.forEach(p => p.entries.forEach(e => { if (e.cart) carried.add(`${p.date}|${e.pid}`); }));
       const purchasesOut = plan.purchases.map(p => ({ ...p, entries: p.entries.map(e => (carried.has(`${p.date}|${e.pid}`) ? { ...e, cart: true } : e)) }));
       const next: ShoppingList = {
-        id: old?.id || newListId(), name: listName(setup, purchasesOut), createdAt: old?.createdAt || t,
+        id: old?.id || newListId(), name: go.name || listName(setup, purchasesOut), createdAt: old?.createdAt || t,
         setup, info, purchases: purchasesOut, cut: plan.cut, notes: plan.notes,
       };
       setLists(prev => (old ? prev.map(l => (l.id === old.id ? next : l)) : [next, ...prev]));
+      step('montagem', 'done', `${listTotal(next) > 0 ? brl(listTotal(next)) : 'sem preços'} no total`);
+      log(`Lista pronta: ${next.name}.`);
+      await pause(700);
       setEditingId(null);
       open(next.id);
     } catch (err: any) {
       setError(String(err?.message || err || 'Não consegui montar a lista.'));
     } finally {
-      setBusy(null);
+      gen.current = null;
+      setProgress(null);
     }
   };
 
@@ -257,7 +352,10 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
                 <li key={l.id} className="bg-[#121214] border border-white/5 rounded-2xl shadow-xl flex items-stretch" data-testid="shop-list-card" data-id={l.id}>
                   <button type="button" onClick={() => open(l.id)} className="min-w-0 flex-1 text-left p-4 flex items-center gap-3">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-semibold text-zinc-100 truncate">{l.name}</span>
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="block text-[15px] font-semibold text-zinc-100 truncate">{l.name}</span>
+                        {l.id === baseId && <span className="shrink-0 inline-flex items-center gap-1 text-[10.5px] font-bold text-luxury-gold" data-testid="shop-base-badge"><Star className="w-3 h-3 fill-current" /> Base</span>}
+                      </span>
                       <span className="block text-[11px] text-zinc-500 tabular-nums mt-0.5">
                         {l.purchases.length} {l.purchases.length === 1 ? 'compra' : 'compras'} · {items} itens · {inCart} no carrinho
                       </span>
@@ -265,6 +363,8 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
                     <span className="shrink-0 text-[15px] font-serif font-bold text-white tabular-nums">{brl(listTotal(l))}</span>
                     <ChevronRight className="w-4 h-4 text-zinc-600 shrink-0" />
                   </button>
+                  <button type="button" onClick={() => toggleBase(l.id)} aria-label={l.id === baseId ? `Tirar ${l.name} de lista base` : `Usar ${l.name} como lista base`} aria-pressed={l.id === baseId} data-testid="shop-list-base"
+                    className={`w-12 shrink-0 flex items-center justify-center border-l border-white/5 ${l.id === baseId ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`}><Star className={`w-4 h-4 ${l.id === baseId ? 'fill-current' : ''}`} /></button>
                   <button type="button" onClick={() => setSheet({ kind: 'delete', id: l.id })} aria-label={`Apagar ${l.name}`} data-testid="shop-list-delete"
                     className="w-12 shrink-0 flex items-center justify-center text-zinc-600 hover:text-rose-400 border-l border-white/5"><Trash2 className="w-4 h-4" /></button>
                 </li>
@@ -274,7 +374,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
         )}
         {sheet?.kind === 'delete' && (
           <ConfirmSheet title="Apagar esta lista?" message="Só a lista é apagada. Seus cupons e o histórico continuam como estão." confirmLabel="Apagar"
-            onClose={() => setSheet(null)} onConfirm={() => { const id = sheet.id; setLists(prev => prev.filter(l => l.id !== id)); if (activeId === id) setActiveId(null); setSheet(null); }} />
+            onClose={() => setSheet(null)} onConfirm={() => removeList(sheet.id)} />
         )}
       </div>
     );
@@ -292,8 +392,14 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
     const base = editingId ? (lists.find(l => l.id === editingId)?.setup ?? fresh()) : fresh();
     return (
       <div className="max-w-2xl mx-auto" data-testid="shop-view">
-        <ShoppingSetup key={editingId || 'new'} initial={base} today={today} history={history} aiLabel={aiLabel} hasKey={hasKey} busy={busy} error={error}
-          editing={!!editingId} onSubmit={generate} onCancel={() => setScreen(editingId ? 'list' : 'home')} />
+        {progress ? (
+          <ShoppingProgress state={progress} aiLabel={aiLabel} onSkipAi={() => gen.current?.skipAi()} onCancel={cancelGenerate} />
+        ) : (
+          <ShoppingSetup key={editingId || 'new'} initial={base} today={today} history={history} aiLabel={aiLabel} hasKey={hasKey} error={error}
+            editing={!!editingId} initialName={editingId ? (lists.find(l => l.id === editingId)?.name || '') : ''}
+            base={baseList ? { name: baseList.name } : null} baseDefault={editingId ? !!lists.find(l => l.id === editingId)?.info.base : true}
+            onSubmit={generate} onCancel={() => setScreen(editingId ? 'list' : 'home')} />
+        )}
       </div>
     );
   }
@@ -327,10 +433,17 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
       <div className="flex items-center gap-2" data-testid="shop-list-view" data-id={list.id}>
         <button type="button" onClick={() => setScreen('home')} aria-label="Voltar às listas" data-testid="shop-back" className="w-10 h-10 -ml-2 flex items-center justify-center rounded-xl text-zinc-400 hover:text-luxury-gold"><ChevronLeft className="w-5 h-5" /></button>
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-serif font-bold text-white leading-tight break-words" data-testid="shop-title">{list.name}</h2>
-          <p className="text-[11px] text-zinc-500 tabular-nums">Criada em {brDate(list.createdAt)}</p>
+          <button type="button" onClick={() => setSheet({ kind: 'rename', id: list.id })} aria-label={`Renomear ${list.name}`} data-testid="shop-rename" className="max-w-full text-left min-h-[28px] flex items-center gap-1.5">
+            <h2 className="text-xl font-serif font-bold text-white leading-tight break-words min-w-0" data-testid="shop-title">{list.name}</h2>
+            <Pencil className="w-3.5 h-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+          </button>
+          <p className="text-[11px] text-zinc-500 tabular-nums flex items-center gap-1.5">
+            <span>Criada em {brDate(list.createdAt)}</span>
+            {list.id === baseId && <span className="inline-flex items-center gap-1 font-bold text-luxury-gold" data-testid="shop-base-flag"><Star className="w-3 h-3 fill-current" /> Lista base</span>}
+          </p>
         </div>
         <button type="button" onClick={startAdjust} aria-label="Ajustar a lista" data-testid="shop-adjust" className="w-11 h-11 flex items-center justify-center rounded-xl border border-white/10 text-zinc-300 hover:text-luxury-gold"><SlidersHorizontal className="w-4 h-4" /></button>
+        <button type="button" onClick={() => setSheet({ kind: 'menu' })} aria-label="Mais ações da lista" data-testid="shop-menu" className="w-11 h-11 flex items-center justify-center rounded-xl border border-white/10 text-zinc-300 hover:text-luxury-gold"><MoreHorizontal className="w-4 h-4" /></button>
       </div>
 
       <section className="bg-[#121214] border border-white/5 rounded-2xl p-4 shadow-xl" data-testid="shop-summary-card">
@@ -365,10 +478,16 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
         <p className="flex items-start gap-2 text-[12px] text-zinc-300 leading-snug">
           <Sparkles className={`w-4 h-4 shrink-0 mt-0.5 ${info.source === 'ia' ? 'text-luxury-gold' : 'text-zinc-600'}`} />
           <span>
-            {info.source === 'ia' ? <>{info.aiLabel || 'A IA'} escolheu as compras de <b className="text-zinc-100 tabular-nums">{brDate(info.from)}</b> a <b className="text-zinc-100 tabular-nums">{brDate(info.to)}</b> ({info.trips} {info.trips === 1 ? 'ida' : 'idas'}, uma a cada {info.cycle} dias).{info.note ? ` ${info.note}` : ''}</>
+            {info.manual ? <>Lista feita à mão. Toque em “Adicionar item” para colocar o que você precisa; os preços vêm das suas últimas compras.</>
+              : info.source === 'ia' ? <>{info.aiLabel || 'A IA'} escolheu as compras de <b className="text-zinc-100 tabular-nums">{brDate(info.from)}</b> a <b className="text-zinc-100 tabular-nums">{brDate(info.to)}</b> ({info.trips} {info.trips === 1 ? 'ida' : 'idas'}, uma a cada {info.cycle} dias).{info.note ? ` ${info.note}` : ''}</>
               : <>Montada só com o seu histórico: compras de <span className="tabular-nums">{brDate(info.from)}</span> a <span className="tabular-nums">{brDate(info.to)}</span> ({info.trips} {info.trips === 1 ? 'ida' : 'idas'}, uma a cada {info.cycle} dias).</>}
           </span>
         </p>
+        {!info.manual && (info.base || (info.lookback ?? 0) > 0) && (
+          <p className="text-[11px] text-zinc-500 leading-snug mt-1.5 pl-6" data-testid="shop-info-extra">
+            {info.base ? `Partiu da lista base “${info.base}”. ` : ''}{(info.lookback ?? 0) > 0 ? `Período analisado: ${lookbackLabel(info.lookback!)}.` : ''}
+          </p>
+        )}
         {info.aiError && <p className="flex items-start gap-2 text-[11px] text-amber-400 leading-snug mt-2" data-testid="shop-ai-error"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {info.source === 'ia' ? info.aiError : `A IA não respondeu (${info.aiError}). A lista saiu só com o histórico.`}</p>}
         {list.notes.length > 0 && (
           <div className="mt-2">
@@ -474,6 +593,18 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
         </section>
       )}
 
+      {sheet?.kind === 'menu' && (
+        <ListMenuSheet name={list.name} isBase={baseId === list.id} onClose={() => setSheet(null)}
+          onRename={() => setSheet({ kind: 'rename', id: list.id })} onDuplicate={() => copyList(list.id)}
+          onToggleBase={() => { toggleBase(list.id); setSheet(null); }} onDelete={() => setSheet({ kind: 'delete', id: list.id })} />
+      )}
+      {sheet?.kind === 'rename' && (
+        <RenameSheet name={lists.find(l => l.id === sheet.id)?.name || ''} onClose={() => setSheet(null)} onSave={n => { renameList(sheet.id, n); setSheet(null); }} />
+      )}
+      {sheet?.kind === 'delete' && (
+        <ConfirmSheet title="Apagar esta lista?" message="Só a lista é apagada. Seus cupons e o histórico continuam como estão." confirmLabel="Apagar"
+          onClose={() => setSheet(null)} onConfirm={() => removeList(sheet.id)} />
+      )}
       {sheet?.kind === 'item' && sheetEntry && (
         <ItemSheet entry={sheetEntry} purchaseLabel={shortDate(list.purchases[sheet.pi].date)} check={lineOf(sheetEntry)}
           onClose={() => setSheet(null)}

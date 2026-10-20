@@ -137,12 +137,12 @@ const meIcon = L.divIcon({
 
 // Perto o bastante para ver as ruas ao redor de quem apertou "minha localização"
 const ME_ZOOM = 16;
-// Ao abrir, o mapa mostra 1 km ao redor de quem está olhando
-const START_RADIUS_M = 1000;
+// Ao abrir, o mapa mostra 2 km ao redor de quem está olhando
+const START_RADIUS_M = 2000;
 
 const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number, number][] | null; all: [number, number][]; targetId: string | null; focusMe: number; focus: { lat: number; lng: number; zoom: number; n: number } }> = ({ me, target, path, all, targetId, focusMe, focus }) => {
   const map = useMap();
-  // 'me' = 1 km ao redor de você · 'all' = todas as lojas · null = ainda nada
+  // 'me' = 2 km ao redor de você · 'all' = todas as lojas · null = ainda nada
   const placed = useRef<'me' | 'all' | null>(null);
   const hadTarget = useRef(false);
   const fitCount = useRef(0);
@@ -171,7 +171,7 @@ const Framer: React.FC<{ me: LatLng | null; target: LatLng | null; path: [number
     else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 16 });
   }, [targetId, path, me?.lat, me?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // nada escolhido: o mapa abre em 1 km ao redor de você; sem a sua localização, mostra todas as lojas.
+  // nada escolhido: o mapa abre em 2 km ao redor de você; sem a sua localização, mostra todas as lojas.
   // Volta para cá também quando a escolha é desfeita.
   useEffect(() => {
     if (target) return;
@@ -312,13 +312,13 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const outside = maps.useVector && !!maps.opened && !!viewCenter && !maps.opened.covers(viewCenter.lat, viewCenter.lng);
 
   /* loja escolhida e rota */
-  // Sem toque seu, vale sempre a loja mais perto (acompanha a lista enquanto as lojas vão sendo localizadas).
-  // Tocou numa loja, vale a sua escolha; tocar de novo na mesma, ou no X do cartão, desfaz a escolha e tira a rota.
+  // O mapa abre livre: nenhuma loja escolhida, nenhuma rota. A loja (e a rota até ela) só vale depois que a pessoa toca numa;
+  // tocar de novo na mesma, ou no X do cartão, desfaz a escolha, tira a rota e volta para a visão livre ao redor de você.
   const [manual, setManual] = useState<{ id: string | null } | null>(null);
-  const selectedId = manual ? manual.id : nearestId;
+  const selectedId = manual ? manual.id : null;
   const selected = useMemo(() => stores.find(s => s.id === selectedId) || null, [stores, selectedId]);
-  // só a loja que a pessoa tocou move o mapa; a mais perto (escolhida sozinha) só aparece no cartão e na rota
-  const picked = manual && manual.id ? selected : null;
+  // a loja que a pessoa tocou move o mapa e traça a rota
+  const picked = selected;
   const [focus, setFocus] = useState({ lat: 0, lng: 0, zoom: 16, n: 0 });
   const [route, setRoute] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; data: RouteResult | null }>({ status: 'idle', data: null });
 
@@ -736,7 +736,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               {me ? 'Lojas das suas compras, da mais perto' : 'Lojas das suas compras'}
             </h3>
             {me && nearestId && selectedId !== nearestId && (
-              <button onClick={() => { setMoving(null); setSelectedPoi(null); setManual(null); }} data-testid="map-back-nearest"
+              <button onClick={() => { setMoving(null); setSelectedPoi(null); setManual({ id: nearestId }); mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} data-testid="map-back-nearest"
                 className="shrink-0 px-3 py-1.5 rounded-xl bg-luxury-gold/10 border border-luxury-gold/25 text-luxury-gold text-[11px] font-bold active:scale-95">
                 Ir para a mais perto
               </button>
