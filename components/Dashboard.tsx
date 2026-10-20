@@ -40,6 +40,7 @@ import { useDeptFilter, isDeptFilterActive, invertDeptFilter, deptFilterLabel, d
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel } from '../services/productPriceStats';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
+import { MONTHS_SHORT, shortPeriod } from '../services/periodFilter';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 
 interface DashboardProps {
@@ -57,27 +58,7 @@ interface DashboardProps {
   masterProducts?: MasterProduct[];
 }
 
-const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
-
-// Período em poucas letras para a barra de filtros fechada ("Mai 2026", "Ano 2026", "7 dias", "01/05 a 15/05").
-const shortPeriod = (c: DashboardConfig): string => {
-    if (c.quickFilter === '7d') return '7 dias';
-    if (c.quickFilter === '30d') return '30 dias';
-    if (c.quickFilter === 'custom') {
-        const dm = (iso: string) => iso.split('-').reverse().slice(0, 2).join('/');
-        if (c.customStartDate && c.customEndDate) return `${dm(c.customStartDate)} a ${dm(c.customEndDate)}`;
-        return 'Período';
-    }
-    // mês atual: do dia 1 até hoje ("01/10 a 15/10"); cresce um dia a cada dia até fechar o mês
-    if (isCurrentMonthPeriod(c)) {
-        const t = new Date();
-        const p2 = (n: number) => String(n).padStart(2, '0');
-        return `01/${p2(t.getMonth() + 1)} a ${p2(t.getDate())}/${p2(t.getMonth() + 1)}`;
-    }
-    if (c.month !== null && c.month !== undefined) return `${MONTHS_SHORT[c.month].charAt(0)}${MONTHS_SHORT[c.month].slice(1).toLowerCase()} ${c.year}`;
-    return `Ano ${c.year}`;
-};
 
 export const getCustomMeta = (category: string) => {
     try {

@@ -13,6 +13,7 @@ import { mergedCodeFields } from '../services/productCodes';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
 import ReportsPanorama from './ReportsPanorama';
 import PeriodPicker from './PeriodPicker';
+import CategoryTargetPicker from './CategoryTargetPicker';
 import { downloadFile } from '../services/nativeFiles';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH, TL_AXIS_Y_WIDTH, renderTimelineYTick } from '../services/chartFormat';
 import CompareCard, { ChosenCompare } from './CompareCard';
@@ -1422,16 +1423,7 @@ const Reports: React.FC<ReportsProps> = ({
                                     </div>
                                     <div>
                                         <label className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold block mb-2">Departamento Central</label>
-                                        <select
-                                            value={newMasterCategory}
-                                            onChange={e => setNewMasterCategory(e.target.value)}
-                                            className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-zinc-300 outline-none focus:border-luxury-gold/40 cursor-pointer uppercase font-bold font-mono"
-                                        >
-                                            {!!newMasterCategory && !structCats.includes(newMasterCategory) && <option value={newMasterCategory} className="bg-zinc-950">{newMasterCategory} (fora da Estrutura)</option>}
-                                            {structCats.map(cat => (
-                                                <option key={cat} value={cat} className="bg-zinc-950">{cat}</option>
-                                            ))}
-                                        </select>
+                                        <CategoryTargetPicker value={newMasterCategory} categories={structCats} testId="new-master-cat" onPick={setNewMasterCategory} />
                                     </div>
                                 </div>
                             )}

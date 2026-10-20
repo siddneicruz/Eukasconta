@@ -57,16 +57,14 @@ const genericOf = (description: string): string => {
   return g;
 };
 
-// O item pertence ao produto quando:
-//  - o nome genérico dele é exatamente o do produto (em qualquer categoria), ou
-//  - o texto contém o nome do produto (sem acento, já que "MAMÃO"/"FILÉ MIGNON" têm acento no genérico
-//    e a descrição do cupom vem sem) e está na categoria aberta.
-export const itemBelongsToProduct = (item: ReceiptItem, genericName: string, subCategoryName: string): boolean => {
-  const desc = item.description || '';
-  if (genericOf(desc) === genericName) return true;
+// O item pertence ao produto só quando o nome genérico dele É o do produto (o mesmo nome que a lista
+// "Artigos identificados" usa para agrupar). Comparar sem acento: "MAMÃO"/"FILÉ MIGNON" têm acento no genérico.
+// Antes valia também "o texto contém o nome": abrir "Carne" trazia Carne Moída, Alcatra e qualquer cupom
+// que tivesse a palavra "carne" na descrição. O segundo argumento (categoria aberta) ficou só por compatibilidade.
+export const itemBelongsToProduct = (item: ReceiptItem, genericName: string, _subCategoryName?: string): boolean => {
   const key = stripAccentsUpper(genericName);
   if (!key) return false;
-  return stripAccentsUpper(desc).includes(key) && (!subCategoryName || item.category === subCategoryName);
+  return stripAccentsUpper(genericOf(item.description || '')) === key;
 };
 
 export const collectPriceObservations = (receipts: Receipt[], genericName: string, subCategoryName: string): PriceObservation[] => {

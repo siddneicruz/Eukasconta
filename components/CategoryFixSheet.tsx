@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Tags, X } from 'lucide-react';
 import { FixSection } from '../services/categoryRules';
 import { titleCase } from '../services/textFormat';
+import CategoryTargetPicker from './CategoryTargetPicker';
 
 /* Revisão de categorias: mostra o que parece estar no lugar errado (ex.: linguiça e bacon em "Carne Suína"),
    deixa trocar o destino e desmarcar o que está certo, e só muda quando a pessoa aplica. */
@@ -20,7 +21,7 @@ const CategoryFixSheet: React.FC<Props> = ({ sections, categories, onApply, onCl
   const [targets, setTargets] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !(e.target as Element | null)?.closest?.('[role="combobox"]')) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
@@ -53,13 +54,11 @@ const CategoryFixSheet: React.FC<Props> = ({ sections, categories, onApply, onCl
                 <h4 className="text-sm font-semibold text-zinc-100">{s.title}</h4>
                 <p className="text-xs text-zinc-500 mt-0.5">{s.note}</p>
               </div>
-              <label className="block mt-2.5">
+              <div className="mt-2.5">
                 <span className="block text-xs font-semibold text-zinc-400 mb-1.5 px-1">Mover para</span>
-                <select value={targetOf(s)} onChange={e => setTargets(prev => ({ ...prev, [s.ruleId]: e.target.value }))} data-testid="fix-target"
-                  className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-3 text-[13px] text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold">
-                  {(categories.includes(s.target) ? categories : [s.target, ...categories]).map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </label>
+                <CategoryTargetPicker value={targetOf(s)} categories={categories} testId="fix-target"
+                  onPick={c => setTargets(prev => ({ ...prev, [s.ruleId]: c }))} />
+              </div>
               <ul className="mt-2.5 space-y-2">
                 {s.items.map(i => {
                   const on = !off[keyOf(s, i.desc)];

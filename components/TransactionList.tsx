@@ -4,13 +4,13 @@ import { Receipt, DashboardConfig, MasterProduct, ItemFilter, ReceiptItem } from
 import { ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { normalizeProductName } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
-import PeriodPicker from './PeriodPicker';
+import PeriodFilterBar from './PeriodFilterBar';
 import ConfirmDialog from './ConfirmDialog';
 import ItemSearchBox from './ItemSearchBox';
 import ItemPriceInsight from './ItemPriceInsight';
 import { useStoreNames } from './StoreNamesContext';
 import { makeItemMatcher, textFilter, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
-import { periodLabel, normalizeUnit } from '../services/productPriceStats';
+import { periodLabel, normalizeUnit, isDateInPeriod } from '../services/productPriceStats';
 import { priceBasis } from '../services/eggs';
 
 interface TransactionListProps {
@@ -49,8 +49,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
   const itemFilter: ItemFilter | null = config && onConfigChange ? (config.item || null) : localItem;
   const setItemFilter = (f: ItemFilter | null) => { if (config && onConfigChange) onConfigChange({ ...config, item: f }); else setLocalItem(f); };
   
-  const [startDate, setStartDate] = useState(config?.customStartDate || '');
-  const [endDate, setEndDate] = useState(config?.customEndDate || '');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortType, setSortType] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -106,11 +104,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
   }, [armedId]);
   useEffect(() => () => cancelPress(), []);
 
-  useEffect(() => {
-    if (config?.customStartDate) setStartDate(config.customStartDate);
-    if (config?.customEndDate) setEndDate(config.customEndDate);
-  }, [config?.customStartDate, config?.customEndDate]);
-
   const filteredReceipts = useMemo(() => {
     const term = normalizeText(searchTerm);
     const itemMatch = itemFilter ? makeItemMatcher(itemFilter) : null;
@@ -122,20 +115,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                               r.items.some(item => normalizeText(item.description).includes(term));
         const matchesEstablishment = establishmentFilter ? normalizeText(r.establishmentName).includes(normalizeText(establishmentFilter)) : true;
         
+        // período: o mesmo do Início (ano, mês, 7 dias ou datas escolhidas)
         let matchesTime = true;
-        if (startDate || endDate) {
-            if (startDate && r.date < startDate) matchesTime = false;
-            if (endDate && r.date > endDate) matchesTime = false;
-        } else if (config) {
-            // Robustez para datas inválidas no filtro
+        if (config) {
             const rDate = new Date(r.date + 'T12:00:00');
-            if (!isNaN(rDate.getTime())) {
-                if (rDate.getFullYear() !== config.year) matchesTime = false;
-                if (config.month !== null && rDate.getMonth() !== config.month) matchesTime = false;
-            } else {
-                // Se a data for inválida, oculta se estiver filtrando por período específico
-                if (config.month !== null) matchesTime = false;
-            }
+            if (!isNaN(rDate.getTime())) matchesTime = isDateInPeriod(r.date, config);
+            // data inválida: só aparece quando o período é o ano todo
+            else matchesTime = config.month === null && !config.quickFilter;
         }
 
         const matchesCategory = selectedCategories.length > 0 ? r.items.some(item => selectedCategories.includes(item.category)) : true;
@@ -150,7 +136,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
         }
         return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount;
     });
-  }, [receipts, searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config, itemFilter, nameOf]);
+  }, [receipts, searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, config, itemFilter, nameOf]);
 
   // Agrupamento para exibição por mês (Timeline)
   const groupedReceipts = useMemo(() => {
@@ -185,11 +171,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
   }, [filteredReceipts, searchMatcher]);
   const priceItems = useMemo(() => (searchMatcher ? toHistoryItems(filteredReceipts, searchMatcher, nameOf) : []), [filteredReceipts, searchMatcher, nameOf]);
   const priceFor = (r: Receipt) => (itemFilter && rowInfo.get(r.id) ? rowInfo.get(r.id)!.subtotal : (Number(r.totalAmount) || 0));
-  const itemPeriodTitle = useMemo(() => {
-      if (startDate || endDate) return periodLabel({ year: config?.year ?? new Date().getFullYear(), month: null, quickFilter: 'custom', customStartDate: startDate, customEndDate: endDate });
-      if (config) return periodLabel({ year: config.year, month: config.month, quickFilter: null, customStartDate: '', customEndDate: '' });
-      return 'Todo o histórico';
-  }, [startDate, endDate, config]);
+  const itemPeriodTitle = useMemo(() => (config ? periodLabel(config) : 'Todo o histórico'), [config]);
 
   const monthGroups = useMemo(() => (Object.entries(groupedReceipts) as [string, Receipt[]][]).map(([month, items]) => ({
       month, items, total: items.reduce((s, r) => s + priceFor(r), 0),
@@ -197,7 +179,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
 
   const [manualCollapsed, setManualCollapsed] = useState<Set<string> | null>(null);
   useEffect(() => { setManualCollapsed(null); },
-      [searchTerm, establishmentFilter, startDate, endDate, selectedCategories, sortType, sortOrder, config?.year, config?.month, itemFilter]);
+      [searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, config?.year, config?.month, config?.quickFilter, config?.customStartDate, config?.customEndDate, itemFilter]);
 
   const autoCollapsed = useMemo(() => {
       const closed = new Set<string>();
@@ -244,6 +226,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
           </div>
       </div>
 
+      {config && onConfigChange && <div className="-mb-3"><PeriodFilterBar config={config} onConfigChange={onConfigChange} /></div>}
+
       <div className="flex flex-col xl:flex-row ls:flex-row gap-4 ls:gap-2 items-start xl:items-center ls:items-center bg-black/40 p-1 rounded-2xl relative z-20">
         <div className="flex gap-2 w-full xl:flex-1">
         <ItemSearchBox
@@ -271,24 +255,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
                 <ArrowUpDown className="w-3.5 h-3.5" />
                 {sortType === 'date' ? 'Data' : 'Valor'}
             </button>
-        </div>
-
-        <div className="flex items-center gap-2 w-full xl:w-auto">
-            <PeriodPicker
-                start={startDate}
-                end={endDate}
-                onChange={(from, to) => { setStartDate(from); setEndDate(to); }}
-                placeholder="Escolher período"
-                className="flex-1 min-w-0 xl:min-w-[220px]"
-            />
-            
-            {(searchTerm || startDate || endDate) && (
-                <button data-testid="hist-clear" onClick={() => { setSearchTerm(''); setStartDate(''); setEndDate(''); }} className="shrink-0 p-3.5 bg-white/5 hover:bg-red-950/20 text-zinc-500 hover:text-red-400 rounded-xl transition-colors border border-white/5">
+            {searchTerm && (
+                <button data-testid="hist-clear" onClick={() => setSearchTerm('')} aria-label="Limpar a busca" className="shrink-0 p-3.5 bg-white/5 hover:bg-red-950/20 text-zinc-500 hover:text-red-400 rounded-xl transition-colors border border-white/5">
                     <XCircle className="w-4 h-4" />
                 </button>
             )}
-            
         </div>
+
       </div>
 
       {itemFilter && (
