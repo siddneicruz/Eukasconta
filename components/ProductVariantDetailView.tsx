@@ -12,6 +12,7 @@ import { getCategoryColor, getCategoryIcon } from './Dashboard';
 import ProductPriceChart from './ProductPriceChart';
 import ItemPeriodBar, { ItemPeriod, periodFromConfig } from './ItemPeriodBar';
 import { useStoreNames } from './StoreNamesContext';
+import { useLayers } from './LayersContext';
 import NearbyPricesCard, { NearbySample } from './NearbyPricesCard';
 import { priceBasis, eggNeedsCount } from '../services/eggs';
 import type { CloudApi } from '../services/useCloud';
@@ -97,6 +98,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
   const productColor = useMemo(() => getCategoryColor(genericName), [genericName]);
 
   // Todas as compras do produto, de qualquer período (base do menor/teto e da variação entre compras).
+  const layers = useLayers();   // fixações feitas na edição do cupom
   const allHistory = useMemo(() => {
       const rows: HistRow[] = [];
       receipts.forEach(r => {
@@ -121,7 +123,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
           });
       });
       return rows;
-  }, [receipts, genericName, subCategoryName, nameOf]);
+  }, [receipts, genericName, subCategoryName, nameOf, layers]);
 
   // Compras dentro do período escolhido, da mais recente para a mais antiga.
   const periodRows = useMemo(
@@ -144,7 +146,7 @@ const ProductVariantDetailView: React.FC<ProductVariantDetailViewProps> = ({ gen
   // Menor preço, teto e médio olham todo o histórico do produto, não só o período da tela.
   const priceStats = useMemo(
       () => computePriceStats(collectPriceObservations(receipts, genericName, subCategoryName)),
-      [receipts, genericName, subCategoryName]
+      [receipts, genericName, subCategoryName, layers]
   );
 
   const series = useMemo(() => buildPriceSeries(periodRows, unit), [periodRows, unit]);

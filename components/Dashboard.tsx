@@ -258,6 +258,28 @@ export const getCategoryIcon = (category: string) => {
     return matchIconByKeyword(category) || ShoppingBag;
 };
 
+// Cor definida na estrutura (taxonomia) para "Departamento - Divisão - ...": a do nó ou, na falta, a do pai mais próximo que tenha.
+const taxFold = (t: string) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+let taxCache: { raw: string | null; nodes: TaxonomyNode[] } = { raw: null, nodes: [] };
+const taxonomyColorOf = (category: string): string | null => {
+    try {
+        const raw = localStorage.getItem('eukasconta_taxonomy');
+        if (!raw) return null;
+        if (taxCache.raw !== raw) { const v = JSON.parse(raw); taxCache = { raw, nodes: Array.isArray(v) ? v : [] }; }
+        const nodes = taxCache.nodes;
+        const parts = category.split(' - ').map(taxFold).filter(Boolean);
+        if (!parts.length || !nodes.length) return null;
+        let parent: string | null = null; let color: string | null = null; let found = 0;
+        for (const part of parts) {
+            const hit = nodes.find(n => n.parentId === parent && taxFold(n.name) === part)
+                || (parent === null ? nodes.find(n => n.parentId === null && (taxFold(n.name).startsWith(part) || part.startsWith(taxFold(n.name)))) : undefined);
+            if (!hit) break;
+            found++; parent = hit.id; if (hit.color) color = hit.color;
+        }
+        return found === parts.length ? color : null;
+    } catch { return null; }
+};
+
 export const getCategoryColor = (category: string) => {
     // 1. Tentar cor customizada EXATA primeiro
     try {
@@ -268,7 +290,19 @@ export const getCategoryColor = (category: string) => {
         }
     } catch(e) {}
     
+    // 1b. Cor do nó na estrutura (Config > Estrutura), com herança do pai: cada divisão ("Carne de Aves") tem a sua
+    const nodeColor = taxonomyColorOf(category);
+    if (nodeColor) return nodeColor;
+
     const norm = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    // a divisão manda: "Açougue e Peixaria - Carne de Aves" é de aves, não "carne" genérica
+    const subNorm = category.includes(' - ') ? category.split(' - ').slice(1).join(' ').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
+    if (subNorm) {
+        if (/\b(aves?|frango|galinha|peru)\b/.test(subNorm)) return '#F87171';
+        if (/\b(suin[ao]s?|porco|lingui[cç]as?|embutidos?)\b/.test(subNorm)) return '#F472B6';
+        if (/\b(pescados?|peixes?|mar|frutos do mar)\b/.test(subNorm)) return '#06B6D4';
+        if (/\b(cordeiro|caprinos?|exoticos?)\b/.test(subNorm)) return '#A855F7';
+    }
     
     // 2. Cores por palavras-chave ultra-específicas
     if (norm.includes('carne') || norm.includes('bovino')) return '#EF4444'; 

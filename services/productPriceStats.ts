@@ -1,6 +1,7 @@
 import { Receipt, ReceiptItem } from '../types';
 import { normalizeProductName } from './productNormalization';
 import { priceBasis, eggNeedsCount } from './eggs';
+import { getActiveLayers, pinKey } from './categoryLayers';
 
 // Preço de um produto (menor, teto, médio) olhando TODO o histórico de cupons.
 // Não depende do período escolhido na tela: um preço de setembro continua valendo em outubro.
@@ -57,14 +58,25 @@ const genericOf = (description: string): string => {
   return g;
 };
 
-// O item pertence ao produto só quando o nome genérico dele É o do produto (o mesmo nome que a lista
-// "Artigos identificados" usa para agrupar). Comparar sem acento: "MAMÃO"/"FILÉ MIGNON" têm acento no genérico.
+// Nome do produto de uma compra: o grupo/item em que a pessoa FIXOU a descrição (edição do cupom) e, sem fixação, o nome genérico.
+// É o mesmo nome que a lista "Artigos identificados" usa, então o dashboard acompanha o que foi escolhido no cupom.
+export const productKeyOf = (item: ReceiptItem): string => {
+  const desc = item.description || '';
+  const idx = getActiveLayers();
+  if (idx.pins.size && item.category) {
+    const node = idx.byKey.get(idx.pins.get(pinKey(item.category, desc)) || '');
+    if (node && node.leaf) return node.rest ? node.group : node.label;
+  }
+  return genericOf(desc);
+};
+
+// O item pertence ao produto só quando o nome dele (fixado ou genérico) É o do produto. Comparar sem acento.
 // Antes valia também "o texto contém o nome": abrir "Carne" trazia Carne Moída, Alcatra e qualquer cupom
 // que tivesse a palavra "carne" na descrição. O segundo argumento (categoria aberta) ficou só por compatibilidade.
 export const itemBelongsToProduct = (item: ReceiptItem, genericName: string, _subCategoryName?: string): boolean => {
   const key = stripAccentsUpper(genericName);
   if (!key) return false;
-  return stripAccentsUpper(genericOf(item.description || '')) === key;
+  return stripAccentsUpper(productKeyOf(item)) === key;
 };
 
 export const collectPriceObservations = (receipts: Receipt[], genericName: string, subCategoryName: string): PriceObservation[] => {

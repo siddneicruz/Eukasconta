@@ -4,10 +4,11 @@ import { Receipt, DashboardConfig } from '../types';
 import { ChevronLeft, ShoppingBag, ArrowRight, Store, History, Calendar, Clock, ChevronRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useStoreNames } from './StoreNamesContext';
+import { useLayers } from './LayersContext';
 import { getCategoryColor, getCategoryIcon } from './Dashboard';
 import ReceiptRow from './ReceiptRow';
 import InteractiveDonut from './InteractiveDonut';
-import { normalizeProductName } from '../services/productNormalization';
+import { productKeyOf } from '../services/productPriceStats';
 import { titleCase } from '../services/textFormat';
 
 interface ProductHistoryViewProps {
@@ -38,6 +39,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName, receipts, onBack, onSelectVariant, config, onSelectReceipt, onEditIcon }) => {
   const { nameOf } = useStoreNames();
+  const layers = useLayers();   // fixações feitas na edição do cupom
   const filteredContextReceipts = useMemo(() => {
     return receipts.filter(r => {
         const rDate = new Date(r.date + 'T12:00:00');
@@ -63,7 +65,7 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
     filteredContextReceipts.forEach(r => {
         r.items.forEach(item => {
             if (item.category === subCategoryName) {
-                const genericName = normalizeProductName(item.description);
+                const genericName = productKeyOf(item);
                 if (!agg[genericName]) agg[genericName] = { total: 0, itemsCount: 0 };
                 agg[genericName].total += item.totalPrice;
                 agg[genericName].itemsCount += 1;
@@ -81,7 +83,7 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
             percentage: totalValue > 0 ? (data.total / totalValue) * 100 : 0
         }))
         .sort((a, b) => b.value - a.value);
-  }, [filteredContextReceipts, subCategoryName]);
+  }, [filteredContextReceipts, subCategoryName, layers]);
 
   const establishmentData = useMemo(() => {
       const agg: Record<string, number> = {};
