@@ -13,6 +13,7 @@ import EggCountPicker from './EggCountPicker';
 import { isEggItem } from '../services/eggs';
 import { normalizeReceiptNumbers } from '../services/receiptNumbers';
 import ItemCategoryPicker from './ItemCategoryPicker';
+import ReceiptItemsEditor from './ReceiptItemsEditor';
 
 interface ReceiptDetailProps {
   receipt: Receipt;
@@ -430,30 +431,8 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                           <input type="text" maxLength={2} value={editedReceipt.state} onChange={(e) => updateHeader('state', e.target.value.toUpperCase())} className="w-full bg-black border border-white/10 rounded px-1 py-1.5 text-sm text-center text-zinc-200 uppercase focus:border-luxury-gold outline-none" />
                       </div>
                   </div>
-                  <div className="flex justify-between items-center px-1">
-                      <h3 className="text-xs uppercase tracking-[0.08em] text-zinc-400 font-bold">Itens da Compra</h3>
-                      <button type="button" onClick={addEmptyItem} className="flex items-center gap-1 text-[11px] uppercase font-bold text-luxury-gold hover:underline"><Plus className="w-3 h-3"/> Novo Item</button>
-                  </div>
-                  <div className="space-y-2">
-                      {editedReceipt.items.map((item, idx) => (
-                          <div key={idx} className="grid grid-cols-6 md:grid-cols-12 gap-2 p-3 bg-zinc-900/50 border border-white/5 rounded-lg hover:bg-white/5 transition-colors items-start">
-                              <div className="col-span-6 md:col-span-4"><label className="md:hidden text-xs text-zinc-500 block mb-0.5">Descrição</label><input type="text" value={item.description} onChange={(e) => updateEditedItem(idx, 'description', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1 text-xs text-zinc-200"/></div>
-                              <div className="col-span-6 md:col-span-3"><label className="md:hidden text-xs text-zinc-500 block mb-1">Categoria</label>
-                                  <ItemCategoryPicker category={item.category} description={item.description} categories={categories} testId={`item-cat-${idx}`} onPick={(c) => updateEditedItem(idx, 'category', c)} />
-                              </div>
-                              <div className="col-span-2 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Qtd</label><input type="number" value={item.quantity} onChange={(e) => updateEditedItem(idx, 'quantity', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-center text-zinc-200"/></div>
-                              <div className="col-span-2 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Un</label><input type="text" value={item.unitType || 'UN'} onChange={(e) => updateEditedItem(idx, 'unitType', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-center text-zinc-200 uppercase"/></div>
-                              <div className="col-span-2 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Vl. Un</label><input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateEditedItem(idx, 'unitPrice', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right text-zinc-200"/></div>
-                              <div className="col-span-5 md:col-span-1"><label className="md:hidden text-xs text-zinc-500 block mb-1">Total</label><input type="number" step="0.01" value={item.totalPrice} onChange={(e) => updateEditedItem(idx, 'totalPrice', Number(e.target.value))} className="w-full bg-black border border-white/10 rounded px-1 py-1 text-xs text-right font-bold text-luxury-gold"/></div>
-                              <div className="col-span-1 flex justify-center pt-1 md:pt-1"><button onClick={() => removeEditedItem(idx)} aria-label="Remover item" className="text-zinc-600 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
-                              {isEggItem(item) && (
-                                  <div className="col-span-6 md:col-span-12">
-                                      <EggCountPicker item={item} testId={`egg-picker-edit-${idx}`} onChange={n => updateEditedItem(idx, 'eggCount', n)} />
-                                  </div>
-                              )}
-                          </div>
-                      ))}
-                  </div>
+                  <ReceiptItemsEditor items={editedReceipt.items} categories={categories}
+                      onChange={updateEditedItem} onRemove={removeEditedItem} onAdd={addEmptyItem} />
               </div>
           ) : (
             viewMode === 'thermal' ? (<ThermalReceiptView receipt={receipt} />) : (
