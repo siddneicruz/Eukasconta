@@ -143,7 +143,7 @@ interface SeriesRow {
   label: string; full: string;
   cur?: number; prev?: number; curCum?: number; prevCum?: number; proj?: number;
 }
-interface Dept { name: string; value: number; share: number; prev: number; delta: number | null; color: string }
+interface Dept { name: string; value: number; share: number; pct: number; prev: number; delta: number | null; color: string }
 type Tone = 'gold' | 'good' | 'bad' | 'info';
 interface Insight { icon: React.ComponentType<{ className?: string }>; tone: Tone; text: React.ReactNode; /** cupom que a leitura cita: tocar abre */ open?: string }
 
@@ -246,13 +246,21 @@ function analyse(receipts: Receipt[], config: DashboardConfig, displayName: Prop
   const deptTotal = Array.from(cd.values()).reduce((a, b) => a + b, 0);
   const sorted = Array.from(cd.entries()).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const mk = (name: string, value: number, prevV: number, color: string): Dept => ({
-    name, value: round2(value), share: deptTotal ? (value / deptTotal) * 100 : 0,
+    name, value: round2(value), share: deptTotal ? (value / deptTotal) * 100 : 0, pct: 0,
     prev: prevV, delta: prevV > 0 ? ((value - prevV) / prevV) * 100 : null, color,
   });
   const depts: Dept[] = sorted.slice(0, 6).map(([n, v], i) => mk(n, v, pd.get(n) || 0, DEPT_COLORS[i]));
   if (sorted.length > 6) {
     const rest = sorted.slice(6);
     depts.push(mk(`Demais (${rest.length})`, rest.reduce((s, [, v]) => s + v, 0), rest.reduce((s, [n]) => s + (pd.get(n) || 0), 0), DEPT_REST));
+  }
+
+  // percentuais inteiros que fecham 100% (maior resto)
+  {
+    const floors = depts.map(d => Math.floor(d.share));
+    let left = (depts.length ? 100 : 0) - floors.reduce((a, b) => a + b, 0);
+    depts.map((d, i) => ({ i, r: d.share - floors[i] })).sort((a, b) => b.r - a.r).forEach(x => { if (left > 0) { floors[x.i]++; left--; } });
+    depts.forEach((d, i) => { d.pct = floors[i]; });
   }
 
   /* ritmo: dia da semana e período do dia */
@@ -571,7 +579,6 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
 
   const yKey = mode === 'acum' ? 'curCum' : 'cur';
   const pKey = mode === 'acum' ? 'prevCum' : 'prev';
-  const maxDept = Math.max(...a.depts.map(d => d.value), 1);
   const maxStore = Math.max(...a.stores.map(s => s.total), 1);
   const focus = activeDept !== null ? a.depts[activeDept] : null;
 
@@ -730,14 +737,12 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                         <span className="text-xs font-sans font-bold text-white uppercase tracking-wide truncate">{d.name}</span>
                       </span>
                       <span className="flex items-center gap-2 shrink-0">
-                        {d.delta !== null && Math.abs(d.delta) >= 5 && (
-                          <span className={`text-xs font-bold ${d.delta > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{d.delta > 0 ? '▲' : '▼'} {Math.abs(Math.round(d.delta))}%</span>
-                        )}
+                        <span data-testid="dept-pct" className="text-xs font-bold text-luxury-gold tabular-nums">{d.pct}%</span>
                         <span className="text-xs font-sans font-bold text-white">{brl0.format(d.value)}</span>
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full transition-[width] duration-1000 ease-out" style={{ width: ready ? `${(d.value / maxDept) * 100}%` : '0%', backgroundColor: d.color, transitionDelay: `${i * 70}ms` }} />
+                      <div className="h-full rounded-full transition-[width] duration-1000 ease-out" style={{ width: ready ? `${d.share}%` : '0%', backgroundColor: d.color, transitionDelay: `${i * 70}ms` }} />
                     </div>
                   </li>
                 ))}
