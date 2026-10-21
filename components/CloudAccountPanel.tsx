@@ -80,15 +80,18 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
   };
 
   const pending = cloud.user ? cloud.pendingHistory().length : 0;
+  const blocked = cloud.user ? cloud.blockedHistory() : [];
+  const [shareBad, setShareBad] = useState(false);
   const runShare = async () => {
     setShareMsg(null); setProgress({ done: 0, total: Math.min(pending, 75) });
     const res = await cloud.shareHistory((done, total) => setProgress({ done, total }));
     setProgress(null);
-    setShareMsg(
-      res.limited
-        ? `Enviados ${res.sent} cupons. Chegou ao limite de 80 por dia — o resto segue amanhã.`
-        : `Enviados ${res.sent} cupons${res.skipped ? ` (${res.skipped} ignorados por CNPJ inválido ou erro)` : ''}.`
-    );
+    const parts: string[] = [`Enviados ${res.sent} cupons.`];
+    if (res.limited) parts.push('Chegou ao limite de 80 por dia: o resto segue amanhã.');
+    if (res.invalid) parts.push(`${res.invalid} com CNPJ ou data inválidos (corrija no cupom).`);
+    if (res.failed) parts.push(`${res.failed} não foram por erro${res.error ? `: ${res.error}` : ''}. Tente de novo.`);
+    setShareMsg(parts.join(' '));
+    setShareBad(!!(res.failed || (res.sent === 0 && (res.invalid || res.limited))));
   };
 
   if (!cloud.ready) {
@@ -211,7 +214,7 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
             <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
               {pending > 0
                 ? `${pending} cupom${pending > 1 ? 's' : ''} dos últimos 90 dias ainda não ${pending > 1 ? 'foram enviados' : 'foi enviado'} ao cadastro comum.`
-                : 'Tudo o que você escaneou nos últimos 90 dias já foi enviado.'}
+                : (blocked.length ? 'Tudo o que pode ser enviado já foi enviado.' : 'Tudo o que você escaneou nos últimos 90 dias já foi enviado.')}
             </p>
             {pending > 0 && (
               <button onClick={runShare} disabled={!!progress}
@@ -219,7 +222,12 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
                 {progress ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando {progress.done}/{progress.total}</> : <><Send className="w-4 h-4 text-luxury-gold" /> Enviar agora</>}
               </button>
             )}
-            {shareMsg && <p className="text-xs text-emerald-500 mt-3 leading-relaxed">{shareMsg}</p>}
+            {blocked.length > 0 && (
+              <p className="text-xs text-amber-500 mt-3 leading-relaxed" data-testid="share-blocked">
+                {blocked.length} cupom{blocked.length > 1 ? 's' : ''} {blocked.length > 1 ? 'têm' : 'tem'} CNPJ ou data inválidos e não {blocked.length > 1 ? 'podem' : 'pode'} ser enviado{blocked.length > 1 ? 's' : ''}. Abra o cupom, corrija o CNPJ e ele entra na fila.
+              </p>
+            )}
+            {shareMsg && <p className={`text-xs mt-3 leading-relaxed ${shareBad ? 'text-amber-500' : 'text-emerald-500'}`}>{shareMsg}</p>}
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import { Receipt, Establishment } from '../types';
 import { cleanCNPJ } from './productNormalization';
 import { geocodeEstablishment } from './geocodingService';
+import { isValidCNPJ } from './registryLookupService';
 import * as authService from './authService';
 import * as cloud from './cloudService';
 import type {
@@ -138,10 +139,10 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
   const contribute = useCallback(async (
     list: Receipt[],
     opts: { silent?: boolean; onProgress?: (done: number, total: number) => void } = {}
-  ): Promise<{ sent: number; skipped: number; limited: boolean }> => {
+  ): Promise<{ sent: number; skipped: number; limited: boolean; invalid: number; failed: number; error?: string }> => {
     const u = userRef.current;
     const p = profileRef.current;
-    const stats = { sent: 0, skipped: 0, limited: false };
+    const stats: { sent: number; skipped: number; limited: boolean; invalid: number; failed: number; error?: string } = { sent: 0, skipped: 0, limited: false, invalid: 0, failed: 0 };
     if (!u || !p || !p.share_prices) return stats;
 
     // Cada cupom é enviado uma vez só, mesmo se a tela avisar duas vezes (React em modo de desenvolvimento faz isso).
@@ -159,7 +160,7 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
         i++;
         opts.onProgress?.(i - 1, list.length);
         const cnpj = cleanCNPJ(r.cnpj);
-        if (cnpj.length !== 14) { stats.skipped++; continue; }
+        if (!isValidCNPJ(cnpj)) { stats.skipped++; stats.invalid++; continue; }
 
         const est = estRef.current.find(e => cleanCNPJ(e.cnpj) === cnpj);
         const hasCoords = est && typeof est.latitude === 'number' && typeof est.longitude === 'number';
@@ -167,11 +168,12 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
 
         let res: cloud.ContributeResult;
         try { res = await cloud.contributeReceipt(r, coords); }
-        catch (e: any) { setLastError(e.message); stats.skipped++; continue; }
+        catch (e: any) { setLastError(e.message); stats.skipped++; stats.failed++; stats.error = e.message; continue; }
 
         if (res.status === 'skipped') {
           if (res.reason === 'rate_limited') { stats.limited = true; break; }
           if (res.reason === 'opt_out') break;
+          if (res.reason === 'invalid_cnpj' || res.reason === 'invalid_date') stats.invalid++; else stats.failed++;
           stats.skipped++; continue;
         }
         sentIds.add(r.id);
@@ -204,16 +206,23 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
     return stats;
   }, []);
 
-  // Cupons dos últimos 90 dias que ainda não foram enviados ao cadastro comum.
-  const pendingHistory = useCallback((): Receipt[] => {
+  // O cadastro comum só aceita CNPJ com os dígitos verificadores certos e data real: o resto nunca vai, então não conta como "a enviar".
+  const sendable = (r: Receipt): boolean => {
+    const d = r.date || '';
+    return isValidCNPJ(r.cnpj) && d >= '2020-01-01' && d <= new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  };
+  const recentUnsent = (): Receipt[] => {
     const u = userRef.current;
     if (!u) return [];
     const sent = new Set<string>(readJson<string[]>(SENT_KEY(u.id), []));
     const limit = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
-    return receiptsRef.current
-      .filter(r => !sent.has(r.id) && cleanCNPJ(r.cnpj).length === 14 && (r.date || '') >= limit)
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, []);
+    return receiptsRef.current.filter(r => !sent.has(r.id) && (r.date || '') >= limit).sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  // Cupons dos últimos 90 dias que ainda não foram enviados ao cadastro comum (e podem ser).
+  const pendingHistory = useCallback((): Receipt[] => recentUnsent().filter(sendable), []);
+  // Cupons dos últimos 90 dias que não podem ir: CNPJ ou data inválidos (o certo é corrigir no cupom).
+  const blockedHistory = useCallback((): Receipt[] => recentUnsent().filter(r => !sendable(r)), []);
 
   const shareHistory = useCallback(async (onProgress?: (done: number, total: number) => void) => {
     const todo = pendingHistory().slice(0, 75); // a conta aceita até 80 cupons por dia
@@ -292,7 +301,7 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
     available: cloud.cloudAvailable(), ready, user, profile, busy, lastError,
     notifications, unread, alerts, suggestions,
     signIn, signUp, signInWithGoogle, signOut, updatePrivacy,
-    contribute, shareHistory, pendingHistory,
+    contribute, shareHistory, pendingHistory, blockedHistory,
     dismissSuggestions: () => setSuggestions([]),
     refreshNotifications, markRead, removeNotification,
     refreshAlerts, addAlert, toggleAlert, removeAlert,
