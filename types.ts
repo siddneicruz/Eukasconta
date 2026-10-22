@@ -79,6 +79,7 @@ export interface SystemSnapshot {
         aiLearning: AILearningEntry[];
         categoryMeta: any;
         categoryGoals?: Record<string, number>;
+        goalColors?: Record<string, string>;
         establishments?: Establishment[];
         masterProducts?: MasterProduct[];
     };
@@ -123,6 +124,7 @@ export interface UnifiedVault {
   aiLearning: AILearningEntry[];
   categoryMeta: Record<string, CategoryMeta>;
   categoryGoals: Record<string, number>;
+  goalColors?: Record<string, string>;
   establishments: Establishment[];
   masterProducts?: MasterProduct[];
   exportedAt: string;

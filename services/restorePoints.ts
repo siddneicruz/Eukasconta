@@ -115,6 +115,7 @@ export const legacyToPoint = (snap: Partial<SystemSnapshot> | null | undefined):
   put('eukasconta_ai_learning', d.aiLearning);
   put('eukasconta_category_meta', d.categoryMeta);
   put('eukasconta_category_goals', d.categoryGoals);
+  put('eukasconta_goal_colors', d.goalColors);
   put('eukasconta_establishments', d.establishments);
   put('eukasconta_master_products', d.masterProducts);
   const createdAt = Number(snap.timestamp) > 0 ? Number(snap.timestamp) : Date.now();

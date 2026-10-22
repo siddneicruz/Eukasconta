@@ -816,6 +816,7 @@ const App: React.FC = () => {
       try {
           const categoryMeta = JSON.parse(localStorage.getItem('eukasconta_category_meta') || '{}');
           const categoryGoals = JSON.parse(localStorage.getItem('eukasconta_category_goals') || '{}');
+          const goalColors = JSON.parse(localStorage.getItem('eukasconta_goal_colors') || '{}');
           const vaultData: UnifiedVault = { 
               version: "3.0", 
               exportedAt: new Date().toISOString(), 
@@ -824,6 +825,7 @@ const App: React.FC = () => {
               aiLearning,
               categoryMeta, 
               categoryGoals,
+              goalColors,
               establishments
           };
           const ZipModule = (JSZip as any).default || JSZip;
@@ -1041,6 +1043,8 @@ const App: React.FC = () => {
                       addImportLog('success', 'Metas de categoria atualizadas.');
                   }
                   
+                  if (loaded.goalColors) localStorage.setItem('eukasconta_goal_colors', JSON.stringify(loaded.goalColors));
+
                   if (loaded.establishments) {
                       setEstablishments(loaded.establishments);
                       addImportLog('success', `Estabelecimentos atualizados: ${loaded.establishments.length}.`);
