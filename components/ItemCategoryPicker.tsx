@@ -35,6 +35,13 @@ const ItemCategoryPicker: React.FC<{
     return r.target && (r.conf === 'alta' || r.conf === 'media') ? r.target.path : null;
   }, [outside, category, taxonomy]);
 
+  // cadeia completa (departamento › categoria › grupo › item), em linhas que quebram em vez de cortar
+  const chain = useMemo(() => {
+    const parts = (cur.label || '').split(' › ').filter(Boolean);
+    if (!cur.pinned && cur.now) cur.now.split(' › ').forEach(p => { if (!parts.includes(p)) parts.push(p); });
+    return parts;
+  }, [cur]);
+
   // sem estrutura de categorias (conta nova): lista simples, como era
   if (options.length === 0) {
     return (
@@ -67,6 +74,16 @@ const ItemCategoryPicker: React.FC<{
         testId={`${testId}-box`} placeholder="Buscar categoria" valueLabel={cur.label}
         listClass="md:w-[28rem] md:right-auto"
       />
+      {chain.length > 0 && (
+        <p className="mt-1.5 text-[12px] leading-snug text-zinc-300 break-words" data-testid={`${testId}-chain`} aria-label={`Caminho completo: ${chain.join(', ')}`}>
+          {chain.map((p, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span className="text-luxury-gold/70 mx-1">›</span>}
+              <span className={i === chain.length - 1 ? 'font-semibold text-zinc-100' : ''}>{p}</span>
+            </React.Fragment>
+          ))}
+        </p>
+      )}
       {outside && (
         <div className="mt-1 flex items-center gap-2" data-testid={`${testId}-outside`}>
           <p className="min-w-0 flex-1 text-[11px] text-zinc-500 leading-snug">Esta categoria não está na Estrutura de Taxonomia.</p>
