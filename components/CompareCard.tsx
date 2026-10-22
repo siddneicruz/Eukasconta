@@ -3,6 +3,7 @@ import * as Recharts from 'recharts';
 import { LineChart as LineChartIcon, X } from 'lucide-react';
 import { Receipt, DashboardConfig } from '../types';
 import CategoryCompareBox from './CategoryCompareBox';
+import CompareDonut from './CompareDonut';
 import { useLayers } from './LayersContext';
 import {
   CompareOption, buildCompareSeries, computeCompareStats, chipLabel,
@@ -11,7 +12,7 @@ import {
   TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth, brlAxis,
 } from '../services/chartFormat';
 
-const { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } = Recharts;
+const { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } = Recharts;
 
 export interface ChosenCompare { id: string; color: string; opt: CompareOption }
 
@@ -69,6 +70,7 @@ const CompareCard: React.FC<Props> = ({ options, chosen, onToggle, max, receipts
   const stats = useMemo(() => computeCompareStats(receipts, ids, layers), [receipts, idsKey, layers]);
   const cmp = useMemo(() => buildCompareSeries(receipts, ids, config, plotWidth, new Date(), layers), [receipts, idsKey, config, plotWidth, layers]);
 
+  const perCat = useMemo(() => chosen.map(c => ({ id: c.id, color: c.color, total: computeCompareStats(receipts, [c.id], layers).total })), [receipts, idsKey, layers]);
   const opts = chosen.map(c => c.opt);
   const lines: LineDef[] = chosen.map((c, i) => ({ key: cmp.keys[i], label: chipLabel(c.opt, opts), color: c.color }));
   const share = stats.periodTotal > 0 ? (stats.total / stats.periodTotal) * 100 : 0;
@@ -116,30 +118,40 @@ const CompareCard: React.FC<Props> = ({ options, chosen, onToggle, max, receipts
         ) : (
           <div className="h-[184px] md:h-[280px] w-full" data-testid="compare-chart">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cmp.points} margin={{ top: 8, right: TL_MARGIN_RIGHT, left: 0, bottom: 2 }}>
+              <AreaChart data={cmp.points} margin={{ top: 8, right: TL_MARGIN_RIGHT, left: 0, bottom: 2 }}>
+                <defs>
+                  {chosen.map((c, i) => (
+                    <linearGradient key={c.id} id={`cmpFill-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={c.color} stopOpacity={0.38} />
+                      <stop offset="100%" stopColor={c.color} stopOpacity={0.03} />
+                    </linearGradient>
+                  ))}
+                </defs>
                 <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} ticks={cmp.ticks} interval={0} tick={renderTimelineTick} height={24} />
-                <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} />
+                <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} domain={[0, 'auto']} />
                 <Tooltip
                   content={(p: any) => <CompareTooltip {...p} lines={lines} />}
                   cursor={{ stroke: 'rgba(212,175,55,0.3)', strokeWidth: 1, strokeDasharray: '3 4' }}
                 />
                 {chosen.map((c, i) => (
-                  <Line
+                  <Area
                     key={c.id}
                     type="monotone"
                     dataKey={cmp.keys[i]}
                     name={lines[i].label}
                     stroke={c.color}
-                    strokeWidth={1.5}
+                    strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    fill={`url(#cmpFill-${i})`}
+                    fillOpacity={1}
                     dot={cmp.showAllDots ? { r: 2.25, className: 'tl-dot', stroke: c.color, strokeWidth: 1.25 } : false}
                     activeDot={{ r: 3.5, className: 'tl-dot', stroke: c.color, strokeWidth: 1.5 }}
                     animationDuration={700}
                   />
                 ))}
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -159,6 +171,9 @@ const CompareCard: React.FC<Props> = ({ options, chosen, onToggle, max, receipts
             <p className="text-[14px] md:text-lg font-serif font-bold text-white tabular-nums leading-tight truncate" data-testid="kpi-avg">{brl(stats.avg)}</p>
           </div>
         </div>
+      )}
+      {!empty && !noSpend && chosen.length > 1 && (
+        <CompareDonut items={chosen.map((c, i) => ({ id: c.id, color: c.color, label: lines[i].label, total: perCat[i]?.total ?? 0 }))} />
       )}
     </div>
   );

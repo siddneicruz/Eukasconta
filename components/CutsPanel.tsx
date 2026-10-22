@@ -13,7 +13,7 @@ import {
 import { buildDeptOptions, deptFilterLabel, deptLabelFor, invertDeptFilter, isDeptFilterActive } from '../services/deptFilter';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 
-const { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } = Recharts;
+const { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } = Recharts;
 
 /* Aba "Recortes": etiquetas de períodos que a pessoa grava (do dia tal ao dia tal, com ou sem categorias).
    Tocar numa etiqueta mostra a análise só daquele recorte; o ✕ apaga (com "Desfazer"). */
@@ -137,23 +137,31 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
           ) : (
             <div className="h-[170px] md:h-[260px] w-full" data-testid="cut-chart">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={a.series.points} margin={{ top: 8, right: TL_MARGIN_RIGHT, left: 0, bottom: 2 }}>
+                <AreaChart data={a.series.points} margin={{ top: 8, right: TL_MARGIN_RIGHT, left: 0, bottom: 2 }}>
+                  <defs>
+                    <linearGradient id="cutFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.38} />
+                      <stop offset="100%" stopColor="#D4AF37" stopOpacity={0.03} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} ticks={a.series.ticks} interval={0} tick={renderTimelineTick} height={24} />
-                  <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} />
+                  <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} domain={[0, 'auto']} />
                   <Tooltip content={<CutTooltip />} cursor={{ stroke: 'rgba(212,175,55,0.3)', strokeWidth: 1, strokeDasharray: '3 4' }} />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="value"
                     stroke="#D4AF37"
-                    strokeWidth={1.5}
+                    strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    fill="url(#cutFill)"
+                    fillOpacity={1}
                     dot={a.series.showAllDots ? { r: 2.25, className: 'tl-dot', stroke: '#D4AF37', strokeWidth: 1.25 } : false}
                     activeDot={{ r: 3.5, className: 'tl-dot', stroke: '#D4AF37', strokeWidth: 1.5 }}
                     animationDuration={700}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           )}

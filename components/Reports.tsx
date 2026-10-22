@@ -1009,16 +1009,17 @@ const Reports: React.FC<ReportsProps> = ({
                                     <AreaChart data={goalPerfData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorGoal" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.25}/><stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/>
+                                                <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.38}/><stop offset="100%" stopColor="#D4AF37" stopOpacity={0.03}/>
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                                        <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTickX} dy={15} />
-                                        <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <ReferenceLine y={goalValue} stroke="#D4AF37" strokeDasharray="8 8" strokeWidth={2} />
-                                        <Area type="monotone" dataKey="value" name="REALIZADO" stroke="#D4AF37" strokeWidth={3} fillOpacity={1} fill="url(#colorGoal)" animationDuration={2000} dot={{ r: 4, fill: '#000', stroke: '#D4AF37', strokeWidth: 2 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} />
-                                        <Line type="monotone" dataKey="delta" name="DIFERENÇA" stroke="transparent" dot={false} activeDot={false} />
+                                        <YAxis axisLine={false} tickLine={false} width={AXIS_Y_WIDTH} tick={renderYTick} domain={[0, 'auto']} />
+                                        <YAxis yAxisId="delta" hide />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(212,175,55,0.3)', strokeWidth: 1, strokeDasharray: '3 4' }} />
+                                        <ReferenceLine y={goalValue} stroke="#D4AF37" strokeDasharray="8 8" strokeWidth={1.5} ifOverflow="extendDomain" />
+                                        <Area type="monotone" dataKey="value" name="REALIZADO" stroke="#D4AF37" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fillOpacity={1} fill="url(#colorGoal)" animationDuration={900} dot={false} activeDot={{ r: 3.5, stroke: '#D4AF37', strokeWidth: 1.5 }} />
+                                        <Line yAxisId="delta" type="monotone" dataKey="delta" name="DIFERENÇA" stroke="transparent" dot={false} activeDot={false} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
