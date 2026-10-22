@@ -4,10 +4,10 @@ import { X, Filter, ArrowLeftRight, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
 import PeriodPicker from './PeriodPicker';
 import DeptFilterSheet from './DeptFilterSheet';
-import { useLayers } from './LayersContext';
+import { useLayers, useTaxonomy } from './LayersContext';
 import { Cut, cutReceipts, dayCount, newCutId } from '../services/cuts';
 import {
-  DeptFilter, NO_DEPT_FILTER, buildDeptOptions, deptFilterLabel, deptLabelFor, invertDeptFilter, isDeptFilterActive,
+  DeptFilter, NO_DEPT_FILTER, buildDeptOptions, buildStructuredDeptOptions, deptFilterLabel, deptLabelFor, invertDeptFilter, isDeptFilterActive,
 } from '../services/deptFilter';
 
 /* Criar ou editar um recorte: de que dia até que dia, quais categorias entram e um nome se quiser.
@@ -49,7 +49,8 @@ const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose })
   const layers = useLayers();
   const ready = Boolean(from && to);
   const inRange = useMemo(() => (ready ? receipts.filter(r => r.date >= from && r.date <= to) : receipts), [receipts, from, to, ready]);
-  const options = useMemo(() => buildDeptOptions(receipts, inRange, layers), [receipts, inRange, layers]);
+  const taxonomy = useTaxonomy();
+  const options = useMemo(() => buildStructuredDeptOptions(receipts, inRange, layers, taxonomy), [receipts, inRange, layers, taxonomy]);
   const active = isDeptFilterActive(filter);
   const filterText = deptFilterLabel(filter, k => deptLabelFor(options, k));
 

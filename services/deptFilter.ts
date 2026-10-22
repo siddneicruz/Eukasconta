@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Receipt } from '../types';
+import { Receipt, TaxonomyNode } from '../types';
 import { catKey, deptKey, masterOf, properCase } from './textFormat';
 import { LayerIndex, buildLayerOpts, getActiveLayers, isLayerKey, itemKeys } from './categoryLayers';
 import { catOutside, deptOutside } from './categoryAlign';
@@ -369,4 +369,51 @@ export const useDeptFilter = (storageKey: string = DEPT_FILTER_KEY): [DeptFilter
     return () => window.removeEventListener('storage', onStorage);
   }, [storageKey]);
   return [filter, update];
+};
+
+
+/** A mesma lista da Estrutura de Taxonomia: tudo o que existe nela (mesmo sem compra no período, com valor zero),
+    na ordem em que a pessoa montou. O que está nas compras e não na Estrutura vem no fim, por gasto. */
+export const buildStructuredDeptOptions = (all: Receipt[], period: Receipt[], layers: LayerIndex, taxonomy: TaxonomyNode[]): DeptOption[] => {
+  const base = buildDeptOptions(all, period, layers);
+  if (!taxonomy.length) return base;
+  const out = [...base];
+  const have = new Set(base.map(o => o.key));
+  const order = new Map<string, number>();
+  let n = 0;
+  const nodesOf = (ck: string) => layers.nodes.filter(x => x.catKey === ck);
+
+  taxonomy.filter(t => t.level === 1).forEach(d => {
+    const dName = d.name.trim();
+    const dk = deptKey(dName);
+    if (!have.has(dk)) { out.push({ key: dk, kind: 'dept', label: properCase(dName), full: properCase(dName), dept: dk, total: 0, level: 1, parent: null }); have.add(dk); }
+    order.set(dk, n++);
+    taxonomy.filter(t => t.level === 2 && t.parentId === d.id).forEach(c => {
+      const ck = catKey(`${dName} - ${c.name.trim()}`);
+      const key = `c:${ck}`;
+      if (!have.has(key)) {
+        out.push({ key, kind: 'cat', label: properCase(c.name.trim()), full: `${properCase(dName)} - ${properCase(c.name.trim())}`, dept: dk, total: 0, level: 2, parent: dk });
+        have.add(key);
+      }
+      order.set(key, n++);
+      const nodes = nodesOf(ck);
+      [...nodes.filter(x => !x.rest), ...nodes.filter(x => x.rest)].forEach(x => order.set(x.key, n++));
+      order.set(`o:${ck}`, n++);
+    });
+  });
+
+  // grupos e itens da Estrutura que ainda não têm compra
+  const catByKey = new Map<string, DeptOption>();
+  out.forEach(o => { if (o.kind === 'cat') catByKey.set(o.key, o); });
+  buildLayerOpts(all, period, layers, true).forEach(l => {
+    if (have.has(l.key)) return;
+    const cat = catByKey.get(`c:${l.catKey}`);
+    if (!cat) return;
+    const full = l.kind === 'item' || (l.kind === 'rest' && l.level === 4) ? `${cat.full} - ${l.groupLabel} - ${l.label}` : `${cat.full} - ${l.label}`;
+    out.push({ key: l.key, kind: l.kind, label: l.label, full, dept: cat.dept, total: l.total, level: l.level, parent: l.parent, ...(cat.outside ? { outside: true } : {}) });
+    have.add(l.key);
+  });
+
+  const rank = (o: DeptOption) => (order.has(o.key) ? (order.get(o.key) as number) : Number.MAX_SAFE_INTEGER);
+  return out.sort((a, b) => Number(!!a.outside) - Number(!!b.outside) || rank(a) - rank(b) || b.total - a.total || a.full.localeCompare(b.full, 'pt-BR'));
 };

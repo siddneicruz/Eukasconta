@@ -12,7 +12,7 @@ import { consultAi, describeHistory } from '../services/shoppingListAI';
 import { ProgressEvent, ProgressState, StepId, applyEvent, initialProgress } from '../services/shoppingProgress';
 import { localTodayIso } from '../services/productNormalization';
 import { loadBaseId, loadLists, loadSetup, saveBaseId, saveLists, saveSetup } from '../services/shoppingStore';
-import { getActiveProviderLabel, hasAnyUserApiKey } from '../services/keyStorageService';
+import { getActiveProvider, getActiveProviderLabel, getOpenRouterModel, hasAnyUserApiKey, setOpenRouterModel } from '../services/keyStorageService';
 import ShoppingSetup, { GenOptions } from './ShoppingSetup';
 import ShoppingProgress from './ShoppingProgress';
 import { AddSheet, ConfirmSheet, ItemSheet, ListMenuSheet, RenameSheet, brl } from './ShoppingSheets';
@@ -216,13 +216,14 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
     open(c.id);
   };
 
-  const generate = async (setup: Setup, go: GenOptions) => {
+  const generate = async (setup: Setup, go: GenOptions, replaceId?: string) => {
     setError(null);
     saveSetup(setup);
     const t = localTodayIso();
     const purchases = purchasesFromSetup(setup, t);
     if (!purchases.length) { setError('Escolha ao menos um dia de compra.'); return; }
-    const old = editingId ? lists.find(l => l.id === editingId) : null;
+    const targetId = replaceId || editingId;
+    const old = targetId ? lists.find(l => l.id === targetId) : null;
     const baseSrc = go.fromBase && baseList ? baseList : null;
 
     // lista manual: vazia, só com as datas; a pessoa adiciona os itens
@@ -330,6 +331,15 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
       gen.current = null;
       setProgress(null);
     }
+  };
+
+  // Modelos grátis do OpenRouter caem com frequência: refaz a lista com o Claude Haiku, que usa os créditos do OpenRouter.
+  const HAIKU = 'anthropic/claude-haiku-5.5';
+  const canRetryHaiku = (): boolean => getActiveProvider() === 'openrouter' && getOpenRouterModel('text') !== HAIKU;
+  const retryWithHaiku = () => {
+    if (!list) return;
+    setOpenRouterModel('text', HAIKU);
+    void generate(list.setup, { name: list.name, mode: 'ai', fromBase: false }, list.id);
   };
 
   const startNew = () => { setEditingId(null); setError(null); setScreen('setup'); };
@@ -522,6 +532,12 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
           </p>
         )}
         {info.aiError && <p className="flex items-start gap-2 text-[11px] text-amber-400 leading-snug mt-2" data-testid="shop-ai-error"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {info.source === 'ia' ? info.aiError : `A IA não respondeu (${info.aiError}). A lista saiu só com o histórico.`}</p>}
+        {info.aiError && canRetryHaiku() && (
+          <button type="button" onClick={retryWithHaiku} data-testid="shop-retry-haiku"
+            className="mt-2 ml-6 px-3 min-h-[36px] rounded-full border border-luxury-gold/40 text-[11px] font-semibold text-luxury-gold">
+            Tentar com Claude Haiku (usa seus créditos do OpenRouter)
+          </button>
+        )}
         {list.notes.length > 0 && (
           <div className="mt-2">
             <button type="button" onClick={() => setNotesOpen(v => !v)} aria-expanded={notesOpen} data-testid="shop-notes-toggle" className="text-[11px] text-luxury-gold flex items-center gap-1 min-h-[32px]">

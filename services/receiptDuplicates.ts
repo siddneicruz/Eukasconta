@@ -33,6 +33,18 @@ export const itemOverlap = (a: Receipt, b: Receipt): number => {
   return hit / Math.max(ia.length, ib.length);
 };
 
+// Mesma ideia, olhando o nome do item (a leitura troca preço e total, mas o nome quase sempre sai igual): duas primeiras palavras, 5 letras de cada.
+const descKey = (d?: string): string => plainText(d || '').split(' ').filter(Boolean).slice(0, 2).map(w => w.slice(0, 5)).join(' ');
+export const descOverlap = (a: Receipt, b: Receipt): number => {
+  const ia = a.items || [], ib = b.items || [];
+  if (!ia.length || !ib.length) return 0;
+  const pool = new Map<string, number>();
+  ib.forEach(i => { const k = descKey(i.description); if (k) pool.set(k, (pool.get(k) || 0) + 1); });
+  let hit = 0;
+  ia.forEach(i => { const k = descKey(i.description); const left = pool.get(k) || 0; if (k && left > 0) { hit++; pool.set(k, left - 1); } });
+  return hit / Math.max(ia.length, ib.length);
+};
+
 const digits = (s?: string): string => String(s || '').replace(/\D/g, '');
 const hamming = (x: string, y: string): number => { let d = 0; for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) d++; return d; };
 
@@ -56,7 +68,14 @@ export const isSameCupom = (a: Receipt, b: Receipt): boolean => {
   if (a.id && a.id === b.id) return true;
   if (a.date !== b.date) return false;
   const ta = cents(a.totalAmount), tb = cents(b.totalAmount);
-  if (ta !== tb || ta <= 0) return false;
+  const sameTotal = ta === tb && ta > 0;
+  if (!sameTotal) {
+    // Total diferente: a mesma foto lida de novo pode errar o total ou o preço de alguns itens. Vale como o mesmo cupom
+    // quando a hora é a mesma, a loja é a mesma e os itens (pelo nome) são os mesmos.
+    const tA = knownTime(a.time), tB = knownTime(b.time);
+    const n = Math.min(a.items?.length || 0, b.items?.length || 0);
+    return !!tA && tA === tB && n >= 3 && storeRel(a, b) !== 'other' && descOverlap(a, b) >= 0.8;
+  }
 
   const timeA = knownTime(a.time), timeB = knownTime(b.time);
   if (timeA && timeB && timeA !== timeB) return false;
@@ -80,9 +99,14 @@ export const isSameCupom = (a: Receipt, b: Receipt): boolean => {
 
 /** Itens em que quantidade × preço bate com o total (a leitura errada costuma errar a quantidade e deixar o total certo). */
 export const consistentItems = (r: Receipt): number =>
-  (r.items || []).filter(i => Math.abs((Number(i.quantity) || 0) * (Number(i.unitPrice) || 0) - (Number(i.totalPrice) || 0)) <= 0.021).length;
+  (r.items || []).filter(i => (Number(i.totalPrice) || 0) > 0 && Math.abs((Number(i.quantity) || 0) * (Number(i.unitPrice) || 0) - (Number(i.totalPrice) || 0)) <= 0.021).length;
 
-const rank = (r: Receipt): number => consistentItems(r) * 1000 + (r.items?.length || 0) * 10;
+// Cupom lido melhor: mais itens com a conta certa e com preço, e o total igual à soma dos itens.
+const rank = (r: Receipt): number => {
+  const sum = (r.items || []).reduce((t, i) => t + (Number(i.totalPrice) || 0), 0);
+  const closes = Math.abs(sum - (Number(r.totalAmount) || 0)) <= 0.05;
+  return consistentItems(r) * 1000 + (closes ? 500 : 0) + (r.items?.length || 0) * 10;
+};
 
 export interface DuplicateGroup {
   /** assinatura estável do grupo (ids ordenados): serve para lembrar "manter os dois" */
@@ -95,13 +119,14 @@ const reasonFor = (keep: Receipt, r: Receipt): string => {
   const ni = r.items?.length || 0;
   if (ni === 0) return 'sem itens';
   const ck = consistentItems(keep), cr = consistentItems(r);
+  if (cr < ck && cents(r.totalAmount) !== cents(keep.totalAmount)) return 'leitura com preços ou total diferentes';
   if (cr < ck) return `${ni - cr} ${ni - cr === 1 ? 'item com a conta errada' : 'itens com a conta errada'}`;
   if (ni < (keep.items?.length || 0)) return 'menos itens';
   return 'lido depois';
 };
 
 export const findDuplicateGroups = (receipts: Receipt[]): DuplicateGroup[] => {
-  // só compara cupons do mesmo dia com o mesmo total
+  // só compara cupons do mesmo dia
   const byDate = new Map<string, Receipt[]>();
   receipts.forEach(r => {
     if (cents(r.totalAmount) <= 0) return;
@@ -117,7 +142,7 @@ export const findDuplicateGroups = (receipts: Receipt[]): DuplicateGroup[] => {
     const parent = list.map((_, i) => i);
     const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
     for (let i = 0; i < list.length; i++) {
-      for (let j = i + 1; j < list.length && cents(list[j].totalAmount) === cents(list[i].totalAmount); j++) {
+      for (let j = i + 1; j < list.length; j++) {
         if (isSameCupom(list[i], list[j])) parent[find(i)] = find(j);
       }
     }

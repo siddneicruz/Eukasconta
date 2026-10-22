@@ -1081,10 +1081,13 @@ const App: React.FC = () => {
           const updated = [...prev];
           mappings.forEach(m => {
               const keyword = m.description.trim().toUpperCase();
+              // compara sem acento nem caixa: a categoria escolhida pode vir como "LATICÍNIOS E FRIOS - Queijos" e a Estrutura ter "Laticínios e Frios"
+              const fold = (t: string) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+              const target = fold(m.newCategory);
               const node = taxonomy.find(n => {
-                  if (n.level === 1) return n.name === m.newCategory;
+                  if (n.level === 1) return fold(n.name) === target;
                   const parent = taxonomy.find(p => p.id === n.parentId);
-                  return parent ? `${parent.name} - ${n.name}` === m.newCategory : n.name === m.newCategory;
+                  return fold(parent ? `${parent.name} - ${n.name}` : n.name) === target;
               });
               
               if (node) {

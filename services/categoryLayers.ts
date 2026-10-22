@@ -22,6 +22,8 @@ const STOP = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'com', 'para', 'em', 
 
 const tokensOf = (s: string): string[] => fold(s).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
 const slug = (s: string): string => tokensOf(s).join(' ');
+// O cupom corta o nome: "QUEIJO AURORA MUSSARELA F" é fatiado (o F no fim é do fatiado).
+const expandTokens = (t: string[]): string[] => (t.length > 1 && t[t.length - 1] === 'f' ? [...t, 'fatiado', 'fatiada'] : t);
 /** O nome de um grupo/item como entra nas chaves (g:/i:). */
 export const layerSlug = slug;
 
@@ -141,7 +143,7 @@ export const leafFor = (idx: LayerIndex, category: string | undefined | null, de
   // fixado pela pessoa: vale antes de qualquer casamento por nome (se o grupo ou item ainda existe nesta categoria)
   const pinned = idx.pins.size ? idx.byKey.get(idx.pins.get(pinKey(category, description)) || '') : undefined;
   if (pinned && pinned.leaf && pinned.catKey === ck) { idx.cache.set(ckey, pinned); return pinned; }
-  const dt = tokensOf(String(description || ''));
+  const dt = expandTokens(tokensOf(String(description || '')));
   const dj = dt.join('');
   let best: LayerNode | null = null, bestW = 0;
   for (const n of leaves) {

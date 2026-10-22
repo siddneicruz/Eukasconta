@@ -107,7 +107,7 @@ const AISettingsPanel: React.FC = () => {
   ];
   const freeVisionOptions = catalog ? catalog.filter(m => m.vision) : DEFAULT_VISION_MODELS.map(id => ({ id, name: id }));
   const visionOptions = [...PAID_VISION_OPTIONS, ...freeVisionOptions];
-  const textOptions = catalog ? catalog : DEFAULT_TEXT_MODELS.map(id => ({ id, name: id }));
+  const textOptions = [...PAID_VISION_OPTIONS, ...(catalog ? catalog : DEFAULT_TEXT_MODELS.map(id => ({ id, name: id })))];
   const pickedVision = catalog?.find(m => m.id === visionModel.trim());
   const visionWarning = pickedVision && !pickedVision.vision;
 
@@ -228,6 +228,13 @@ const AISettingsPanel: React.FC = () => {
               <datalist id="or-text-models">
                 {textOptions.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </datalist>
+              <div className="flex flex-wrap gap-2 mt-3" role="group" aria-label="Atalhos de modelo para textos">
+                <button type="button" data-testid="or-text-haiku" onClick={() => { setTextModel('anthropic/claude-haiku-5.5'); setOpenRouterModel('text', 'anthropic/claude-haiku-5.5'); }}
+                  className={`px-3 min-h-[36px] rounded-full border text-[11px] font-semibold ${textModel.trim() === 'anthropic/claude-haiku-5.5' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>Claude Haiku (usa créditos)</button>
+                <button type="button" data-testid="or-text-free" onClick={() => { setTextModel(''); setOpenRouterModel('text', ''); }}
+                  className={`px-3 min-h-[36px] rounded-full border text-[11px] font-semibold ${!textModel.trim() ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>Grátis (padrão do app)</button>
+              </div>
+              <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Vale para a lista de compras, a auditoria e os outros textos. O Haiku gasta créditos do OpenRouter, mas não cai como os modelos grátis.</p>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">

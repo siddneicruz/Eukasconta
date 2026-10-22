@@ -13,10 +13,12 @@ const AILearningManager: React.FC<AILearningManagerProps> = ({ learning, taxonom
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredLearning = useMemo(() => {
-        const term = searchTerm.toLowerCase();
-        return learning.filter(l => 
-            l.keyword.toLowerCase().includes(term)
-        ).sort((a, b) => b.hitCount - a.hitCount);
+        const fold = (t: string) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const tokens = fold(searchTerm).split(/\s+/).filter(Boolean);
+        return learning.filter(l => {
+            const k = fold(l.keyword);
+            return tokens.every(t => k.includes(t));
+        }).sort((a, b) => b.hitCount - a.hitCount);
     }, [learning, searchTerm]);
 
     const getCategoryName = (nodeId: string) => {

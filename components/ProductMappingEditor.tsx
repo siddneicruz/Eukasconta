@@ -133,7 +133,8 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                 if (o.key === target.key) return false;
                 // Critério: contém pelo menos um token importante e ainda não está na categoria nova
                 const matchesTokens = tokens.some(t => o.name.includes(t) || o.descs.some(d => d.desc.includes(t)));
-                return matchesTokens && o.category !== newCategory;
+                // só os que estão hoje na mesma categoria em que este produto estava (juntos na categoria errada); marca em comum, como "Aurora", não basta
+                return matchesTokens && o.category !== newCategory && o.category === target.category;
             })
             .map(o => ({
                 key: o.key,
@@ -141,7 +142,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                 currentCategory: o.category,
                 count: o.count,
                 descs: o.descs.map(d => d.desc),
-                selected: true // Por padrão, sugerimos aplicar a todos os similares
+                selected: false // a sugestão é opcional: nada vem marcado, a escolha vale só para este produto até a pessoa marcar outros
             }));
     };
 
@@ -495,7 +496,9 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                                         <RefreshCw className="w-4 h-4 animate-spin" /> Aplicando...
                                     </>
                                 ) : (
-                                    <>Aplicar em {reviewModal.suggestions.filter(s => s.selected).length + 1} {reviewModal.suggestions.filter(s => s.selected).length + 1 === 1 ? 'produto' : 'produtos'}</>
+                                    reviewModal.suggestions.some(s => s.selected)
+                                        ? <>Aplicar em {reviewModal.suggestions.filter(s => s.selected).length + 1} produtos</>
+                                        : <>Aplicar só neste produto</>
                                 )}
                             </button>
                         </div>
