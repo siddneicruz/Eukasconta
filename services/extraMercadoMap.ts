@@ -13,6 +13,8 @@
    LC limpeza, MB mercearia básica, MD mercearia doce, MS mercearia salgada, MI mundo infantil, PD padaria, PT pet shop,
    PL plantas, RT rotisseria, SE saudáveis, VS vestuário. */
 
+import { stdName } from './taxonomyCase';
+
 export interface ExtraEquivalent {
   /** nome da categoria no Extra Mercado */
   extra: string;
@@ -366,7 +368,7 @@ Eletro > BZ > Elétricos e Iluminação
 Eletroportáteis|Eletroportáteis - Casa > BZ > Elétricos e Iluminação > Eletroportáteis
 `;
 
-const parsePath = (raw: string, defaultDept: string): string[] => raw.split('>').map(s => s.trim()).filter(Boolean).map((s, i) => (i === 0 && DEPTS[s] ? DEPTS[s] : s));
+const parsePath = (raw: string, _defaultDept: string): string[] => raw.split('>').map(s => s.trim()).filter(Boolean).map((s, i) => stdName(i === 0 && DEPTS[s] ? DEPTS[s] : s));
 
 let cache: ExtraEquivalent[] | null = null;
 

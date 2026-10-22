@@ -52,6 +52,7 @@ import {
   MergeResult, addHiddenDefaults, buildRemapper, droppedDefaultRoots, loadHiddenDefaults, remapFilterKeys, remapGoals, remapLearning,
   remapMasters, remapMeta, remapReceipts,
 } from './services/taxonomyDedupe';
+import { standardizeTaxonomy, buildCaseRemapper } from './services/taxonomyCase';
 import { loadDeptFilter, saveDeptFilter } from './services/deptFilter';
 import { looksLikeXlsx, mergePlanilha, mergeStores, readPlanilha } from './services/planilhaImport';
 import { loadCuts, saveCuts } from './services/cuts';
@@ -623,6 +624,28 @@ const App: React.FC = () => {
   const backup = useCloudBackup({ userId: cloud.user?.id ?? null, trigger: backupTrigger, onToast: (msg) => showNotification(msg, 6000) });
   // Pontos de restauração: cópias completas dos dados, no aparelho (manual, um por dia e antes de ações arriscadas)
   const restore = useRestorePoints({ onToast: (msg) => showNotification(msg, 7000) });
+  // Padrão de escrita da Estrutura: iniciais maiúsculas e o resto minúsculo. O texto gravado nas compras acompanha.
+  useEffect(() => {
+      const std = standardizeTaxonomy(taxonomy);
+      if (std.renamed === 0) return;
+      restore.before('padronizar maiúsculas e minúsculas');
+      const rm = buildCaseRemapper(taxonomy, std.taxonomy);
+      setTaxonomy(std.taxonomy);
+      setReceipts(prev => remapReceipts(prev, rm).receipts);
+      setMasterProducts(prev => remapMasters(prev, rm));
+      try {
+          const readJson = (k: string) => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch { return {}; } };
+          const goals = readJson('eukasconta_category_goals');
+          const nextGoals = remapGoals(goals, rm);
+          if (JSON.stringify(nextGoals) !== JSON.stringify(goals)) localStorage.setItem('eukasconta_category_goals', JSON.stringify(nextGoals));
+          const meta = readJson('eukasconta_category_meta');
+          const nextMeta = remapMeta(meta, rm, []);
+          if (nextMeta !== meta) localStorage.setItem('eukasconta_category_meta', JSON.stringify(nextMeta));
+          window.dispatchEvent(new Event('storage'));
+          setMetaVersion(v => v + 1);
+      } catch { /* sem armazenamento: a árvore e as compras já foram acertadas */ }
+      showNotification(`${std.renamed} ${std.renamed === 1 ? 'nome da Estrutura passou' : 'nomes da Estrutura passaram'} para iniciais maiúsculas.`, 6000);
+  }, [taxonomy]);
   const [alertDraft, setAlertDraft] = useState<AlertDraft | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
   const openAlertDraft = (d: AlertDraft) => { cloud.dismissSuggestions(); setAlertDraft(d); setView('alerts'); };
