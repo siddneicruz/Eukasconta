@@ -1,9 +1,19 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Sparkles, Tags, FolderTree } from 'lucide-react';
+import CategoryTagPicker from './CategoryTagPicker';
 import CategoryCompareBox from './CategoryCompareBox';
 import { useLayers, useTaxonomy } from './LayersContext';
 import { currentPick, isSelectable, pickOptions, resolvePick, restText } from '../services/categoryPick';
 import { saveLayerPin } from '../services/layerPins';
 import { buildAlignIndex, inStructure, resolveCategory, structureKeys } from '../services/categoryAlign';
+import { leafFor } from '../services/categoryLayers';
+import { nodePath, suggestFromPatterns } from '../services/layerLearning';
+
+/* Como a pessoa escolhe: por etiquetas (camada a camada) ou pela árvore de pastas com busca. Vale para todos os itens e fica guardado. */
+export const PICKER_MODE_KEY = 'eukasconta_picker_mode';
+export type PickerMode = 'tags' | 'tree';
+const readMode = (): PickerMode => { try { return localStorage.getItem(PICKER_MODE_KEY) === 'tree' ? 'tree' : 'tags'; } catch { return 'tags'; } };
+const MODE_EVENT = 'eukasconta-picker-mode';
 
 /* Categoria de um item de compra, escolhida pela árvore (departamento › categoria › grupo › item) com busca por digitação.
    Escolher um grupo ou item troca a categoria para a dele e fixa a descrição nele: vale para todas as compras com a mesma
@@ -27,6 +37,25 @@ const ItemCategoryPicker: React.FC<{
   const options = useMemo(() => pickOptions(taxonomy, layers), [taxonomy, layers]);
   const cur = useMemo(() => currentPick(category, description, options, layers), [category, description, options, layers]);
   const wrap = useRef<HTMLDivElement>(null);
+  const [mode, setModeState] = useState<PickerMode>(readMode);
+  useEffect(() => {
+    const sync = () => setModeState(readMode());
+    window.addEventListener(MODE_EVENT, sync);
+    return () => window.removeEventListener(MODE_EVENT, sync);
+  }, []);
+  const setMode = (m: PickerMode) => {
+    try { localStorage.setItem(PICKER_MODE_KEY, m); } catch { /* sem armazenamento: vale só nesta tela */ }
+    setModeState(m);
+    try { window.dispatchEvent(new Event(MODE_EVENT)); } catch { /* sem janela */ }
+  };
+  // item ainda sem grupo/item: se o que a pessoa já fixou aponta um lugar, sugere (um toque para usar)
+  const suggestion2 = useMemo(() => {
+    if (!category || !description.trim()) return null;
+    const leaf = leafFor(layers, category, description);
+    if (leaf && !leaf.rest) return null;
+    const hit = suggestFromPatterns(layers, category, description);
+    return hit && !hit.node.rest ? { id: hit.node.key, path: nodePath(hit.node), via: hit.via } : null;
+  }, [layers, category, description]);
   // categoria do item que não está na Estrutura de Taxonomia: avisa e, se der, sugere a certa
   const outside = useMemo(() => !inStructure(category, structureKeys(taxonomy)), [category, taxonomy]);
   const suggestion = useMemo(() => {
@@ -68,12 +97,35 @@ const ItemCategoryPicker: React.FC<{
   return (
     <div ref={wrap} data-testid={testId}
       onFocusCapture={() => { setTimeout(() => wrap.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }), 60); }}>
-      <CategoryCompareBox
-        options={options} selected={[cur.id]} max={1} single
-        onToggle={choose} selectable={isSelectable} autoFocus={autoFocus}
-        testId={`${testId}-box`} placeholder="Buscar categoria" valueLabel={cur.label}
-        listClass="md:w-[28rem] md:right-auto"
-      />
+      <div className="flex items-center justify-between mb-1.5" role="group" aria-label="Jeito de escolher">
+        <span className="text-[11px] text-zinc-500">Escolher por</span>
+        <div className="flex rounded-full bg-white/5 border border-white/10 p-0.5">
+          {([['tags', 'Etiquetas', Tags], ['tree', 'Pastas', FolderTree]] as const).map(([k, label, Ic]) => (
+            <button key={k} type="button" onClick={() => setMode(k)} data-testid={`${testId}-mode-${k}`} aria-pressed={mode === k}
+              className={`px-2.5 h-7 rounded-full text-[11.5px] font-semibold flex items-center gap-1 ${mode === k ? 'bg-luxury-gold text-black' : 'text-zinc-400'}`}>
+              <Ic className="w-3 h-3" /> {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {mode === 'tags' ? (
+        <CategoryTagPicker options={options} selectedId={cur.id} onChoose={choose} testId={`${testId}-tags`} />
+      ) : (
+        <CategoryCompareBox
+          options={options} selected={[cur.id]} max={1} single
+          onToggle={choose} selectable={isSelectable} autoFocus={autoFocus}
+          testId={`${testId}-box`} placeholder="Buscar categoria" valueLabel={cur.label}
+          listClass="md:w-[28rem] md:right-auto"
+        />
+      )}
+      {suggestion2 && (
+        <div className="mt-2 flex items-center gap-2 rounded-xl border border-luxury-gold/30 bg-luxury-gold/[0.06] px-3 py-2" data-testid={`${testId}-suggest-layer`}>
+          <Sparkles className="w-3.5 h-3.5 text-luxury-gold shrink-0" />
+          <p className="min-w-0 flex-1 text-[12px] leading-snug text-zinc-300">Pelo que você já fixou (como “{suggestion2.via}”): <span className="text-zinc-100 font-semibold">{suggestion2.path.split(' › ').slice(2).join(' › ') || suggestion2.path}</span></p>
+          <button type="button" onClick={() => choose(suggestion2.id)} data-testid={`${testId}-suggest-layer-use`}
+            className="shrink-0 h-8 px-3 rounded-lg bg-luxury-gold text-black text-[12px] font-bold active:opacity-80">Usar</button>
+        </div>
+      )}
       {chain.length > 0 && (
         <p className="mt-1.5 text-[12px] leading-snug text-zinc-300 break-words" data-testid={`${testId}-chain`} aria-label={`Caminho completo: ${chain.join(', ')}`}>
           {chain.map((p, i) => (

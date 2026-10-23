@@ -69,7 +69,7 @@ const ReceiptItemsEditor: React.FC<Props> = ({ items, categories, onChange, onRe
     const catShort = (item.category || 'Sem categoria').split(' - ').slice(1).join(' › ') || item.category || 'Sem categoria';
     return (
       <div key={idx} ref={el => { rows.current.set(idx, el); }} data-testid={`item-row-${idx}`}
-        className={`rounded-2xl border transition-colors ${isOpen ? 'bg-zinc-900/60 border-luxury-gold/30' : 'bg-zinc-900/40 border-white/5 hover:bg-white/5'}`}>
+        className={`rounded-2xl border transition-colors ${isOpen ? 'bg-zinc-900/50 border-luxury-gold/30' : 'bg-zinc-900/40 border-white/5 hover:bg-white/5'}`}>
         <button type="button" onClick={() => toggle(idx)} aria-expanded={isOpen} data-testid={`item-toggle-${idx}`}
           className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
           <span className="w-8 h-8 shrink-0 rounded-full bg-black/60 border border-white/10 flex items-center justify-center" style={{ color }}>

@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
     Plus, Trash2, Edit3, ChevronDown, ChevronRight, 
     Layers, Save, X, AlertCircle,
-    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2, Copy, MoreHorizontal, ListChecks
+    PlusCircle, Check, Palette, Info, GitMerge, FileSpreadsheet, Download, Loader2, Copy, MoreHorizontal, ListChecks, BrainCircuit
 } from 'lucide-react';
 import { getCategoryIcon, getCategoryColor, getCustomMeta, matchIconByKeyword } from './Dashboard';
 import * as LucideIcons from 'lucide-react';
@@ -15,6 +15,9 @@ import { generateId } from '../services/idUtils';
 import { titleCase } from '../services/textFormat';
 import { MergeResult, addHiddenDefaults, detectDuplicates, loadHiddenDefaults, visibleDuplicates } from '../services/taxonomyDedupe';
 import { DuplicateCategoriesSheet, MergeWithSheet } from './DuplicateCategoriesSheet';
+import LayerRefineSheet from './LayerRefineSheet';
+import { useLayers } from './LayersContext';
+import { collectUnplaced } from '../services/layerLearning';
 import { buildAlignPlan, openAlignSheet, pendingRows, spellingRows } from '../services/categoryAlign';
 
 // Classes estáticas (o Tailwind só gera classes que aparecem por completo no
@@ -58,6 +61,10 @@ interface TaxonomyEditorProps {
 
 const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxonomy, onEditIcon, receipts = [], onMergeCategories }) => {
     const [dupOpen, setDupOpen] = useState(false);
+    const [refineOpen, setRefineOpen] = useState(false);
+    // itens de compra que ficaram sem grupo/item (3ª e 4ª camadas): a folha "Melhorar grupos e itens" aprende com as fixações e pergunta à IA
+    const layers = useLayers();
+    const unplacedCount = useMemo(() => collectUnplaced(receipts, layers).length, [receipts, layers]);
     // nomes de categoria dos cupons que não são os da Estrutura (a tela "Alinhar categorias" corrige)
     const alignInfo = useMemo(() => {
         const plan = buildAlignPlan(taxonomy, receipts);
@@ -449,6 +456,17 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                 </div>
             )}
 
+            {unplacedCount > 0 && (
+                <div className="mx-6 mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3" data-testid="tax-refine-banner">
+                    <BrainCircuit className="w-4 h-4 text-luxury-gold shrink-0" />
+                    <p className="flex-1 min-w-0 text-[12.5px] leading-snug text-zinc-200">
+                        <span className="font-bold text-luxury-gold">{unplacedCount} {unplacedCount === 1 ? 'descrição sem grupo ou item' : 'descrições sem grupo ou item'}</span>
+                        <span className="text-zinc-400"> · a IA aprende com o que você fixou</span>
+                    </p>
+                    <button onClick={() => setRefineOpen(true)} data-testid="tax-refine-open" className="shrink-0 h-9 px-4 rounded-xl border border-luxury-gold/50 text-zinc-100 text-xs font-bold active:opacity-80">Melhorar</button>
+                </div>
+            )}
+
             <div className="p-3 md:p-6 space-y-3 md:space-y-4">
                 {l1Nodes.map(node => renderNode(node))}
 
@@ -467,6 +485,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
                 </span>
             </div>
 
+            {refineOpen && <LayerRefineSheet receipts={receipts} onClose={() => setRefineOpen(false)} />}
             {dupOpen && <DuplicateCategoriesSheet taxonomy={taxonomy} receipts={receipts} onApply={applyMerge} onClose={() => { setDupOpen(false); setIgnoredTick(t => t + 1); }} />}
             {mergeWithId && <MergeWithSheet taxonomy={taxonomy} receipts={receipts} sourceId={mergeWithId} onApply={applyMerge} onClose={() => setMergeWithId(null)} />}
         </div>

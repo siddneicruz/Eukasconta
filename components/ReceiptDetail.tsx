@@ -14,6 +14,7 @@ import { isEggItem } from '../services/eggs';
 import { normalizeReceiptNumbers } from '../services/receiptNumbers';
 import ItemCategoryPicker from './ItemCategoryPicker';
 import ReceiptItemsEditor from './ReceiptItemsEditor';
+import ReceiptStructuredView from './ReceiptStructuredView';
 
 interface ReceiptDetailProps {
   receipt: Receipt;
@@ -31,124 +32,6 @@ interface ReceiptDetailProps {
   eggSameCount?: (receipt: Receipt, index: number) => number;
   onApplyEggSame?: (receipt: Receipt, index: number) => number;
 }
-
-interface CategoryGroupProps {
-  category: string;
-  items: ReceiptItem[];
-  total: number;
-  onEditItem: (itemIndex: number, newCategory: string) => void;
-  allItems: ReceiptItem[];
-  availableCategories: string[];
-  onEggCount?: (itemIndex: number, count: number | undefined) => void;
-  eggSame?: (itemIndex: number) => number;
-  onEggApplySame?: (itemIndex: number) => void;
-}
-
-const CategoryGroup: React.FC<CategoryGroupProps> = ({ category, items, total, onEditItem, allItems, availableCategories, onEggCount, eggSame, onEggApplySame }) => {
-  const [isOpen, setIsOpen] = useState(true);
-  const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null);
-
-  const getCategoryStyle = (cat: string) => {
-    const norm = cat.toLowerCase();
-    if (norm.includes('transporte')) return { textColor: 'text-amber-500', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/30', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.1)]' };
-    if (norm.includes('padaria')) return { textColor: 'text-amber-600', bgColor: 'bg-amber-600/10', borderColor: 'border-amber-600/30', glow: 'shadow-[0_0_15px_rgba(217,119,6,0.1)]' };
-    if (norm.includes('hortifruti')) return { textColor: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/30', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.1)]' };
-    if (norm.includes('refrigerados')) return { textColor: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', glow: 'shadow-[0_0_15px_rgba(59,130,246,0.1)]' };
-    if (norm.includes('despensa') || norm.includes('mercearia')) return { textColor: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30', glow: 'shadow-[0_0_15px_rgba(249,115,22,0.1)]' };
-    if (norm.includes('bebida')) return { textColor: 'text-cyan-400', bgColor: 'bg-cyan-400/10', borderColor: 'border-cyan-400/30', glow: 'shadow-[0_0_15px_rgba(34,211,238,0.1)]' };
-    if (norm.includes('higiene') || norm.includes('beleza')) return { textColor: 'text-pink-500', bgColor: 'bg-pink-500/10', borderColor: 'border-pink-500/30', glow: 'shadow-[0_0_15px_rgba(236,72,153,0.1)]' };
-    if (norm.includes('saude')) return { textColor: 'text-red-500', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.1)]' };
-    if (norm.includes('casa') || norm.includes('limpeza')) return { textColor: 'text-violet-500', bgColor: 'bg-violet-500/10', borderColor: 'border-violet-500/30', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.1)]' };
-    if (norm.includes('vestuario')) return { textColor: 'text-rose-500', bgColor: 'bg-rose-500/10', borderColor: 'border-rose-500/30', glow: 'shadow-[0_0_15px_rgba(225,29,72,0.1)]' };
-    return { textColor: 'text-zinc-400', bgColor: 'bg-zinc-800', borderColor: 'border-white/10', glow: '' };
-  };
-
-  const style = getCategoryStyle(category);
-  const Icon = getCategoryIcon(category);
-
-  return (
-    <div className={`mb-3 rounded-xl border transition-all duration-300 overflow-hidden ${isOpen ? `${style.borderColor} bg-black ${style.glow}` : 'border-white/5 bg-surface/20'}`}>
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between gap-2 p-3 hover:bg-white/5 transition-colors group">
-        <div className="flex items-center gap-3 min-w-0">
-             <div className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${style.bgColor} ${style.textColor} ring-1 ring-inset ring-white/5`}>
-                <Icon className="w-4 h-4" />
-             </div>
-             <div className="text-left flex flex-col min-w-0">
-                <span className={`block font-sans text-[13px] font-semibold leading-snug line-clamp-2 break-words ${isOpen ? 'text-zinc-100' : 'text-zinc-300'}`}>
-                    {category}
-                </span>
-                {!isOpen && <span className="text-xs text-zinc-500">{items.length} {items.length === 1 ? 'item' : 'itens'}</span>}
-             </div>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-             <div className="flex flex-col items-end">
-                <span className={`font-sans font-bold text-sm ${style.textColor}`}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
-                </span>
-             </div>
-             <div className={`p-1.5 rounded-full transition-all duration-300 ${isOpen ? 'rotate-180 bg-white/10 text-zinc-200' : 'text-zinc-600'}`}>
-                <ChevronDown className="w-3 h-3" />
-             </div>
-        </div>
-      </button>
-      
-      {isOpen && (
-        <div className="px-3 pb-2 bg-black/40 border-t border-white/5">
-            {items.map((item, idx) => {
-                const originalIndex = allItems.indexOf(item);
-                const isEditing = editingItemIdx === originalIndex;
-                return (
-                    <div key={idx} className="flex flex-col py-3 border-b border-white/5 last:border-0 group/item hover:bg-white/[0.02] -mx-3 px-3 transition-colors">
-                         <div className="flex justify-between items-start">
-                            <div className="flex-1 pr-4">
-                                <p className="text-zinc-100 text-sm font-medium font-sans leading-snug break-words">{titleCase(item.description)}</p>
-                                {item.code && <p className="text-xs text-zinc-500 tabular-nums mt-0.5" data-testid="item-code">Código {item.code}</p>}
-                                {item.readDescription && <p className="text-xs text-zinc-500 mt-0.5 break-words" data-testid="item-read-description">Na foto: {item.readDescription}</p>}
-                            </div>
-                            <div className="flex flex-col items-end gap-0.5 min-w-[100px]">
-                                <span className="text-zinc-200 text-sm font-bold font-sans tabular-nums">
-                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalPrice)}
-                                </span>
-                                <p className="text-xs text-zinc-500 font-sans tabular-nums flex items-center justify-end gap-1.5">
-                                    <span>{item.quantity} {(item.unitType || 'UN').toLowerCase()}</span> 
-                                    <span className="text-zinc-600">×</span>
-                                    <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unitPrice)}</span>
-                                </p>
-                                {!isEditing && (
-                                    <button onClick={() => setEditingItemIdx(originalIndex)} className="md:opacity-0 md:group-hover/item:opacity-100 text-xs text-luxury-gold hover:underline transition-all mt-1" data-testid="item-move">
-                                        Mover
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        {onEggCount && isEggItem(item) && (
-                            <div className="mt-2">
-                                <EggCountPicker item={item} testId={`egg-picker-${originalIndex}`}
-                                    onChange={n => onEggCount(originalIndex, n)}
-                                    sameCount={eggSame ? eggSame(originalIndex) : 0}
-                                    onApplySame={onEggApplySame ? () => onEggApplySame(originalIndex) : undefined} />
-                            </div>
-                        )}
-                        {isEditing && (
-                            <div className="mt-2 animate-in fade-in slide-in-from-top-1 bg-zinc-900/80 p-2 rounded-lg border border-luxury-gold/20">
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="text-[11px] uppercase text-zinc-500 font-bold block">Mover para Categoria:</label>
-                                    <button type="button" onClick={() => setEditingItemIdx(null)} className="text-[11px] text-zinc-500 hover:text-white px-1" data-testid="move-cancel">Cancelar</button>
-                                </div>
-                                <ItemCategoryPicker
-                                    category={item.category || category} description={item.description} categories={availableCategories} testId="move-cat" autoFocus
-                                    onPick={(c) => { onEditItem(originalIndex, c); setEditingItemIdx(null); }}
-                                />
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // Texto do cupom (monoespaçado): ajusta a letra para a linha mais larga caber inteira na tela,
 // sem quebrar (antes o "TOTAL" e os traços desciam para a linha de baixo no celular).
@@ -270,17 +153,6 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
     setEditedReceipt(receipt);
     setIsEditing(false);
   }, [receipt]);
-
-  const groupedItems = useMemo(() => {
-    const groups: Record<string, { items: ReceiptItem[], total: number }> = {};
-    receipt.items.forEach(item => {
-        const cat = item.category && item.category.trim() !== '' ? item.category : 'Outros - Não Classificado';
-        if (!groups[cat]) { groups[cat] = { items: [], total: 0 }; }
-        groups[cat].items.push(item);
-        groups[cat].total += item.totalPrice;
-    });
-    return Object.entries(groups).sort((a, b) => b[1].total - a[1].total);
-  }, [receipt.items]);
 
   const handleEditItemCategory = (index: number, newCategory: string) => {
     const updatedItems = [...receipt.items];
@@ -436,42 +308,10 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
               </div>
           ) : (
             viewMode === 'thermal' ? (<ThermalReceiptView receipt={receipt} />) : (
-                <>
-                {groupedItems.length > 0 && (
-                    <div className="mb-8">
-                        <div className="flex items-center gap-2 mb-4 px-1"><PieChart className="w-3.5 h-3.5 text-luxury-gold" /><h3 className="text-xs uppercase tracking-[0.08em] text-zinc-400 font-bold">Resumo Financeiro</h3></div>
-                        <div className="grid grid-cols-2 gap-3">
-                            {groupedItems.slice(0, 4).map(([category, data]) => {
-                                const percentage = receipt.totalAmount > 0 ? (data.total / receipt.totalAmount) * 100 : 0;
-                                return (
-                                    <div key={category} className="bg-surface/30 border border-white/5 p-3 rounded-xl hover:bg-white/5 transition-all group">
-                                        <div className="text-xs text-zinc-400 font-medium leading-snug line-clamp-2 mb-1 group-hover:text-luxury-gold/80 transition-colors">{category}</div>
-                                        <div className="text-sm font-sans font-medium text-zinc-200 mb-2">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.total)}</div>
-                                        <div className="w-full bg-zinc-800 h-5 rounded-lg overflow-hidden relative">
-                                            <div className="bg-luxury-gold h-full rounded-lg opacity-80 transition-all duration-500" style={{ width: `${percentage}%` }} />
-                                            <div className="absolute inset-0 flex items-center justify-end pr-1">
-                                                <span className="text-xs font-bold text-white bg-black/30 px-1.5 py-px rounded">{percentage.toFixed(0)}%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-                <div className="flex items-center justify-between mb-4 border-t border-white/5 pt-6">
-                    <div className="flex flex-col"><h3 className="text-xs uppercase tracking-[0.08em] text-luxury-gold font-bold">Itens da Nota</h3><span className="text-xs text-zinc-500">Categorizados automaticamente</span></div>
-                    <span className="text-xs text-zinc-500 bg-surface px-2 py-1 rounded border border-white/10">{receipt.items.length} itens</span>
-                </div>
-                <div className="space-y-1 pb-10">
-                    {groupedItems.map(([category, data]) => (
-                        <CategoryGroup key={category} category={category} items={data.items} total={data.total} onEditItem={handleEditItemCategory} allItems={receipt.items} availableCategories={categories}
-                          onEggCount={handleEggCount}
-                          eggSame={eggSameCount ? (i) => eggSameCount(receipt, i) : undefined}
-                          onEggApplySame={onApplyEggSame ? (i) => { onApplyEggSame(receipt, i); } : undefined}/>
-                    ))}
-                </div>
-                </>
+                <ReceiptStructuredView items={receipt.items} totalAmount={receipt.totalAmount} categories={categories} onEditItem={handleEditItemCategory}
+                  onEggCount={handleEggCount}
+                  eggSame={eggSameCount ? (i) => eggSameCount(receipt, i) : undefined}
+                  onEggApplySame={onApplyEggSame ? (i) => { onApplyEggSame(receipt, i); } : undefined} />
             )
           )}
         </div>

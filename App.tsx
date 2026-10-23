@@ -57,7 +57,7 @@ import { loadDeptFilter, saveDeptFilter } from './services/deptFilter';
 import { looksLikeXlsx, mergePlanilha, mergeStores, readPlanilha } from './services/planilhaImport';
 import { loadCuts, saveCuts } from './services/cuts';
 import { AlignChoice, OPEN_ALIGN_EVENT, buildAlignIndex, buildAlignPlan, buildAlignRemapper, loadAliases, saveAliases, snapReceiptCategories } from './services/categoryAlign';
-import { LAYER_PINS_EVENT, LAYER_PINS_KEY, loadLayerPins } from './services/layerPins';
+import { LAYER_PINS_EVENT, LAYER_PINS_KEY, loadLayerPins, remapLayerPins } from './services/layerPins';
 import AlignCategoriesSheet from './components/AlignCategoriesSheet';
 import { auditCategoriesWithAI } from './services/geminiService';
 import { buildAndSyncMasterProducts } from './services/productMasterService';
@@ -455,6 +455,9 @@ const App: React.FC = () => {
           const byOld = new Map(oldTax.map(n => [n.id, n] as const));
           const byNew = new Map(res.taxonomy.map(n => [n.id, n] as const));
           res.idMap.forEach((to, from) => { const a = byOld.get(from), b = byNew.get(to); if (a && b && a.level <= 2 && b.level <= 2) names.push({ from: a.name.trim(), to: b.name.trim() }); });
+          const pins = loadLayerPins();
+          const nextPins = remapLayerPins(pins, rm);
+          if (JSON.stringify(nextPins) !== JSON.stringify(pins)) localStorage.setItem(LAYER_PINS_KEY, JSON.stringify(nextPins));
           const meta = readJson('eukasconta_category_meta');
           const nextMeta = remapMeta(meta, rm, names);
           if (nextMeta !== meta) localStorage.setItem('eukasconta_category_meta', JSON.stringify(nextMeta));

@@ -18,6 +18,27 @@ export const loadLayerPins = (): Record<string, string> => {
   } catch { return {}; }
 };
 
+/** Fixa várias descrições de uma vez (uma gravação só). Devolve quantas foram fixadas. */
+export const saveLayerPins = (list: { category: string; description: string; nodeKey: string }[]): number => {
+  if (list.length === 0) return 0;
+  const cur = loadLayerPins();
+  list.forEach(p => { cur[pinKey(p.category, p.description)] = p.nodeKey; });
+  try { localStorage.setItem(LAYER_PINS_KEY, JSON.stringify(cur)); } catch { return 0; }
+  try { window.dispatchEvent(new Event(LAYER_PINS_EVENT)); } catch { /* sem janela: ignora */ }
+  return list.length;
+};
+
+/** Depois de juntar categorias/grupos repetidos: a fixação passa a apontar para a categoria e o grupo/item que ficaram. */
+export const remapLayerPins = (pins: Record<string, string>, rm: { key: (k: string) => string }): Record<string, string> => {
+  const out: Record<string, string> = {};
+  Object.entries(pins).forEach(([k, v]) => {
+    const [ck, slug] = k.split('\u0001');
+    const nck = ck ? rm.key(`c:${ck}`).slice(2) : ck;
+    out[`${nck}\u0001${slug ?? ''}`] = rm.key(v);
+  });
+  return out;
+};
+
 /** Fixa (ou, com `nodeKey` nulo, solta) a descrição. Devolve se gravou. */
 export const saveLayerPin = (category: string, description: string, nodeKey: string | null): boolean => {
   const k = pinKey(category, description);
