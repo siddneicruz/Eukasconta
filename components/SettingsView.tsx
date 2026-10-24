@@ -208,7 +208,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               <p className="text-zinc-400 font-sans text-sm">Estrutura, lojas, inteligência e backup do app</p>
           </div>
           
-          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar">
+          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 flex-wrap gap-y-1">
               <TabButton active={settingsTab === 'taxonomy'} onClick={() => setSettingsTab('taxonomy')} icon={Layers} label="Estrutura & Estilo" />
               <TabButton active={settingsTab === 'establishments'} onClick={() => setSettingsTab('establishments')} icon={Store} label="Lojas" />
               <TabButton active={settingsTab === 'intelligence'} onClick={() => setSettingsTab('intelligence')} icon={BrainCircuit} label="Inteligência" />
