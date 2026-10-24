@@ -9,6 +9,9 @@ import {
 import { Receipt, Establishment, TaxonomyNode, AILearningEntry, MasterProduct } from '../types';
 import { getCategoryIcon, getCategoryColor } from './Dashboard';
 import TaxonomyEditor from './TaxonomyEditor';
+import MasterStructureView from './MasterStructureView';
+import MasterAdmin from './MasterAdmin';
+import { useMasterInfo } from './MasterContext';
 import type { MergeResult } from '../services/taxonomyDedupe';
 import ProductMappingEditor from './ProductMappingEditor';
 import AILearningManager from './AILearningManager';
@@ -134,7 +137,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [iconSearch, setIconSearch] = useState('');
-  const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account'>((initialTab as any) || 'taxonomy');
+  const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account' | 'master'>((initialTab as any) || 'taxonomy');
+  const master = useMasterInfo();
   const [expandedAesthetics, setExpandedAesthetics] = useState<string[]>([]);
   const [estSearchTerm, setEstSearchTerm] = useState('');
   const [nickOpen, setNickOpen] = useState(false);
@@ -210,13 +214,22 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               <TabButton active={settingsTab === 'intelligence'} onClick={() => setSettingsTab('intelligence')} icon={BrainCircuit} label="Inteligência" />
               <TabButton active={settingsTab === 'system'} onClick={() => setSettingsTab('system')} icon={Database} label="System" />
               <TabButton active={settingsTab === 'ai_key'} onClick={() => setSettingsTab('ai_key')} icon={KeyRound} label="Chave IA" />
+              {master.isAdmin && <TabButton active={settingsTab === 'master'} onClick={() => setSettingsTab('master')} icon={KeyRound} label={`Tabela mãe${master.pending ? ` (${master.pending})` : ''}`} />}
               {cloud && <TabButton active={settingsTab === 'account'} onClick={() => setSettingsTab('account')} icon={UserRound} label="Conta" />}
           </div>
       </div>
 
       {settingsTab === 'taxonomy' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-              <TaxonomyEditor taxonomy={taxonomy} onUpdateTaxonomy={onUpdateTaxonomy} onEditIcon={onEditIcon} receipts={receipts} onMergeCategories={onMergeCategories} />
+              {master.active
+                ? <MasterStructureView taxonomy={taxonomy} onOpenAdmin={master.isAdmin ? () => setSettingsTab('master') : undefined} />
+                : <TaxonomyEditor taxonomy={taxonomy} onUpdateTaxonomy={onUpdateTaxonomy} onEditIcon={onEditIcon} receipts={receipts} onMergeCategories={onMergeCategories} />}
+          </div>
+      )}
+
+      {settingsTab === 'master' && master.isAdmin && (
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+              <MasterAdmin taxonomy={taxonomy} receipts={receipts} />
           </div>
       )}
 

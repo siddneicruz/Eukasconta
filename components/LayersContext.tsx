@@ -2,13 +2,16 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { TaxonomyNode } from '../types';
 import { LayerIndex, EMPTY_LAYERS, buildLayerIndex, setActiveLayers } from '../services/categoryLayers';
 import { LAYER_PINS_EVENT, LAYER_PINS_KEY, loadLayerPins, retargetLayerPins } from '../services/layerPins';
-import { addLayerNode } from '../services/taxonomyAdd';
+import { addLayerNode, parentPathNames } from '../services/taxonomyAdd';
+import { useMasterInfo } from './MasterContext';
 import { setActiveStructure, structureKeys } from '../services/categoryAlign';
 
 // Entrega a todas as telas as camadas 3 e 4 da estrutura de categorias, sem passar a taxonomia por cada componente.
 const Ctx = createContext<LayerIndex>(EMPTY_LAYERS);
 const TaxCtx = createContext<TaxonomyNode[]>([]);
-const AddCtx = createContext<((parentOptionId: string, name: string) => string | null) | null>(null);
+export interface CreateResult { id?: string; note?: string }
+export type AddLayerFn = (parentOptionId: string, name: string, ctx?: { code?: string; description?: string }) => Promise<CreateResult | null> | CreateResult | null;
+const AddCtx = createContext<AddLayerFn | null>(null);
 
 export const LayersProvider: React.FC<{ taxonomy: TaxonomyNode[]; onTaxonomyChange?: (t: TaxonomyNode[]) => void; children: React.ReactNode }> = ({ taxonomy, onTaxonomyChange, children }) => {
   // descrições que a pessoa fixou num grupo/item: recalcula as camadas assim que ela escolhe
@@ -28,8 +31,19 @@ export const LayersProvider: React.FC<{ taxonomy: TaxonomyNode[]; onTaxonomyChan
     setActiveStructure(structureKeys(taxonomy));
     return built;
   }, [taxonomy, pins]);
-  // criar grupo/item na hora de escolher a categoria de um item: devolve o id da etiqueta (nova ou já existente)
-  const addNode = useCallback((parentOptionId: string, name: string): string | null => {
+  // criar grupo/item na hora de escolher a categoria de um item. Com a tabela mãe valendo: o administrador cria nela e o usuário
+  // sugere; sem ela: cria na estrutura local, como sempre.
+  const master = useMasterInfo();
+  const masterCreate = master.createLabel;
+  const addNode = useCallback<AddLayerFn>(async (parentOptionId, name, ctx) => {
+    if (master.active) {
+      const path = parentPathNames(taxonomy, parentOptionId);
+      if (!path) return null;
+      const res = await masterCreate(path, name, ctx);
+      if (!res.approved) return { note: res.note };
+      const made = addLayerNode(taxonomy, parentOptionId, name);
+      return made ? { id: made.newId } : null;
+    }
     if (!onTaxonomyChange) return null;
     const res = addLayerNode(taxonomy, parentOptionId, name);
     if (!res) return null;
@@ -37,9 +51,9 @@ export const LayersProvider: React.FC<{ taxonomy: TaxonomyNode[]; onTaxonomyChan
       if (res.retarget) retargetLayerPins(res.retarget.from, res.retarget.to);
       onTaxonomyChange(res.taxonomy);
     }
-    return res.newId;
-  }, [taxonomy, onTaxonomyChange]);
-  return <TaxCtx.Provider value={taxonomy}><AddCtx.Provider value={onTaxonomyChange ? addNode : null}><Ctx.Provider value={idx}>{children}</Ctx.Provider></AddCtx.Provider></TaxCtx.Provider>;
+    return { id: res.newId };
+  }, [taxonomy, onTaxonomyChange, master.active, masterCreate]);
+  return <TaxCtx.Provider value={taxonomy}><AddCtx.Provider value={onTaxonomyChange || master.active ? addNode : null}><Ctx.Provider value={idx}>{children}</Ctx.Provider></AddCtx.Provider></TaxCtx.Provider>;
 };
 
 export const useLayers = (): LayerIndex => useContext(Ctx);

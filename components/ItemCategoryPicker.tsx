@@ -3,6 +3,8 @@ import { Sparkles, Tags, FolderTree } from 'lucide-react';
 import CategoryTagPicker from './CategoryTagPicker';
 import CategoryCompareBox from './CategoryCompareBox';
 import { useAddLayerNode, useLayers, useTaxonomy } from './LayersContext';
+import { useMasterInfo } from './MasterContext';
+import { nodeForItem } from '../services/masterService';
 import { currentPick, isSelectable, pathParts, pickOptions, resolvePick, restText } from '../services/categoryPick';
 import { saveLayerPin } from '../services/layerPins';
 import { buildAlignIndex, inStructure, resolveCategory, structureKeys } from '../services/categoryAlign';
@@ -33,7 +35,10 @@ const ItemCategoryPicker: React.FC<{
   compact?: boolean;
   /** mostra o caminho completo em cima da escolha (some quando a tela já o mostra no cabeçalho) */
   showPath?: boolean;
-}> = ({ category, description, descriptions, categories, onPick, testId = 'item-cat', autoFocus = false, compact = false, showPath = true }) => {
+  /** código do produto (liga o item à tabela mãe) */
+  code?: string;
+}> = ({ category, description, descriptions, categories, onPick, testId = 'item-cat', autoFocus = false, compact = false, showPath = true, code }) => {
+  const masterInfo = useMasterInfo();
   const layers = useLayers();
   const addNode = useAddLayerNode();
   const taxonomy = useTaxonomy();
@@ -69,6 +74,21 @@ const ItemCategoryPicker: React.FC<{
 
   // cadeia completa (departamento › categoria › grupo › item), em linhas que quebram em vez de cortar
   const chain = useMemo(() => pathParts(cur), [cur]);
+
+  // produto que a tabela mãe conhece: a categoria vem do administrador (muda pela planilha), aqui só se confere
+  const fromMaster = !!(masterInfo.master && nodeForItem(masterInfo.master, code, description));
+  if (fromMaster) {
+    return (
+      <div data-testid={`${testId}-master`}>
+        {chain.length > 0 && showPath && (
+          <p className="text-[12.5px] leading-snug text-zinc-300 break-words">{chain.map((p, i) => (
+            <React.Fragment key={i}>{i > 0 && <span className="text-luxury-gold/70 mx-1">›</span>}<span className={i === chain.length - 1 ? 'font-semibold text-zinc-100' : ''}>{p}</span></React.Fragment>
+          ))}</p>
+        )}
+        <p className="mt-1 text-[11.5px] text-zinc-500 leading-snug">Categoria definida pela tabela mãe{masterInfo.isAdmin ? '. Para mudar, edite a planilha e publique em Config › Tabela mãe.' : '. Se estiver errada, avise o administrador.'}</p>
+      </div>
+    );
+  }
 
   // sem estrutura de categorias (conta nova): lista simples, como era
   if (options.length === 0) {
@@ -118,7 +138,8 @@ const ItemCategoryPicker: React.FC<{
         </p>
       )}
       {mode === 'tags' ? (
-        <CategoryTagPicker options={options} selectedId={cur.id} onChoose={choose} onCreate={addNode ?? undefined} testId={`${testId}-tags`} />
+        <CategoryTagPicker options={options} selectedId={cur.id} onChoose={choose} onCreate={addNode ? (parent, name) => addNode(parent, name, { code, description }) : undefined}
+          createLabel={masterInfo.active && !masterInfo.isAdmin ? 'Sugerir etiqueta' : 'Nova etiqueta'} testId={`${testId}-tags`} />
       ) : (
         <CategoryCompareBox
           options={options} selected={[cur.id]} max={1} single

@@ -141,7 +141,7 @@ const ReceiptStructuredView: React.FC<Props> = ({ items, totalAmount, categories
                             {item.readDescription && <p className="text-xs text-zinc-500 break-words" data-testid="item-read-description">Na foto: {item.readDescription}</p>}
                             <div>
                               <span className="block text-xs text-zinc-500 mb-1.5">Categoria</span>
-                              <ItemCategoryPicker category={item.category || g.category} description={item.description} categories={categories}
+                              <ItemCategoryPicker category={item.category || g.category} description={item.description} code={item.code} categories={categories}
                                 testId={`struct-cat-${idx}`} onPick={c => { onEditItem(idx, c); setOpenCats(prev => new Set(prev).add(c)); }} />
                             </div>
                             {onEggCount && isEggItem(item) && (

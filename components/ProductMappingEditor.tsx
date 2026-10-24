@@ -247,6 +247,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                         <ItemCategoryPicker
                             category={g.category}
                             description={g.descs[0]?.desc || g.name}
+                            code={g.code || undefined}
                             descriptions={g.descs.map(d => d.desc)}
                             categories={categoriesList}
                             onPick={(c) => handleInitiateChange(g, c)}

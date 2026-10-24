@@ -1,0 +1,155 @@
+// A planilha da tabela mãe: duas abas.
+//   Estrutura  → Departamento | Categoria | Grupo | Item   (uma linha por caminho; Grupo e Item podem ficar vazios)
+//   Produtos   → Código | Descrição | Unidade | Departamento | Categoria | Grupo | Item
+// Lê o arquivo no navegador, valida e só então o administrador publica.
+import * as XLSX from 'xlsx';
+import { TaxonomyNode } from '../types';
+import { properCase } from './textFormat';
+import type { PublishPayload } from './masterService';
+
+export class MasterSheetError extends Error {}
+
+const plain = (s: unknown): string => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const cell = (v: unknown): string => {
+  if (v === undefined || v === null) return '';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
+  return String(v).replace(/\s+/g, ' ').trim();
+};
+const pathKey = (path: string[]) => path.map(p => plain(p)).join('>');
+
+const HEAD: Record<string, string[]> = {
+  dept: ['departamento', 'n1'], cat: ['categoria', 'n2'], grp: ['grupo', 'subcategoria', 'n3'], item: ['item', 'n4'],
+  code: ['codigo', 'cod', 'ean', 'gtin', 'codigo de barras'], desc: ['descricao', 'produto', 'nome'], unit: ['unidade', 'un', 'unid', 'unit'],
+};
+const findCol = (headers: string[], keys: string[], used: Set<number>): number => {
+  const hs = headers.map(plain);
+  let i = hs.findIndex((h, ix) => !used.has(ix) && keys.includes(h));
+  if (i < 0) i = hs.findIndex((h, ix) => !used.has(ix) && keys.some(k => h.startsWith(k)));
+  if (i >= 0) used.add(i);
+  return i;
+};
+const sheetRows = (wb: XLSX.WorkBook, names: string[]): any[][] | null => {
+  const name = wb.SheetNames.find(n => names.includes(plain(n)));
+  if (!name) return null;
+  return XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: false, raw: true }) as any[][];
+};
+
+export interface ParsedMaster {
+  payload: PublishPayload;
+  errors: string[];
+  warnings: string[];
+  counts: { nodes: number; products: number; unmapped: number };
+}
+
+export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => {
+  let wb: XLSX.WorkBook;
+  try { wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); }
+  catch { throw new MasterSheetError('Não consegui abrir esse arquivo. Use um .xlsx.'); }
+  const est = sheetRows(wb, ['estrutura', 'taxonomia', 'categorias']);
+  if (!est || est.length < 2) throw new MasterSheetError('Não achei a aba "Estrutura" com linhas. Baixe o modelo para ver o formato.');
+
+  const errors: string[] = [], warnings: string[] = [];
+  const eh = est[0].map(cell);
+  const used = new Set<number>();
+  const col = { dept: findCol(eh, HEAD.dept, used), cat: findCol(eh, HEAD.cat, used), grp: findCol(eh, HEAD.grp, used), item: findCol(eh, HEAD.item, used) };
+  if (col.dept < 0 || col.cat < 0) throw new MasterSheetError('Na aba "Estrutura" faltam as colunas Departamento e Categoria.');
+
+  const nodes: { path: string[] }[] = [];
+  const known = new Set<string>();
+  const canon = new Map<string, string[]>();
+  const add = (path: string[]) => { const k = pathKey(path); if (!known.has(k)) { known.add(k); canon.set(k, path); nodes.push({ path }); } };
+  let last: string[] = ['', '', '', ''];
+  for (let r = 1; r < est.length; r++) {
+    const row = est[r] || [];
+    const got = [col.dept, col.cat, col.grp, col.item].map(c => (c >= 0 ? cell(row[c]) : ''));
+    if (got.every(x => !x)) continue;
+    // célula vazia acima do que foi preenchido = igual à linha de cima (planilha agrupada)
+    const lastFilled = got.reduce((a, v, i) => (v ? i : a), -1);
+    const full = got.map((v, i) => (!v && i < lastFilled ? last[i] : v));
+    if (full.slice(0, lastFilled + 1).some(v => !v)) { errors.push(`Estrutura, linha ${r + 1}: tem nível preenchido sem o de cima.`); continue; }
+    for (let l = 1; l <= lastFilled + 1; l++) add(full.slice(0, l).map(v => properCase(v)));
+    last = full.map((v, i) => (i <= lastFilled ? v : ''));
+  }
+  if (nodes.length === 0) throw new MasterSheetError('A aba "Estrutura" não tem nenhuma categoria válida.');
+  nodes.forEach(n => { if (n.path.some(p => p.length > 80)) errors.push(`Nome longo demais: ${n.path[n.path.length - 1].slice(0, 40)}…`); });
+
+  const products: PublishPayload['products'] = [];
+  let unmapped = 0;
+  const prow = sheetRows(wb, ['produtos', 'produto', 'itens']);
+  if (prow && prow.length > 1) {
+    const ph = prow[0].map(cell);
+    const u2 = new Set<number>();
+    const pc = { code: findCol(ph, HEAD.code, u2), desc: findCol(ph, HEAD.desc, u2), unit: findCol(ph, HEAD.unit, u2), dept: findCol(ph, HEAD.dept, u2), cat: findCol(ph, HEAD.cat, u2), grp: findCol(ph, HEAD.grp, u2), item: findCol(ph, HEAD.item, u2) };
+    if (pc.code < 0 || pc.desc < 0) throw new MasterSheetError('Na aba "Produtos" faltam as colunas Código e Descrição.');
+    const byCode = new Map<string, number>();
+    for (let r = 1; r < prow.length; r++) {
+      const row = prow[r] || [];
+      const code = cell(row[pc.code]).replace(/\s+/g, '');
+      const description = cell(row[pc.desc]);
+      if (!code && !description) continue;
+      if (!code || !description) { warnings.push(`Produtos, linha ${r + 1}: precisa de código e descrição; foi ignorada.`); continue; }
+      const raw = [pc.dept, pc.cat, pc.grp, pc.item].map(c => (c >= 0 ? cell(row[c]) : ''));
+      const lastFilled = raw.reduce((a, v, i) => (v ? i : a), -1);
+      const path = raw.slice(0, lastFilled + 1).map(v => properCase(v));
+      if (path.length === 0) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: "${description.slice(0, 40)}" ficou sem categoria.`); }
+      else if (path.some(p => !p)) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: caminho com nível vazio no meio; ficou sem categoria.`); path.length = 0; }
+      else if (!known.has(pathKey(path))) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: "${path.join(' › ')}" não existe na aba Estrutura; o produto ficou sem categoria.`); path.length = 0; }
+      else path.splice(0, path.length, ...canon.get(pathKey(path))!);
+      const unit = pc.unit >= 0 ? cell(row[pc.unit]).toUpperCase() : '';
+      const item = { code, description, unit: unit || undefined, path };
+      if (byCode.has(code)) { products[byCode.get(code)!] = item; warnings.push(`Produtos, linha ${r + 1}: código ${code} repetido; vale a última linha.`); }
+      else { byCode.set(code, products.length); products.push(item); }
+    }
+  }
+  return { payload: { nodes, products }, errors, warnings, counts: { nodes: nodes.length, products: products.length, unmapped } };
+};
+
+export interface MasterDiff { added: string[]; removed: string[]; kept: number }
+
+/** O que muda na estrutura publicada: caminhos novos e caminhos que somem. */
+export const diffStructure = (current: TaxonomyNode[], next: PublishPayload['nodes']): MasterDiff => {
+  const byId = new Map(current.map(n => [n.id, n] as const));
+  const pathOf = (n: TaxonomyNode): string[] => { const out: string[] = []; let c: TaxonomyNode | undefined = n; let g = 0; while (c && g++ < 6) { out.unshift(c.name); c = c.parentId ? byId.get(c.parentId) : undefined; } return out; };
+  const have = new Map(current.map(n => { const p = pathOf(n); return [pathKey(p), p.join(' › ')] as const; }));
+  const want = new Map(next.map(n => [pathKey(n.path), n.path.join(' › ')] as const));
+  const added = [...want].filter(([k]) => !have.has(k)).map(([, v]) => v);
+  const removed = [...have].filter(([k]) => !want.has(k)).map(([, v]) => v);
+  return { added, removed, kept: want.size - added.length };
+};
+
+// ---- gerar a planilha ----
+
+export interface SheetProduct { code: string; description: string; unit?: string; path: string[] }
+
+const leafPaths = (nodes: TaxonomyNode[]): string[][] => {
+  const byId = new Map(nodes.map(n => [n.id, n] as const));
+  const hasKids = new Set<string>();
+  nodes.forEach(n => { if (n.parentId) hasKids.add(n.parentId); });
+  const pathOf = (n: TaxonomyNode): string[] => { const out: string[] = []; let c: TaxonomyNode | undefined = n; let g = 0; while (c && g++ < 6) { out.unshift(c.name); c = c.parentId ? byId.get(c.parentId) : undefined; } return out; };
+  return nodes.filter(n => !hasKids.has(n.id)).map(pathOf).sort((a, b) => a.join('\u0001').localeCompare(b.join('\u0001'), 'pt-BR'));
+};
+
+export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx') => {
+  const wb = XLSX.utils.book_new();
+  const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);
+  est['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 28 }];
+  est['!freeze'] = { xSplit: 0, ySplit: 1 } as any;
+  XLSX.utils.book_append_sheet(wb, est, 'Estrutura');
+  const sorted = [...products].sort((a, b) => a.path.join('\u0001').localeCompare(b.path.join('\u0001'), 'pt-BR') || a.description.localeCompare(b.description, 'pt-BR'));
+  const prod = XLSX.utils.aoa_to_sheet([['Código', 'Descrição', 'Unidade', 'Departamento', 'Categoria', 'Grupo', 'Item'],
+    ...sorted.map(p => [p.code, p.description, p.unit || '', p.path[0] || '', p.path[1] || '', p.path[2] || '', p.path[3] || ''])]);
+  prod['!cols'] = [{ wch: 18 }, { wch: 44 }, { wch: 9 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }];
+  // código como texto: o Excel não vira número científico
+  Object.keys(prod).forEach(a => { if (a[0] === 'A' && a !== 'A1' && prod[a] && prod[a].t === 'n') { prod[a].t = 's'; prod[a].v = String(prod[a].v); } });
+  XLSX.utils.book_append_sheet(wb, prod, 'Produtos');
+  const help = XLSX.utils.aoa_to_sheet([
+    ['Como usar'],
+    ['Estrutura: uma linha por caminho (Departamento, Categoria, Grupo, Item). Grupo e Item podem ficar vazios.'],
+    ['Produtos: o código (de barras) identifica o produto. Preencha Departamento, Categoria, Grupo e Item como estão na aba Estrutura.'],
+    ['Produto sem categoria preenchida fica sem mapa; o app do usuário continua classificando pelo nome.'],
+    ['Ao publicar, a estrutura do app de todos passa a ser esta, e os itens com código listado vão para a categoria daqui.'],
+  ]);
+  help['!cols'] = [{ wch: 120 }];
+  XLSX.utils.book_append_sheet(wb, help, 'Leia-me');
+  XLSX.writeFile(wb, fileName);
+};

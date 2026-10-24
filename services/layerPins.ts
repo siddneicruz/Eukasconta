@@ -59,3 +59,19 @@ export const retargetLayerPins = (from: string, to: string): number => {
   try { window.dispatchEvent(new Event(LAYER_PINS_EVENT)); } catch { /* sem janela: ignora */ }
   return n;
 };
+
+/** Aplica várias fixações de uma vez (nodeKey nulo = solta a descrição). Só grava e avisa se algo mudou; devolve quantas mudaram. */
+export const applyPinChanges = (list: { category: string; description: string; nodeKey: string | null }[]): number => {
+  if (list.length === 0) return 0;
+  const cur = loadLayerPins();
+  let n = 0;
+  list.forEach(p => {
+    const k = pinKey(p.category, p.description);
+    if (p.nodeKey) { if (cur[k] !== p.nodeKey) { cur[k] = p.nodeKey; n++; } }
+    else if (k in cur) { delete cur[k]; n++; }
+  });
+  if (n === 0) return 0;
+  try { localStorage.setItem(LAYER_PINS_KEY, JSON.stringify(cur)); } catch { return 0; }
+  try { window.dispatchEvent(new Event(LAYER_PINS_EVENT)); } catch { /* sem janela: ignora */ }
+  return n;
+};

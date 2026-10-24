@@ -63,3 +63,32 @@ export const addLayerNode = (taxonomy: TaxonomyNode[], parentOptionId: string, r
   }
   return null;
 };
+
+/** Nomes do caminho de quem vai receber a etiqueta nova: ["Hortifruti", "Legumes"] ou ["Hortifruti", "Legumes", "Bulbos"]. */
+export const parentPathNames = (taxonomy: TaxonomyNode[], parentOptionId: string): string[] | null => {
+  const byId = new Map(taxonomy.map(n => [n.id, n] as const));
+  const l2Key = (l2: TaxonomyNode) => {
+    const l1 = l2.parentId ? byId.get(l2.parentId) : undefined;
+    return l1 && l1.level === 1 && l2.level === 2 ? catKey(`${l1.name.trim()} - ${l2.name.trim()}`) : null;
+  };
+  if (parentOptionId.startsWith('c:')) {
+    const l2 = taxonomy.find(n => n.level === 2 && l2Key(n) === parentOptionId.slice(2));
+    const l1 = l2?.parentId ? byId.get(l2.parentId) : undefined;
+    return l1 && l2 ? [l1.name.trim(), l2.name.trim()] : null;
+  }
+  if (parentOptionId.startsWith('g:')) {
+    const rest = parentOptionId.slice(2);
+    const bar = rest.lastIndexOf('|');
+    if (bar < 0) return null;
+    const ck = rest.slice(0, bar), g = rest.slice(bar + 1);
+    const l3 = taxonomy.find(n => {
+      if (n.level !== 3 || layerSlug(n.name) !== g) return false;
+      const l2 = n.parentId ? byId.get(n.parentId) : undefined;
+      return !!l2 && l2Key(l2) === ck;
+    });
+    const l2 = l3?.parentId ? byId.get(l3.parentId) : undefined;
+    const l1 = l2?.parentId ? byId.get(l2.parentId) : undefined;
+    return l1 && l2 && l3 ? [l1.name.trim(), l2.name.trim(), l3.name.trim()] : null;
+  }
+  return null;
+};

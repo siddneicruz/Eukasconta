@@ -43,6 +43,8 @@ import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
 import ShoppingListView from './components/ShoppingListView';
 import { LayersProvider } from './components/LayersContext';
+import { MasterProvider } from './components/MasterContext';
+import { useMasterSync } from './services/useMasterSync';
 
 import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
 import { diagnostics } from './services/diagnosticService';
@@ -623,6 +625,7 @@ const App: React.FC = () => {
       onGeocoded: (cnpj, patch) => setEstablishments(prev => prev.map(e => cleanCNPJ(e.cnpj) === cnpj ? { ...e, ...patch } : e)),
       onToast: (msg) => showNotification(msg),
   });
+  const master = useMasterSync({ userId: cloud.user?.id ?? null, taxonomy, setTaxonomy, receipts, setReceipts, onToast: (m) => showNotification(m, 6000) });
   // Backup automático na conta: dados e chave de IA voltam sozinhos ao entrar depois de reinstalar o app.
   const backupTrigger = useMemo(() => ({}), [receipts, taxonomy, establishments, masterProducts, aiLearning, categories]);
   const backup = useCloudBackup({ userId: cloud.user?.id ?? null, trigger: backupTrigger, onToast: (msg) => showNotification(msg, 6000) });
@@ -1260,6 +1263,7 @@ const App: React.FC = () => {
 
   return (
     <StoreNamesProvider establishments={establishments}>
+    <MasterProvider value={master}>
     <LayersProvider taxonomy={taxonomy} onTaxonomyChange={setTaxonomy}>
     <div className="flex flex-col h-[100dvh] bg-black text-zinc-100 font-sans overflow-hidden">
       {globalLoading && (
@@ -1596,6 +1600,7 @@ const App: React.FC = () => {
       />
     </div>
     </LayersProvider>
+    </MasterProvider>
     </StoreNamesProvider>
   );
 };
