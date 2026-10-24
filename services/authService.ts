@@ -39,13 +39,16 @@ export const googleEnabled = async (): Promise<boolean> => {
   return Boolean(settings?.external?.google);
 };
 
+// Na web a volta do login é a própria página onde o app está (pode ser uma subpasta, como /Eukasconta/), sem busca nem #.
+export const webAuthRedirect = (): string => `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}`;
+
 export const signInWithGoogle = async (): Promise<void> => {
   if (!(await googleEnabled())) throw new Error('GOOGLE_NOT_ENABLED');
   const native = isNativeApp();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: native ? NATIVE_AUTH_REDIRECT : `${window.location.origin}/`,
+      redirectTo: native ? NATIVE_AUTH_REDIRECT : webAuthRedirect(),
       skipBrowserRedirect: native,
       queryParams: { prompt: 'select_account' },
     },

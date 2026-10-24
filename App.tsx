@@ -69,7 +69,8 @@ import JSZip from 'jszip';
 import { downloadFile } from './services/nativeFiles';
 import { markFileBackup } from './services/lastWhen';
 import { App as CapApp } from '@capacitor/app';
-import { isNativeApp } from './services/platform';
+import { isNativeApp, WEB_LOGIN_REQUIRED } from './services/platform';
+import WebLoginGate from './components/WebLoginGate';
 import { STORAGE_FULL_EVENT } from './services/storageGuard';
 import { AppMark } from './components/Brand';
 
@@ -1251,6 +1252,9 @@ const App: React.FC = () => {
   if (isMobilePreview) {
     return <PhoneFrame onExit={() => setIsMobilePreview(false)} />;
   }
+
+  // versão web publicada: sem conta não abre (o app Android e o desenvolvimento não passam por aqui)
+  if (WEB_LOGIN_REQUIRED && !isNativeApp() && cloud.available && !cloud.user) return <WebLoginGate cloud={cloud} />;
 
   const isInsideEmulator = new URLSearchParams(window.location.search).has('frame');
 

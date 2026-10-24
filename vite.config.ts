@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      // caminhos relativos: o mesmo build roda na raiz de um domínio, numa subpasta (GitHub Pages) e dentro do app Android
+      base: './',
       server: {
         port: 3000,
         host: '0.0.0.0',
