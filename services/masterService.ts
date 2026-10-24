@@ -14,6 +14,12 @@ export interface MasterData {
   publishedAt: string | null;
   nodes: TaxonomyNode[];
   products: MasterProductRef[];
+  /** códigos nativos: código de barras (todas as lojas) e código de cada loja, ligados ao produto da tabela mãe */
+  codes?: MasterCodeRef[];
+}
+export interface MasterCodeRef {
+  master: string; desc: string; unit: string; category: string;
+  kind: 'ean' | 'store'; storeKey: string; storeName: string; code: string;
 }
 
 export const MASTER_KEY = 'eukasconta_master';
@@ -66,10 +72,15 @@ export const fetchRole = async (uid: string): Promise<'admin' | 'user'> => {
 type NodeRow = { id: string; parent_id: string | null; level: number; name: string; sort: number; icon: string | null; color: string | null; updated_at: string };
 
 export const fetchMaster = async (version: number, publishedAt: string | null): Promise<MasterData> => {
-  const [rows, prods] = await Promise.all([
+  const [rows, prods, codeRows] = await Promise.all([
     fetchAll<NodeRow>('taxonomy_master', 'id,parent_id,level,name,sort,icon,color,updated_at', 'sort'),
     fetchAll<{ code: string; description: string; node_id: string | null }>('master_products', 'code,description,node_id', 'code', q => q.not('node_id', 'is', null)),
+    fetchAll<any>('master_product_codes', 'kind,store_key,store_name,code,master_products(code,description,unit_type,category)', 'id').catch(() => [] as any[]),
   ]);
+  const codes: MasterCodeRef[] = codeRows.filter((c: any) => c.master_products).map((c: any) => ({
+    master: c.master_products.code, desc: c.master_products.description, unit: c.master_products.unit_type || 'UN', category: c.master_products.category || '',
+    kind: c.kind, storeKey: c.store_key || '', storeName: c.store_name || '', code: c.code,
+  }));
   const raw: TaxonomyNode[] = rows.map(r => ({
     id: r.id, parentId: r.parent_id, level: r.level as 1 | 2 | 3 | 4, name: r.name, slug: slugify(r.name),
     ...(r.icon ? { icon: r.icon } : {}), ...(r.color ? { color: r.color } : {}),
@@ -77,7 +88,7 @@ export const fetchMaster = async (version: number, publishedAt: string | null): 
   }));
   // mesma escrita do app (iniciais maiúsculas): assim a padronização local não briga com a tabela mãe
   const nodes = standardizeTaxonomy(raw).taxonomy;
-  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id })) };
+  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id })), codes };
 };
 
 /** Assinatura da estrutura, para saber se a local já é a da tabela mãe. */
@@ -183,9 +194,9 @@ const rpcError = (e: { message?: string; code?: string } | null): string => {
 
 export interface PublishPayload {
   nodes: { path: string[]; icon?: string; color?: string }[];
-  products: { code: string; description: string; unit?: string; path: string[] }[];
+  products: { code: string; description: string; unit?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }[];
 }
-export interface PublishResult { version: number; nodes_added: number; nodes_removed: number; products: number; unmapped: number }
+export interface PublishResult { version: number; nodes_added: number; nodes_removed: number; products: number; unmapped: number; codes?: number }
 
 export const publishMaster = async (payload: PublishPayload): Promise<PublishResult> => {
   const { data, error } = await supabase.rpc('publish_master', { p: payload });

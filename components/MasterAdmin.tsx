@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Check, Download, FileSpreadsheet, Inbox, Loader2, ShieldCheck, Upload, X } from 'lucide-react';
-import { Receipt, TaxonomyNode } from '../types';
+import { Establishment, MasterProduct, TaxonomyNode } from '../types';
+import { codesOf, normStoreKey } from '../services/productCodes';
 import { useMasterInfo } from './MasterContext';
 import { useLayers } from './LayersContext';
 import { MasterDiff, MasterSheetError, ParsedMaster, SheetProduct, diffStructure, downloadMasterWorkbook, parseMasterWorkbook } from '../services/masterSheet';
@@ -16,7 +17,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const when = (iso: string | null) => { try { return iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''; } catch { return ''; } };
 const btn = 'inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-[12.5px] font-bold active:opacity-80 disabled:opacity-40';
 
-const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; receipts: Receipt[]; onToast?: (m: string) => void }> = ({ taxonomy, receipts, onToast }) => {
+const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]; establishments: Establishment[]; onToast?: (m: string) => void }> = ({ taxonomy, masters, establishments, onToast }) => {
   const info = useMasterInfo();
   const layers = useLayers();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -46,17 +47,37 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; receipts: Receipt[]; onT
         const legacy = (r.category || '').split(' - ').map(x => properCase(x)).filter(Boolean).slice(0, 2);
         out.set(r.code, { code: r.code, description: r.description, unit: r.unit_type || undefined, path: nodePath && nodePath.length ? nodePath : legacy });
       });
-      // produtos que só existem nos seus cupons: caminho que o app deduz hoje
-      receipts.forEach(rc => (rc.items || []).forEach(it => {
-        const code = String(it.code ?? '').trim();
-        if (!code || out.has(code)) return;
-        const base = (it.category || '').split(' - ').map(x => x.trim()).filter(Boolean).slice(0, 2);
-        const leaf = leafFor(layers, it.category, it.description);
-        const extra = leaf ? (leaf.rest ? [leaf.group] : leaf.level === 4 ? [leaf.group, leaf.label] : [leaf.label]) : [];
-        out.set(code, { code, description: it.description, unit: it.unitType, path: [...base, ...extra] });
-      }));
+      // produtos do seu cadastro (com os códigos que o app já aprendeu dos cupons)
+      const storeName = (key: string) => {
+        const e = establishments.find(x => normStoreKey(x.cnpj) === key || normStoreKey(x.originalName) === key);
+        return e ? (e.aliasName || e.originalName) : key.startsWith('n:') ? key.slice(2) : '';
+      };
+      const addCodes = (p: SheetProduct, eans: string[], stores: [string, string[]][]) => {
+        const e = new Set([...(p.eans || []), ...eans]);
+        p.eans = [...e];
+        const st = [...(p.stores || [])];
+        stores.forEach(([key, cs]) => cs.forEach(c => { if (!st.some(x => x.key === key && x.code === c)) st.push({ key, name: storeName(key), code: c }); }));
+        p.stores = st;
+      };
+      masters.forEach(m => {
+        let p = out.get(m.code);
+        if (!p) {
+          const base = (m.category || '').split(' - ').map(x => x.trim()).filter(Boolean).slice(0, 2);
+          const leaf = leafFor(layers, m.category, m.description);
+          const extra = leaf ? (leaf.rest ? [leaf.group] : leaf.level === 4 ? [leaf.group, leaf.label] : [leaf.label]) : [];
+          p = { code: m.code, description: m.description, unit: m.unitType, path: [...base, ...extra] };
+          out.set(m.code, p);
+        }
+        addCodes(p, m.eans || [], Object.entries((m.establishmentCodes || {}) as Record<string, string | string[]>).map(([k, v]) => [k, codesOf(v)] as [string, string[]]));
+      });
+      // códigos já publicados na tabela mãe
+      (info.master?.codes || []).forEach(c => {
+        const p = out.get(c.master);
+        if (!p) return;
+        if (c.kind === 'ean') addCodes(p, [c.code], []); else addCodes(p, [], [[c.storeKey, [c.code]]]);
+      });
       downloadMasterWorkbook(currentNodes, [...out.values()]);
-      onToast?.(`Planilha gerada: ${plural(out.size, 'produto', 'produtos')}.`);
+      onToast?.(`Planilha gerada: ${plural(out.size, 'produto', 'produtos')}, com os códigos de barras e das lojas.`);
     } catch (e: any) { setError(e?.message || 'Não consegui gerar a planilha.'); }
     finally { setBusy(''); }
   };
@@ -136,6 +157,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; receipts: Receipt[]; onT
               ['Categorias na planilha', parsed.data.counts.nodes], ['Novas', parsed.diff.added.length],
               ['Saem da estrutura', parsed.diff.removed.length], ['Produtos', parsed.data.counts.products],
               ['Produtos sem categoria', parsed.data.counts.unmapped], ['Mantidas', parsed.diff.kept],
+              ['Códigos de barras', parsed.data.counts.eans], ['Códigos de loja', parsed.data.counts.storeCodes],
             ].map(([k, v]) => (
               <div key={String(k)} className="rounded-xl bg-white/[0.03] border border-white/5 px-3 py-2">
                 <dt className="text-zinc-500 text-[11px]">{k}</dt><dd className="text-zinc-100 font-semibold tabular-nums text-sm" data-testid={`madmin-count-${String(k).split(' ')[0].toLowerCase()}`}>{v}</dd>

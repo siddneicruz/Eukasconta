@@ -229,7 +229,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
       {settingsTab === 'master' && master.isAdmin && (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-              <MasterAdmin taxonomy={taxonomy} receipts={receipts} />
+              <MasterAdmin taxonomy={taxonomy} masters={masterProducts} establishments={establishments} />
           </div>
       )}
 

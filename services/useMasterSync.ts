@@ -1,6 +1,7 @@
 // Mantém o app igual à tabela mãe: baixa quando a versão muda, troca a estrutura local e reclassifica os itens.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Receipt, TaxonomyNode } from '../types';
+import { MasterProduct, Receipt, TaxonomyNode } from '../types';
+import { applyMasterCodes } from './masterCodes';
 import type { MasterInfo } from '../components/MasterContext';
 import {
   MasterData, applyMasterToReceipts, cachedRole, fetchMaster, fetchMasterVersion, fetchPendingSuggestions, fetchRole,
@@ -13,12 +14,14 @@ interface Opts {
   setTaxonomy: (t: TaxonomyNode[]) => void;
   receipts: Receipt[];
   setReceipts: (r: Receipt[]) => void;
+  masterProducts?: MasterProduct[];
+  setMasterProducts?: (m: MasterProduct[]) => void;
   onToast?: (msg: string) => void;
 }
 
 const EVERY_MS = 5 * 60 * 1000;
 
-export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setReceipts, onToast }: Opts): MasterInfo => {
+export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setReceipts, masterProducts, setMasterProducts, onToast }: Opts): MasterInfo => {
   const [master, setMaster] = useState<MasterData | null>(loadMasterCache);
   const [role, setRole] = useState<'admin' | 'user'>(() => cachedRole(userId));
   const [pending, setPending] = useState(0);
@@ -81,6 +84,13 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
     const res = applyMasterToReceipts(receipts, master);
     if (res.changed > 0) setReceipts(res.receipts);
   }, [receipts, master, setReceipts]);
+
+  // Códigos nativos (barras e de cada loja) viram parte do cadastro de produtos de todos
+  useEffect(() => {
+    if (!master?.codes?.length || !masterProducts || !setMasterProducts) return;
+    const r = applyMasterCodes(masterProducts, master.codes);
+    if (r.changed > 0) setMasterProducts(r.masters);
+  }, [master, masterProducts, setMasterProducts]);
 
   const createLabel = useCallback<MasterInfo['createLabel']>(async (parentPath, name, ctx) => {
     if (!userId) throw new Error('Entre na sua conta para criar ou sugerir etiquetas.');

@@ -625,7 +625,7 @@ const App: React.FC = () => {
       onGeocoded: (cnpj, patch) => setEstablishments(prev => prev.map(e => cleanCNPJ(e.cnpj) === cnpj ? { ...e, ...patch } : e)),
       onToast: (msg) => showNotification(msg),
   });
-  const master = useMasterSync({ userId: cloud.user?.id ?? null, taxonomy, setTaxonomy, receipts, setReceipts, onToast: (m) => showNotification(m, 6000) });
+  const master = useMasterSync({ userId: cloud.user?.id ?? null, taxonomy, setTaxonomy, receipts, setReceipts, masterProducts, setMasterProducts, onToast: (m) => showNotification(m, 6000) });
   // Backup automático na conta: dados e chave de IA voltam sozinhos ao entrar depois de reinstalar o app.
   const backupTrigger = useMemo(() => ({}), [receipts, taxonomy, establishments, masterProducts, aiLearning, categories]);
   const backup = useCloudBackup({ userId: cloud.user?.id ?? null, trigger: backupTrigger, onToast: (msg) => showNotification(msg, 6000) });
