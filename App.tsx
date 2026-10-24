@@ -1260,7 +1260,7 @@ const App: React.FC = () => {
 
   return (
     <StoreNamesProvider establishments={establishments}>
-    <LayersProvider taxonomy={taxonomy}>
+    <LayersProvider taxonomy={taxonomy} onTaxonomyChange={setTaxonomy}>
     <div className="flex flex-col h-[100dvh] bg-black text-zinc-100 font-sans overflow-hidden">
       {globalLoading && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">

@@ -43,6 +43,7 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
   const listId = useId();
 
   const full = !single && selected.length >= max;
+  // quem fica acima do que já está escolhido: abre sozinho para a escolha aparecer marcada, e leva uma marca de caminho
   const q = fold(query);
 
   const byId = useMemo(() => new Map(options.map(o => [o.id, o] as [string, CompareOption])), [options]);
@@ -63,6 +64,16 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
     kids.forEach(arr => arr.sort(bySpend));
     return { roots: top.sort(bySpend), kidsOf: kids };
   }, [options, byId]);
+
+  const pathIds = useMemo(() => {
+    const out = new Set<string>();
+    selected.forEach(id => {
+      let o = byId.get(id);
+      let guard = 0;
+      while (o && guard++ < 6) { const p = parentOf(o); if (!p || out.has(p)) break; out.add(p); o = byId.get(p); }
+    });
+    return out;
+  }, [selected, byId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Açougue › Carne Bovina › Cortes Nobres": o caminho até a opção, sem ela mesma
   const crumbOf = (o: CompareOption): string => {
@@ -98,6 +109,14 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
   }, [q, roots, kidsOf, expanded, options]);
 
   useEffect(() => { setActive(q && rows.length ? 0 : -1); }, [q, rows.length]);
+
+  // ao abrir a lista: o caminho do que já está escolhido se abre e a escolha vem para o meio da tela
+  useEffect(() => {
+    if (!open || pathIds.size === 0) return;
+    setExpanded(prev => { let changed = false; const n = new Set(prev); pathIds.forEach(id => { if (!n.has(id)) { n.add(id); changed = true; } }); return changed ? n : prev; });
+    const t = setTimeout(() => listRef.current?.querySelector<HTMLElement>('[data-selected="true"]')?.scrollIntoView?.({ block: 'center' }), 50);
+    return () => clearTimeout(t);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // fecha ao tocar fora do campo e da lista
   useEffect(() => {
@@ -229,6 +248,7 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
             </p>
           ) : rows.map((r, i) => {
             const sel = isSel(r.opt.id);
+            const onPath = !sel && !r.flat && pathIds.has(r.opt.id);
             const lockedFlat = r.flat && locked(r);
             const dis = blocked(r.opt.id) || lockedFlat;
             const k = r.opt.kind;
@@ -248,15 +268,17 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
                   data-kind={k}
                   data-level={r.opt.level ?? (k === 'dept' ? 1 : 2)}
                   data-selected={sel ? 'true' : 'false'}
+                  data-path={onPath ? 'true' : undefined}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => pick(i)}
                   className={`min-w-0 flex-1 flex items-center gap-2.5 pl-3 ${r.kids ? 'pr-1' : 'pr-3'} py-2 min-h-[46px] text-left ${dis ? 'opacity-40' : ''}`}
                 >
-                  <span className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${sel ? 'bg-luxury-gold border-luxury-gold' : 'border-zinc-600'}`}>
+                  <span className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${sel ? 'bg-luxury-gold border-luxury-gold' : onPath ? 'border-luxury-gold/70' : 'border-zinc-600'}`}>
                     {sel && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
+                    {onPath && <span className="w-2 h-0.5 rounded bg-luxury-gold" aria-hidden />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate ${titleCls}`}>{r.opt.label}</span>
+                    <span className={`block truncate ${titleCls} ${sel || onPath ? 'text-luxury-gold' : ''}`}>{r.opt.label}</span>
                     {r.flat && <span className="block text-[11px] text-zinc-500 leading-snug truncate">{caption}</span>}
                     {r.opt.outside && (k === 'dept' || k === 'cat') && <span className="block text-[10.5px] text-zinc-500 leading-snug" data-testid="compare-outside-tag">fora da Estrutura</span>}
                   </span>

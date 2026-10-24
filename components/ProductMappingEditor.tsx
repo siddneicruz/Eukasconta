@@ -11,6 +11,7 @@ import { buildProductGroups, suggestClusters, ProductGroup, DupCluster } from '.
 import { ProductUnifySheet, ProductDupSheet, UnifyPlan } from './ProductUnifySheet';
 import CategoryFixSheet from './CategoryFixSheet';
 import ItemCategoryPicker from './ItemCategoryPicker';
+import ItemPathLine from './ItemPathLine';
 import { suggestCategoryFixes } from '../services/categoryRules';
 import ProductCodesPanel, { StoreOption } from './ProductCodesPanel';
 import { CodeOp, codesOf } from '../services/productCodes';
@@ -194,6 +195,10 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
         return next;
     });
 
+    // a lista tem centenas de produtos: a escolha de categoria só abre no que a pessoa tocar (o caminho já está no cabeçalho do cartão)
+    const [catOpen, setCatOpen] = useState<Set<string>>(new Set());
+    const toggleCat = (key: string) => setCatOpen(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+
     const toggleCodes = (key: string) => setCodesOpen(prev => {
         const next = new Set(prev);
         if (next.has(key)) next.delete(key); else next.add(key);
@@ -228,20 +233,32 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
     };
 
     // Categoria pela mesma árvore com busca das outras telas; escolher grupo/item fixa todos os nomes do produto nele
-    const categorySelect = (g: ProductGroup) => (
-        <div className="mt-3" data-testid="prod-cat-wrap">
-            <span className="sr-only">Categoria de {titleCase(g.name)}</span>
-            <ItemCategoryPicker
-                category={g.category}
-                description={g.descs[0]?.desc || g.name}
-                descriptions={g.descs.map(d => d.desc)}
-                categories={categoriesList}
-                onPick={(c) => handleInitiateChange(g, c)}
-                testId="prod-cat"
-                compact
-            />
-        </div>
-    );
+    const categorySelect = (g: ProductGroup) => {
+        const isOpen = catOpen.has(g.key);
+        return (
+            <div className="mt-2" data-testid="prod-cat-wrap">
+                <span className="sr-only">Categoria de {titleCase(g.name)}</span>
+                <button type="button" onClick={() => toggleCat(g.key)} aria-expanded={isOpen} data-testid="prod-cat-open"
+                    className={`inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-full border text-xs font-semibold transition-colors ${isOpen ? 'border-luxury-gold/50 text-luxury-gold bg-luxury-gold/10' : 'border-white/10 text-zinc-300'}`}>
+                    <Tags className="w-3.5 h-3.5" /> {isOpen ? 'Fechar categoria' : 'Alterar categoria'}
+                </button>
+                {isOpen && (
+                    <div className="mt-3">
+                        <ItemCategoryPicker
+                            category={g.category}
+                            description={g.descs[0]?.desc || g.name}
+                            descriptions={g.descs.map(d => d.desc)}
+                            categories={categoriesList}
+                            onPick={(c) => handleInitiateChange(g, c)}
+                            testId="prod-cat"
+                            compact
+                            showPath={false}
+                        />
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -328,6 +345,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                                     <p className="text-sm font-semibold text-zinc-100 leading-snug min-w-0 break-words">{titleCase(g.name)}</p>
                                     <span className="shrink-0 text-xs font-semibold text-zinc-400 tabular-nums">{fmtBRL(g.total)}</span>
                                 </div>
+                                <ItemPathLine category={g.category} description={g.descs[0]?.desc || g.name} className="mt-1" />
                                 <p className="text-xs text-zinc-500 mt-1">
                                     {plural(g.count, 'compra', 'compras')}
                                     {many && ` · ${plural(g.descs.length, 'nome', 'nomes')} no cupom`}

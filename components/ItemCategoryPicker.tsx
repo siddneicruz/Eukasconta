@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Tags, FolderTree } from 'lucide-react';
 import CategoryTagPicker from './CategoryTagPicker';
 import CategoryCompareBox from './CategoryCompareBox';
-import { useLayers, useTaxonomy } from './LayersContext';
-import { currentPick, isSelectable, pickOptions, resolvePick, restText } from '../services/categoryPick';
+import { useAddLayerNode, useLayers, useTaxonomy } from './LayersContext';
+import { currentPick, isSelectable, pathParts, pickOptions, resolvePick, restText } from '../services/categoryPick';
 import { saveLayerPin } from '../services/layerPins';
 import { buildAlignIndex, inStructure, resolveCategory, structureKeys } from '../services/categoryAlign';
 import { leafFor } from '../services/categoryLayers';
@@ -31,8 +31,11 @@ const ItemCategoryPicker: React.FC<{
   autoFocus?: boolean;
   /** lista de muitos itens: não repete a frase "Agora: ..." em cada um (o aviso de fixação continua) */
   compact?: boolean;
-}> = ({ category, description, descriptions, categories, onPick, testId = 'item-cat', autoFocus = false, compact = false }) => {
+  /** mostra o caminho completo em cima da escolha (some quando a tela já o mostra no cabeçalho) */
+  showPath?: boolean;
+}> = ({ category, description, descriptions, categories, onPick, testId = 'item-cat', autoFocus = false, compact = false, showPath = true }) => {
   const layers = useLayers();
+  const addNode = useAddLayerNode();
   const taxonomy = useTaxonomy();
   const options = useMemo(() => pickOptions(taxonomy, layers), [taxonomy, layers]);
   const cur = useMemo(() => currentPick(category, description, options, layers), [category, description, options, layers]);
@@ -65,11 +68,7 @@ const ItemCategoryPicker: React.FC<{
   }, [outside, category, taxonomy]);
 
   // cadeia completa (departamento › categoria › grupo › item), em linhas que quebram em vez de cortar
-  const chain = useMemo(() => {
-    const parts = (cur.label || '').split(' › ').filter(Boolean);
-    if (!cur.pinned && cur.now) cur.now.split(' › ').forEach(p => { if (!parts.includes(p)) parts.push(p); });
-    return parts;
-  }, [cur]);
+  const chain = useMemo(() => pathParts(cur), [cur]);
 
   // sem estrutura de categorias (conta nova): lista simples, como era
   if (options.length === 0) {
@@ -108,8 +107,18 @@ const ItemCategoryPicker: React.FC<{
           ))}
         </div>
       </div>
+      {showPath && chain.length > 0 && (
+        <p className="mb-2.5 text-[12.5px] leading-snug text-zinc-300 break-words" data-testid={`${testId}-chain`} aria-label={`Caminho completo: ${chain.join(', ')}`}>
+          {chain.map((p, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span className="text-luxury-gold/70 mx-1">›</span>}
+              <span className={i === chain.length - 1 ? 'font-semibold text-zinc-100' : ''}>{p}</span>
+            </React.Fragment>
+          ))}
+        </p>
+      )}
       {mode === 'tags' ? (
-        <CategoryTagPicker options={options} selectedId={cur.id} onChoose={choose} testId={`${testId}-tags`} />
+        <CategoryTagPicker options={options} selectedId={cur.id} onChoose={choose} onCreate={addNode ?? undefined} testId={`${testId}-tags`} />
       ) : (
         <CategoryCompareBox
           options={options} selected={[cur.id]} max={1} single
@@ -125,16 +134,6 @@ const ItemCategoryPicker: React.FC<{
           <button type="button" onClick={() => choose(suggestion2.id)} data-testid={`${testId}-suggest-layer-use`}
             className="shrink-0 h-8 px-3 rounded-lg bg-luxury-gold text-black text-[12px] font-bold active:opacity-80">Usar</button>
         </div>
-      )}
-      {chain.length > 0 && (
-        <p className="mt-1.5 text-[12px] leading-snug text-zinc-300 break-words" data-testid={`${testId}-chain`} aria-label={`Caminho completo: ${chain.join(', ')}`}>
-          {chain.map((p, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && <span className="text-luxury-gold/70 mx-1">›</span>}
-              <span className={i === chain.length - 1 ? 'font-semibold text-zinc-100' : ''}>{p}</span>
-            </React.Fragment>
-          ))}
-        </p>
       )}
       {outside && (
         <div className="mt-1 flex items-center gap-2" data-testid={`${testId}-outside`}>

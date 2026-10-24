@@ -81,3 +81,10 @@ export const currentPick = (category: string, description: string, options: Comp
 };
 
 export const restText = (): string => `${REST_LABEL} da categoria`;
+
+/** O caminho completo de uma escolha como lista: ["Despensa e Grãos", "Mercearia Salgada", "Molhos"]. */
+export const pathParts = (cur: CurrentPick): string[] => {
+  const parts = (cur.label || '').split(' › ').filter(Boolean);
+  if (!cur.pinned && cur.now) cur.now.split(' › ').forEach(p => { if (!parts.includes(p)) parts.push(p); });
+  return parts;
+};

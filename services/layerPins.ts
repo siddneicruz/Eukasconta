@@ -48,3 +48,14 @@ export const saveLayerPin = (category: string, description: string, nodeKey: str
   try { window.dispatchEvent(new Event(LAYER_PINS_EVENT)); } catch { /* sem janela: ignora */ }
   return true;
 };
+
+/** Todas as descrições fixadas em `from` passam a apontar para `to` (ex.: um grupo que ganhou itens: fixação vira o "geral" dele). */
+export const retargetLayerPins = (from: string, to: string): number => {
+  const cur = loadLayerPins();
+  let n = 0;
+  Object.keys(cur).forEach(k => { if (cur[k] === from) { cur[k] = to; n++; } });
+  if (n === 0) return 0;
+  try { localStorage.setItem(LAYER_PINS_KEY, JSON.stringify(cur)); } catch { return 0; }
+  try { window.dispatchEvent(new Event(LAYER_PINS_EVENT)); } catch { /* sem janela: ignora */ }
+  return n;
+};
