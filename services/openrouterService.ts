@@ -353,7 +353,7 @@ export const parseReceiptWithOpenRouter = async (
     apiKey,
     candidates,
     () => ({
-      maxTokens: 8000,
+      maxTokens: 20000,
       messages: [
         { role: 'system', content: systemInstruction },
         {

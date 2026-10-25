@@ -101,7 +101,7 @@ export const setScanHandlers = (h: ScanHandlers | null) => {
 
 /* ── utilidades de imagem e número ── */
 
-const resizeImage = (base64Str: string, maxWidth = 1024, quality = 0.85): Promise<string> =>
+const resizeImage = (base64Str: string, maxWidth = 1024, quality = 0.85, rotate: 0 | 90 | -90 = 0): Promise<string> =>
   new Promise((resolve, reject) => {
     const img = new Image();
     // Evita travar para sempre se a imagem não carregar
@@ -114,8 +114,9 @@ const resizeImage = (base64Str: string, maxWidth = 1024, quality = 0.85): Promis
       clearTimeout(timeout);
       try {
         const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+        // foto de cupom deitada: gira 90° para o cupom ficar em pé (o navegador já respeita o giro gravado na foto)
+        let width = rotate === 0 ? img.width : img.height;
+        let height = rotate === 0 ? img.height : img.width;
         if (width > maxWidth) {
           height = Math.round(height * (maxWidth / width));
           width = maxWidth;
@@ -128,7 +129,13 @@ const resizeImage = (base64Str: string, maxWidth = 1024, quality = 0.85): Promis
         ctx.imageSmoothingQuality = 'high';
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+        if (rotate === 0) ctx.drawImage(img, 0, 0, width, height);
+        else {
+          ctx.translate(width / 2, height / 2);
+          ctx.rotate((rotate * Math.PI) / 180);
+          // depois de girar, a largura desenhada é a altura final e vice-versa
+          ctx.drawImage(img, -height / 2, -width / 2, height, width);
+        }
         resolve(canvas.toDataURL('image/jpeg', quality));
       } catch (e: any) {
         reject(new Error(`Erro técnico no canvas: ${e.message}`));
@@ -138,6 +145,15 @@ const resizeImage = (base64Str: string, maxWidth = 1024, quality = 0.85): Promis
       clearTimeout(timeout);
       reject(new Error('O arquivo de imagem está corrompido, vazio ou em formato não suportado pelo navegador.'));
     };
+    img.src = base64Str;
+  });
+
+/** A foto está deitada (mais larga que alta)? Cupom é comprido: assim a foto veio girada. */
+const isLandscape = (base64Str: string): Promise<boolean> =>
+  new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img.width > img.height * 1.15);
+    img.onerror = () => resolve(false);
     img.src = base64Str;
   });
 
@@ -283,28 +299,48 @@ const runBatch = async (files: File[], ctx: ScanContext, isRetry: boolean) => {
       addLog('Lendo arquivo...');
       const rawBase64 = await readFileAsBase64(file);
 
-      // ETAPA 2: otimização para OCR (redimensionamento)
-      addLog('Otimizando imagem...');
-      const optimizedBase64Full = await resizeImage(rawBase64, 1280, 0.80);
-      const mimeTypeMatch = optimizedBase64Full.match(/^data:(.*?);base64/);
-      const finalMimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-      const base64Data = optimizedBase64Full.split(',')[1];
+      // Foto deitada: tenta com o cupom girado para um lado e, se a leitura vier vazia ou quebrada, para o outro.
+      const landscape = await isLandscape(rawBase64);
+      const turns: (0 | 90 | -90)[] = landscape ? [-90, 90] : [0];
+      let extractedData: Partial<Receipt> | undefined;
+      let lastReadError: GeminiError | undefined;
+      for (let t = 0; t < turns.length; t++) {
+        // ETAPA 2: otimização para OCR (redimensionamento)
+        addLog(landscape ? `Foto deitada: girando o cupom (${t === 0 ? 'um lado' : 'o outro lado'})...` : 'Otimizando imagem...');
+        const optimizedBase64Full = await resizeImage(rawBase64, 1280, 0.80, turns[t]);
+        const mimeTypeMatch = optimizedBase64Full.match(/^data:(.*?);base64/);
+        const finalMimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+        const base64Data = optimizedBase64Full.split(',')[1];
 
-      // ETAPA 3: envio para a IA, com limite de tempo
-      addLog(`Enviando para ${getActiveProviderLabel()} (IA)...`);
-      // O OpenRouter grátis é lento e já tem controle de tempo próprio; os demais mantêm 90 s.
-      const limitMs = getActiveProvider() === 'openrouter' ? SCAN_LIMIT_OPENROUTER_MS : 90000;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new GeminiError(`Tempo limite excedido (${Math.round(limitMs / 1000)}s). O cupom é muito longo ou o provedor está lento.`, 'NETWORK', true)), limitMs);
-      });
-      const cancelPromise = new Promise<never>((_, reject) => { cancelCurrent = reject; });
+        // ETAPA 3: envio para a IA, com limite de tempo
+        addLog(`Enviando para ${getActiveProviderLabel()} (IA)...`);
+        // O OpenRouter grátis é lento e já tem controle de tempo próprio; os demais mantêm 90 s.
+        const limitMs = getActiveProvider() === 'openrouter' ? SCAN_LIMIT_OPENROUTER_MS : 90000;
+        if (timer) clearTimeout(timer);
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new GeminiError(`Tempo limite excedido (${Math.round(limitMs / 1000)}s). O cupom é muito longo ou o provedor está lento.`, 'NETWORK', true)), limitMs);
+        });
+        const cancelPromise = new Promise<never>((_, reject) => { cancelCurrent = reject; });
 
-      sentToAi = true;
-      const extractedData = await Promise.race([
-        parseReceiptImage(base64Data, finalMimeType, ctx.knownEstablishments, ctx.categories),
-        timeoutPromise,
-        cancelPromise,
-      ]) as Partial<Receipt>;
+        sentToAi = true;
+        try {
+          const got = await Promise.race([
+            parseReceiptImage(base64Data, finalMimeType, ctx.knownEstablishments, ctx.categories),
+            timeoutPromise,
+            cancelPromise,
+          ]) as Partial<Receipt>;
+          if (abortRequested) break;
+          if ((got.items || []).length > 0 || cleanNumber(got.totalAmount) > 0) { extractedData = got; break; }
+          lastReadError = new GeminiError('A leitura veio vazia.', 'PARSING', true);
+        } catch (e: any) {
+          const ge = e instanceof GeminiError ? e : null;
+          // só vale girar para o outro lado quando o problema foi a leitura em si
+          if (!ge || ge.category !== 'PARSING' || t === turns.length - 1) throw e;
+          lastReadError = ge;
+        }
+      }
+      if (abortRequested) break;
+      if (!extractedData) throw lastReadError || new GeminiError('A leitura veio vazia.', 'PARSING', true);
 
       cancelCurrent = null;
       if (abortRequested) break;   // cancelado durante a espera: descarta esta leitura

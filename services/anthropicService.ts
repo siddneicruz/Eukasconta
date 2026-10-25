@@ -97,7 +97,7 @@ export const parseReceiptWithClaude = async (
   // Ferramenta "forçada": obriga o Claude a devolver exatamente o JSON do schema,
   // em vez de texto livre que precisaria ser limpo antes do JSON.parse.
   const data = await callAnthropic(apiKey, {
-    max_tokens: 8000,
+    max_tokens: 20000,
     temperature: 0.1,
     system: systemInstruction,
     tools: [{
