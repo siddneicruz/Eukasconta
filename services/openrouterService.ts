@@ -17,6 +17,10 @@ const BASE_URL = 'https://openrouter.ai/api/v1';
 export const FREE_ROUTER = 'openrouter/free';
 
 // Modelos grátis com leitura de imagem confirmada no catálogo em out/2026.
+// Modelo padrão da leitura de cupons: pago (usa os créditos do OpenRouter), mas não cai como os grátis.
+// Se não houver saldo (402), o app segue sozinho para os grátis abaixo.
+export const DEFAULT_PAID_VISION_MODEL = 'anthropic/claude-haiku-5.5';
+
 // O Inkling saiu da lista em 26/out/2026: o OpenRouter passou a devolver 403 ("only available on agentic harnesses").
 export const DEFAULT_VISION_MODELS = [
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
@@ -193,7 +197,7 @@ const embeddedFail = (embedded: any, model: string): Fail => {
   const code = Number(embedded?.code);
   const msg = embedded?.message || 'erro do provedor';
   if (code === 401) return { fatal: true, error: new GeminiError('Chave do OpenRouter inválida ou revogada.', 'AUTH', false) };
-  if (code === 402) return { fatal: true, error: new GeminiError(`O OpenRouter pediu créditos para ${model}.`, 'QUOTA', false) };
+  if (code === 402) return { fatal: true, status: 402, error: new GeminiError(`O OpenRouter pediu créditos para ${model}.`, 'QUOTA', false) };
   if (code === 429 && /per[- ]day/i.test(String(msg))) {
     return { fatal: true, status: 429, error: new GeminiError('A cota diária grátis do OpenRouter acabou (50 pedidos por dia; 1000 com 10 créditos comprados). Ela renova amanhã. Use outro provedor ou adicione créditos.', 'QUOTA', false) };
   }
@@ -358,7 +362,9 @@ const runWithFallback = async <T>(
     }
 
     if (isFail(result)) {
-      if (result.fatal) throw result.error;
+      // Sem créditos num modelo pago: os grátis ainda podem funcionar, então não encerra a leitura.
+      const paid = !model.endsWith(':free') && model !== FREE_ROUTER;
+      if (result.fatal && !(result.status === 402 && paid)) throw result.error;
       if (result.status === 403 || result.status === 404) markModelBlocked(model);
       failures.push(result);
       continue;
@@ -393,11 +399,12 @@ export const parseReceiptWithOpenRouter = async (
   systemInstruction: string,
 ): Promise<Partial<Receipt>> => {
   const startTime = performance.now();
-  const primary = getOpenRouterModel('vision');
+  // Sem escolha da pessoa, o Haiku vai primeiro; se ela escolheu outro modelo em Config, vale o dela.
+  const primary = getOpenRouterModel('vision') || DEFAULT_PAID_VISION_MODEL;
   const fromCatalog = await catalogVisionModels();
-  // Ordem: o modelo escolhido pela pessoa, os padrões, o que o catálogo grátis tem hoje com leitura de imagem e,
+  // Ordem: o modelo escolhido (ou o Haiku), os grátis padrão, o que o catálogo grátis tem hoje com leitura de imagem e,
   // por último, o roteador automático. Quem deu 403/404 recentemente fica de fora.
-  const candidates = [primary || '', ...DEFAULT_VISION_MODELS, ...fromCatalog.slice(0, 2), FREE_ROUTER].filter(m => m && (m === FREE_ROUTER || !isModelBlocked(m)));
+  const candidates = [primary, ...DEFAULT_VISION_MODELS, ...fromCatalog.slice(0, 2), FREE_ROUTER].filter(m => m && (m === FREE_ROUTER || !isModelBlocked(m)));
   if (!candidates.includes(FREE_ROUTER)) candidates.push(FREE_ROUTER);
 
   const { value, model } = await runWithFallback(
