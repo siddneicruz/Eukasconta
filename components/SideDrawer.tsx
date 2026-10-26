@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, LayoutDashboard, ScanLine, History, BarChart3, Settings, Terminal, Sparkles, Bell, Map as MapIcon, ShoppingCart } from 'lucide-react';
+import { X, LayoutDashboard, ScanLine, History, BarChart3, Settings, Terminal, Sparkles, Bell, Map as MapIcon, ShoppingCart, KeyRound } from 'lucide-react';
 import { ViewState } from '../types';
 import { getActiveProvider } from '../services/keyStorageService';
 import { AppMark, PDLogo } from './Brand';
@@ -10,6 +10,8 @@ interface SideDrawerProps {
   view: ViewState | 'manual_entry';
   setView: (v: ViewState) => void;
   onOpenDiagnostics: () => void;
+  isAdmin?: boolean;
+  onOpenMaster?: () => void;
 }
 
 interface DrawerItem {
@@ -41,7 +43,7 @@ const PROVIDER_LABEL: Record<string, string> = { gemini: 'Google Gemini', anthro
 // seções agrupadas com título pequeno, item ativo com fundo destacado.
 // Não substitui a navegação existente (topo/abas do rodapé) — é um atalho
 // rápido que abre por cima de qualquer tela, via o ícone de menu no cabeçalho.
-const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView, onOpenDiagnostics }) => {
+const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView, onOpenDiagnostics, isAdmin, onOpenMaster }) => {
   const activeProvider = getActiveProvider();
 
   const go = (id: ViewState) => {
@@ -96,6 +98,16 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView,
               </div>
             </div>
           ))}
+          {isAdmin && onOpenMaster && (
+            <div>
+              <h3 className="px-3 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500">Administrador</h3>
+              <button onClick={() => { onOpenMaster(); onClose(); }} data-testid="drawer-master"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-left text-zinc-300 hover:bg-white/5">
+                <KeyRound className="w-4.5 h-4.5 shrink-0 text-luxury-gold" />
+                <span className="text-[13px] font-bold tracking-tight">Tabela mãe (importar planilha)</span>
+              </button>
+            </div>
+          )}
         </nav>
 
         <div className="p-4 border-t border-white/5">

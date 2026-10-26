@@ -1323,6 +1323,8 @@ const App: React.FC = () => {
         view={view}
         setView={setView}
         onOpenDiagnostics={() => setIsDiagnosticOpen(true)}
+        isAdmin={master.isAdmin}
+        onOpenMaster={() => { setSettingsInitialTab('master'); setView('settings'); }}
       />
 
       <main className="app-main flex-1 overflow-y-auto custom-scrollbar">
