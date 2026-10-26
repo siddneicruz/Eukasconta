@@ -17,10 +17,56 @@ const BASE_URL = 'https://openrouter.ai/api/v1';
 export const FREE_ROUTER = 'openrouter/free';
 
 // Modelos grátis com leitura de imagem confirmada no catálogo em out/2026.
+// O Inkling saiu da lista em 26/out/2026: o OpenRouter passou a devolver 403 ("only available on agentic harnesses").
 export const DEFAULT_VISION_MODELS = [
-  'thinkingmachines/inkling:free',
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
 ];
+
+/* ───────────────────── modelos bloqueados e catálogo em cache ───────────────────── */
+
+// Um modelo que devolve 403 (restrito a outros apps) ou 404 (saiu do catálogo) não adianta tentar de novo agora:
+// o app se lembra por algumas horas e passa direto para o próximo, em vez de gastar um pedido e esperar toda vez.
+const BLOCKED_KEY = 'eukasconta_or_blocked';
+const BLOCKED_TTL_MS = 12 * 3600_000;
+const CATALOG_KEY = 'eukasconta_or_catalog';
+const CATALOG_TTL_MS = 6 * 3600_000;
+
+const readJson = <T,>(key: string, fallback: T): T => {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) as T : fallback; } catch { return fallback; }
+};
+const writeJson = (key: string, value: unknown): void => {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* sem armazenamento: segue sem lembrar */ }
+};
+
+export const markModelBlocked = (model: string): void => {
+  if (!model || model === FREE_ROUTER) return;
+  const m = readJson<Record<string, number>>(BLOCKED_KEY, {});
+  m[model] = Date.now();
+  writeJson(BLOCKED_KEY, m);
+};
+export const isModelBlocked = (model: string): boolean => {
+  const at = readJson<Record<string, number>>(BLOCKED_KEY, {})[model];
+  return typeof at === 'number' && Date.now() - at < BLOCKED_TTL_MS;
+};
+
+// Modelos grátis com leitura de imagem, vindos do catálogo público (sem chave). Guarda por algumas horas;
+// se a lista não puder ser baixada, usa o que já estava guardado ou segue só com os padrões.
+const catalogVisionModels = async (): Promise<string[]> => {
+  const cached = readJson<{ at: number; ids: string[] }>(CATALOG_KEY, { at: 0, ids: [] });
+  if (Date.now() - cached.at < CATALOG_TTL_MS && cached.ids.length > 0) return cached.ids;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(`${BASE_URL}/models`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!res.ok) return cached.ids;
+    const ids = filterFreeModels((await res.json())?.data).filter(m => m.vision && m.id.endsWith(':free')).map(m => m.id);
+    if (ids.length > 0) writeJson(CATALOG_KEY, { at: Date.now(), ids });
+    return ids.length > 0 ? ids : cached.ids;
+  } catch {
+    return cached.ids;
+  }
+};
 
 // Modelos grátis só de texto, para a auditoria de categorias.
 export const DEFAULT_TEXT_MODELS = [
@@ -41,7 +87,7 @@ export const TIMING = {
   totalMs: 190_000,       // teto de todos os modelos juntos, por cupom
   minLeftMs: 8_000,       // com menos tempo que isso, nem tenta o próximo modelo
 };
-const MAX_CANDIDATES = 4;
+const MAX_CANDIDATES = 5;
 
 const RECEIPT_FORMAT_HINT = `Responda SOMENTE com um objeto JSON válido (sem markdown, sem comentários, sem texto antes ou depois), neste formato:
 {
@@ -122,6 +168,7 @@ const httpFail = async (res: Response, model: string): Promise<Fail> => {
   if (s === 429) return { fatal: false, status: s, error: new GeminiError(`Limite de uso do OpenRouter atingido em ${model}. ${detail}`.trim(), 'QUOTA', true) };
   if (s === 404) return { fatal: false, status: s, error: new GeminiError(`Modelo indisponível no OpenRouter: ${model}. Ele pode ter saído do catálogo grátis.`, 'UNKNOWN', true) };
   if (s === 408 || s >= 500) return { fatal: false, status: s, error: new GeminiError(`OpenRouter instável (${s}) em ${model}. ${detail}`.trim(), 'NETWORK', true) };
+  if (s === 403) return { fatal: false, status: s, error: new GeminiError(`${model} não aceita pedidos deste app (403). O app vai pular esse modelo por algumas horas. ${detail}`.trim(), 'UNKNOWN', true) };
   return { fatal: false, status: s, error: new GeminiError(`Erro do OpenRouter (${s}) em ${model}: ${detail}`.trim(), 'UNKNOWN', false) };
 };
 
@@ -312,6 +359,7 @@ const runWithFallback = async <T>(
 
     if (isFail(result)) {
       if (result.fatal) throw result.error;
+      if (result.status === 403 || result.status === 404) markModelBlocked(model);
       failures.push(result);
       continue;
     }
@@ -345,9 +393,12 @@ export const parseReceiptWithOpenRouter = async (
   systemInstruction: string,
 ): Promise<Partial<Receipt>> => {
   const startTime = performance.now();
-  const primary = getOpenRouterModel('vision') || DEFAULT_VISION_MODELS[0];
-  // O Nemotron Nano Omni vive fora do ar (disponibilidade de 40% a 55% no catálogo): fica por último.
-  const candidates = [primary, DEFAULT_VISION_MODELS[0], FREE_ROUTER, ...DEFAULT_VISION_MODELS.slice(1)];
+  const primary = getOpenRouterModel('vision');
+  const fromCatalog = await catalogVisionModels();
+  // Ordem: o modelo escolhido pela pessoa, os padrões, o que o catálogo grátis tem hoje com leitura de imagem e,
+  // por último, o roteador automático. Quem deu 403/404 recentemente fica de fora.
+  const candidates = [primary || '', ...DEFAULT_VISION_MODELS, ...fromCatalog.slice(0, 2), FREE_ROUTER].filter(m => m && (m === FREE_ROUTER || !isModelBlocked(m)));
+  if (!candidates.includes(FREE_ROUTER)) candidates.push(FREE_ROUTER);
 
   const { value, model } = await runWithFallback(
     apiKey,
