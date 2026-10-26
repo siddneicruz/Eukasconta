@@ -12,7 +12,7 @@ const PROVIDERS: { id: AiProvider; label: string; helpUrl: string; placeholder: 
 ];
 
 const AISettingsPanel: React.FC = () => {
-  const [selectedProvider, setSelectedProvider] = useState<AiProvider>('gemini');
+  const [selectedProvider, setSelectedProvider] = useState<AiProvider>(() => getActiveProvider());
   const [keyInput, setKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
