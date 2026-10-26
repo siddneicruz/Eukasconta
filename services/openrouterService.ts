@@ -479,6 +479,91 @@ export const testOpenRouterKey = async (apiKey: string): Promise<{ ok: boolean; 
   return { ok: true, message: `Chave do OpenRouter funcionando.${quota}` };
 };
 
+/* ───────────────────────────── teste de um modelo ───────────────────────────── */
+
+// Mini-leitura de verdade: uma imagem com um número de 13 dígitos (do tamanho de um código de barras) e o pedido para lê-lo.
+// "Respondeu" não basta: o modelo precisa aceitar imagem E acertar os dígitos para valer como "dá match".
+export const PROBE_DIGITS = '7891008123975';
+export type ProbeStatus = 'ok' | 'wrong' | 'blocked' | 'limit' | 'nocredit' | 'slow' | 'fail';
+export interface ProbeResult { status: ProbeStatus; message: string; ms: number }
+
+const probeImageUrl = (): string => {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 420; c.height = 110;
+    const g = c.getContext('2d');
+    if (!g) throw new Error('sem canvas');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#000'; g.font = 'bold 36px monospace'; g.textBaseline = 'middle';
+    g.fillText(PROBE_DIGITS, 20, 55);
+    return c.toDataURL('image/png');
+  } catch {
+    // Sem canvas: PNG branco de 1 pixel. Só prova que o modelo aceita imagem; o resultado vira "wrong" se não ler nada.
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  }
+};
+
+export const clearModelBlocked = (model: string): void => {
+  const m = readJson<Record<string, number>>(BLOCKED_KEY, {});
+  if (model in m) { delete m[model]; writeJson(BLOCKED_KEY, m); }
+};
+
+// Gasta 1 pedido da cota do modelo testado (nos grátis, 1 dos 50 do dia). Não usa streaming: o teste é curto.
+export const probeVisionModel = async (apiKey: string, model: string, timeoutMs = 45_000): Promise<ProbeResult> => {
+  const t0 = Date.now();
+  const done = (status: ProbeStatus, message: string): ProbeResult => ({ status, message, ms: Date.now() - t0 });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const body: Record<string, unknown> = {
+    model,
+    temperature: 0,
+    max_tokens: 400,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: probeImageUrl() } },
+        { type: 'text', text: 'Leia o número de 13 dígitos que aparece na imagem. Responda somente com os dígitos, sem texto.' },
+      ],
+    }],
+  };
+  if (model.endsWith(':free')) body.reasoning = { effort: 'low', exclude: true };
+  try {
+    const res = await fetch(`${BASE_URL}/chat/completions`, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}`, 'X-Title': 'Eukasconta' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json())?.error?.message || ''; } catch { /* sem corpo */ }
+      if (res.status === 401) return done('fail', 'Chave recusada pelo OpenRouter.');
+      if (res.status === 402) return done('nocredit', 'Pede créditos (sem saldo para este modelo).');
+      if (res.status === 403 || res.status === 404) {
+        markModelBlocked(model);
+        return done('blocked', res.status === 404 ? 'Saiu do catálogo.' : `Não aceita pedidos deste app. ${detail}`.trim());
+      }
+      if (res.status === 429) return done('limit', 'Limite de uso atingido agora (por minuto ou por dia).');
+      return done('fail', `Erro ${res.status}. ${detail}`.trim());
+    }
+    const data = await res.json();
+    if (data?.error) return done('fail', String(data.error?.message || 'Erro devolvido pelo modelo.'));
+    const raw = data?.choices?.[0]?.message?.content;
+    const text = Array.isArray(raw) ? raw.map((p: any) => p?.text || '').join('') : String(raw || '');
+    if (!text.trim()) return done('fail', 'Respondeu vazio (fila cheia ou não lê imagem).');
+    if (text.replace(/\D/g, '').includes(PROBE_DIGITS)) {
+      clearModelBlocked(model);
+      return done('ok', 'Leu a imagem e acertou os dígitos.');
+    }
+    return done('wrong', `Respondeu, mas leu errado: ${text.trim().slice(0, 40)}`);
+  } catch (err: any) {
+    if (err?.name === 'AbortError') return done('slow', `Não respondeu em ${Math.round(timeoutMs / 1000)}s.`);
+    return done('fail', 'Sem conexão com o OpenRouter.');
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /* ───────────────────────────── catálogo de modelos ───────────────────────────── */
 
 export interface FreeModel {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { KeyRound, Eye, EyeOff, Check, Trash2, ExternalLink, ShieldCheck, Loader2, Zap, CircleCheck, RefreshCw, Info } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Check, Trash2, ExternalLink, ShieldCheck, Loader2, Zap, CircleCheck, RefreshCw, Info, Search } from 'lucide-react';
 import { AiProvider, getUserApiKey, saveUserApiKey, clearUserApiKey, getActiveProvider, setActiveProvider, getOpenRouterModel, setOpenRouterModel } from '../services/keyStorageService';
 import { testApiKey } from '../services/keyTestService';
-import { fetchFreeModels, FreeModel, DEFAULT_VISION_MODELS, DEFAULT_TEXT_MODELS } from '../services/openrouterService';
+import { fetchFreeModels, probeVisionModel, ProbeResult, FreeModel, DEFAULT_VISION_MODELS, DEFAULT_TEXT_MODELS } from '../services/openrouterService';
 
 const PROVIDERS: { id: AiProvider; label: string; helpUrl: string; placeholder: string; available: boolean }[] = [
   { id: 'gemini', label: 'Google Gemini', helpUrl: 'https://aistudio.google.com/apikey', placeholder: 'AIzaSy...', available: true },
@@ -30,6 +30,32 @@ const AISettingsPanel: React.FC = () => {
   const [textModel, setTextModel] = useState(getOpenRouterModel('text') || '');
   const [catalog, setCatalog] = useState<FreeModel[] | null>(null);
   const [catalogState, setCatalogState] = useState<{ status: 'idle' | 'loading' | 'ok' | 'fail'; message?: string }>({ status: 'idle' });
+
+  // Teste de modelos: busca por nome e resultado do último teste de cada modelo (só nesta tela, não fica guardado).
+  const [search, setSearch] = useState('');
+  const [probe, setProbe] = useState<Record<string, ProbeResult | 'testing'>>({});
+  const [batchRunning, setBatchRunning] = useState(false);
+  const stopBatch = React.useRef(false);
+
+  const runProbe = async (id: string) => {
+    const key = storedKeys.openrouter;
+    if (!key) return;
+    setProbe(p => ({ ...p, [id]: 'testing' }));
+    const r = await probeVisionModel(key, id);
+    setProbe(p => ({ ...p, [id]: r }));
+    return r;
+  };
+
+  const runBatch = async (ids: string[]) => {
+    stopBatch.current = false;
+    setBatchRunning(true);
+    for (const id of ids) {
+      if (stopBatch.current) break;
+      const r = await runProbe(id);
+      if (r?.status === 'limit') break; // a cota acabou: continuar só gastaria pedidos à toa
+    }
+    setBatchRunning(false);
+  };
 
   const refreshStoredKeys = () => {
     setStoredKeys({
@@ -250,6 +276,60 @@ const AISettingsPanel: React.FC = () => {
                 <p className={`text-xs leading-relaxed ${catalogState.status === 'fail' ? 'text-red-400' : 'text-emerald-500'}`}>{catalogState.message}</p>
               )}
             </div>
+
+            {catalog && (() => {
+              const q = search.trim().toLowerCase();
+              const list = catalog.filter(m => m.vision && (!q || m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)));
+              const untested = list.filter(m => !probe[m.id]).slice(0, 8).map(m => m.id);
+              const badge = (r: ProbeResult | 'testing' | undefined) => {
+                if (!r) return null;
+                if (r === 'testing') return <span className="text-[11px] text-zinc-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> testando…</span>;
+                const good = r.status === 'ok';
+                const color = good ? 'text-emerald-400' : r.status === 'wrong' || r.status === 'slow' || r.status === 'limit' ? 'text-amber-400' : 'text-red-400';
+                return <span className={`text-[11px] ${color} leading-snug`}>{good ? '✔ Dá match' : '✖'} {r.message} ({Math.round(r.ms / 1000)}s)</span>;
+              };
+              return (
+                <div className="pt-4 border-t border-white/5 space-y-3" data-testid="or-probe">
+                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-[0.08em]">Testar modelos grátis que leem imagem</label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-zinc-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome (ex.: nemotron, gemma, qwen)" spellCheck={false}
+                      className="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-9 pr-4 text-xs text-zinc-100 focus:border-luxury-gold/50 outline-none" />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" disabled={batchRunning || untested.length === 0} onClick={() => runBatch(untested)} data-testid="or-probe-batch"
+                      className="px-3 min-h-[36px] rounded-full border border-white/10 text-zinc-300 text-[11px] font-semibold disabled:opacity-40">
+                      Testar {untested.length > 0 ? `os próximos ${untested.length}` : 'todos (já testados)'}
+                    </button>
+                    {batchRunning && <button type="button" onClick={() => { stopBatch.current = true; }} className="px-3 min-h-[36px] rounded-full border border-red-900/40 text-red-300 text-[11px] font-semibold">Parar</button>}
+                    <span className="text-[11px] text-zinc-500">{list.length} modelo(s) com imagem</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed">Cada teste manda uma imagem com um número e confere se o modelo lê certo. Gasta 1 pedido grátis da sua conta (limite de 50 por dia). "Dá match" vale só para este momento: modelos grátis entram e saem do ar.</p>
+                  <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    {list.length === 0 && <p className="text-xs text-zinc-500">Nenhum modelo com esse nome.</p>}
+                    {list.map(m => {
+                      const r = probe[m.id];
+                      const chosen = visionModel.trim() === m.id;
+                      return (
+                        <div key={m.id} className="rounded-xl border border-white/5 bg-black/30 p-3 space-y-2" data-testid={`or-probe-row-${m.id}`}>
+                          <div className="min-w-0">
+                            <p className="text-xs text-zinc-200 truncate">{m.name}</p>
+                            <p className="text-[10px] text-zinc-500 font-mono break-all">{m.id}</p>
+                          </div>
+                          {badge(r)}
+                          <div className="flex gap-2">
+                            <button type="button" disabled={r === 'testing' || batchRunning} onClick={() => runProbe(m.id)}
+                              className="px-3 min-h-[34px] rounded-full border border-white/10 text-zinc-300 text-[11px] font-semibold disabled:opacity-40">{r && r !== 'testing' ? 'Testar de novo' : 'Testar'}</button>
+                            <button type="button" onClick={() => { setVisionModel(m.id); setOpenRouterModel('vision', m.id); }}
+                              className={`px-3 min-h-[34px] rounded-full border text-[11px] font-semibold ${chosen ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>{chosen ? 'Em uso' : 'Usar para cupons'}</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="flex items-start gap-3 pt-4 border-t border-white/5">
               <Info className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
