@@ -4,6 +4,7 @@ import { MasterProduct } from '../types';
 import { CodeOp, codesOfProduct, normStoreKey } from '../services/productCodes';
 import { formatCNPJ } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
+import ProductInfoSheet from './ProductInfoSheet';
 
 /* Os códigos de um produto, num lugar só: o nosso (MAE…), o do fabricante (código de barras) e o de cada loja.
    O app reconhece o produto por qualquer um deles, mesmo quando o nome no cupom sai rasurado. */
@@ -19,9 +20,11 @@ interface Props {
 
 const EAN = '__ean__';
 
-const Chip: React.FC<{ text: string; onRemove?: () => void; testId: string }> = ({ text, onRemove, testId }) => (
+const Chip: React.FC<{ text: string; onRemove?: () => void; onOpen?: () => void; testId: string }> = ({ text, onRemove, onOpen, testId }) => (
   <span data-testid={testId} className="inline-flex items-center gap-1.5 pl-3 pr-1 min-h-[32px] rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-200 tabular-nums">
-    {text}
+    {onOpen
+      ? <button type="button" onClick={onOpen} aria-label={`Ver informações do código ${text}`} data-testid="prod-code-ean-open" className="underline decoration-dotted underline-offset-2 hover:text-luxury-gold">{text}</button>
+      : text}
     {onRemove && (
       <button type="button" onClick={onRemove} aria-label={`Tirar o código ${text}`} data-testid="prod-code-remove"
         className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-red-400">
@@ -40,6 +43,7 @@ const ProductCodesPanel: React.FC<Props> = ({ master, stores, onEdit }) => {
     return nk.startsWith('n:') ? titleCase(nk.slice(2)) : formatCNPJ(nk);
   };
 
+  const [infoEan, setInfoEan] = useState<string | null>(null);
   const [kind, setKind] = useState<string>(EAN);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -61,7 +65,7 @@ const ProductCodesPanel: React.FC<Props> = ({ master, stores, onEdit }) => {
         <p className="text-xs text-zinc-400 font-medium mb-1.5">Fabricante (código de barras)</p>
         {codes.eans.length === 0
           ? <p className="text-xs text-zinc-600">Nenhum ainda. O app guarda o código de barras quando ele aparece no cupom.</p>
-          : <div className="flex flex-wrap gap-1.5">{codes.eans.map(e => <Chip key={e} text={e} testId="prod-code-ean" onRemove={onEdit ? () => remove({ kind: 'removeEan', ean: e }) : undefined} />)}</div>}
+          : <div className="flex flex-wrap gap-1.5">{codes.eans.map(e => <Chip key={e} text={e} testId="prod-code-ean" onOpen={() => setInfoEan(e)} onRemove={onEdit ? () => remove({ kind: 'removeEan', ean: e }) : undefined} />)}</div>}
       </div>
 
       <div>
@@ -102,6 +106,7 @@ const ProductCodesPanel: React.FC<Props> = ({ master, stores, onEdit }) => {
           {error && <p className="mt-2 text-xs text-red-400 leading-snug" role="alert" data-testid="prod-code-error">{error}</p>}
         </div>
       )}
+      {infoEan && <ProductInfoSheet ean={infoEan} master={master} onClose={() => setInfoEan(null)} />}
     </div>
   );
 };
