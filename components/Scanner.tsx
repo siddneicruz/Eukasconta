@@ -1,12 +1,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, ScanLine, Image as ImageIcon, Loader2, AlertCircle, CheckCircle2, RefreshCw, Ban, Keyboard, WifiOff, ShieldAlert, Lock, FileJson, Clock, Download, FileText } from 'lucide-react';
+import { QrCode, Camera, ScanLine, Image as ImageIcon, Loader2, AlertCircle, CheckCircle2, RefreshCw, Ban, Keyboard, WifiOff, ShieldAlert, Lock, FileJson, Clock, Download, FileText } from 'lucide-react';
 import { GeminiError } from '../services/geminiService';
 import { getActiveProvider, getUserApiKey, setActiveProvider, PROVIDER_LABELS, AiProvider } from '../services/keyStorageService';
 import { Establishment, MasterProduct } from '../types';
 import { diagnostics } from '../services/diagnosticService';
 import { downloadFile } from '../services/nativeFiles';
 import { nativeScannerSupported, scanWithNativeScanner } from '../services/documentScanner';
+import QrReceiptSheet from './QrReceiptSheet';
+import { Receipt } from '../types';
 import { useScanQueue, startScan, retryFailed, stopScan, dismissScanResults, markScanResultsSeen, MAX_FILES_PER_BATCH, ScanContext } from '../services/scanQueue';
 
 interface ScannerProps {
@@ -19,6 +21,8 @@ interface ScannerProps {
   // Cadastro do app. Com ele, logo depois da leitura o Scanner procura a loja pelo CNPJ e os itens no catálogo.
   establishments?: Establishment[];
   masterProducts?: MasterProduct[];
+  // Cupons lidos pelo QR Code (sem IA): o app grava no histórico.
+  onImportReceipts?: (receipts: Receipt[]) => Promise<void> | void;
 }
 
 const getErrorIcon = (category: string) => {
@@ -35,7 +39,8 @@ const getErrorIcon = (category: string) => {
 // Provedores que de fato leem cupom hoje (OpenAI ainda é só um espaço reservado).
 const READING_PROVIDERS: AiProvider[] = ['gemini', 'anthropic', 'openrouter'];
 
-const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, knownEstablishments, categories, establishments = [], masterProducts = [] }) => {
+const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, knownEstablishments, categories, establishments = [], masterProducts = [], onImportReceipts }) => {
+  const [qrOpen, setQrOpen] = useState(false);
   // A leitura roda em segundo plano (services/scanQueue): esta tela só mostra o andamento e continua certa
   // se a pessoa sair e voltar durante o lote.
   const { isProcessing, isStopping, progress, failedItems, savedCount, duplicateCount, batchStop, logs: scannerLogs } = useScanQueue();
@@ -309,6 +314,12 @@ const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, kn
                                 </p>
                             )}
 
+                            {onImportReceipts && (
+                                <button onClick={() => setQrOpen(true)} data-testid="qr-open"
+                                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 font-bold text-[11px] uppercase tracking-[0.08em] py-4 rounded-2xl transition-all flex items-center justify-center gap-2">
+                                    <QrCode className="w-4 h-4" /> Ler pelo QR Code (sem IA)
+                                </button>
+                            )}
                             <button onClick={onManualEntry} className="w-full bg-transparent hover:bg-white/5 border border-white/5 text-zinc-500 hover:text-white font-bold py-4 rounded-xl text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 transition-all mt-4">
                                 <Keyboard className="w-4 h-4" /> Lançamento Manual
                             </button>
@@ -316,6 +327,7 @@ const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, kn
                     </>
                 )}
              </div>
+             {qrOpen && onImportReceipts && <QrReceiptSheet onImport={onImportReceipts} onClose={() => setQrOpen(false)} />}
         </div>
         
         <div className="mt-12 flex items-center justify-center gap-8 opacity-40">

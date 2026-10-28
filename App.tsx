@@ -843,6 +843,22 @@ const App: React.FC = () => {
       } catch (err: any) { alert("Erro ao exportar vault: " + err.message); } finally { setGlobalLoading(false); }
   };
 
+  // Cupons lidos pelo QR Code da NFC-e (sem IA): passam pelo mesmo cadastro de lojas e produtos do cupom em texto.
+  const importQrReceipts = async (list: Receipt[]) => {
+      restore.before('importar cupom pelo QR Code');
+      try {
+          const out = await applyTxtImport(list, { establishments, masterProducts, categories, existing: receiptsRef.current });
+          if (out.added.length > 0) {
+              const added = out.added.map(snapNew);
+              receiptsRef.current = [...added, ...receiptsRef.current];
+              setReceipts(prev => [...added.filter(a => !prev.some(ex => ex.id === a.id)), ...prev]);
+              showNotification(`Cupom importado pelo QR Code (${out.items} itens).`, 6000);
+          } else showNotification('Esse cupom já estava no histórico.', 6000);
+      } catch (e: any) {
+          showNotification(`Não consegui importar o cupom: ${String(e?.message || e)}`, 8000);
+      }
+  };
+
   // Cupons em texto (um .txt, ou um .zip só de .txt): entram no histórico sem mexer no resto dos dados.
   // O código de cada item (código de barras do fabricante ou da loja) vem junto e o catálogo aprende com ele.
   const importTxtReceipts = async (files: TxtFile[]) => {
@@ -1422,7 +1438,7 @@ const App: React.FC = () => {
                         taxonomy={taxonomy}
                     />
                 )}
-                {view === 'scanner' && <Scanner onFinish={() => setView('history')} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} />}
+                {view === 'scanner' && <Scanner onFinish={() => setView('history')} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} onImportReceipts={importQrReceipts} />}
                 {view === 'manual_entry' && <ManualEntryForm onSave={(r) => { handleScanComplete([r]); setView('history'); showNotification("Lançamento salvo com sucesso."); }} onCancel={() => setView('dashboard')} categories={categories} knownEstablishments={Array.from(new Set(receipts.map(r => r.establishmentName)))} knownProducts={[]} allReceipts={receipts} />}
                 {view === 'map' && (
                     <Suspense fallback={<div className="flex items-center justify-center py-24 text-zinc-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
