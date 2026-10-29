@@ -3,9 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { installStorageGuard } from './services/storageGuard';
 import { installKeyboardAvoid } from './services/keyboardAvoid';
+import { installScrollReset } from './services/scrollReset';
 
 installStorageGuard();
 installKeyboardAvoid();
+installScrollReset();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
