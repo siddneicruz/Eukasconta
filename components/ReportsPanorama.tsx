@@ -415,7 +415,7 @@ const useReady = () => {
 
 /* ───────────────────────────── blocos de UI ───────────────────────────── */
 
-const GLOW = { gold: 'bg-luxury-gold/5', emerald: 'bg-emerald-500/5', blue: 'bg-blue-500/5', pink: 'bg-pink-500/5' };
+const GLOW = { gold: '212,175,55', emerald: '16,185,129', blue: '59,130,246', pink: '236,72,153' };
 const TONE: Record<Tone, string> = {
   gold: 'bg-luxury-gold/10 text-luxury-gold',
   good: 'bg-emerald-500/10 text-emerald-500',
@@ -431,7 +431,7 @@ const Reveal: React.FC<{ i: number; className?: string; children: React.ReactNod
 
 const Card: React.FC<{ glow?: keyof typeof GLOW; className?: string; children: React.ReactNode }> = ({ glow, className = '', children }) => (
   <div className={`relative bg-[#121214] border border-white/5 rounded-[2rem] p-5 md:p-8 shadow-2xl overflow-hidden h-full ${className}`}>
-    {glow && <div className={`absolute -top-24 -right-24 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${GLOW[glow]}`} />}
+    {glow && <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full pointer-events-none" style={{ background: `radial-gradient(closest-side, rgba(${GLOW[glow]},0.10), transparent)` }} />}
     <div className="relative z-10">{children}</div>
   </div>
 );

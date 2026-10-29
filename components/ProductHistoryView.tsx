@@ -167,7 +167,7 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
       </div>
 
       <div className="bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 shadow-2xl relative overflow-hidden group mb-12">
-          <div className="absolute top-0 left-0 w-80 h-80 bg-luxury-gold/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
+          <div className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(212,175,55,0.10), transparent)' }} />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 relative z-10">
               <div className="flex flex-col">
                 <h3 className="text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-1 flex items-center gap-2">

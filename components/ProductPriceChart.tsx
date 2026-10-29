@@ -188,7 +188,7 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
 
   return (
     <div className="bg-black border border-white/10 rounded-[2rem] p-5 md:p-8 shadow-2xl relative overflow-hidden group" data-testid="price-chart">
-      <div className="absolute top-0 left-0 w-72 h-72 bg-luxury-gold/5 blur-[90px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
+      <div className="absolute top-0 left-0 w-72 h-72 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(212,175,55,0.10), transparent)' }} />
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">

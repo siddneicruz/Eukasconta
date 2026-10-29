@@ -984,7 +984,7 @@ const Reports: React.FC<ReportsProps> = ({
                 {activeSection === 'catalog' && (<>
                 {/* CATÁLOGO DE PRODUTOS */}
                 <div className="bg-[#121214] border border-white/5 rounded-[2rem] p-6 md:p-8 shadow-2xl overflow-hidden relative group">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-violet-500/5 blur-[80px] rounded-full pointer-events-none" />
+                    <div className="absolute top-0 right-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(139,92,246,0.10), transparent)' }} />
                     
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-5 relative z-10">
                         <div>

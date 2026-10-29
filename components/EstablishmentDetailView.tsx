@@ -169,7 +169,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
       </div>
 
       <div className="mb-10 bg-black border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-luxury-gold/5 blur-[80px] rounded-full pointer-events-none" />
+             <div className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(212,175,55,0.10), transparent)' }} />
              <div className="flex justify-between items-center mb-6 px-2">
                  <h3 className="text-xs text-zinc-500 uppercase tracking-[0.08em] font-bold">Evolução Mensal de Gastos</h3>
                  <span className="text-[11px] border border-luxury-gold/20 text-luxury-gold px-2 py-0.5 rounded bg-luxury-gold/5 uppercase font-bold">Análise Temporal</span>

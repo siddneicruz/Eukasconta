@@ -732,7 +732,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
 
       <div className="mb-10 bg-black border border-white/10 rounded-[1.75rem] md:rounded-[2.5rem] p-4 md:p-10 shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-luxury-gold/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-luxury-gold/10 transition-all duration-1000" />
+          <div className="absolute top-0 right-0 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(212,175,55,0.10), transparent)' }} />
           <div className="flex justify-between items-center mb-2 md:mb-8 relative z-10 px-1 md:px-0">
               <div className="flex flex-col">
                   <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-0.5 flex items-center gap-1.5">
@@ -754,7 +754,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                       <XAxis dataKey="name" axisLine={false} tickLine={false} ticks={series.ticks} interval={0} tick={renderTimelineTick} height={24} />
                       <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} />
                       <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(212,175,55,0.3)', strokeWidth: 1, strokeDasharray: '3 4' }} />
-                      <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fillOpacity={1} fill="url(#colorDashboard)" animationDuration={900} dot={renderTimelineDot} activeDot={{ r: 3.5, stroke: '#D4AF37', strokeWidth: 1.5, className: 'tl-dot' }} />
+                      <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fillOpacity={1} fill="url(#colorDashboard)" isAnimationActive={false} dot={renderTimelineDot} activeDot={{ r: 3.5, stroke: '#D4AF37', strokeWidth: 1.5, className: 'tl-dot' }} />
                   </AreaChart>
               </ResponsiveContainer>
           </div>
@@ -781,7 +781,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                </div>
           </div>
       <div className="lg:col-span-6 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl relative overflow-hidden group flex flex-col">
-          <div className="absolute top-0 left-0 w-80 h-80 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-blue-500/10 transition-all duration-1000" />
+          <div className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(59,130,246,0.10), transparent)' }} />
           <div className="flex justify-between items-center mb-2 md:mb-6 relative z-10">
               <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Estabelecimento</h3>
               {config.establishment && (
@@ -807,7 +807,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                       <Bar
                           dataKey="value"
                           radius={[6, 6, 6, 6]}
-                          animationDuration={1200}
+                          isAnimationActive={false}
                           barSize={20}
                           onMouseEnter={(_, index) => setHoveredEstIdx(index)}
                           onMouseLeave={() => setHoveredEstIdx(null)}
