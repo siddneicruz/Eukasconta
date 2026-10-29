@@ -17,7 +17,7 @@ import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanDescriptionForMatching } from './productMasterService';
 import { ruleCategoryFor } from './categoryRules';
 import { cleanCNPJ, formatCNPJ } from './productNormalization';
-import { CodeIndex, CodeVia, buildCodeIndex, cleanCode, identifyByCode, leadingCode, looseSimilarity } from './productCodes';
+import { CodeIndex, CodeVia, buildCodeIndex, cleanCode, codeKind, identifyByCode, leadingCode, looseSimilarity } from './productCodes';
 
 /* ───────────────────────────── CNPJ ───────────────────────────── */
 
@@ -281,6 +281,11 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
           next.description = hit.master.description;
           repaired++;
         }
+      }
+      // O código da loja é mais curto que o EAN e não serve fora dela: se o produto do cadastro tem código de barras, o item passa a usá-lo.
+      if (hit.by === 'code' && next.code && codeKind(next.code) !== 'ean') {
+        const ean = (hit.master.eans || []).find(e => codeKind(e) === 'ean');
+        if (ean) { next.storeCode = next.code; next.code = ean; }
       }
       const mc = hit.master.category;
       // Só confia na categoria do catálogo se ela existe na taxonomia atual e é específica.

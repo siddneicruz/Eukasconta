@@ -335,7 +335,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
 
   // Modelos grátis do OpenRouter caem com frequência: refaz a lista com o Claude Haiku, que usa os créditos do OpenRouter.
   const HAIKU = 'anthropic/claude-haiku-5.5';
-  const canRetryHaiku = (): boolean => getActiveProvider() === 'openrouter' && getOpenRouterModel('text') !== HAIKU;
+  const canRetryHaiku = (): boolean => getActiveProvider() === 'openrouter' && (getOpenRouterModel('text') || HAIKU) !== HAIKU;
   const retryWithHaiku = () => {
     if (!list) return;
     setOpenRouterModel('text', HAIKU);

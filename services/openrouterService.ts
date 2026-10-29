@@ -434,8 +434,9 @@ export const parseReceiptWithOpenRouter = async (
 // `budgetMs`: tempo máximo de todas as tentativas juntas (sem ele, o mesmo teto da leitura de cupons).
 export const askOpenRouterForJson = async (apiKey: string, prompt: string, budgetMs?: number): Promise<string> => {
   const startTime = performance.now();
-  const primary = getOpenRouterModel('text') || DEFAULT_TEXT_MODELS[0];
-  const candidates = [primary, ...DEFAULT_TEXT_MODELS, FREE_ROUTER];
+  // Sem escolha da pessoa: o modelo de leitura dela, senão o Haiku (o mesmo padrão da leitura de cupom). Os grátis ficam de reserva.
+  const primary = getOpenRouterModel('text') || getOpenRouterModel('vision') || DEFAULT_PAID_VISION_MODEL;
+  const candidates = [primary, ...DEFAULT_TEXT_MODELS, FREE_ROUTER].filter((m, i, a) => m && a.indexOf(m) === i);
 
   const { value, model } = await runWithFallback(
     apiKey,

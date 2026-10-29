@@ -247,7 +247,7 @@ const AISettingsPanel: React.FC = () => {
                 value={textModel}
                 onChange={(e) => setTextModel(e.target.value)}
                 onBlur={() => setOpenRouterModel('text', textModel)}
-                placeholder={DEFAULT_TEXT_MODELS[0]}
+                placeholder="anthropic/claude-haiku-5.5 (padrão)"
                 spellCheck={false}
                 className="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-xs text-zinc-100 focus:border-luxury-gold/50 outline-none font-mono"
               />
@@ -255,10 +255,10 @@ const AISettingsPanel: React.FC = () => {
                 {textOptions.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </datalist>
               <div className="flex flex-wrap gap-2 mt-3" role="group" aria-label="Atalhos de modelo para textos">
-                <button type="button" data-testid="or-text-haiku" onClick={() => { setTextModel('anthropic/claude-haiku-5.5'); setOpenRouterModel('text', 'anthropic/claude-haiku-5.5'); }}
-                  className={`px-3 min-h-[36px] rounded-full border text-[11px] font-semibold ${textModel.trim() === 'anthropic/claude-haiku-5.5' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>Claude Haiku (usa créditos)</button>
-                <button type="button" data-testid="or-text-free" onClick={() => { setTextModel(''); setOpenRouterModel('text', ''); }}
-                  className={`px-3 min-h-[36px] rounded-full border text-[11px] font-semibold ${!textModel.trim() ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>Grátis (padrão do app)</button>
+                <button type="button" data-testid="or-text-haiku" onClick={() => { setTextModel(''); setOpenRouterModel('text', ''); }}
+                  className={`px-3 min-h-[36px] rounded-full border text-[11px] font-semibold ${(!textModel.trim() || textModel.trim() === 'anthropic/claude-haiku-5.5') ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>Claude Haiku (padrão, usa créditos)</button>
+                <button type="button" data-testid="or-text-free" onClick={() => { setTextModel('openrouter/free'); setOpenRouterModel('text', 'openrouter/free'); }}
+                  className={`px-3 min-h-[36px] rounded-full border text-[11px] font-semibold ${textModel.trim() === 'openrouter/free' ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>Só modelos grátis</button>
               </div>
               <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Vale para a lista de compras, a auditoria e os outros textos. O Haiku gasta créditos do OpenRouter, mas não cai como os modelos grátis.</p>
             </div>

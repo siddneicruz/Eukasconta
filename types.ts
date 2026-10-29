@@ -11,6 +11,8 @@ export interface ReceiptItem {
   code?: string;
   // Como o nome saiu da foto, quando ele estava ilegível e o app o trocou pelo nome do produto achado pelo código.
   readDescription?: string;
+  /** código que a loja imprimiu, quando o app o trocou pelo código de barras (EAN) do cadastro */
+  storeCode?: string;
   // Ovos: quantos ovos vêm em cada unidade vendida (a bandeja). O cupom costuma dizer só "bandeja de ovos"; com este número
   // o app compara o preço pela dúzia. Vazio = o app tenta ler do nome do item.
   eggCount?: number;

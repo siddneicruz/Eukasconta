@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, QrCode, ExternalLink, ClipboardPaste, Check, UserRound, Loader2, ImagePlus, Camera, AlertCircle } from 'lucide-react';
+import { X, QrCode, ExternalLink, ClipboardPaste, Check, UserRound, Loader2, FileCode, ImagePlus, Camera, AlertCircle } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
 import { isNativeApp } from '../services/platform';
 import { Receipt } from '../types';
 import { readClipboardText, writeClipboardText } from '../services/clipboard';
+import { parseNfeXml } from '../services/nfeXml';
 import { decodeQrFromFile, parseNfceQr, parseSefazText, NfceQr } from '../services/nfceQr';
 
 /* Ler cupom pelo QR Code, sem IA: câmera ou galeria → página da SEFAZ → copiar e colar o texto → cupom no histórico.
@@ -28,6 +29,8 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const xmlRef = useRef<HTMLInputElement>(null);
+  const [xmlMsg, setXmlMsg] = useState('');
   // Ao voltar da página da SEFAZ (aba do Chrome) o Android às vezes deixa a altura da janela errada e corta o rodapé:
   // pedir um novo cálculo de layout quando o app volta ao primeiro plano.
   useEffect(() => {
@@ -55,6 +58,23 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
     }
     setEntries(prev => [...prev, ...added]);
     if (added.length && !openId) setOpenId(added.find(a => a.status === 'pendente')?.id ?? added[0].id);
+    setBusy(false);
+  };
+
+  // XML da nota (botão "Baixar documento XML" da página da SEFAZ): traz o código de barras de cada item.
+  const addXml = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setBusy(true); setXmlMsg('');
+    const ok: Receipt[] = []; const bad: string[] = [];
+    for (const f of Array.from(files)) {
+      const res = parseNfeXml(await f.text());
+      if (res.ok === false) bad.push(`${f.name}: ${res.reason}`); else ok.push(res.receipt);
+    }
+    if (ok.length) {
+      await onImport(ok);
+      setEntries(prev => prev.map(e => (e.qr && ok.some(r => r.id === e.qr!.key) ? { ...e, status: 'importado' as Status, error: '' } : e)));
+    }
+    setXmlMsg(`${ok.length} importado(s) pelo XML${bad.length ? `; ${bad.length} com problema — ${bad[0]}` : ''}.`);
     setBusy(false);
   };
 
@@ -102,6 +122,13 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
           <button type="button" onClick={onClose} aria-label="Fechar" className="w-9 h-9 flex items-center justify-center rounded-full text-zinc-400 hover:bg-white/10"><X className="w-5 h-5" /></button>
         </div>
 
+        <button type="button" onClick={() => xmlRef.current?.click()} disabled={busy} data-testid="qr-xml"
+          className="w-full flex items-center justify-center gap-2 py-3 mb-2 rounded-xl border border-luxury-gold/40 text-luxury-gold text-xs font-bold disabled:opacity-50">
+          <FileCode className="w-4 h-4" /> Importar XML da nota (traz o código de barras)
+        </button>
+        <input ref={xmlRef} type="file" accept=".xml,text/xml,application/xml" multiple className="hidden" onChange={ev => { addXml(ev.target.files); ev.target.value = ''; }} />
+        <p className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Na página da SEFAZ toque em "Baixar documento XML" e depois escolha o arquivo aqui. É o jeito mais certo: o XML tem o EAN de cada item.</p>
+        {xmlMsg && <p className="text-xs text-emerald-400 mb-2" data-testid="qr-xml-msg">{xmlMsg}</p>}
         <div className="grid grid-cols-2 gap-2 mb-3">
           <button type="button" onClick={() => cameraRef.current?.click()} disabled={busy} data-testid="qr-camera"
             className="flex items-center justify-center gap-2 py-3 rounded-xl bg-luxury-gold text-black text-xs font-bold disabled:opacity-50"><Camera className="w-4 h-4" /> Câmera</button>
