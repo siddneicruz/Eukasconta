@@ -1,8 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, QrCode, ExternalLink, ClipboardPaste, Check, UserRound, Loader2, ImagePlus, Camera, AlertCircle } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
 import { isNativeApp } from '../services/platform';
 import { Receipt } from '../types';
+import { readClipboardText, writeClipboardText } from '../services/clipboard';
 import { decodeQrFromFile, parseNfceQr, parseSefazText, NfceQr } from '../services/nfceQr';
 
 /* Ler cupom pelo QR Code, sem IA: câmera ou galeria → página da SEFAZ → copiar e colar o texto → cupom no histórico.
@@ -27,6 +28,14 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  // Ao voltar da página da SEFAZ (aba do Chrome) o Android às vezes deixa a altura da janela errada e corta o rodapé:
+  // pedir um novo cálculo de layout quando o app volta ao primeiro plano.
+  useEffect(() => {
+    const nudge = () => { window.dispatchEvent(new Event('resize')); setTimeout(() => window.dispatchEvent(new Event('resize')), 300); };
+    window.addEventListener('focus', nudge);
+    document.addEventListener('visibilitychange', nudge);
+    return () => { window.removeEventListener('focus', nudge); document.removeEventListener('visibilitychange', nudge); };
+  }, []);
   const cameraRef = useRef<HTMLInputElement>(null);
 
   const patch = (id: string, p: Partial<Entry>) => setEntries(prev => prev.map(e => (e.id === id ? { ...e, ...p } : e)));
@@ -50,8 +59,9 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
   };
 
   const paste = async (e: Entry) => {
-    try { const t = await navigator.clipboard.readText(); patch(e.id, { text: t, error: '' }); }
-    catch { patch(e.id, { error: 'O celular não deixou ler a área de transferência. Toque no campo e cole com um toque longo.' }); }
+    const t = await readClipboardText();
+    if (t && t.trim()) patch(e.id, { text: t, error: '' });
+    else patch(e.id, { error: t === null ? 'O celular não deixou ler a área de transferência. Toque no campo e cole com um toque longo.' : 'A área de transferência está vazia. Na página da SEFAZ, selecione todo o texto, copie e volte aqui.' });
   };
 
   const importOne = async (e: Entry) => {
@@ -61,6 +71,12 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
     patch(e.id, { status: 'importado', error: '' });
     const next = entries.find(x => x.id !== e.id && x.status === 'pendente');
     setOpenId(next ? next.id : null);
+  };
+
+  const copyKey = async (e: Entry) => {
+    if (!e.qr) return;
+    const ok = await writeClipboardText(e.qr.key);
+    patch(e.id, { error: ok ? '' : 'Não consegui copiar a chave.' });
   };
 
   const markHuman = (e: Entry) => {
@@ -76,8 +92,8 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md" onClick={onClose} data-testid="qr-sheet">
-      <div className="w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-zinc-950 border border-white/10 p-5" onClick={ev => ev.stopPropagation()}>
+    <div className="fixed inset-x-0 top-0 h-[100dvh] z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md" onClick={onClose} data-testid="qr-sheet">
+      <div className="w-full sm:max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-3xl bg-zinc-950 border border-white/10 px-5 pt-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]" onClick={ev => ev.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <p className="text-base font-semibold text-zinc-100 flex items-center gap-2"><QrCode className="w-5 h-5 text-luxury-gold" /> Ler cupom pelo QR Code</p>
@@ -122,10 +138,13 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
                       <button type="button" onClick={() => paste(e)} data-testid="qr-paste"
                         className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-zinc-100 text-xs font-bold"><ClipboardPaste className="w-4 h-4" /> Colar texto</button>
                     </div>
+                    <button type="button" onClick={() => copyKey(e)} data-testid="qr-copy-key"
+                      className="w-full py-2 rounded-xl border border-white/10 text-zinc-300 text-[11px] font-semibold">Copiar a chave de acesso ({e.qr.key.slice(0, 4)}…{e.qr.key.slice(-4)})</button>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">Se a SEFAZ disser "excesso de requisições", espere alguns minutos e abra um cupom por vez.</p>
                     <textarea value={e.text} onChange={ev => patch(e.id, { text: ev.target.value, error: '' })} rows={4} placeholder="Texto copiado da página da nota…" data-testid="qr-text"
                       className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-100 outline-none focus:border-luxury-gold/50 placeholder:text-zinc-600" />
                     {e.error && <p className="flex items-start gap-2 text-xs text-red-400" role="alert"><AlertCircle className="w-4 h-4 shrink-0" />{e.error}</p>}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2 sticky bottom-0 -mx-1 px-1 py-2 bg-zinc-950">
                       <button type="button" onClick={() => importOne(e)} disabled={!e.text.trim()} data-testid="qr-import"
                         className="py-2.5 rounded-xl bg-luxury-gold text-black text-xs font-bold disabled:opacity-40">Importar este cupom</button>
                       <button type="button" onClick={() => markHuman(e)} data-testid="qr-human"

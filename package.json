@@ -16,6 +16,7 @@
     "@capacitor-mlkit/document-scanner": "^7.5.0",
     "@capacitor/app": "^7.1.2",
     "@capacitor/browser": "^7.0.5",
+    "@capacitor/clipboard": "^7.0.4",
     "@capacitor/core": "^7.6.9",
     "@capacitor/filesystem": "^7.1.9",
     "@capacitor/share": "^7.0.4",

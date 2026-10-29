@@ -30,8 +30,8 @@ const ProductInfoSheet: React.FC<Props> = ({ ean, master, onClose }) => {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md" onClick={onClose} data-testid="product-info-sheet">
-      <div className="w-full sm:max-w-md max-h-[85vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-zinc-950 border border-white/10 p-5" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-x-0 top-0 h-[100dvh] z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md" onClick={onClose} data-testid="product-info-sheet">
+      <div className="w-full sm:max-w-md max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-3xl bg-zinc-950 border border-white/10 px-5 pt-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
             <p className="text-xs text-zinc-500">Código de barras</p>
