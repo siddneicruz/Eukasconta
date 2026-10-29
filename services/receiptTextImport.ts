@@ -12,6 +12,7 @@ import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanCode, codeKind, normStoreKey } from './productCodes';
 import { applyRegistry, buildMasterIndex, learnEstablishment } from './registryLookupService';
 import { auditAndRepairReceipt } from './productNormalization';
+import { isSameCupom } from './receiptDuplicates';
 import { plainText, ufFromCep } from './brGeo';
 
 export type TxtParse = { ok: true; receipt: Receipt } | { ok: false; reason: 'empty' | 'format' | 'noitems' };
@@ -284,6 +285,8 @@ const isDefaultTime = (t: string) => !t || t === '12:00';
 // Mesmo cupom: mesma chave, ou mesma loja, dia e total (e a hora, quando as duas são conhecidas).
 export const sameReceipt = (a: Receipt, b: Receipt): boolean => {
   if (a.id && a.id === b.id) return true;
+  // mesma regra tolerante da tela "Cupons repetidos": nome da loja diferente (com/sem filial) ou CNPJ ausente não esconde o repetido
+  if (isSameCupom(a, b)) return true;
   if (a.date !== b.date || Math.abs(a.totalAmount - b.totalAmount) >= 0.01) return false;
   const ka = normStoreKey(a.cnpj || a.establishmentName), kb = normStoreKey(b.cnpj || b.establishmentName);
   if (ka && kb ? ka !== kb : a.establishmentName !== b.establishmentName) return false;

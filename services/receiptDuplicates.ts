@@ -57,6 +57,8 @@ const storeRel = (a: Receipt, b: Receipt): StoreRel => {
   }
   const na = plainText(a.establishmentName), nb = plainText(b.establishmentName);
   if (na && nb && na === nb) return 'same';
+  // um nome é o começo do outro ("Cooperativa Regional Auriverde" e "Cooperativa Regional Auriverde - Super Auriverde"): é a mesma loja
+  if (na.length >= 8 && nb.length >= 8 && (na.startsWith(nb + ' ') || nb.startsWith(na + ' '))) return 'same';
   const ka = normStoreKey(a.establishmentName), kb = normStoreKey(b.establishmentName);
   if (!ka || !kb) return 'maybe';                       // loja sem nome: não dá para negar
   const wa = na.split(' ').slice(0, 2).join(' '), wb = nb.split(' ').slice(0, 2).join(' ');
