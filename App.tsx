@@ -640,6 +640,7 @@ const App: React.FC = () => {
         if (!m.address) return e;
         changed = true;
         const patch: Partial<Establishment> = { address: m.address };
+        if (!e.cep && m.cep) patch.cep = m.cep;
         if (!e.city && m.city) patch.city = m.city;
         if (!e.state && m.state) patch.state = m.state;
         return { ...e, ...patch, geocodeStatus: e.latitude != null ? e.geocodeStatus : 'pending' };

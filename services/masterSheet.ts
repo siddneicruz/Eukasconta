@@ -134,17 +134,17 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
   const storeTypes: string[] = [];
   (typeRows || []).slice(1).forEach(r => { const t = properCase(cell(r[0])); if (t && !storeTypes.some(x => plain(x) === plain(t))) storeTypes.push(t); });
   const lojaRows = sheetRows(wb, ['lojas', 'estabelecimentos', 'apelidos']);
-  const stores: { cnpj: string; name: string; type: string; address: string; city: string; state: string }[] = [];
+  const stores: { cnpj: string; name: string; type: string; address: string; city: string; state: string; cep: string; legalName: string }[] = [];
   if (lojaRows && lojaRows.length > 1) {
     const lh = lojaRows[0].map(cell); const lu = new Set<number>();
-    const lc = { cnpj: findCol(lh, ['cnpj'], lu), name: findCol(lh, ['apelido', 'nome'], lu), type: findCol(lh, ['tipo'], lu), address: findCol(lh, ['endereco', 'logradouro'], lu), city: findCol(lh, ['cidade', 'municipio'], lu), state: findCol(lh, ['uf', 'estado'], lu) };
+    const lc = { cnpj: findCol(lh, ['cnpj'], lu), name: findCol(lh, ['apelido', 'nome'], lu), type: findCol(lh, ['tipo'], lu), legal: findCol(lh, ['razao social', 'razao'], lu), cep: findCol(lh, ['cep'], lu), address: findCol(lh, ['endereco', 'logradouro'], lu), city: findCol(lh, ['cidade', 'municipio'], lu), state: findCol(lh, ['uf', 'estado'], lu) };
     if (lc.cnpj >= 0) lojaRows.slice(1).forEach((r, i) => {
       const d = cell(r[lc.cnpj]).replace(/\D/g, '');
       if (!d) return;
       if (d.length !== 14 && d.length !== 11) { warnings.push(`Aba Lojas, linha ${i + 2}: CNPJ "${cell(r[lc.cnpj])}" não tem 14 números; ignorada.`); return; }
       const type = lc.type >= 0 ? properCase(cell(r[lc.type])) : '';
       if (type && storeTypes.length && !storeTypes.some(x => plain(x) === plain(type))) warnings.push(`Aba Lojas, linha ${i + 2}: o tipo "${type}" não está na aba Tipos de loja.`);
-      stores.push({ cnpj: d, name: lc.name >= 0 ? cell(r[lc.name]) : '', type,
+      stores.push({ cnpj: d, name: lc.name >= 0 ? cell(r[lc.name]) : '', type, legalName: lc.legal >= 0 ? cell(r[lc.legal]) : '', cep: lc.cep >= 0 ? cell(r[lc.cep]).replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2') : '',
         address: lc.address >= 0 ? cell(r[lc.address]) : '', city: lc.city >= 0 ? cell(r[lc.city]) : '', state: lc.state >= 0 ? cell(r[lc.state]).toUpperCase() : '' });
     });
   }
@@ -176,7 +176,7 @@ const leafPaths = (nodes: TaxonomyNode[]): string[][] => {
   return nodes.filter(n => !hasKids.has(n.id)).map(pathOf).sort((a, b) => a.join('\u0001').localeCompare(b.join('\u0001'), 'pt-BR'));
 };
 
-export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; city?: string; state?: string }[] = []) => {
+export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = []) => {
   const wb = XLSX.utils.book_new();
   const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);
   est['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 28 }];
@@ -199,13 +199,13 @@ export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetPro
   const tipos = XLSX.utils.aoa_to_sheet([['Tipo de estabelecimento'], ...(storeTypes.length ? storeTypes : ['Mercado', 'Restaurante e Lanchonete', 'Farmácia', 'Academia']).map(t => [t])]);
   tipos['!cols'] = [{ wch: 34 }];
   XLSX.utils.book_append_sheet(wb, tipos, 'Tipos de loja');
-  const lojasAba = XLSX.utils.aoa_to_sheet([['CNPJ', 'Apelido', 'Tipo', 'Endereço', 'Cidade', 'UF'], ...[...stores].sort((a, b) => (a.name || a.cnpj).localeCompare(b.name || b.cnpj, 'pt-BR')).map(x => [x.cnpj, x.name, x.type, x.address || '', x.city || '', x.state || ''])]);
-  lojasAba['!cols'] = [{ wch: 18 }, { wch: 34 }, { wch: 28 }, { wch: 48 }, { wch: 22 }, { wch: 6 }];
-  Object.keys(lojasAba).forEach(a => { if (a[0] === 'A' && a !== 'A1' && lojasAba[a] && lojasAba[a].t === 'n') { lojasAba[a].t = 's'; lojasAba[a].v = String(lojasAba[a].v); } });
+  const lojasAba = XLSX.utils.aoa_to_sheet([['CNPJ', 'Apelido', 'Razão social', 'Tipo', 'Endereço', 'CEP', 'Cidade', 'UF'], ...[...stores].sort((a, b) => (a.name || a.cnpj).localeCompare(b.name || b.cnpj, 'pt-BR')).map(x => [x.cnpj, x.name, x.legalName || '', x.type, x.address || '', x.cep || '', x.city || '', x.state || ''])]);
+  lojasAba['!cols'] = [{ wch: 18 }, { wch: 28 }, { wch: 40 }, { wch: 26 }, { wch: 48 }, { wch: 11 }, { wch: 22 }, { wch: 6 }];
+  Object.keys(lojasAba).forEach(a => { if ((a[0] === 'A' || a[0] === 'F') && !/^[AF]1$/.test(a) && lojasAba[a] && lojasAba[a].t === 'n') { lojasAba[a].t = 's'; lojasAba[a].v = String(lojasAba[a].v); } });
   XLSX.utils.book_append_sheet(wb, lojasAba, 'Lojas');
   const help = XLSX.utils.aoa_to_sheet([
     ['Como usar'],
-    ['Lojas: CNPJ, Apelido (como a loja aparece em todos os apps), Tipo (um dos da aba Tipos de loja), Endereço, Cidade e UF. Quem já deu apelido, tipo ou endereço à própria loja no app continua vendo o dele.'],
+    ['Lojas: CNPJ, Apelido (como a loja aparece em todos os apps), Razão social, Tipo (um dos da aba Tipos de loja), Endereço, CEP, Cidade e UF. Quem já deu apelido, tipo ou endereço à própria loja no app continua vendo o dele.'],
     ['Tipos de loja: uma linha por tipo (Mercado, Restaurante, Farmácia, Academia...). Ao publicar, a lista passa a ser esta em todos os apps.'],
     ['Estrutura: uma linha por caminho (Departamento, Categoria, Grupo, Item). Grupo e Item podem ficar vazios.'],
     ['Produtos: o código (de barras) identifica o produto. Preencha Departamento, Categoria, Grupo e Item como estão na aba Estrutura.'],

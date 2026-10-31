@@ -21,7 +21,7 @@ export interface MasterData {
   /** apelido e tipo de cada loja (por CNPJ), editados na aba "Lojas" da planilha */
   stores?: MasterStore[];
 }
-export interface MasterStore { cnpj: string; name: string; type: string; address?: string; city?: string; state?: string }
+export interface MasterStore { cnpj: string; name: string; type: string; address?: string; city?: string; state?: string; cep?: string; legalName?: string }
 export interface MasterCodeRef {
   master: string; desc: string; unit: string; category: string;
   kind: 'ean' | 'store'; storeKey: string; storeName: string; code: string;
@@ -82,7 +82,7 @@ export const fetchMaster = async (version: number, publishedAt: string | null): 
     fetchAll<{ code: string; description: string; node_id: string | null }>('master_products', 'code,description,node_id', 'code', q => q.not('node_id', 'is', null)),
     fetchAll<any>('master_product_codes', 'kind,store_key,store_name,code,master_products(code,description,unit_type,category)', 'id').catch(() => [] as any[]),
     fetchAll<{ name: string }>('store_types', 'name,sort', 'sort').catch(() => [] as { name: string }[]),
-    fetchAll<MasterStore>('master_stores', 'cnpj,name,type,address,city,state', 'cnpj').catch(() => [] as MasterStore[]),
+    fetchAll<any>('master_stores', 'cnpj,name,type,address,city,state,cep,legal_name', 'cnpj').catch(() => [] as MasterStore[]),
   ]);
   const codes: MasterCodeRef[] = codeRows.filter((c: any) => c.master_products).map((c: any) => ({
     master: c.master_products.code, desc: c.master_products.description, unit: c.master_products.unit_type || 'UN', category: c.master_products.category || '',
@@ -95,7 +95,7 @@ export const fetchMaster = async (version: number, publishedAt: string | null): 
   }));
   // mesma escrita do app (iniciais maiúsculas): assim a padronização local não briga com a tabela mãe
   const nodes = standardizeTaxonomy(raw).taxonomy;
-  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id })), codes, storeTypes: typeRows.map(t => t.name), stores: storeRows };
+  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id })), codes, storeTypes: typeRows.map(t => t.name), stores: storeRows.map((r: any) => ({ cnpj: r.cnpj, name: r.name || '', type: r.type || '', address: r.address || '', city: r.city || '', state: r.state || '', cep: r.cep || '', legalName: r.legal_name || '' })) };
 };
 
 /** Assinatura da estrutura, para saber se a local já é a da tabela mãe. */
