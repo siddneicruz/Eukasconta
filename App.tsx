@@ -626,6 +626,27 @@ const App: React.FC = () => {
       onToast: (msg) => showNotification(msg),
   });
   const master = useMasterSync({ userId: cloud.user?.id ?? null, taxonomy, setTaxonomy, receipts, setReceipts, masterProducts, setMasterProducts, onToast: (m) => showNotification(m, 6000) });
+
+  // Endereço, cidade e UF da tabela mãe preenchem só as lojas que ainda não têm (o que a pessoa escreveu nunca é trocado)
+  const masterStores = master.master?.stores;
+  useEffect(() => {
+    if (!masterStores || masterStores.length === 0) return;
+    const byCnpj = new Map(masterStores.map(m => [String(m.cnpj).replace(/\D/g, ''), m] as const));
+    setEstablishments(prev => {
+      let changed = false;
+      const next = prev.map(e => {
+        const m = byCnpj.get(String(e.cnpj || '').replace(/\D/g, ''));
+        if (!m || (e.address && e.address.trim())) return e;
+        if (!m.address) return e;
+        changed = true;
+        const patch: Partial<Establishment> = { address: m.address };
+        if (!e.city && m.city) patch.city = m.city;
+        if (!e.state && m.state) patch.state = m.state;
+        return { ...e, ...patch, geocodeStatus: e.latitude != null ? e.geocodeStatus : 'pending' };
+      });
+      return changed ? next : prev;
+    });
+  }, [masterStores]);
   // Backup automático na conta: dados e chave de IA voltam sozinhos ao entrar depois de reinstalar o app.
   const backupTrigger = useMemo(() => ({}), [receipts, taxonomy, establishments, masterProducts, aiLearning, categories]);
   const backup = useCloudBackup({ userId: cloud.user?.id ?? null, trigger: backupTrigger, onToast: (msg) => showNotification(msg, 6000) });

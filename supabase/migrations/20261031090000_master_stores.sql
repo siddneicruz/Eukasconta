@@ -37,3 +37,25 @@ begin
   return jsonb_build_object('stores', n);
 end $$;
 grant execute on function public.publish_master_stores(jsonb) to authenticated;
+
+-- Endereço da loja (Endereço, Cidade, UF na aba Lojas)
+alter table public.master_stores add column if not exists address text not null default '', add column if not exists city text not null default '', add column if not exists state text not null default '';
+create or replace function public.publish_master_stores(p jsonb) returns jsonb
+language plpgsql security definer set search_path to 'public' as $$
+declare n int;
+begin
+  if not public.is_admin() then raise exception 'Só o administrador publica a tabela mãe' using errcode = '42501'; end if;
+  if jsonb_typeof(p) is distinct from 'array' then raise exception 'Lista de lojas inválida'; end if;
+  delete from public.master_stores;
+  insert into public.master_stores (cnpj, name, type, address, city, state)
+    select regexp_replace(e->>'cnpj', '\D', '', 'g'), btrim(coalesce(e->>'name','')), btrim(coalesce(e->>'type','')),
+           btrim(coalesce(e->>'address','')), btrim(coalesce(e->>'city','')), upper(btrim(coalesce(e->>'state','')))
+    from jsonb_array_elements(p) e
+    where regexp_replace(coalesce(e->>'cnpj',''), '\D', '', 'g') ~ '^\d{11,14}$'
+    on conflict (cnpj) do nothing;
+  update public.master_product_codes c set store_name = s.name from public.master_stores s
+    where c.kind = 'store' and c.store_key = s.cnpj and s.name <> '';
+  select count(*) into n from public.master_stores;
+  update public.master_meta set version = version + 1, published_at = now() where id;
+  return jsonb_build_object('stores', n);
+end $$;
