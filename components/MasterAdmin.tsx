@@ -6,7 +6,7 @@ import { useMasterInfo } from './MasterContext';
 import { useLayers } from './LayersContext';
 import { MasterDiff, MasterSheetError, ParsedMaster, SheetProduct, diffStructure, downloadMasterWorkbook, parseMasterWorkbook } from '../services/masterSheet';
 import {
-  TaxSuggestion, fetchAllMasterProducts, fetchPendingSuggestions, masterIndex, publishMaster, publishStoreTypes, reviewSuggestion,
+  TaxSuggestion, fetchAllMasterProducts, fetchPendingSuggestions, masterIndex, publishMaster, publishStoreTypes, publishMasterStores, reviewSuggestion,
 } from '../services/masterService';
 import { leafFor } from '../services/categoryLayers';
 import { properCase } from '../services/textFormat';
@@ -76,7 +76,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
         if (!p) return;
         if (c.kind === 'ean') addCodes(p, [c.code], []); else addCodes(p, [], [[c.storeKey, [c.code]]]);
       });
-      downloadMasterWorkbook(currentNodes, [...out.values()], undefined, info.master?.storeTypes || []);
+      downloadMasterWorkbook(currentNodes, [...out.values()], undefined, info.master?.storeTypes || [], info.master?.stores || []);
       onToast?.(`Planilha gerada: ${plural(out.size, 'produto', 'produtos')}, com os códigos de barras e das lojas.`);
     } catch (e: any) { setError(e?.message || 'Não consegui gerar a planilha.'); }
     finally { setBusy(''); }
@@ -98,6 +98,8 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
       const res = await publishMaster(parsed.data.payload);
       const types = parsed.data.payload.storeTypes;
       if (types && types.length) await publishStoreTypes(types);
+      const lojas = parsed.data.payload.stores;
+      if (lojas && lojas.length) await publishMasterStores(lojas);
       await info.syncNow(true);
       onToast?.(`Publicado (versão ${res.version}): ${plural(res.nodes_added, 'categoria nova', 'categorias novas')}, ${plural(res.products, 'produto', 'produtos')}.`);
       setParsed(null); setConfirm(false);

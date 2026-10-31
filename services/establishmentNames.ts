@@ -26,7 +26,10 @@ export interface StoreNamer {
   typeOf: (name: string, cnpj?: string) => string;
 }
 
-export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes?: string[]): StoreNamer => {
+export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes?: string[], masterStores: { cnpj: string; name: string; type: string }[] = []): StoreNamer => {
+  // apelido e tipo da tabela mãe valem para quem não escolheu os seus (o que a pessoa escreve na loja sempre ganha)
+  const mAlias = new Map<string, string>(), mType = new Map<string, string>();
+  masterStores.forEach(m => { const d = String(m.cnpj || '').replace(/\D/g, ''); if (m.name) mAlias.set(d, m.name); if (m.type) mType.set(d, m.type); });
   const byCnpj = new Map<string, string>();
   const byName = new Map<string, string>();
   const typeByCnpj = new Map<string, string>();
@@ -51,7 +54,9 @@ export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes
   const rawAlias = (name: string, cnpj?: string): string | null => {
     const d = digits(cnpj);
     if (idLike(d)) { const hit = byCnpj.get(d); if (hit) return hit; }
-    return byName.get(plain(name)) ?? null;
+    const own = byName.get(plain(name));
+    if (own) return own;
+    return idLike(d) ? mAlias.get(d) ?? null : null;
   };
   const aliasOf = (name: string, cnpj?: string): string | null => {
     const a = rawAlias(name, cnpj);
@@ -72,7 +77,7 @@ export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes
     const hit = typeCache.get(ck);
     if (hit) return hit;
     const d = digits(cnpj);
-    let t = (idLike(d) ? typeByCnpj.get(d) : undefined) || typeByName.get(plain(name)) || '';
+    let t = (idLike(d) ? typeByCnpj.get(d) : undefined) || typeByName.get(plain(name)) || (idLike(d) ? mType.get(d) : undefined) || '';
     if (!t && !isUnidentifiedName(name)) t = suggestStoreType(`${rawAlias(name, cnpj) || ''} ${name}`, storeTypes) || '';
     t = t || NO_STORE_TYPE;
     typeCache.set(ck, t);

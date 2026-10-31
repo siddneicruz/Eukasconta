@@ -18,7 +18,10 @@ export interface MasterData {
   codes?: MasterCodeRef[];
   /** tipos de estabelecimento (Mercado, Restaurante...), na ordem da planilha */
   storeTypes?: string[];
+  /** apelido e tipo de cada loja (por CNPJ), editados na aba "Lojas" da planilha */
+  stores?: MasterStore[];
 }
+export interface MasterStore { cnpj: string; name: string; type: string }
 export interface MasterCodeRef {
   master: string; desc: string; unit: string; category: string;
   kind: 'ean' | 'store'; storeKey: string; storeName: string; code: string;
@@ -74,11 +77,12 @@ export const fetchRole = async (uid: string): Promise<'admin' | 'user'> => {
 type NodeRow = { id: string; parent_id: string | null; level: number; name: string; sort: number; icon: string | null; color: string | null; updated_at: string };
 
 export const fetchMaster = async (version: number, publishedAt: string | null): Promise<MasterData> => {
-  const [rows, prods, codeRows, typeRows] = await Promise.all([
+  const [rows, prods, codeRows, typeRows, storeRows] = await Promise.all([
     fetchAll<NodeRow>('taxonomy_master', 'id,parent_id,level,name,sort,icon,color,updated_at', 'sort'),
     fetchAll<{ code: string; description: string; node_id: string | null }>('master_products', 'code,description,node_id', 'code', q => q.not('node_id', 'is', null)),
     fetchAll<any>('master_product_codes', 'kind,store_key,store_name,code,master_products(code,description,unit_type,category)', 'id').catch(() => [] as any[]),
     fetchAll<{ name: string }>('store_types', 'name,sort', 'sort').catch(() => [] as { name: string }[]),
+    fetchAll<MasterStore>('master_stores', 'cnpj,name,type', 'cnpj').catch(() => [] as MasterStore[]),
   ]);
   const codes: MasterCodeRef[] = codeRows.filter((c: any) => c.master_products).map((c: any) => ({
     master: c.master_products.code, desc: c.master_products.description, unit: c.master_products.unit_type || 'UN', category: c.master_products.category || '',
@@ -91,7 +95,7 @@ export const fetchMaster = async (version: number, publishedAt: string | null): 
   }));
   // mesma escrita do app (iniciais maiúsculas): assim a padronização local não briga com a tabela mãe
   const nodes = standardizeTaxonomy(raw).taxonomy;
-  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id })), codes, storeTypes: typeRows.map(t => t.name) };
+  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id })), codes, storeTypes: typeRows.map(t => t.name), stores: storeRows };
 };
 
 /** Assinatura da estrutura, para saber se a local já é a da tabela mãe. */
@@ -200,6 +204,8 @@ export interface PublishPayload {
   products: { code: string; description: string; unit?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }[];
   /** aba "Tipos de loja" da planilha (opcional) */
   storeTypes?: string[];
+  /** aba "Lojas" da planilha (opcional) */
+  stores?: MasterStore[];
 }
 export interface PublishResult { version: number; nodes_added: number; nodes_removed: number; products: number; unmapped: number; codes?: number }
 
@@ -211,6 +217,11 @@ export const publishMaster = async (payload: PublishPayload): Promise<PublishRes
 
 export const publishStoreTypes = async (types: string[]): Promise<void> => {
   const { error } = await supabase.rpc('publish_store_types', { p: types });
+  if (error) throw new Error(rpcError(error));
+};
+
+export const publishMasterStores = async (stores: MasterStore[]): Promise<void> => {
+  const { error } = await supabase.rpc('publish_master_stores', { p: stores });
   if (error) throw new Error(rpcError(error));
 };
 

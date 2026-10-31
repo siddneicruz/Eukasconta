@@ -9,8 +9,9 @@ const IDENTITY = buildStoreNamer([]);
 const Ctx = createContext<StoreNamer>(IDENTITY);
 
 export const StoreNamesProvider: React.FC<{ establishments: Establishment[]; children: React.ReactNode }> = ({ establishments, children }) => {
-  const types = useMasterInfo().master?.storeTypes;
-  const namer = useMemo(() => buildStoreNamer(establishments, types && types.length ? types : DEFAULT_STORE_TYPES), [establishments, types]);
+  const m = useMasterInfo().master;
+  const types = m?.storeTypes, stores = m?.stores;
+  const namer = useMemo(() => buildStoreNamer(establishments, types && types.length ? types : DEFAULT_STORE_TYPES, stores || []), [establishments, types, stores]);
   return <Ctx.Provider value={namer}>{children}</Ctx.Provider>;
 };
 
