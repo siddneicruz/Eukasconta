@@ -184,6 +184,24 @@ const leafPaths = (nodes: TaxonomyNode[]): string[][] => {
   return nodes.filter(n => !hasKids.has(n.id)).map(pathOf).sort((a, b) => a.join('\u0001').localeCompare(b.join('\u0001'), 'pt-BR'));
 };
 
+/** Lojas do cadastro deste aparelho que a tabela mãe ainda não tem (por CNPJ/CPF), prontas para entrar na aba Lojas. */
+export const storesFromLocal = (
+  known: { cnpj: string }[],
+  local: { cnpj?: string; originalName?: string; aliasName?: string; type?: string; address?: string; cep?: string; city?: string; state?: string }[],
+): { cnpj: string; name: string; type: string; address: string; city: string; state: string; cep: string; legalName: string }[] => {
+  const have = new Set(known.map(k => String(k.cnpj).replace(/\D/g, '')));
+  const out: ReturnType<typeof storesFromLocal> = [];
+  local.forEach(e => {
+    const d = String(e.cnpj || '').replace(/\D/g, '');
+    if (d.length !== 14 && d.length !== 11) return;
+    if (have.has(d)) return;
+    have.add(d);
+    const raw = String(e.originalName || '').trim();
+    out.push({ cnpj: d, name: String(e.aliasName || '').trim(), type: String(e.type || '').trim(), address: String(e.address || '').trim(), city: String(e.city || '').trim(), state: String(e.state || '').trim().toUpperCase(), cep: String(e.cep || '').trim(), legalName: /identificado via ocr/i.test(raw) ? '' : properCase(raw) });
+  });
+  return out;
+};
+
 export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = []) => {
   const wb = XLSX.utils.book_new();
   const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);

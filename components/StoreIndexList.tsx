@@ -4,6 +4,7 @@ import { Establishment } from '../types';
 import { titleCase } from '../services/textFormat';
 import { fold } from '../services/itemSearch';
 import { formatCNPJ } from '../services/productNormalization';
+import { useStoreNames } from './StoreNamesContext';
 
 /* Lista compacta das lojas (celular): uma linha por loja, em ordem alfabética, com a letra de cada bloco e uma barra de
    letras na lateral para pular direto (toque ou arraste o dedo na barra). O lápis abre a edição ali mesmo: apelido e
@@ -17,7 +18,6 @@ interface Props {
 
 const LETTERS = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
 const keyOf = (e: Establishment) => `${(e.cnpj || '').replace(/\D/g, '')}|${e.originalName}`;
-const nameOf = (e: Establishment) => (e.aliasName && e.aliasName.trim()) || titleCase(e.originalName) || 'Sem nome';
 const letterOf = (name: string): string => {
   const c = fold(name).charAt(0).toUpperCase();
   return c >= 'A' && c <= 'Z' ? c : '#';
@@ -25,6 +25,10 @@ const letterOf = (name: string): string => {
 const secId = (l: string) => `store-sec-${l === '#' ? 'num' : l}`;
 
 const StoreIndexList: React.FC<Props> = ({ stores, onUpdate, onEditAll }) => {
+  // apelido: o que a pessoa escreveu na loja; sem ele, o da tabela mãe (por CNPJ)
+  const { aliasOf } = useStoreNames();
+  const aliasFor = (e: Establishment): string => (e.aliasName && e.aliasName.trim()) || aliasOf(e.originalName, e.cnpj) || '';
+  const nameOf = (e: Establishment): string => aliasFor(e) || titleCase(e.originalName) || 'Sem nome';
   const [openKey, setOpenKey] = useState<string | null>(null);
   // enquanto a loja está aberta para editar, ela fica no lugar de antes (o apelido muda a cada letra e a linha não pode sair andando)
   const [frozen, setFrozen] = useState<{ key: string; name: string } | null>(null);
@@ -45,7 +49,7 @@ const StoreIndexList: React.FC<Props> = ({ stores, onUpdate, onEditAll }) => {
         if (arr) arr.push(e); else m.set(l, [e]);
       });
     return LETTERS.filter(l => m.has(l)).map(l => ({ letter: l, items: m.get(l)! }));
-  }, [stores, frozen]);
+  }, [stores, frozen, aliasOf]);
   const present = useMemo(() => new Set(groups.map(g => g.letter)), [groups]);
   const showBar = stores.length >= 8;
 
@@ -87,7 +91,7 @@ const StoreIndexList: React.FC<Props> = ({ stores, onUpdate, onEditAll }) => {
                 const k = keyOf(est);
                 const open = openKey === k;
                 const place = [titleCase(est.city), est.state].filter(Boolean).join(' - ');
-                const sub = est.aliasName && est.aliasName.trim() ? titleCase(est.originalName) : place;
+                const sub = aliasFor(est) ? titleCase(est.originalName) : place;
                 return (
                   <li key={k} ref={el => { rowRefs.current.set(k, el); }} data-testid="store-row" data-open={open ? 'true' : 'false'}>
                     <div className="flex items-center gap-2 min-h-[48px]">
@@ -113,7 +117,7 @@ const StoreIndexList: React.FC<Props> = ({ stores, onUpdate, onEditAll }) => {
                         <label className="block mt-3">
                           <span className="block text-xs text-zinc-400 font-medium mb-1.5">Apelido</span>
                           <input type="text" value={est.aliasName || ''} onChange={e => onUpdate({ ...est, aliasName: e.target.value })}
-                            placeholder="Como você chama esta loja" data-testid="store-alias"
+                            placeholder={aliasFor(est) || 'Como você chama esta loja'} data-testid="store-alias"
                             className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold placeholder:text-zinc-600 placeholder:font-normal" />
                         </label>
                         {onEditAll && (

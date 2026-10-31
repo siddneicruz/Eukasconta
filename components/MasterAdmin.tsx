@@ -4,7 +4,7 @@ import { Establishment, MasterProduct, TaxonomyNode } from '../types';
 import { codesOf, normStoreKey } from '../services/productCodes';
 import { useMasterInfo } from './MasterContext';
 import { useLayers } from './LayersContext';
-import { MasterDiff, MasterSheetError, ParsedMaster, SheetProduct, diffStructure, downloadMasterWorkbook, parseMasterWorkbook } from '../services/masterSheet';
+import { MasterDiff, MasterSheetError, ParsedMaster, SheetProduct, diffStructure, downloadMasterWorkbook, storesFromLocal, parseMasterWorkbook } from '../services/masterSheet';
 import {
   TaxSuggestion, fetchAllMasterProducts, fetchPendingSuggestions, masterIndex, publishMaster, publishStoreTypes, publishMasterStores, reviewSuggestion,
 } from '../services/masterService';
@@ -76,7 +76,12 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
         if (!p) return;
         if (c.kind === 'ean') addCodes(p, [c.code], []); else addCodes(p, [], [[c.storeKey, [c.code]]]);
       });
-      downloadMasterWorkbook(currentNodes, [...out.values()], undefined, info.master?.storeTypes || [], info.master?.stores || []);
+      downloadMasterWorkbook(currentNodes, [...out.values()], undefined, info.master?.storeTypes || [], (() => {
+        const known = info.master?.stores || [];
+        let local: any[] = [];
+        try { local = JSON.parse(localStorage.getItem('eukasconta_establishments') || '[]'); } catch { /* sem cadastro local */ }
+        return [...known, ...storesFromLocal(known, Array.isArray(local) ? local : [])];
+      })());
       onToast?.(`Planilha gerada: ${plural(out.size, 'produto', 'produtos')}, com os códigos de barras e das lojas.`);
     } catch (e: any) { setError(e?.message || 'Não consegui gerar a planilha.'); }
     finally { setBusy(''); }
