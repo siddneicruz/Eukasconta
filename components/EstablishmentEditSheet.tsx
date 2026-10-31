@@ -5,6 +5,8 @@ import { Establishment, Receipt } from '../types';
 import { cleanCNPJ } from '../services/productNormalization';
 import { formatCNPJ } from '../services/productNormalization';
 import { isValidCNPJ } from '../services/registryLookupService';
+import { useMasterInfo } from './MasterContext';
+import { DEFAULT_STORE_TYPES, suggestStoreType } from '../services/storeTypes';
 import { StoreDraft, draftOf, receiptsOfStore, splitLatLng, summarizeStore } from '../services/establishmentEdit';
 import { isNativeApp } from '../services/platform';
 import { titleCase } from '../services/textFormat';
@@ -51,6 +53,8 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onClose }) => {
   const [draft, setDraft] = useState<StoreDraft>(() => draftOf(est));
   const [error, setError] = useState('');
+  const storeTypes = useMasterInfo().master?.storeTypes;
+  const typeList = storeTypes && storeTypes.length ? storeTypes : DEFAULT_STORE_TYPES;
   const set = (patch: Partial<StoreDraft>) => { setDraft(d => ({ ...d, ...patch })); setError(''); };
 
   useEffect(() => {
@@ -121,6 +125,12 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onClos
             <Field label="Apelido" hint={<span className="text-zinc-500">Como você chama a loja. Aparece em todas as telas.</span>}>
               <input type="text" value={draft.aliasName} onChange={e => set({ aliasName: e.target.value })} placeholder="Como você chama esta loja" data-testid="store-edit-alias"
                 className={`${inputCls} !text-luxury-gold font-semibold placeholder:font-normal`} />
+            </Field>
+            <Field label="Tipo de estabelecimento" hint={<span className="text-zinc-500">{draft.type ? 'Usado no filtro do início e nos relatórios.' : (() => { const g = suggestStoreType(`${draft.aliasName} ${draft.originalName}`, typeList); return g ? `Sem escolha, o app usa "${g}", pelo nome da loja.` : 'Sem escolha, a loja fica em "Sem tipo".'; })()}</span>}>
+              <select value={draft.type} onChange={e => set({ type: e.target.value })} data-testid="store-edit-type" className={inputCls}>
+                <option value="">Automático (pelo nome)</option>
+                {(draft.type && !typeList.includes(draft.type) ? [draft.type, ...typeList] : typeList).map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </Field>
             <Field label="Nome no cupom">
               <input type="text" value={draft.originalName} onChange={e => set({ originalName: e.target.value })} data-testid="store-edit-name" className={inputCls} />

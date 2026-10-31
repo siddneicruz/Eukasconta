@@ -2,6 +2,7 @@ import { Establishment } from '../types';
 import { titleCase, isUnidentifiedName, UNIDENTIFIED_LABEL } from './textFormat';
 import { normStoreKey } from './productCodes';
 import { formatCNPJ } from './productNormalization';
+import { NO_STORE_TYPE, suggestStoreType } from './storeTypes';
 
 /* Apelido das lojas: o que a pessoa escreve em Config > Lojas passa a valer em todas as telas.
    O cupom continua guardado com o nome original; só a exibição troca. Lojas com o mesmo apelido
@@ -21,11 +22,23 @@ export interface StoreNamer {
   nameOf: (name: string, cnpj?: string) => string;
   /** identidade para somar e filtrar: mesmo apelido = mesma loja; sem apelido, o mesmo nome */
   keyOf: (name: string, cnpj?: string) => string;
+  /** tipo da loja (Mercado, Farmácia...): o escolhido, ou o que o nome sugere, ou "Sem tipo" */
+  typeOf: (name: string, cnpj?: string) => string;
 }
 
-export const buildStoreNamer = (establishments: Establishment[] = []): StoreNamer => {
+export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes?: string[]): StoreNamer => {
   const byCnpj = new Map<string, string>();
   const byName = new Map<string, string>();
+  const typeByCnpj = new Map<string, string>();
+  const typeByName = new Map<string, string>();
+  establishments.forEach(e => {
+    const t = (e.type || '').trim();
+    if (!t) return;
+    const d = digits(e.cnpj);
+    if (idLike(d) && !typeByCnpj.has(d)) typeByCnpj.set(d, t);
+    const n = plain(e.originalName);
+    if (n && !typeByName.has(n)) typeByName.set(n, t);
+  });
   establishments.forEach(e => {
     const alias = (e.aliasName || '').trim();
     if (!alias) return;
@@ -53,7 +66,19 @@ export const buildStoreNamer = (establishments: Establishment[] = []): StoreName
     const a = rawAlias(name, cnpj);
     return a ? `a:${plain(a)}` : `n:${plain(name)}`;
   };
-  return { aliasOf, nameOf, keyOf };
+  const typeCache = new Map<string, string>();
+  const typeOf = (name: string, cnpj?: string): string => {
+    const ck = `${digits(cnpj)}|${name}`;
+    const hit = typeCache.get(ck);
+    if (hit) return hit;
+    const d = digits(cnpj);
+    let t = (idLike(d) ? typeByCnpj.get(d) : undefined) || typeByName.get(plain(name)) || '';
+    if (!t && !isUnidentifiedName(name)) t = suggestStoreType(`${rawAlias(name, cnpj) || ''} ${name}`, storeTypes) || '';
+    t = t || NO_STORE_TYPE;
+    typeCache.set(ck, t);
+    return t;
+  };
+  return { aliasOf, nameOf, keyOf, typeOf };
 };
 
 /** Lojas para escolher no cadastro de códigos. A chave é a mesma que os códigos usam (CNPJ só com dígitos, ou "n:nome").

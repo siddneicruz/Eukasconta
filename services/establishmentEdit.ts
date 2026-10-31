@@ -77,6 +77,7 @@ export const splitLatLng = (text: string): [string, string] | null => {
 /* ───────────────────────────── rascunho e gravação ───────────────────────────── */
 
 export interface StoreDraft {
+  type: string;
   aliasName: string;
   originalName: string;
   cnpj: string;
@@ -89,6 +90,7 @@ export interface StoreDraft {
 }
 
 export const draftOf = (e: Establishment): StoreDraft => ({
+  type: (e.type || '').trim(),
   aliasName: (e.aliasName || '').trim(),
   originalName: e.originalName || '',
   cnpj: cleanCNPJ(e.cnpj),
@@ -148,6 +150,8 @@ export const applyStoreEdit = (
   const next: Establishment = { ...prev, originalName: name, cnpj, address, city, state };
   const alias = squash(draft.aliasName);
   if (alias) next.aliasName = alias; else delete next.aliasName;
+  const type = squash(draft.type);
+  if (type) next.type = type; else delete next.type;
   if (cepDigits) next.cep = formatCep(cepDigits); else delete next.cep;
   if (!address) delete next.address;
   if (!city) delete next.city;

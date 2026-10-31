@@ -35,6 +35,8 @@ import * as LucideIcons from 'lucide-react';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
 import DeptFilterSheet from './DeptFilterSheet';
+import StoreTypeFilter from './StoreTypeFilter';
+import { applyStoreTypeFilter, useStoreTypeFilter } from '../services/storeTypes';
 import { useLayers } from './LayersContext';
 import { useDeptFilter, isDeptFilterActive, invertDeptFilter, deptFilterLabel, deptLabelFor, applyDeptFilter, buildDeptOptions } from '../services/deptFilter';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
@@ -430,7 +432,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const resetFilters = () => onConfigChange({ year: new Date().getFullYear(), month: new Date().getMonth(), category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null });
   // Partes que só aparecem com a barra aberta no celular (no computador e no celular deitado ficam sempre)
   const moreCls = filtersOpen ? 'flex' : 'hidden md:flex ls:flex';
-  const { aliasOf, nameOf, keyOf } = useStoreNames();
+  const { aliasOf, nameOf, keyOf, typeOf } = useStoreNames();
+  const [typeSel] = useStoreTypeFilter();
   const availableMasterCategories = useMemo(() => {
       return taxonomy
         .filter(n => n.level === 1)
@@ -444,7 +447,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const receiptsById = useMemo(() => new Map(receipts.map(r => [r.id, r] as [string, Receipt])), [receipts]);
 
   // Período, loja e item (ainda sem o filtro de categorias: a folha de categorias mostra quanto cada uma gastou aqui)
-  const periodReceipts = useMemo(() => {
+  const periodAllTypes = useMemo(() => {
     return itemReceipts.filter(r => {
         let rDate = new Date(r.date + 'T12:00:00');
         if (isNaN(rDate.getTime())) rDate = new Date();
@@ -468,6 +471,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         return true;
     });
   }, [itemReceipts, config, keyOf]);
+  const periodReceipts = useMemo(() => applyStoreTypeFilter(periodAllTypes, typeSel, typeOf), [periodAllTypes, typeSel, typeOf]);
 
   // Com categorias tiradas (ou só algumas escolhidas), cada cupom fica só com as linhas que entram, e vale a soma delas
   const filteredReceipts = useMemo(
@@ -676,6 +680,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                 )}
             </div>
         </div>
+        {/* Tipo de estabelecimento (Mercado, Restaurante, Farmácia...), logo abaixo do filtro de categorias */}
+        <StoreTypeFilter receipts={periodAllTypes} className="-mt-0.5" />
 
         {/* Item escolhido na busca: também fica sempre visível e com saída óbvia */}
         {config.item && itemSummary && (

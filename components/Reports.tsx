@@ -1,4 +1,7 @@
 
+import StoreTypeFilter from './StoreTypeFilter';
+import { useStoreNames } from './StoreNamesContext';
+import { applyStoreTypeFilter, useStoreTypeFilter } from '../services/storeTypes';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Receipt, DashboardConfig, Establishment, MasterProduct, TaxonomyNode } from '../types';
 import { structureCategories } from '../services/categoryAlign';
@@ -59,7 +62,7 @@ const getEstablishmentDisplayName = (originalName: string, cnpj: string, establi
 };
 
 const Reports: React.FC<ReportsProps> = ({ 
-  receipts = [], 
+  receipts: allReceipts = [], 
   establishments = [], 
   config, 
   onConfigChange, 
@@ -72,6 +75,10 @@ const Reports: React.FC<ReportsProps> = ({
   taxonomy = [],
 }) => {
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
+  // Filtro por tipo de estabelecimento (o mesmo do início): todo o relatório passa a olhar só as lojas dos tipos escolhidos
+  const { typeOf } = useStoreNames();
+  const [typeSel] = useStoreTypeFilter();
+  const receipts = useMemo(() => applyStoreTypeFilter(allReceipts, typeSel, typeOf), [allReceipts, typeSel, typeOf]);
   // O que está sendo comparado (departamentos e categorias das compras do usuário) e a cor de cada um
   const [sel, setSel] = useState<CompareSelection[]>([]);
   const [rankingId, setRankingId] = useState<string | null>(null);
@@ -876,6 +883,8 @@ const Reports: React.FC<ReportsProps> = ({
         </div>
         )}
       </div>
+
+      <StoreTypeFilter receipts={allReceipts} className="mb-3" />
 
       {/* SELETOR DE SEÇÃO: transforma o que era uma rolagem longa com tudo
           empilhado em um dashboard por abas — cada seção só renderiza quando

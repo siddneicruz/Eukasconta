@@ -130,7 +130,10 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
     }
   }
   const eanCount = products.reduce((n, p) => n + (p.eans?.length || 0), 0);
-  return { payload: { nodes, products }, errors, warnings, counts: { nodes: nodes.length, products: products.length, unmapped, eans: eanCount, storeCodes } };
+  const typeRows = sheetRows(wb, ['tipos de loja', 'tipos de estabelecimento', 'tipos']);
+  const storeTypes: string[] = [];
+  (typeRows || []).slice(1).forEach(r => { const t = properCase(cell(r[0])); if (t && !storeTypes.some(x => plain(x) === plain(t))) storeTypes.push(t); });
+  return { payload: { nodes, products, ...(storeTypes.length ? { storeTypes } : {}) }, errors, warnings, counts: { nodes: nodes.length, products: products.length, unmapped, eans: eanCount, storeCodes } };
 };
 
 export interface MasterDiff { added: string[]; removed: string[]; kept: number }
@@ -158,7 +161,7 @@ const leafPaths = (nodes: TaxonomyNode[]): string[][] => {
   return nodes.filter(n => !hasKids.has(n.id)).map(pathOf).sort((a, b) => a.join('\u0001').localeCompare(b.join('\u0001'), 'pt-BR'));
 };
 
-export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx') => {
+export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = []) => {
   const wb = XLSX.utils.book_new();
   const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);
   est['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 28 }];
@@ -178,8 +181,12 @@ export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetPro
   lojas['!cols'] = [{ wch: 18 }, { wch: 44 }, { wch: 18 }, { wch: 34 }, { wch: 20 }];
   Object.keys(lojas).forEach(a => { if (/^[ACE]/.test(a) && !/^[ACE]1$/.test(a) && lojas[a] && lojas[a].t === 'n') { lojas[a].t = 's'; lojas[a].v = String(lojas[a].v); } });
   XLSX.utils.book_append_sheet(wb, lojas, 'Códigos das lojas');
+  const tipos = XLSX.utils.aoa_to_sheet([['Tipo de estabelecimento'], ...(storeTypes.length ? storeTypes : ['Mercado', 'Restaurante e Lanchonete', 'Farmácia', 'Academia']).map(t => [t])]);
+  tipos['!cols'] = [{ wch: 34 }];
+  XLSX.utils.book_append_sheet(wb, tipos, 'Tipos de loja');
   const help = XLSX.utils.aoa_to_sheet([
     ['Como usar'],
+    ['Tipos de loja: uma linha por tipo (Mercado, Restaurante, Farmácia, Academia...). Ao publicar, a lista passa a ser esta em todos os apps.'],
     ['Estrutura: uma linha por caminho (Departamento, Categoria, Grupo, Item). Grupo e Item podem ficar vazios.'],
     ['Produtos: o código (de barras) identifica o produto. Preencha Departamento, Categoria, Grupo e Item como estão na aba Estrutura.'],
     ['EAN: código de barras do fabricante (vários separados por ponto e vírgula). Códigos das lojas: o código que cada loja imprime no cupom para o produto (CNPJ ou nome da loja). O app usa os dois para reconhecer item rasurado ou mal escrito.'],

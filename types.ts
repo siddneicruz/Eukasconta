@@ -37,6 +37,8 @@ export interface Establishment {
     cnpj: string;
     originalName: string;
     aliasName?: string;
+    // tipo do estabelecimento (Mercado, Restaurante...), da lista da tabela mãe; vazio = o app deduz pelo nome
+    type?: string;
     address?: string;
     city?: string;
     state?: string;

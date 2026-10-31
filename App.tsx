@@ -1278,8 +1278,8 @@ const App: React.FC = () => {
   const isInsideEmulator = new URLSearchParams(window.location.search).has('frame');
 
   return (
-    <StoreNamesProvider establishments={establishments}>
     <MasterProvider value={master}>
+    <StoreNamesProvider establishments={establishments}>
     <LayersProvider taxonomy={taxonomy} onTaxonomyChange={setTaxonomy}>
     <div className="flex flex-col h-[100dvh] bg-black text-zinc-100 font-sans overflow-hidden">
       {globalLoading && (
@@ -1618,8 +1618,8 @@ const App: React.FC = () => {
       />
     </div>
     </LayersProvider>
-    </MasterProvider>
     </StoreNamesProvider>
+    </MasterProvider>
   );
 };
 
