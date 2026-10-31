@@ -93,9 +93,17 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
       const lastFilled = raw.reduce((a, v, i) => (v ? i : a), -1);
       const path = raw.slice(0, lastFilled + 1).map(v => properCase(v));
       if (path.length === 0) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: "${description.slice(0, 40)}" ficou sem categoria.`); }
-      else if (path.some(p => !p)) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: caminho com nível vazio no meio; ficou sem categoria.`); path.length = 0; }
-      else if (!known.has(pathKey(path))) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: "${path.join(' › ')}" não existe na aba Estrutura; o produto ficou sem categoria.`); path.length = 0; }
-      else path.splice(0, path.length, ...canon.get(pathKey(path))!);
+      else {
+        // caminho com buraco ou que não existe na Estrutura: o produto fica no ponto mais fundo que existe (nunca sem categoria, se ao menos o departamento existe)
+        let keep = path.findIndex(p => !p); if (keep < 0) keep = path.length;
+        while (keep > 0 && !known.has(pathKey(path.slice(0, keep)))) keep--;
+        if (keep === path.length) path.splice(0, path.length, ...canon.get(pathKey(path))!);
+        else if (keep > 0) {
+          const from = path.filter(Boolean).join(' › ');
+          path.length = keep; path.splice(0, path.length, ...canon.get(pathKey(path))!);
+          warnings.push(`Produtos, linha ${r + 1}: "${from}" não existe na aba Estrutura; o produto ficou em "${path.join(' › ')}".`);
+        } else { unmapped++; warnings.push(`Produtos, linha ${r + 1}: "${path.filter(Boolean).join(' › ')}" não existe na aba Estrutura; o produto ficou sem categoria.`); path.length = 0; }
+      }
       const unit = pc.unit >= 0 ? cell(row[pc.unit]).toUpperCase() : '';
       const eans = pc.ean >= 0 ? cell(row[pc.ean]).split(/[;,\n]/).map(x => cleanCode(x)).filter(Boolean) : undefined;
       const item: PublishPayload['products'][number] = { code, description, unit: unit || undefined, path, ...(eans ? { eans } : {}) };
@@ -105,7 +113,7 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
   }
   // aba "Códigos das lojas": código mãe | CNPJ | Loja | Código na loja
   let storeCodes = 0;
-  const crow = sheetRows(wb, ['codigos das lojas', 'codigos lojas', 'codigos nativos', 'lojas']);
+  const crow = sheetRows(wb, ['codigos das lojas', 'codigos lojas', 'codigos nativos']);
   if (crow && crow.length > 1) {
     const ch = crow[0].map(cell);
     const u3 = new Set<number>();
