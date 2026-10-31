@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Store, ChevronDown, Check, X } from 'lucide-react';
 import { Receipt } from '../types';
 import { useStoreNames } from './StoreNamesContext';
@@ -41,11 +42,11 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
             className="w-8 h-8 flex items-center justify-center rounded-xl border border-white/5 text-zinc-500 active:text-luxury-gold"><X className="w-3.5 h-3.5" /></button>
         )}
       </div>
-      {open && (
-        <div className="fixed inset-0 z-[260] flex items-end sm:items-center justify-center bg-black/70" onClick={() => setOpen(false)} data-testid="store-type-sheet">
-          <div className="w-full sm:max-w-md max-h-[85dvh] flex flex-col bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl" onClick={e => e.stopPropagation()} role="dialog" aria-label="Tipo de estabelecimento">
+      {open && createPortal(
+        <div className="fixed inset-0 z-[260] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={() => setOpen(false)} data-testid="store-type-sheet">
+          <div className="w-full sm:max-w-md max-h-[88dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl" onClick={e => e.stopPropagation()} role="dialog" aria-label="Tipo de estabelecimento">
             <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-              <h4 className="text-sm font-bold text-zinc-100">Tipo de estabelecimento</h4>
+              <h4 className="text-[17px] font-serif text-white tracking-tight">Tipo de estabelecimento</h4>
               <button type="button" onClick={() => setSel([])} disabled={!active} className="text-xs font-semibold text-luxury-gold disabled:text-zinc-600">Todos os tipos</button>
             </div>
             <ul className="overflow-y-auto px-3 pb-2">
@@ -67,7 +68,8 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
               <button type="button" onClick={() => setOpen(false)} className="w-full h-11 rounded-xl bg-luxury-gold text-black text-sm font-bold">Pronto</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
