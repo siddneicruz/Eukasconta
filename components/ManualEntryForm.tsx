@@ -1,5 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useStoreNames } from './StoreNamesContext';
+import { buildItemIndex, suggestItems, knownCategoryFor, NO_CATEGORY } from '../services/itemSuggest';
 import { Receipt, ReceiptItem, Establishment } from '../types';
 import { useMasterInfo } from './MasterContext';
 import { joinAddress } from '../services/establishmentEdit';
@@ -25,6 +27,11 @@ interface ManualEntryFormProps {
 const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, knownEstablishments, knownProducts, categories, allReceipts = [], establishments = [] }) => {
   const masterInfo = useMasterInfo();
   const masterStores = masterInfo.master?.stores || [];
+  const namer = useStoreNames();
+  const [storeOpen, setStoreOpen] = useState(false);
+  const [itemOpen, setItemOpen] = useState<number | null>(null);
+  const itemIndex = useMemo(() => buildItemIndex(allReceipts, masterInfo.master), [allReceipts, masterInfo.master]);
+  const fold = (t: string) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const [locked, setLocked] = useState<'tabela mãe' | 'cadastro' | 'cupom anterior' | null>(null);
   const [formData, setFormData] = useState<Receipt>({
     id: generateId(),
@@ -75,6 +82,32 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
       } else { setLocked(null); return; }
       setIsDataPrefilled(true);
       setTimeout(() => setIsDataPrefilled(false), 3000);
+  };
+  const storeOptions = useMemo(() => {
+      const q = fold(formData.establishmentName).trim();
+      const qd = digitsOf(formData.establishmentName);
+      if (!q && !qd) return [];
+      return establishments
+          .map(e => ({ e, label: namer.nameOf(e.originalName, e.cnpj) || e.originalName }))
+          .filter(({ e, label }) => fold(label).includes(q) || fold(e.originalName).includes(q) || (qd.length >= 3 && digitsOf(e.cnpj).includes(qd)))
+          .sort((a, b) => Number(fold(b.label).startsWith(q)) - Number(fold(a.label).startsWith(q)) || a.label.localeCompare(b.label))
+          .slice(0, 7);
+  }, [formData.establishmentName, establishments, namer]);
+  const pickStore = (e: Establishment) => {
+      setStoreOpen(false);
+      if (digitsOf(e.cnpj).length === 14 || digitsOf(e.cnpj).length === 11) {
+          setFormData(prev => ({ ...prev, cnpj: e.cnpj }));
+          lookupByCnpj(e.cnpj);
+      } else {
+          setFormData(prev => ({ ...prev, cnpj: e.cnpj || '', establishmentName: e.originalName, address: e.address || '', city: e.city || '', state: e.state || '' }));
+          setLocked('cadastro');
+      }
+  };
+  const pickItem = (index: number, s: { description: string; category: string; unitType?: string }) => {
+      const newItems = [...items];
+      newItems[index] = { ...newItems[index], description: s.description, category: s.category, unitType: s.unitType || newItems[index].unitType };
+      setItems(newItems);
+      setItemOpen(null);
   };
   const clearStore = () => { setLocked(null); setFormData(prev => ({ ...prev, cnpj: '', establishmentName: '', address: '', city: '', state: '' })); };
 
@@ -186,19 +219,29 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                           <Store className="absolute left-3 top-3 w-4 h-4 text-zinc-600" />
                           <input 
                               type="text" 
-                              list="establishments-list-manual"
                               value={formData.establishmentName}
                               readOnly={!!locked}
+                              autoComplete="off"
+                              onFocus={() => setStoreOpen(true)}
+                              onBlur={() => setTimeout(() => setStoreOpen(false), 150)}
                               onChange={e => {
                                   setFormData({...formData, establishmentName: e.target.value});
+                                  setStoreOpen(true);
                                   performLookup(e.target.value);
                               }}
                               className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-100 focus:border-luxury-gold outline-none transition-all font-sans"
                               placeholder="NOME DA LOJA"
                           />
-                          <datalist id="establishments-list-manual">
-                              {knownEstablishments.map((est, i) => <option key={i} value={est} />)}
-                          </datalist>
+                          {storeOpen && !locked && storeOptions.length > 0 && (
+                              <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-[#121214] border border-white/10 rounded-xl shadow-2xl overflow-hidden" data-testid="manual-store-suggestions">
+                                  {storeOptions.map(({ e, label }) => (
+                                      <button type="button" key={e.cnpj + e.originalName} onMouseDown={ev => ev.preventDefault()} onClick={() => pickStore(e)} className="w-full text-left px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0">
+                                          <span className="block text-sm text-zinc-100 truncate">{label}</span>
+                                          <span className="block text-[11px] text-zinc-500 truncate">{[e.cnpj ? formatCNPJ(digitsOf(e.cnpj)) : '', e.city, e.state].filter(Boolean).join(' · ')}</span>
+                                      </button>
+                                  ))}
+                              </div>
+                          )}
                       </div>
                   </div>
               </div>
@@ -266,9 +309,19 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
               <div className="space-y-3">
                   {items.map((item, index) => (
                       <div key={index} className="grid grid-cols-6 md:grid-cols-12 gap-3 p-4 rounded-2xl bg-black border border-white/5 items-start relative group hover:border-white/10 transition-all">
-                          <div className="col-span-6 md:col-span-4">
+                          <div className="col-span-6 md:col-span-4 relative">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Descrição</label>
-                              <input type="text" list="products-list-manual" value={item.description} onChange={e => updateItem(index, 'description', e.target.value)} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-zinc-200 focus:border-luxury-gold outline-none" placeholder="Produto"/>
+                              <input type="text" autoComplete="off" onFocus={() => setItemOpen(index)} onBlur={() => setTimeout(() => setItemOpen(o => (o === index ? null : o)), 150)} value={item.description} onChange={e => { updateItem(index, 'description', e.target.value); setItemOpen(index); const k = knownCategoryFor(itemIndex, e.target.value); if (k && NO_CATEGORY.has(fold(items[index].category).trim())) { const ni = [...items]; ni[index] = { ...ni[index], description: e.target.value, category: k.category, unitType: k.unitType || ni[index].unitType }; setItems(ni); } }} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-zinc-200 focus:border-luxury-gold outline-none" placeholder="Produto"/>
+                              {itemOpen === index && (() => { const sg = suggestItems(itemIndex, item.description); return sg.length > 0 ? (
+                                  <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-[#121214] border border-white/10 rounded-xl shadow-2xl overflow-hidden" data-testid={`new-item-suggestions-${index}`}>
+                                      {sg.map(s => (
+                                          <button type="button" key={s.description} onMouseDown={ev => ev.preventDefault()} onClick={() => pickItem(index, s)} className="w-full text-left px-3 py-2 hover:bg-white/5 border-b border-white/5 last:border-0">
+                                              <span className="block text-sm text-zinc-100 truncate">{s.description}</span>
+                                              <span className="block text-[11px] text-luxury-gold truncate">{s.category}</span>
+                                          </button>
+                                      ))}
+                                  </div>
+                              ) : null; })()}
                           </div>
                           <div className="col-span-6 md:col-span-3">
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Categoria</label>
@@ -309,7 +362,6 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
               </button>
           </div>
       </form>
-      <datalist id="products-list-manual">{knownProducts.slice(0, 50).map((prod, i) => <option key={i} value={prod} />)}</datalist>
     </div>
   );
 };
