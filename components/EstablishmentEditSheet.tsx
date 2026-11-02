@@ -19,6 +19,8 @@ interface Props {
   receipts: Receipt[];
   /** devolve o texto do erro (a folha fica aberta) ou null quando gravou */
   onSave: (prev: Establishment, draft: StoreDraft) => string | null;
+  /** apaga a loja do cadastro e, junto, os cupons dela (a folha avisa quantos são e pede confirmação) */
+  onDelete?: (est: Establishment) => void;
   onClose: () => void;
 }
 
@@ -50,7 +52,9 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
   </section>
 );
 
-const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onClose }) => {
+const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onDelete, onClose }) => {
+  const [confirmDel, setConfirmDel] = useState(false);
+  const ownCount = useMemo(() => receiptsOfStore(est, receipts).length, [est, receipts]);
   const [draft, setDraft] = useState<StoreDraft>(() => draftOf(est));
   const [error, setError] = useState('');
   const storeTypes = useMasterInfo().master?.storeTypes;
@@ -200,6 +204,26 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onClos
           </Section>
         </div>
 
+        {onDelete && (
+          <div className="px-5 sm:px-6 pt-3" data-testid="store-delete-zone">
+            {!confirmDel ? (
+              <button type="button" onClick={() => setConfirmDel(true)} data-testid="store-delete" className="text-xs font-bold text-red-400/90 hover:text-red-300">Excluir esta loja</button>
+            ) : (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
+                <p className="text-xs text-zinc-300 leading-snug">
+                  {ownCount === 0
+                    ? 'Excluir esta loja do cadastro? Ela não tem cupons.'
+                    : `Esta loja tem ${ownCount} ${ownCount === 1 ? 'cupom' : 'cupons'}. Excluir apaga a loja e ${ownCount === 1 ? 'esse cupom' : 'esses cupons'}. Se a loja só está com o nome ou CNPJ errado, use "Conferir com a tabela mãe" ou "Unificar lojas", que mantêm os cupons.`}
+                  {' '}Antes disso o app guarda um ponto de restauração.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button type="button" onClick={() => { onDelete(est); onClose(); }} data-testid="store-delete-confirm" className="px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-bold">{ownCount === 0 ? 'Sim, excluir' : `Sim, excluir loja e ${ownCount} ${ownCount === 1 ? 'cupom' : 'cupons'}`}</button>
+                  <button type="button" onClick={() => setConfirmDel(false)} className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-zinc-300 text-xs font-bold">Não</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {error && <p className="px-5 sm:px-6 pt-3 text-sm text-red-400 leading-snug" role="alert" data-testid="store-edit-error">{error}</p>}
         <div className="p-4 sm:p-5 border-t border-white/5 flex flex-col sm:flex-row gap-3">
           <button type="button" onClick={save} data-testid="store-edit-save"

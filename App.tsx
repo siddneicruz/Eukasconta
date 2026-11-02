@@ -19,7 +19,7 @@ import ProductHistoryView from './components/ProductHistoryView';
 import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
 import EstablishmentEditSheet from './components/EstablishmentEditSheet';
-import { applyStoreEdit, StoreDraft, joinAddress } from './services/establishmentEdit';
+import { applyStoreEdit, StoreDraft, joinAddress, receiptsOfStore } from './services/establishmentEdit';
 import { resolveReceiptStore } from './services/storeResolver';
 import type { MasterStore } from './services/masterService';
 import { applyMergePlans, applyRedirects, loadRedirects, retargetRedirects, saveRedirects, type MergePlan } from './services/storeDedupe';
@@ -416,6 +416,22 @@ const App: React.FC = () => {
           ? `Loja salva. ${res.changedReceipts === 1 ? '1 cupom corrigido' : `${res.changedReceipts} cupons corrigidos`}.`
           : "Dados da loja salvos.");
       return null;
+  };
+
+  // Excluir loja: tira do cadastro e apaga os cupons dela (a folha já pediu confirmação com a contagem)
+  const handleDeleteStore = (est: Establishment) => {
+      const gone = receiptsOfStore(est, receipts).map(r => r.id);
+      restore.before('excluir uma loja');
+      const goneSet = new Set(gone);
+      const k = (e: Establishment) => `${cleanCNPJ(e.cnpj)}|${e.originalName}`;
+      setEstablishments(prev => prev.filter(e => k(e) !== k(est)));
+      if (gone.length > 0) {
+          setReceipts(prev => prev.filter(r => !goneSet.has(r.id)));
+          setSelectedReceiptId(prev => (prev && goneSet.has(prev) ? null : prev));
+          const uid = cloud.user?.id;
+          if (uid) gone.forEach(id => { deleteCloudReceipt(uid, id).catch(() => { /* a cópia na nuvem some no próximo envio */ }); });
+      }
+      showNotification(gone.length > 0 ? `Loja excluída, com ${gone.length} ${gone.length === 1 ? 'cupom' : 'cupons'}.` : 'Loja excluída.');
   };
 
   // Juntar lojas repetidas: o cadastro encolhe, os cupons e os códigos de produto passam para a loja que fica,
@@ -1623,7 +1639,7 @@ const App: React.FC = () => {
 
       {dupOpen && <DuplicateReceiptsSheet receipts={receipts} onConfirm={removeDuplicates} onClose={() => setDupOpen(false)} onIgnoredChange={setDupIgnored} />}
       {alignOpen && <AlignCategoriesSheet taxonomy={taxonomy} receipts={receipts} masters={masterProducts} onApply={handleAlignCategories} onClose={() => setAlignOpen(false)} />}
-      {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onClose={() => setEditingStore(null)} />}
+      {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onDelete={handleDeleteStore} onClose={() => setEditingStore(null)} />}
       {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} establishments={establishments} onEditStore={setEditingStore} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}
       {pendingDelete && (
         <ConfirmDialog
