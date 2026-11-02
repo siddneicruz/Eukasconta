@@ -82,3 +82,7 @@ begin
   update public.master_meta set version = version + 1, published_at = now() where id;
   return jsonb_build_object('stores', n);
 end $$;
+
+-- Número e bairro separados do endereço
+alter table public.master_stores add column if not exists number text not null default '', add column if not exists neighborhood text not null default '';
+-- publish_master_stores passou a gravar number e neighborhood (ver função no banco)

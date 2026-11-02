@@ -53,10 +53,9 @@ export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes
 
   const rawAlias = (name: string, cnpj?: string): string | null => {
     const d = digits(cnpj);
-    if (idLike(d)) { const hit = byCnpj.get(d); if (hit) return hit; }
-    const own = byName.get(plain(name));
-    if (own) return own;
-    return idLike(d) ? mAlias.get(d) ?? null : null;
+    // a tabela mãe é a mesma para todos: o apelido dela vale primeiro; o do aparelho só quando ela não tem
+    if (idLike(d)) { const m = mAlias.get(d); if (m) return m; const hit = byCnpj.get(d); if (hit) return hit; }
+    return byName.get(plain(name)) ?? null;
   };
   const aliasOf = (name: string, cnpj?: string): string | null => {
     const a = rawAlias(name, cnpj);
@@ -77,7 +76,7 @@ export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes
     const hit = typeCache.get(ck);
     if (hit) return hit;
     const d = digits(cnpj);
-    let t = (idLike(d) ? typeByCnpj.get(d) : undefined) || typeByName.get(plain(name)) || (idLike(d) ? mType.get(d) : undefined) || '';
+    let t = (idLike(d) ? mType.get(d) : undefined) || (idLike(d) ? typeByCnpj.get(d) : undefined) || typeByName.get(plain(name)) || '';
     if (!t && !isUnidentifiedName(name)) t = suggestStoreType(`${rawAlias(name, cnpj) || ''} ${name}`, storeTypes) || '';
     t = t || NO_STORE_TYPE;
     typeCache.set(ck, t);

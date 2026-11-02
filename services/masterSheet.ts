@@ -7,6 +7,13 @@ import { TaxonomyNode } from '../types';
 import { properCase } from './textFormat';
 import { cleanCode, normStoreKey } from './productCodes';
 import type { PublishPayload } from './masterService';
+import { splitAddress } from './establishmentEdit';
+
+const withSplitAddress = <T extends { address: string; number: string; neighborhood: string }>(x: T): T => {
+  if (x.number || x.neighborhood || !x.address.includes(',')) return x;
+  const p = splitAddress(x.address);
+  return { ...x, address: p.street, number: p.number, neighborhood: p.neighborhood };
+};
 
 export class MasterSheetError extends Error {}
 
@@ -142,10 +149,10 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
   const storeTypes: string[] = [];
   (typeRows || []).slice(1).forEach(r => { const t = properCase(cell(r[0])); if (t && !storeTypes.some(x => plain(x) === plain(t))) storeTypes.push(t); });
   const lojaRows = sheetRows(wb, ['lojas', 'estabelecimentos', 'apelidos']);
-  const stores: { cnpj: string; name: string; type: string; address: string; city: string; state: string; cep: string; legalName: string }[] = [];
+  const stores: { cnpj: string; name: string; type: string; address: string; number: string; neighborhood: string; city: string; state: string; cep: string; legalName: string }[] = [];
   if (lojaRows && lojaRows.length > 1) {
     const lh = lojaRows[0].map(cell); const lu = new Set<number>();
-    const lc = { cnpj: findCol(lh, ['cnpj'], lu), name: findCol(lh, ['apelido', 'nome'], lu), type: findCol(lh, ['tipo'], lu), legal: findCol(lh, ['razao social', 'razao'], lu), cep: findCol(lh, ['cep'], lu), address: findCol(lh, ['endereco', 'logradouro'], lu), city: findCol(lh, ['cidade', 'municipio'], lu), state: findCol(lh, ['uf', 'estado'], lu) };
+    const lc = { cnpj: findCol(lh, ['cnpj'], lu), name: findCol(lh, ['apelido', 'nome'], lu), type: findCol(lh, ['tipo'], lu), legal: findCol(lh, ['razao social', 'razao'], lu), cep: findCol(lh, ['cep'], lu), address: findCol(lh, ['endereco', 'logradouro'], lu), number: findCol(lh, ['numero', 'nº', 'n°'], lu), nb: findCol(lh, ['bairro'], lu), city: findCol(lh, ['cidade', 'municipio'], lu), state: findCol(lh, ['uf', 'estado'], lu) };
     if (lc.cnpj >= 0) lojaRows.slice(1).forEach((r, i) => {
       const d = cell(r[lc.cnpj]).replace(/\D/g, '');
       if (!d) return;
@@ -153,8 +160,9 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
       const type = lc.type >= 0 ? properCase(cell(r[lc.type])) : '';
       if (type && storeTypes.length && !storeTypes.some(x => plain(x) === plain(type))) warnings.push(`Aba Lojas, linha ${i + 2}: o tipo "${type}" não está na aba Tipos de loja.`);
       stores.push({ cnpj: d, name: lc.name >= 0 ? cell(r[lc.name]) : '', type, legalName: lc.legal >= 0 ? cell(r[lc.legal]) : '', cep: lc.cep >= 0 ? cell(r[lc.cep]).replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2') : '',
-        address: lc.address >= 0 ? cell(r[lc.address]) : '', city: lc.city >= 0 ? cell(r[lc.city]) : '', state: lc.state >= 0 ? cell(r[lc.state]).toUpperCase() : '' });
+        address: lc.address >= 0 ? cell(r[lc.address]) : '', number: lc.number >= 0 ? cell(r[lc.number]) : '', neighborhood: lc.nb >= 0 ? cell(r[lc.nb]) : '', city: lc.city >= 0 ? cell(r[lc.city]) : '', state: lc.state >= 0 ? cell(r[lc.state]).toUpperCase() : '' });
     });
+    stores.forEach((x, i) => { stores[i] = withSplitAddress(x); });
   }
   return { payload: { nodes, products, ...(storeTypes.length ? { storeTypes } : {}), ...(stores.length ? { stores } : {}) }, errors, warnings, counts: { nodes: nodes.length, products: products.length, unmapped, eans: eanCount, storeCodes } };
 };
@@ -187,8 +195,8 @@ const leafPaths = (nodes: TaxonomyNode[]): string[][] => {
 /** Lojas do cadastro deste aparelho que a tabela mãe ainda não tem (por CNPJ/CPF), prontas para entrar na aba Lojas. */
 export const storesFromLocal = (
   known: { cnpj: string }[],
-  local: { cnpj?: string; originalName?: string; aliasName?: string; type?: string; address?: string; cep?: string; city?: string; state?: string }[],
-): { cnpj: string; name: string; type: string; address: string; city: string; state: string; cep: string; legalName: string }[] => {
+  local: { cnpj?: string; originalName?: string; aliasName?: string; type?: string; address?: string; number?: string; neighborhood?: string; cep?: string; city?: string; state?: string }[],
+): { cnpj: string; name: string; type: string; address: string; number: string; neighborhood: string; city: string; state: string; cep: string; legalName: string }[] => {
   const have = new Set(known.map(k => String(k.cnpj).replace(/\D/g, '')));
   const out: ReturnType<typeof storesFromLocal> = [];
   local.forEach(e => {
@@ -197,12 +205,12 @@ export const storesFromLocal = (
     if (have.has(d)) return;
     have.add(d);
     const raw = String(e.originalName || '').trim();
-    out.push({ cnpj: d, name: String(e.aliasName || '').trim(), type: String(e.type || '').trim(), address: String(e.address || '').trim(), city: String(e.city || '').trim(), state: String(e.state || '').trim().toUpperCase(), cep: String(e.cep || '').trim(), legalName: /identificado via ocr/i.test(raw) ? '' : properCase(raw) });
+    out.push(withSplitAddress({ cnpj: d, name: String(e.aliasName || '').trim(), type: String(e.type || '').trim(), address: String(e.address || '').trim(), number: String(e.number || '').trim(), neighborhood: String(e.neighborhood || '').trim(), city: String(e.city || '').trim(), state: String(e.state || '').trim().toUpperCase(), cep: String(e.cep || '').trim(), legalName: /identificado via ocr/i.test(raw) ? '' : properCase(raw) }));
   });
   return out;
 };
 
-export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = []) => {
+export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; number?: string; neighborhood?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = []) => {
   const wb = XLSX.utils.book_new();
   const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);
   est['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 28 }];
@@ -225,7 +233,7 @@ export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetPro
   const tipos = XLSX.utils.aoa_to_sheet([['Tipo de estabelecimento'], ...(storeTypes.length ? storeTypes : ['Mercado', 'Restaurante e Lanchonete', 'Farmácia', 'Academia']).map(t => [t])]);
   tipos['!cols'] = [{ wch: 34 }];
   XLSX.utils.book_append_sheet(wb, tipos, 'Tipos de loja');
-  const lojasAba = XLSX.utils.aoa_to_sheet([['CNPJ', 'Apelido', 'Razão social', 'Tipo', 'Endereço', 'CEP', 'Cidade', 'UF'], ...[...stores].sort((a, b) => (a.name || a.cnpj).localeCompare(b.name || b.cnpj, 'pt-BR')).map(x => [x.cnpj, x.name, x.legalName || '', x.type, x.address || '', x.cep || '', x.city || '', x.state || ''])]);
+  const lojasAba = XLSX.utils.aoa_to_sheet([['CNPJ', 'Apelido', 'Razão social', 'Tipo', 'Endereço', 'Número', 'Bairro', 'CEP', 'Cidade', 'UF'], ...[...stores].sort((a, b) => (a.name || a.cnpj).localeCompare(b.name || b.cnpj, 'pt-BR')).map(x => [x.cnpj, x.name, x.legalName || '', x.type, x.address || '', x.number || '', x.neighborhood || '', x.cep || '', x.city || '', x.state || ''])]);
   lojasAba['!cols'] = [{ wch: 18 }, { wch: 28 }, { wch: 40 }, { wch: 26 }, { wch: 48 }, { wch: 11 }, { wch: 22 }, { wch: 6 }];
   Object.keys(lojasAba).forEach(a => { if ((a[0] === 'A' || a[0] === 'F') && !/^[AF]1$/.test(a) && lojasAba[a] && lojasAba[a].t === 'n') { lojasAba[a].t = 's'; lojasAba[a].v = String(lojasAba[a].v); } });
   XLSX.utils.book_append_sheet(wb, lojasAba, 'Lojas');

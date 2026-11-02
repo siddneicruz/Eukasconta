@@ -55,6 +55,7 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onClos
   const [error, setError] = useState('');
   const storeTypes = useMasterInfo().master?.storeTypes;
   const typeList = storeTypes && storeTypes.length ? storeTypes : DEFAULT_STORE_TYPES;
+  const masterStore = useMasterInfo().master?.stores?.find(m => m.cnpj === cleanCNPJ(est.cnpj) && m.cnpj);
   const set = (patch: Partial<StoreDraft>) => { setDraft(d => ({ ...d, ...patch })); setError(''); };
 
   useEffect(() => {
@@ -122,8 +123,8 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onClos
           </Section>
 
           <Section title="Identificação">
-            <Field label="Apelido" hint={<span className="text-zinc-500">Como você chama a loja. Aparece em todas as telas.</span>}>
-              <input type="text" value={draft.aliasName} onChange={e => set({ aliasName: e.target.value })} placeholder="Como você chama esta loja" data-testid="store-edit-alias"
+            <Field label="Apelido" hint={<span className="text-zinc-500">{masterStore?.name ? 'Definido na tabela mãe, igual para todos. Para mudar, edite a aba Lojas da planilha.' : 'Como você chama a loja. Aparece em todas as telas.'}</span>}>
+              <input type="text" value={masterStore?.name || draft.aliasName} disabled={!!masterStore?.name} onChange={e => set({ aliasName: e.target.value })} placeholder="Como você chama esta loja" data-testid="store-edit-alias"
                 className={`${inputCls} !text-luxury-gold font-semibold placeholder:font-normal`} />
             </Field>
             <Field label="Tipo de estabelecimento" hint={<span className="text-zinc-500">{draft.type ? 'Usado no filtro do início e nos relatórios.' : (() => { const g = suggestStoreType(`${draft.aliasName} ${draft.originalName}`, typeList); return g ? `Sem escolha, o app usa "${g}", pelo nome da loja.` : 'Sem escolha, a loja fica em "Sem tipo".'; })()}</span>}>
@@ -148,9 +149,17 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onClos
 
           <Section title="Endereço">
             <div className="grid grid-cols-[1fr_auto] gap-3">
-              <Field label="Endereço" className="col-span-2">
-                <input type="text" value={draft.address} onChange={e => set({ address: e.target.value })} placeholder="Rua, número, bairro" data-testid="store-edit-address" className={inputCls} />
+              <Field label="Endereço (rua ou avenida)" className="col-span-2">
+                <input type="text" value={draft.address} onChange={e => set({ address: e.target.value })} placeholder="Avenida Fernando Machado" data-testid="store-edit-address" className={inputCls} />
               </Field>
+              <div className="col-span-2 grid grid-cols-[7rem_1fr] gap-3">
+                <Field label="Número">
+                  <input type="text" value={draft.number} onChange={e => set({ number: e.target.value })} placeholder="3750" data-testid="store-edit-number" className={`${inputCls} tabular-nums`} />
+                </Field>
+                <Field label="Bairro">
+                  <input type="text" value={draft.neighborhood} onChange={e => set({ neighborhood: e.target.value })} placeholder="Líder" data-testid="store-edit-neighborhood" className={inputCls} />
+                </Field>
+              </div>
               <Field label="Cidade">
                 <input type="text" value={draft.city} onChange={e => set({ city: e.target.value })} data-testid="store-edit-city" className={inputCls} />
               </Field>

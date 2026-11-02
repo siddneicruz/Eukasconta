@@ -19,7 +19,7 @@ import ProductHistoryView from './components/ProductHistoryView';
 import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
 import EstablishmentEditSheet from './components/EstablishmentEditSheet';
-import { applyStoreEdit, StoreDraft } from './services/establishmentEdit';
+import { applyStoreEdit, StoreDraft, joinAddress } from './services/establishmentEdit';
 import { applyMergePlans, applyRedirects, loadRedirects, retargetRedirects, saveRedirects, type MergePlan } from './services/storeDedupe';
 import { rekeyStoreCodes, applyCodeEdit, CodeOp, normStoreKey, codeKind } from './services/productCodes';
 import SettingsView from './components/SettingsView';
@@ -627,7 +627,7 @@ const App: React.FC = () => {
   });
   const master = useMasterSync({ userId: cloud.user?.id ?? null, taxonomy, setTaxonomy, receipts, setReceipts, masterProducts, setMasterProducts, onToast: (m) => showNotification(m, 6000) });
 
-  // Endereço, cidade e UF da tabela mãe preenchem só as lojas que ainda não têm (o que a pessoa escreveu nunca é trocado)
+  // A tabela mãe é a fonte única: endereço (rua, número, bairro), CEP, cidade e UF dela valem para a loja do mesmo CNPJ
   const masterStores = master.master?.stores;
   useEffect(() => {
     if (!masterStores || masterStores.length === 0) return;
@@ -636,14 +636,17 @@ const App: React.FC = () => {
       let changed = false;
       const next = prev.map(e => {
         const m = byCnpj.get(String(e.cnpj || '').replace(/\D/g, ''));
-        if (!m || (e.address && e.address.trim())) return e;
-        if (!m.address) return e;
+        if (!m) return e;
+        const address = joinAddress({ street: m.address, number: m.number, neighborhood: m.neighborhood });
+        const patch: Partial<Establishment> = {};
+        if (address && address !== e.address) patch.address = address;
+        if (m.cep && m.cep !== e.cep) patch.cep = m.cep;
+        if (m.city && m.city !== e.city) patch.city = m.city;
+        if (m.state && m.state !== e.state) patch.state = m.state;
+        if (m.type && m.type !== e.type) patch.type = m.type;
+        if (Object.keys(patch).length === 0) return e;
         changed = true;
-        const patch: Partial<Establishment> = { address: m.address };
-        if (!e.cep && m.cep) patch.cep = m.cep;
-        if (!e.city && m.city) patch.city = m.city;
-        if (!e.state && m.state) patch.state = m.state;
-        return { ...e, ...patch, geocodeStatus: e.latitude != null ? e.geocodeStatus : 'pending' };
+        return { ...e, ...patch, ...(patch.address ? { geocodeStatus: 'pending' as const } : {}) };
       });
       return changed ? next : prev;
     });
@@ -1615,7 +1618,7 @@ const App: React.FC = () => {
       {dupOpen && <DuplicateReceiptsSheet receipts={receipts} onConfirm={removeDuplicates} onClose={() => setDupOpen(false)} onIgnoredChange={setDupIgnored} />}
       {alignOpen && <AlignCategoriesSheet taxonomy={taxonomy} receipts={receipts} masters={masterProducts} onApply={handleAlignCategories} onClose={() => setAlignOpen(false)} />}
       {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onClose={() => setEditingStore(null)} />}
-      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}
+      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} establishments={establishments} onEditStore={setEditingStore} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}
       {pendingDelete && (
         <ConfirmDialog
           title="Excluir este lançamento?"

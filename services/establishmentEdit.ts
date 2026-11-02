@@ -76,6 +76,24 @@ export const splitLatLng = (text: string): [string, string] | null => {
 
 /* ───────────────────────────── rascunho e gravação ───────────────────────────── */
 
+/* Endereço em partes: rua, número e bairro. O cadastro guarda uma frase só ("Av. Fernando Machado, 3750, Líder"); estas duas
+   funções separam e juntam, para a folha da loja, a tabela mãe e o histórico mostrarem as mesmas partes. */
+export interface AddressParts { street: string; number: string; neighborhood: string }
+export const splitAddress = (raw: string | undefined | null): AddressParts => {
+  let t = String(raw ?? '').replace(/\s+/g, ' ').trim();
+  t = t.replace(/\s*-?\s*CEP:?\s*\d{5}-?\d{3}.*/i, '').replace(/\s*-\s*[^-,]*\/\s*[A-Za-z]{2}\s*$/, '').trim();
+  const parts = t.replace(/\s+-\s+/g, ', ').split(/\s*,\s*/).filter(Boolean);
+  if (parts.length === 0) return { street: '', number: '', neighborhood: '' };
+  const street = parts[0];
+  const rest = parts.slice(1);
+  const isNum = (x: string) => /^(\d+[A-Za-z]?(-[A-Za-z0-9]+)?|s\/?n|sem n[uú]mero)$/i.test(x);
+  if (rest.length === 0) return { street, number: '', neighborhood: '' };
+  if (isNum(rest[0])) return { street, number: rest[0], neighborhood: rest.slice(1).join(', ') };
+  return { street, number: '', neighborhood: rest.join(', ') };
+};
+export const joinAddress = (p: Partial<AddressParts>): string =>
+  [p.street, p.number, p.neighborhood].map(x => String(x ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ');
+
 export interface StoreDraft {
   type: string;
   aliasName: string;
@@ -83,6 +101,8 @@ export interface StoreDraft {
   cnpj: string;
   cep: string;
   address: string;
+  number: string;
+  neighborhood: string;
   city: string;
   state: string;
   latitude: string;
@@ -95,7 +115,7 @@ export const draftOf = (e: Establishment): StoreDraft => ({
   originalName: e.originalName || '',
   cnpj: cleanCNPJ(e.cnpj),
   cep: formatCep(e.cep) || cepFromAddress(e.address),
-  address: e.address || '',
+  ...(() => { const a = splitAddress(e.address); return { address: a.street, number: a.number, neighborhood: a.neighborhood }; })(),
   city: e.city || '',
   state: e.state || '',
   latitude: typeof e.latitude === 'number' ? String(e.latitude) : '',
@@ -142,7 +162,7 @@ export const applyStoreEdit = (
       : 'Já existe outra loja sem CNPJ com este nome.' };
   }
 
-  const address = squash(draft.address), city = squash(draft.city);
+  const address = joinAddress({ street: draft.address, number: draft.number, neighborhood: draft.neighborhood }), city = squash(draft.city);
   const addrChanged = address !== squash(prev.address || '') || city !== squash(prev.city || '') || state !== squash(prev.state || '').toUpperCase();
   const hadCoords = typeof prev.latitude === 'number' && typeof prev.longitude === 'number';
   const typedCoords = 'value' in la && 'value' in lo;

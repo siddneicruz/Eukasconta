@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
-import { Receipt, ReceiptItem } from '../types';
+import { Receipt, ReceiptItem, Establishment } from '../types';
 import { X, Calendar, MapPin, Hash, ChevronDown, ChevronUp, PieChart, Edit2, Check, ChevronLeft, ChevronRight, Fuel, Utensils, ShoppingCart, Home, AlertCircle, Heart, Droplets, Smile, Shirt, Zap, Briefcase, PawPrint, FileText, Scroll, MessageSquare, Send, Croissant, Download, Folder, FileType, Save, Trash2, Plus, Clock, Globe } from 'lucide-react';
 import { getCategoryIcon } from './Dashboard';
 import { formatCNPJ } from '../services/productNormalization';
@@ -28,6 +28,9 @@ interface ReceiptDetailProps {
   categories: string[];
   knownEstablishments?: string[];
   knownProducts?: string[];
+  // Cadastro de lojas (o mesmo da tela Lojas) e o atalho que abre a mesma tela "Dados da loja"
+  establishments?: Establishment[];
+  onEditStore?: (est: Establishment) => void;
   // Ovos: quantas outras compras do mesmo item (mesma loja) ainda estão sem a quantidade, e o atalho que copia a escolha para elas
   eggSameCount?: (receipt: Receipt, index: number) => number;
   onApplyEggSame?: (receipt: Receipt, index: number) => number;
@@ -143,11 +146,20 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
     );
 };
 
-const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [], eggSameCount, onApplyEggSame }) => {
-  const { aliasOf } = useStoreNames();
+const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [], establishments = [], onEditStore, eggSameCount, onApplyEggSame }) => {
+  const { aliasOf, nameOf } = useStoreNames();
+  const [otherStore, setOtherStore] = useState(false);
+  const digitsOf = (v?: string) => String(v || '').replace(/\D/g, '');
+  const storeOptions = useMemo(() => [...establishments].map(e => ({ e, label: nameOf(e.originalName, e.cnpj) })).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')), [establishments, nameOf]);
+  const pickStore = (idx: string) => {
+    const opt = storeOptions[Number(idx)];
+    if (!opt) return;
+    setEditedReceipt(prev => ({ ...prev, establishmentName: opt.e.originalName, cnpj: opt.e.cnpj || '', city: opt.e.city || prev.city, state: opt.e.state || prev.state }));
+  };
   const [viewMode, setViewMode] = useState<'cards' | 'thermal'>('thermal'); // abre no cupom em TXT; o Estruturado fica na aba da direita
   const [isEditing, setIsEditing] = useState(false);
   const [editedReceipt, setEditedReceipt] = useState<Receipt>(receipt);
+  const currentStore = useMemo(() => establishments.find(e => (digitsOf(e.cnpj) && digitsOf(e.cnpj) === digitsOf(editedReceipt.cnpj)) || (!digitsOf(e.cnpj) && !digitsOf(editedReceipt.cnpj) && e.originalName === editedReceipt.establishmentName)) ?? null, [establishments, editedReceipt.cnpj, editedReceipt.establishmentName]);
 
   useEffect(() => {
     setEditedReceipt(receipt);
@@ -278,29 +290,39 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
               <div className="space-y-3">
                   {/* dados do cupom em grade de 12 colunas: 3 linhas no celular, na largura toda; rolam junto com os itens */}
                   <div className="grid grid-cols-12 gap-x-2 gap-y-2 p-3 rounded-lg bg-zinc-900/40 border border-white/5" data-testid="edit-header-fields">
-                      <div className="col-span-12">
+                      <div className="col-span-12" data-testid="edit-store-picker">
                           <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Estabelecimento</label>
-                          <input type="text" list="est-list-edit" value={editedReceipt.establishmentName} onChange={(e) => updateHeader('establishmentName', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-base font-serif text-white focus:border-luxury-gold outline-none" />
-                      </div>
-                      <div className="col-span-6">
-                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">CNPJ</label>
-                          <input type="text" value={editedReceipt.cnpj} onChange={(e) => updateHeader('cnpj', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-300 focus:border-luxury-gold outline-none" />
+                          {establishments.length > 0 && !otherStore ? (
+                              <>
+                                  <select value={currentStore ? String(storeOptions.findIndex(o => o.e === currentStore)) : ''} onChange={(e) => { if (e.target.value === 'other') setOtherStore(true); else pickStore(e.target.value); }} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-base font-serif text-white focus:border-luxury-gold outline-none">
+                                      {!currentStore && <option value="">{titleCase(editedReceipt.establishmentName) || 'Escolha a loja'} (fora do cadastro)</option>}
+                                      {storeOptions.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+                                      <option value="other">Outra loja (digitar)…</option>
+                                  </select>
+                                  <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                                      <span className="truncate">{editedReceipt.cnpj ? `CNPJ ${formatCNPJ(editedReceipt.cnpj)}` : 'Sem CNPJ'}{editedReceipt.city ? ` · ${editedReceipt.city}${editedReceipt.state ? '/' + editedReceipt.state : ''}` : ''}</span>
+                                      {currentStore && onEditStore && <button type="button" onClick={() => onEditStore(currentStore)} className="shrink-0 text-luxury-gold font-semibold" data-testid="edit-store-open">Editar dados da loja</button>}
+                                  </div>
+                              </>
+                          ) : (
+                              <div className="space-y-2">
+                                  <input type="text" list="est-list-edit" value={editedReceipt.establishmentName} onChange={(e) => updateHeader('establishmentName', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-base font-serif text-white focus:border-luxury-gold outline-none" />
+                                  <div className="grid grid-cols-12 gap-2">
+                                      <input type="text" placeholder="CNPJ" value={editedReceipt.cnpj} onChange={(e) => updateHeader('cnpj', e.target.value)} className="col-span-6 bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-300 focus:border-luxury-gold outline-none" />
+                                      <input type="text" placeholder="Cidade" value={editedReceipt.city} onChange={(e) => updateHeader('city', e.target.value)} className="col-span-4 bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200 focus:border-luxury-gold outline-none" />
+                                      <input type="text" placeholder="UF" maxLength={2} value={editedReceipt.state} onChange={(e) => updateHeader('state', e.target.value.toUpperCase())} className="col-span-2 bg-black border border-white/10 rounded px-1 py-1.5 text-sm text-center text-zinc-200 uppercase focus:border-luxury-gold outline-none" />
+                                  </div>
+                                  {establishments.length > 0 && <button type="button" onClick={() => setOtherStore(false)} className="text-[11px] text-luxury-gold font-semibold">Voltar à lista de lojas</button>}
+                              </div>
+                          )}
                       </div>
                       <div className="col-span-6">
                           <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Data</label>
                           <input type="date" value={editedReceipt.date} onChange={(e) => updateHeader('date', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200 focus:border-luxury-gold outline-none" />
                       </div>
-                      <div className="col-span-5">
+                      <div className="col-span-6">
                           <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Hora</label>
                           <input type="time" step="1" value={editedReceipt.time} onChange={(e) => updateHeader('time', e.target.value)} className="w-full bg-black border border-white/10 rounded px-1.5 py-1.5 text-[13px] text-zinc-200 focus:border-luxury-gold outline-none" />
-                      </div>
-                      <div className="col-span-5">
-                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">Cidade</label>
-                          <input type="text" value={editedReceipt.city} onChange={(e) => updateHeader('city', e.target.value)} className="w-full bg-black border border-white/10 rounded px-2 py-1.5 text-sm text-zinc-200 focus:border-luxury-gold outline-none" />
-                      </div>
-                      <div className="col-span-2">
-                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-0.5">UF</label>
-                          <input type="text" maxLength={2} value={editedReceipt.state} onChange={(e) => updateHeader('state', e.target.value.toUpperCase())} className="w-full bg-black border border-white/10 rounded px-1 py-1.5 text-sm text-center text-zinc-200 uppercase focus:border-luxury-gold outline-none" />
                       </div>
                   </div>
                   <ReceiptItemsEditor items={editedReceipt.items} categories={categories}
