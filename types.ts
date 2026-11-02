@@ -137,6 +137,8 @@ export interface UnifiedVault {
 export interface DashboardConfig {
     year: number;
     month: number | null;
+    /** vários meses escolhidos (2 ou mais); nesse caso `month` fica nulo */
+    months?: number[];
     category: string | null;
     quickFilter: '7d' | '30d' | 'custom' | null;
     customStartDate: string;

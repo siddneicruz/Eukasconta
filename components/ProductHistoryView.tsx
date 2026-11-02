@@ -1,5 +1,6 @@
 
 import React, { useMemo } from 'react';
+import { monthInPeriod } from '../services/monthsSelect';
 import { Receipt, DashboardConfig } from '../types';
 import { ChevronLeft, ShoppingBag, ArrowRight, Store, History, Calendar, Clock, ChevronRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -53,7 +54,7 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
             if (rDate < limit) return false;
         } else {
             if (rDate.getFullYear() !== config.year) return false;
-            if (config.month !== null && rDate.getMonth() !== config.month) return false;
+            if (!monthInPeriod(config, rDate.getMonth())) return false;
         }
         return r.items.some(item => item.category === subCategoryName);
     }).sort((a, b) => b.date.localeCompare(a.date));

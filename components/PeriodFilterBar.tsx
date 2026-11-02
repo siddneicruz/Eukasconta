@@ -3,6 +3,8 @@ import { Calendar, CalendarDays, ChevronDown, RotateCcw } from 'lucide-react';
 import { DashboardConfig } from '../types';
 import PeriodPicker from './PeriodPicker';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
+import { monthOn, yearOn } from '../services/monthsSelect';
+import { useMonthPick } from './useMonthPick';
 import { MONTHS_SHORT, resetPeriod, shortPeriod } from '../services/periodFilter';
 
 /* Filtro de período do Histórico, igual ao do Início: fechado é só um botão com o período ("01/10 a 20/10");
@@ -21,6 +23,7 @@ const PeriodFilterBar: React.FC<Props> = ({ config, onConfigChange, testId = 'hi
   const custom = config.quickFilter === 'custom';
   const years = Array.from(new Set([2024, 2025, 2026, new Date().getFullYear(), config.year])).sort((a, b) => a - b);
   const set = (p: Partial<DashboardConfig>) => onConfigChange({ ...config, ...p });
+  const pickMonth = useMonthPick(config, onConfigChange);
 
   // ao abrir, o mês escolhido aparece na fileira (ela rola para o lado)
   useEffect(() => {
@@ -82,18 +85,19 @@ const PeriodFilterBar: React.FC<Props> = ({ config, onConfigChange, testId = 'hi
             </div>
           ) : (
             <div ref={monthsRef} className="flex items-center justify-start gap-0.5 px-1 overflow-x-auto no-scrollbar" data-testid={`${testId}-months`}>
-              <button type="button" onClick={() => set({ month: null, quickFilter: null })} data-on={config.month === null && !config.quickFilter ? 'true' : 'false'} data-testid={`${testId}-year-all`}
-                className={`px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
+              <button type="button" onClick={() => set({ month: null, months: undefined, quickFilter: null })} data-on={yearOn(config) ? 'true' : 'false'} data-testid={`${testId}-year-all`}
+                className={`px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${yearOn(config) ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
                 ANUAL
               </button>
               {MONTHS_SHORT.map((m, idx) => (
-                <button key={m} type="button" onClick={() => set({ month: idx, quickFilter: null })} data-on={config.month === idx && !config.quickFilter ? 'true' : 'false'} data-testid={`${testId}-month-${idx}`}
-                  className={`px-2.5 py-2 rounded-full text-xs font-bold transition-all ${config.month === idx && !config.quickFilter ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <button key={m} type="button" onClick={() => pickMonth(idx)} data-on={monthOn(config, idx) ? 'true' : 'false'} data-testid={`${testId}-month-${idx}`}
+                  className={`px-2.5 py-2 rounded-full text-xs font-bold transition-all ${monthOn(config, idx) ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   {m}
                 </button>
               ))}
             </div>
           )}
+          {!custom && <p className="px-3 text-[10px] text-zinc-600">Toque duas vezes seguidas num mês para somar vários. Mais dois toques tiram.</p>}
         </div>
       )}
     </div>

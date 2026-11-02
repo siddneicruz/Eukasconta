@@ -1,5 +1,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { monthInPeriod, monthOn, yearOn } from '../services/monthsSelect';
+import { useMonthPick } from './useMonthPick';
 import { Receipt, DashboardConfig, TaxonomyNode, MasterProduct } from '../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from 'recharts';
 import InteractiveDonut from './InteractiveDonut';
@@ -420,6 +422,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [] }) => {
+  const pickMonth = useMonthPick(config, onConfigChange);
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
   // No celular a barra de filtros fica numa linha só (categoria + período); toca no período para abrir o resto.
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -467,7 +470,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         }
         
         if (rDate.getFullYear() !== config.year) return false;
-        if (config.month !== null && rDate.getMonth() !== config.month) return false;
+        if (!monthInPeriod(config, rDate.getMonth())) return false;
         return true;
     });
   }, [itemReceipts, config, keyOf]);
@@ -652,13 +655,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                     </div>
                     <div className={`order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 ${moreCls} items-center justify-start md:justify-between gap-0.5 md:gap-1 px-1 md:px-4 overflow-x-auto no-scrollbar`} data-testid="filter-months">
                         <button
-                            onClick={() => onConfigChange({ ...config, month: null, quickFilter: null })}
-                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
+                            onClick={() => onConfigChange({ ...config, month: null, months: undefined, quickFilter: null })}
+                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${yearOn(config) ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
                         >
                             ANUAL
                         </button>
                         {MONTHS_SHORT.map((m, idx) => (
-                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-2.5 py-1.5 md:px-3 md:py-2 rounded-full text-xs font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                            <button key={m} onClick={() => pickMonth(idx)} className={`px-2.5 py-1.5 md:px-3 md:py-2 rounded-full text-xs font-bold transition-all ${monthOn(config, idx) ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                 {m}
                             </button>
                         ))}

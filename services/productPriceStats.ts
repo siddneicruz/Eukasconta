@@ -1,3 +1,4 @@
+import { monthInPeriod } from './monthsSelect';
 import { Receipt, ReceiptItem } from '../types';
 import { normalizeProductName } from './productNormalization';
 import { priceBasis, eggNeedsCount } from './eggs';
@@ -123,6 +124,7 @@ export const computePriceStats = (obs: PriceObservation[]): PriceStats => {
 export interface PeriodConfig {
   year: number;
   month: number | null;
+  months?: number[];
   quickFilter: '7d' | '30d' | 'custom' | null;
   customStartDate: string;
   customEndDate: string;
@@ -142,7 +144,7 @@ export const isDateInPeriod = (date: string, config: PeriodConfig, now: Date = n
     return d >= limit;
   }
   if (d.getFullYear() !== config.year) return false;
-  if (config.month !== null && d.getMonth() !== config.month) return false;
+  if (!monthInPeriod(config, d.getMonth())) return false;
   return true;
 };
 

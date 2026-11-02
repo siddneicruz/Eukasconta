@@ -1,5 +1,7 @@
 
 import StoreTypeFilter from './StoreTypeFilter';
+import { monthInPeriod, monthOn, yearOn } from '../services/monthsSelect';
+import { useMonthPick } from './useMonthPick';
 import { useStoreNames } from './StoreNamesContext';
 import { applyStoreTypeFilter, useStoreTypeFilter } from '../services/storeTypes';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -76,6 +78,7 @@ const Reports: React.FC<ReportsProps> = ({
   onUpdateMasterProducts,
   taxonomy = [],
 }) => {
+  const pickMonth = useMonthPick(config, onConfigChange);
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
   // Filtro por tipo de estabelecimento (o mesmo do início): todo o relatório passa a olhar só as lojas dos tipos escolhidos
   const { typeOf, aliasOf } = useStoreNames();
@@ -559,7 +562,7 @@ const Reports: React.FC<ReportsProps> = ({
         }
         
         if (rDate.getFullYear() !== config.year) return false;
-        if (config.month !== null && rDate.getMonth() !== config.month) return false;
+        if (!monthInPeriod(config, rDate.getMonth())) return false;
         return true;
     });
   }, [receipts, config]);
@@ -857,13 +860,13 @@ const Reports: React.FC<ReportsProps> = ({
                     </div>
                     <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 flex items-center justify-start md:justify-between gap-1 px-2 md:px-4 overflow-x-auto no-scrollbar">
                         <button 
-                            onClick={() => onConfigChange({ ...config, month: null, quickFilter: null })} 
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${config.month === null && !config.quickFilter ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
+                            onClick={() => onConfigChange({ ...config, month: null, months: undefined, quickFilter: null })} 
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${yearOn(config) ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
                         >
                             ANUAL
                         </button>
                         {MONTHS_SHORT.map((m, idx) => (
-                            <button key={m} onClick={() => onConfigChange({ ...config, month: idx, quickFilter: null })} className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${config.month === idx ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                            <button key={m} onClick={() => pickMonth(idx)} className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${monthOn(config, idx) ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                 {m}
                             </button>
                         ))}

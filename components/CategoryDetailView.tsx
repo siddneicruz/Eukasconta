@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
+import { monthInPeriod } from '../services/monthsSelect';
 import { Receipt, DashboardConfig } from '../types';
 import { ChevronLeft, Palette, Store, ChevronDown, History } from 'lucide-react';
 import InteractiveDonut from './InteractiveDonut';
@@ -42,7 +43,7 @@ const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ categoryName, r
             if (rDate < limit) return false;
         } else {
             if (rDate.getFullYear() !== config.year) return false;
-            if (config.month !== null && rDate.getMonth() !== config.month) return false;
+            if (!monthInPeriod(config, rDate.getMonth())) return false;
         }
         return r.items.some(item => sameDept(item.category, categoryName));
     }).sort((a, b) => b.date.localeCompare(a.date));

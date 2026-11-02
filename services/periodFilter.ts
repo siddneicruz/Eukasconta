@@ -6,7 +6,7 @@ import { isCurrentMonthPeriod } from './currentMonth';
 export const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 /** Período em poucas letras para a barra de filtros fechada ("Mai 2026", "Ano 2026", "7 dias", "01/05 a 15/05"). */
-export const shortPeriod = (c: Pick<DashboardConfig, 'year' | 'month' | 'quickFilter' | 'customStartDate' | 'customEndDate'>): string => {
+export const shortPeriod = (c: Pick<DashboardConfig, 'year' | 'month' | 'months' | 'quickFilter' | 'customStartDate' | 'customEndDate'>): string => {
   if (c.quickFilter === '7d') return '7 dias';
   if (c.quickFilter === '30d') return '30 dias';
   if (c.quickFilter === 'custom') {
@@ -20,10 +20,11 @@ export const shortPeriod = (c: Pick<DashboardConfig, 'year' | 'month' | 'quickFi
     const p2 = (n: number) => String(n).padStart(2, '0');
     return `01/${p2(t.getMonth() + 1)} a ${p2(t.getDate())}/${p2(t.getMonth() + 1)}`;
   }
+  if (c.months && c.months.length > 1) return `${c.months.map(m => MONTHS_SHORT[m].charAt(0) + MONTHS_SHORT[m].slice(1).toLowerCase()).join(', ')} ${c.year}`;
   if (c.month !== null && c.month !== undefined) return `${MONTHS_SHORT[c.month].charAt(0)}${MONTHS_SHORT[c.month].slice(1).toLowerCase()} ${c.year}`;
   return `Ano ${c.year}`;
 };
 
 /** Volta só o período para o mês atual (mantém item, loja e categoria escolhidos). */
 export const resetPeriod = (c: DashboardConfig, now: Date = new Date()): DashboardConfig =>
-  ({ ...c, year: now.getFullYear(), month: now.getMonth(), quickFilter: null, customStartDate: '', customEndDate: '' });
+  ({ ...c, year: now.getFullYear(), month: now.getMonth(), months: undefined, quickFilter: null, customStartDate: '', customEndDate: '' });
