@@ -31,6 +31,9 @@ interface TransactionListProps {
   // Cupons repetidos (a mesma compra salva mais de uma vez): aviso discreto que abre a revisão
   duplicateCount?: number;
   onReviewDuplicates?: () => void;
+  // Conferência de uma loja: mostra só os cupons dela, de todos os períodos, até a pessoa sair
+  storeCheck?: { label: string; ids: string[] } | null;
+  onClearStoreCheck?: () => void;
 }
 
 const normalizeText = (text: string) => {
@@ -43,7 +46,7 @@ const LONG_PRESS_MS = 450;   // segurar o cupom por esse tempo mostra a lixeira
 const PRESS_SLOP_PX = 8;     // mexer o dedo mais que isso é rolagem, não um "segurar"
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config, masterProducts = [], onConfigChange, duplicateCount = 0, onReviewDuplicates }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearStoreCheck, receipts, onSelectReceipt, onDeleteReceipt, onSelectEstablishment, onSelectProduct, onExportData, onExportTxtZip, onAddManual, initialCategory, config, masterProducts = [], onConfigChange, duplicateCount = 0, onReviewDuplicates }) => {
   const { nameOf } = useStoreNames();
   const [searchTerm, setSearchTerm] = useState('');
   const [establishmentFilter, setEstablishmentFilter] = useState('');
@@ -111,7 +114,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
     const term = normalizeText(searchTerm);
     const itemMatch = itemFilter ? makeItemMatcher(itemFilter) : null;
     
+    const checkIds = storeCheck ? new Set(storeCheck.ids) : null;
     return receipts.filter(r => {
+        if (checkIds) return checkIds.has(r.id);
         if (itemMatch && !r.items.some(itemMatch)) return false;
         const matchesSearch = normalizeText(r.establishmentName).includes(term) || normalizeText(nameOf(r.establishmentName, r.cnpj)).includes(term) || 
                               r.totalAmount.toString().includes(term) ||
@@ -139,7 +144,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
         }
         return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount;
     });
-  }, [receipts, searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, config, itemFilter, nameOf]);
+  }, [receipts, searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, config, itemFilter, nameOf, storeCheck]);
 
   // Agrupamento para exibição por mês (Timeline)
   const groupedReceipts = useMemo(() => {
@@ -288,6 +293,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ receipts, onSelectRec
         </div>
       )}
 
+      {storeCheck && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 px-4 py-3" data-testid="store-check-banner">
+          <p className="text-sm text-zinc-200 min-w-0"><span className="text-luxury-gold font-bold">Conferindo a loja:</span> {storeCheck.label} · {storeCheck.ids.length} {storeCheck.ids.length === 1 ? 'cupom' : 'cupons'}, de todos os períodos</p>
+          <button type="button" onClick={onClearStoreCheck} className="shrink-0 text-xs font-bold text-luxury-gold hover:text-white">Mostrar todos ✕</button>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto space-y-10 pr-2 pb-20 custom-scrollbar relative z-10">
         {priceItems.length > 0 && (
           <div data-testid="hist-price-section">

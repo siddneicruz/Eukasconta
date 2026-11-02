@@ -43,6 +43,7 @@ import { isSameCupom, findDuplicateGroups, duplicateRemovalCount, loadIgnoredGro
 const EstablishmentsMapView = lazy(() => import('./components/EstablishmentsMapView'));
 import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
+import { buildStoreNamer } from './services/establishmentNames';
 import ShoppingListView from './components/ShoppingListView';
 import { LayersProvider } from './components/LayersContext';
 import { MasterProvider } from './components/MasterContext';
@@ -323,6 +324,9 @@ const App: React.FC = () => {
   const [selectedEstablishment, setSelectedEstablishment] = useState<string | null>(null);
   // Loja aberta para editar todos os dados (Config > Lojas e Mapa)
   const [editingStore, setEditingStore] = useState<Establishment | null>(null);
+  // Conferência de uma loja: o Histórico mostra só os cupons dela (todos os períodos) até a pessoa sair
+  const [storeCheck, setStoreCheck] = useState<{ label: string; ids: string[] } | null>(null);
+  useEffect(() => { if (view !== 'history') setStoreCheck(null); }, [view]);
 
   useEffect(() => {
       localStorage.setItem('eukasconta_data', JSON.stringify(receipts));
@@ -1468,7 +1472,7 @@ const App: React.FC = () => {
                 {view === 'establishment_detail' && selectedEstablishment && (
                     <EstablishmentDetailView establishmentName={selectedEstablishment} receipts={receipts} onBack={() => setView('reports')} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} />
                 )}
-                {view === 'history' && <TransactionList receipts={receipts} config={dashboardConfig} onConfigChange={setDashboardConfig} masterProducts={masterProducts} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} duplicateCount={dupCount} onReviewDuplicates={() => setDupOpen(true)} />}
+                {view === 'history' && <TransactionList storeCheck={storeCheck} onClearStoreCheck={() => setStoreCheck(null)} receipts={receipts} config={dashboardConfig} onConfigChange={setDashboardConfig} masterProducts={masterProducts} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} duplicateCount={dupCount} onReviewDuplicates={() => setDupOpen(true)} />}
                 {view === 'reports' && (
                     <Reports 
                         receipts={receipts} 
@@ -1639,7 +1643,7 @@ const App: React.FC = () => {
 
       {dupOpen && <DuplicateReceiptsSheet receipts={receipts} onConfirm={removeDuplicates} onClose={() => setDupOpen(false)} onIgnoredChange={setDupIgnored} />}
       {alignOpen && <AlignCategoriesSheet taxonomy={taxonomy} receipts={receipts} masters={masterProducts} onApply={handleAlignCategories} onClose={() => setAlignOpen(false)} />}
-      {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onDelete={handleDeleteStore} onClose={() => setEditingStore(null)} />}
+      {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onDelete={handleDeleteStore} onViewReceipts={(est, ids) => { setStoreCheck({ label: buildStoreNamer(establishments, master.master?.storeTypes, master.master?.stores || []).nameOf(est.originalName, est.cnpj), ids }); setEditingStore(null); setSelectedReceiptId(null); setView('history'); }} onClose={() => setEditingStore(null)} />}
       {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} establishments={establishments} onEditStore={setEditingStore} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}
       {pendingDelete && (
         <ConfirmDialog

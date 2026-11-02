@@ -21,6 +21,8 @@ interface Props {
   onSave: (prev: Establishment, draft: StoreDraft) => string | null;
   /** apaga a loja do cadastro e, junto, os cupons dela (a folha avisa quantos são e pede confirmação) */
   onDelete?: (est: Establishment) => void;
+  /** abre o Histórico só com os cupons desta loja, para conferir */
+  onViewReceipts?: (est: Establishment, ids: string[]) => void;
   onClose: () => void;
 }
 
@@ -52,7 +54,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
   </section>
 );
 
-const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onDelete, onClose }) => {
+const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onDelete, onViewReceipts, onClose }) => {
   const [confirmDel, setConfirmDel] = useState(false);
   const ownCount = useMemo(() => receiptsOfStore(est, receipts).length, [est, receipts]);
   const [draft, setDraft] = useState<StoreDraft>(() => draftOf(est));
@@ -121,6 +123,12 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onDele
                 </div>
               ))}
             </div>
+            {onViewReceipts && summary.receipts > 0 && (
+              <button type="button" data-testid="store-view-receipts" onClick={() => onViewReceipts(est, receiptsOfStore(est, receipts).map(r => r.id))}
+                className="w-full py-3 rounded-xl border border-luxury-gold/40 text-luxury-gold text-xs font-bold hover:bg-luxury-gold/10 transition-colors">
+                Ver os {summary.receipts} {summary.receipts === 1 ? 'cupom' : 'cupons'} no Histórico
+              </button>
+            )}
             <p className="text-xs text-zinc-500">
               {summary.receipts > 0 ? `Primeira compra ${day(summary.first)} · última ${day(summary.last)} · ${summary.items} ${summary.items === 1 ? 'item' : 'itens'}` : 'Nenhum cupom desta loja ainda.'}
             </p>
