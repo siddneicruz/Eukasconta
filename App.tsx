@@ -1500,6 +1500,7 @@ const App: React.FC = () => {
                         onEditEstablishment={setEditingStore}
                         onApplyAliases={handleApplyAliases}
                         onMergeStores={handleMergeStores}
+                        onSaveStore={handleSaveStore}
                         onClearData={() => {
                             // Antes de apagar tudo, guarda um ponto de restauração (os pontos não são apagados pelo Hard Reset)
                             restore.before('apagar tudo');

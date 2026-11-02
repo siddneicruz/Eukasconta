@@ -6,6 +6,8 @@ import {
     Upload, RefreshCw, Calculator, Eraser, History as HistoryIcon, Clock, 
     FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText
 } from 'lucide-react';
+import type { StoreDraft } from '../services/establishmentEdit';
+import { Link2 } from 'lucide-react';
 import { Receipt, Establishment, TaxonomyNode, AILearningEntry, MasterProduct } from '../types';
 import { getCategoryIcon, getCategoryColor } from './Dashboard';
 import TaxonomyEditor from './TaxonomyEditor';
@@ -29,6 +31,7 @@ import { titleCase } from '../services/textFormat';
 import { AppMark, PDLogo } from './Brand';
 import NicknameSuggestSheet from './NicknameSuggestSheet';
 import StoreDuplicatesSheet from './StoreDuplicatesSheet';
+import MasterReconcileSheet from './MasterReconcileSheet';
 import { findStoreGroups, removableCount, type MergePlan } from '../services/storeDedupe';
 import { agoText, parseWhen, useFileBackupAt, useNow, whenText } from '../services/lastWhen';
 import type { ProductGroup } from '../services/productUnify';
@@ -67,6 +70,7 @@ interface SettingsViewProps {
   onApplyAliases?: (list: { cnpj: string; originalName: string; aliasName: string }[]) => void;
   // Juntar lojas repetidas (cupons, códigos e dados passam para a loja que fica)
   onMergeStores?: (plans: MergePlan[]) => void;
+  onSaveStore?: (prev: Establishment, draft: StoreDraft) => string | null;
   restore: RestorePointsApi;
   onEditIcon?: (category: string) => void;
   onUnifyEstablishments?: () => void;
@@ -134,7 +138,7 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 const SettingsView: React.FC<SettingsViewProps> = ({ 
   taxonomy, onUpdateTaxonomy, onMergeCategories, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
-  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, onMergeStores, restore, 
+  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, onMergeStores, onSaveStore, restore, 
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -148,6 +152,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const [estSearchTerm, setEstSearchTerm] = useState('');
   const [nickOpen, setNickOpen] = useState(false);
   const [dupOpen, setDupOpen] = useState(false);
+  const [reconOpen, setReconOpen] = useState(false);
   // quantos cadastros sobrariam a menos: só se calcula com a aba de lojas aberta e fora do caminho da digitação do apelido
   const dupStores = useDeferredValue(establishments);
   const dupCount = useMemo(() => (settingsTab === 'establishments' && onMergeStores ? removableCount(findStoreGroups(dupStores, receipts)) : 0), [settingsTab, onMergeStores, dupStores, receipts]);
@@ -249,6 +254,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                           <p className="text-zinc-400 text-xs mt-1.5">Dê um apelido às lojas e corrija nome, CNPJ, endereço e posição no mapa.</p>
                       </div>
                       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4 w-full md:w-auto">
+                          {onMergeStores && onSaveStore && (master.master?.stores?.length ?? 0) > 0 && (
+                              <button onClick={() => setReconOpen(true)} data-testid="recon-open"
+                                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 text-zinc-300 text-xs font-bold hover:border-luxury-gold/40 hover:text-luxury-gold transition-all">
+                                  <Link2 className="w-4 h-4" /> Conferir com a tabela mãe
+                              </button>
+                          )}
                           {onMergeStores && (
                               <button onClick={() => setDupOpen(true)} data-testid="dup-open" data-count={dupCount}
                                   className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-semibold text-sm transition-all border whitespace-nowrap justify-center ${dupCount > 0 ? 'bg-luxury-gold text-black border-luxury-gold hover:brightness-110' : 'bg-white/5 text-zinc-400 border-white/5 hover:bg-luxury-gold hover:text-black'}`}>
@@ -336,6 +347,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
       )}
 
+      {reconOpen && onMergeStores && onSaveStore && (
+          <MasterReconcileSheet establishments={establishments} receipts={receipts} masterStores={master.master?.stores || []} onMerge={onMergeStores} onSave={onSaveStore} onClose={() => setReconOpen(false)} />
+      )}
       {dupOpen && onMergeStores && (
           <StoreDuplicatesSheet establishments={establishments} receipts={receipts} onMerge={onMergeStores} onClose={() => setDupOpen(false)} />
       )}

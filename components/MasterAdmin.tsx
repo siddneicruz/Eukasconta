@@ -22,6 +22,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
   const layers = useLayers();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'' | 'export' | 'read' | 'publish'>('');
+  const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const [parsed, setParsed] = useState<{ file: string; data: ParsedMaster; diff: MasterDiff } | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -100,16 +101,17 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
     if (!parsed || parsed.data.errors.length) return;
     setBusy('publish'); setError('');
     try {
-      const res = await publishMaster(parsed.data.payload);
+      // lojas e tipos primeiro: são pequenos e levam apelido, endereço e tipo a todos os aparelhos mesmo que a estrutura demore
       const types = parsed.data.payload.storeTypes;
-      if (types && types.length) await publishStoreTypes(types);
+      if (types && types.length) { setProgress('Tipos de loja…'); await publishStoreTypes(types); }
       const lojas = parsed.data.payload.stores;
-      if (lojas && lojas.length) await publishMasterStores(lojas);
+      if (lojas && lojas.length) { setProgress('Lojas…'); await publishMasterStores(lojas); }
+      const res = await publishMaster(parsed.data.payload, setProgress);
       await info.syncNow(true);
       onToast?.(`Publicado (versão ${res.version}): ${plural(res.nodes_added, 'categoria nova', 'categorias novas')}, ${plural(res.products, 'produto', 'produtos')}.`);
       setParsed(null); setConfirm(false);
     } catch (e: any) { setError(e?.message || 'Não consegui publicar.'); }
-    finally { setBusy(''); }
+    finally { setBusy(''); setProgress(''); }
   };
 
   const review = async (s: TaxSuggestion, approve: boolean) => {
@@ -198,7 +200,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
               <button type="button" disabled={bad || !!busy} onClick={() => setConfirm(true)} data-testid="madmin-publish" className={`${btn} flex-1 bg-luxury-gold text-black`}>Publicar para todos</button>
             ) : (
               <button type="button" disabled={bad || !!busy} onClick={publish} data-testid="madmin-confirm" className={`${btn} flex-1 bg-red-600 text-white`}>
-                {busy === 'publish' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Confirmar: troca a estrutura de todos os usuários
+                {busy === 'publish' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {busy === 'publish' && progress ? progress : 'Confirmar: troca a estrutura de todos os usuários'}
               </button>
             )}
             <button type="button" onClick={() => { setParsed(null); setConfirm(false); }} className={`${btn} sm:w-36 bg-white/5 border border-white/10 text-zinc-300`}>Cancelar</button>

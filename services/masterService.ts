@@ -209,21 +209,44 @@ export interface PublishPayload {
 }
 export interface PublishResult { version: number; nodes_added: number; nodes_removed: number; products: number; unmapped: number; codes?: number }
 
-export const publishMaster = async (payload: PublishPayload): Promise<PublishResult> => {
-  const { data, error } = await supabase.rpc('publish_master', { p: payload });
-  if (error) throw new Error(rpcError(error));
-  return data as PublishResult;
+const chunked = <T,>(arr: T[], size: number): T[][] => { const out: T[][] = []; for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size)); return out; };
+const callRpc = async (fn: string, args: Record<string, unknown>): Promise<any> => {
+  // uma nova tentativa para falha de rede passageira; erro do servidor vale na primeira
+  for (let attempt = 0; ; attempt++) {
+    const { data, error } = await supabase.rpc(fn, args);
+    if (!error) return data;
+    const transient = /fetch|network|failed to|timeout|timed out/i.test(error.message || '');
+    if (attempt >= 1 || !transient) throw new Error(rpcError(error));
+  }
 };
 
-export const publishStoreTypes = async (types: string[]): Promise<void> => {
-  const { error } = await supabase.rpc('publish_store_types', { p: types });
-  if (error) throw new Error(rpcError(error));
+/** Publica em pedaços pequenos (o servidor corta cada pedido em 8 s): categorias, produtos e, no fim, o fechamento que apaga o que saiu e avisa os aparelhos. */
+export const publishMaster = async (payload: PublishPayload, onProgress?: (msg: string) => void): Promise<PublishResult> => {
+  const batch = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `${Date.now().toString(16).padStart(8, '0')}-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`;
+  const nodes = payload.nodes.map((n, i) => ({ ...n, ord: i + 1 })).sort((a, b) => a.path.length - b.path.length || a.ord - b.ord);
+  if (nodes.length === 0) throw new Error('A planilha não tem nenhuma categoria; nada foi publicado');
+  let added = 0;
+  const nodeChunks = chunked(nodes, 300);
+  for (let i = 0; i < nodeChunks.length; i++) {
+    onProgress?.(`Categorias ${i + 1} de ${nodeChunks.length}…`);
+    const r = await callRpc('publish_master_nodes', { p: nodeChunks[i], batch });
+    added += Number(r?.added || 0);
+  }
+  let prods = 0, unmapped = 0, codes = 0;
+  const prodChunks = chunked(payload.products || [], 150);
+  for (let i = 0; i < prodChunks.length; i++) {
+    onProgress?.(`Produtos ${i + 1} de ${prodChunks.length}…`);
+    const r = await callRpc('publish_master_products', { p: prodChunks[i] });
+    prods += Number(r?.products || 0); unmapped += Number(r?.unmapped || 0); codes += Number(r?.codes || 0);
+  }
+  onProgress?.('Concluindo…');
+  const fin = await callRpc('publish_master_finish', { batch });
+  return { version: Number(fin?.version || 0), nodes_added: added, nodes_removed: Number(fin?.nodes_removed || 0), products: prods, unmapped, codes };
 };
 
-export const publishMasterStores = async (stores: MasterStore[]): Promise<void> => {
-  const { error } = await supabase.rpc('publish_master_stores', { p: stores });
-  if (error) throw new Error(rpcError(error));
-};
+export const publishStoreTypes = async (types: string[]): Promise<void> => { await callRpc('publish_store_types', { p: types }); };
+
+export const publishMasterStores = async (stores: MasterStore[]): Promise<void> => { await callRpc('publish_master_stores', { p: stores }); };
 
 export interface TaxSuggestion {
   id: string; user_id: string; parent_path: string[]; name: string;
