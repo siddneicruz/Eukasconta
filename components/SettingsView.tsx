@@ -12,6 +12,7 @@ import TaxonomyEditor from './TaxonomyEditor';
 import MasterStructureView from './MasterStructureView';
 import MasterAdmin from './MasterAdmin';
 import { useMasterInfo } from './MasterContext';
+import { useStoreNames } from './StoreNamesContext';
 import type { MergeResult } from '../services/taxonomyDedupe';
 import ProductMappingEditor from './ProductMappingEditor';
 import AILearningManager from './AILearningManager';
@@ -140,6 +141,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const [iconSearch, setIconSearch] = useState('');
   const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account' | 'master'>((initialTab as any) || 'taxonomy');
   const master = useMasterInfo();
+  const storeNames = useStoreNames();
+  const masterByCnpj = useMemo(() => new Map((master.master?.stores || []).filter(m => m.name).map(m => [String(m.cnpj).replace(/\D/g, ''), m.name] as const)), [master.master?.stores]);
+  const masterAliasOf = (est: { cnpj?: string }): string | null => { const d = String(est.cnpj || '').replace(/\D/g, ''); const a = d ? masterByCnpj.get(d) : null; return a ? storeNames.aliasOf('', est.cnpj) : null; };
   const [expandedAesthetics, setExpandedAesthetics] = useState<string[]>([]);
   const [estSearchTerm, setEstSearchTerm] = useState('');
   const [nickOpen, setNickOpen] = useState(false);
@@ -196,7 +200,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
       const term = estSearchTerm.toUpperCase();
       return establishments.filter(e => 
           e.originalName.toUpperCase().includes(term) || 
-          (e.aliasName && e.aliasName.toUpperCase().includes(term)) ||
+          ((masterAliasOf(e) || e.aliasName || '').toUpperCase().includes(term)) ||
           e.cnpj.includes(term)
       ).sort((a,b) => a.originalName.localeCompare(b.originalName));
   }, [establishments, estSearchTerm]);
@@ -305,8 +309,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                           <div className="relative group/edit">
                                               <input 
                                                 type="text" 
-                                                value={est.aliasName || ''} 
+                                                value={masterAliasOf(est) || est.aliasName || ''} 
                                                 onChange={e => onUpdateEstablishment({...est, aliasName: e.target.value})}
+                                                readOnly={!!masterAliasOf(est)}
+                                                title={masterAliasOf(est) ? 'Apelido da tabela mãe: para mudar, edite lá' : undefined}
                                                 placeholder="Definir apelido"
                                                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold placeholder:text-zinc-600 placeholder:font-normal"
                                               />

@@ -27,7 +27,7 @@ const secId = (l: string) => `store-sec-${l === '#' ? 'num' : l}`;
 const StoreIndexList: React.FC<Props> = ({ stores, onUpdate, onEditAll }) => {
   // apelido: o que a pessoa escreveu na loja; sem ele, o da tabela mãe (por CNPJ)
   const { aliasOf } = useStoreNames();
-  const aliasFor = (e: Establishment): string => (e.aliasName && e.aliasName.trim()) || aliasOf(e.originalName, e.cnpj) || '';
+  const aliasFor = (e: Establishment): string => aliasOf(e.originalName, e.cnpj) || (e.aliasName || '').trim();
   const nameOf = (e: Establishment): string => aliasFor(e) || titleCase(e.originalName) || 'Sem nome';
   const [openKey, setOpenKey] = useState<string | null>(null);
   // enquanto a loja está aberta para editar, ela fica no lugar de antes (o apelido muda a cada letra e a linha não pode sair andando)

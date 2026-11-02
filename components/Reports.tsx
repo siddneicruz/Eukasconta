@@ -50,7 +50,9 @@ interface ReportsProps {
 const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
 const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
-const getEstablishmentDisplayName = (originalName: string, cnpj: string, establishments: Establishment[] = []) => {
+const getEstablishmentDisplayName = (originalName: string, cnpj: string, establishments: Establishment[] = [], aliasOf?: (n: string, c?: string) => string | null) => {
+    const fromNamer = aliasOf?.(originalName, cnpj);
+    if (fromNamer) return fromNamer;
     const match = establishments.find(e => (cnpj && e.cnpj === cnpj) || (e.originalName === originalName));
     if (match?.aliasName) return match.aliasName;
     
@@ -76,7 +78,7 @@ const Reports: React.FC<ReportsProps> = ({
 }) => {
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
   // Filtro por tipo de estabelecimento (o mesmo do início): todo o relatório passa a olhar só as lojas dos tipos escolhidos
-  const { typeOf } = useStoreNames();
+  const { typeOf, aliasOf } = useStoreNames();
   const [typeSel] = useStoreTypeFilter();
   const receipts = useMemo(() => applyStoreTypeFilter(allReceipts, typeSel, typeOf), [allReceipts, typeSel, typeOf]);
   // O que está sendo comparado (departamentos e categorias das compras do usuário) e a cor de cada um
@@ -775,7 +777,7 @@ const Reports: React.FC<ReportsProps> = ({
     });
     return Object.entries(agg)
         .map(([name, data]) => ({ 
-            name: getEstablishmentDisplayName(name, data.cnpj, establishments), 
+            name: getEstablishmentDisplayName(name, data.cnpj, establishments, aliasOf), 
             realName: name,
             value: data.total 
         }))
@@ -930,7 +932,7 @@ const Reports: React.FC<ReportsProps> = ({
                   <ReportsPanorama
                       receipts={receipts}
                       config={config}
-                      displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments)}
+                      displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
                       onQuickRange={setQuickRange}
                       onSelectEstablishment={onSelectEstablishment}
                       onOpenReceipt={onOpenReceipt}
@@ -981,7 +983,7 @@ const Reports: React.FC<ReportsProps> = ({
               {activeSection === 'cuts' && (
                   <CutsPanel
                       receipts={receipts}
-                      displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments)}
+                      displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
                       selectedId={cutSelId}
                       onSelect={setCutSelId}
                       onOpenReceipt={onOpenReceipt}
