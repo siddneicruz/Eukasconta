@@ -21,7 +21,7 @@ begin
   if jsonb_typeof(p) is distinct from 'array' or jsonb_array_length(p) = 0 then
     raise exception 'A lista de tipos está vazia; nada foi publicado';
   end if;
-  delete from public.store_types;
+  delete from public.store_types where true;
   insert into public.store_types (name, sort)
     select btrim(e.value #>> '{}'), e.ord::int from jsonb_array_elements(p) with ordinality as e(value, ord)
     where btrim(e.value #>> '{}') <> ''

@@ -24,7 +24,7 @@ declare n int;
 begin
   if not public.is_admin() then raise exception 'Só o administrador publica a tabela mãe' using errcode = '42501'; end if;
   if jsonb_typeof(p) is distinct from 'array' then raise exception 'Lista de lojas inválida'; end if;
-  delete from public.master_stores;
+  delete from public.master_stores where true;
   insert into public.master_stores (cnpj, name, type)
     select regexp_replace(e->>'cnpj', '\D', '', 'g'), btrim(coalesce(e->>'name','')), btrim(coalesce(e->>'type',''))
     from jsonb_array_elements(p) e
@@ -46,7 +46,7 @@ declare n int;
 begin
   if not public.is_admin() then raise exception 'Só o administrador publica a tabela mãe' using errcode = '42501'; end if;
   if jsonb_typeof(p) is distinct from 'array' then raise exception 'Lista de lojas inválida'; end if;
-  delete from public.master_stores;
+  delete from public.master_stores where true;
   insert into public.master_stores (cnpj, name, type, address, city, state)
     select regexp_replace(e->>'cnpj', '\D', '', 'g'), btrim(coalesce(e->>'name','')), btrim(coalesce(e->>'type','')),
            btrim(coalesce(e->>'address','')), btrim(coalesce(e->>'city','')), upper(btrim(coalesce(e->>'state','')))
@@ -68,7 +68,7 @@ declare n int;
 begin
   if not public.is_admin() then raise exception 'Só o administrador publica a tabela mãe' using errcode = '42501'; end if;
   if jsonb_typeof(p) is distinct from 'array' then raise exception 'Lista de lojas inválida'; end if;
-  delete from public.master_stores;
+  delete from public.master_stores where true;
   insert into public.master_stores (cnpj, name, type, address, city, state, cep, legal_name)
     select regexp_replace(e->>'cnpj', '\D', '', 'g'), btrim(coalesce(e->>'name','')), btrim(coalesce(e->>'type','')),
            btrim(coalesce(e->>'address','')), btrim(coalesce(e->>'city','')), upper(btrim(coalesce(e->>'state',''))),
