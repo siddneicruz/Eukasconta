@@ -21,7 +21,8 @@ const AUTO_KEY = 'eukasconta_backup_auto';
 const KEYS_KEY = 'eukasconta_backup_keys';
 const HASH_KEY = (uid: string) => `eukasconta_backup_hash_${uid}`;
 const RESTORED_FLAG = 'eukasconta_backup_restored';
-const APP_VERSION = '1';
+import { APP_BUILD } from './appVersion';
+const APP_VERSION = String(APP_BUILD);
 
 const readFlag = (key: string, fallback: boolean): boolean => {
   try { const v = localStorage.getItem(key); return v === null ? fallback : v === '1'; } catch { return fallback; }

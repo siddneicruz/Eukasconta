@@ -32,6 +32,7 @@ import { findStoreGroups, removableCount, type MergePlan } from '../services/sto
 import { agoText, parseWhen, useFileBackupAt, useNow, whenText } from '../services/lastWhen';
 import type { ProductGroup } from '../services/productUnify';
 import type { CodeOp } from '../services/productCodes';
+import { APP_BUILD } from '../services/appVersion';
 import { storeCodeOptions } from '../services/establishmentNames';
 import type { UnifyPlan } from './ProductUnifySheet';
 
@@ -404,6 +405,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
       <footer className="mt-16 pt-10 border-t border-white/5 flex flex-col items-center text-center gap-4 px-4">
           <AppMark className="h-14 w-auto" title="Eu Kasconta" />
           <p className="text-xs text-zinc-500">Eu Kasconta — suas compras sob controle.</p>
+          <p className="text-[11px] text-zinc-600 tabular-nums" data-testid="app-version">Versão {APP_BUILD}</p>
           <div className="mt-2 flex flex-col items-center gap-2 text-zinc-300">
               <span className="text-[11px] font-medium text-zinc-500">Criado por</span>
               <PDLogo className="w-52 sm:w-64" />
