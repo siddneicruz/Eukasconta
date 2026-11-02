@@ -162,7 +162,7 @@ const cityKey = (e: Pick<Establishment, 'city'>): string => {
   const k = t.join(' ');
   return UFS.has(k) ? '' : k;      // "SC" sozinho não é cidade
 };
-const cityCompat = (a: Establishment, b: Establishment): CityRel => {
+export const cityCompat = (a: Establishment, b: Establishment): CityRel => {
   const x = cityKey(a), y = cityKey(b);
   if (!x || !y) return 'desconhecida';
   if (x === y) return 'igual';
@@ -182,7 +182,7 @@ const addrParts = (e: Pick<Establishment, 'address'>): { street: string[]; numbe
   return { street, number };
 };
 /** 'igual' só quando rua e número batem; sem endereço dos dois lados não dá para saber. */
-const addressCompat = (a: Establishment, b: Establishment): Compat => {
+export const addressCompat = (a: Establishment, b: Establishment): Compat => {
   const x = addrParts(a), y = addrParts(b);
   if (x.street.length === 0 || y.street.length === 0) return 'desconhecida';
   const same = x.street.every(t => hasEq(y.street, t)) && y.street.every(t => hasEq(x.street, t));

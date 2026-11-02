@@ -20,6 +20,8 @@ import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
 import EstablishmentEditSheet from './components/EstablishmentEditSheet';
 import { applyStoreEdit, StoreDraft, joinAddress } from './services/establishmentEdit';
+import { resolveReceiptStore } from './services/storeResolver';
+import type { MasterStore } from './services/masterService';
 import { applyMergePlans, applyRedirects, loadRedirects, retargetRedirects, saveRedirects, type MergePlan } from './services/storeDedupe';
 import { rekeyStoreCodes, applyCodeEdit, CodeOp, normStoreKey, codeKind } from './services/productCodes';
 import SettingsView from './components/SettingsView';
@@ -239,7 +241,9 @@ const App: React.FC = () => {
 
   // Cupom novo entra já com a categoria da Estrutura (nome antigo conhecido, ou parecido com segurança)
   const alignIndex = useMemo(() => buildAlignIndex(taxonomy), [taxonomy]);
-  const snapNew = (r: Receipt): Receipt => snapReceiptCategories([r], alignIndex, loadAliases()).receipts[0];
+  // Tabela mãe de lojas (a mesma para todos): corrige CNPJ, razão social e endereço do cupom na hora em que ele entra
+  const masterStoresRef = useRef<MasterStore[]>([]);
+  const snapNew = (r: Receipt): Receipt => resolveReceiptStore(snapReceiptCategories([r], alignIndex, loadAliases()).receipts[0], masterStoresRef.current).receipt;
 
   // Tela "Alinhar categorias": abre pelo botão da Estrutura e pelo aviso das listas de escolha
   const [alignOpen, setAlignOpen] = useState(false);
@@ -629,6 +633,7 @@ const App: React.FC = () => {
 
   // A tabela mãe é a fonte única: endereço (rua, número, bairro), CEP, cidade e UF dela valem para a loja do mesmo CNPJ
   const masterStores = master.master?.stores;
+  masterStoresRef.current = masterStores || [];
   useEffect(() => {
     if (!masterStores || masterStores.length === 0) return;
     const byCnpj = new Map(masterStores.map(m => [String(m.cnpj).replace(/\D/g, ''), m] as const));
