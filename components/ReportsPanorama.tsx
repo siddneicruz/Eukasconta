@@ -386,7 +386,7 @@ const usePrefersReducedMotion = () => {
 };
 
 // Número que "desliza" até o novo valor, partindo do que já estava na tela.
-const useCountUp = (target: number, disabled: boolean, duration = 1000) => {
+const useCountUp = (target: number, disabled: boolean, duration = 350) => {
   const [value, setValue] = useState(disabled ? target : 0);
   const from = useRef(disabled ? target : 0);
   useEffect(() => {
@@ -424,7 +424,7 @@ const TONE: Record<Tone, string> = {
 };
 
 const Reveal: React.FC<{ i: number; className?: string; children: React.ReactNode }> = ({ i, className = '', children }) => (
-  <div className={`animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both motion-reduce:animate-none ${className}`} style={{ animationDelay: `${i * 90}ms` }}>
+  <div className={`animate-in fade-in slide-in-from-bottom-4 duration-300 fill-mode-both motion-reduce:animate-none ${className}`} style={{ animationDelay: `${i * 90}ms` }}>
     {children}
   </div>
 );
@@ -625,12 +625,12 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10, fontWeight: 600 }} interval="preserveStartEnd" minTickGap={26} dy={8} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10 }} tickFormatter={compact} width={48} />
                 <Tooltip cursor={{ stroke: '#D4AF37', strokeOpacity: 0.3, strokeDasharray: '3 3' }} content={(p: any) => <HeroTooltip {...p} mode={mode} prevLabel={a.rg.prevLabel} monthly={a.monthly} />} />
-                <Line type="monotone" dataKey={pKey} stroke={ct.prev} strokeWidth={1.5} strokeDasharray="4 5" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={1400} />
+                <Line type="monotone" dataKey={pKey} stroke={ct.prev} strokeWidth={1.5} strokeDasharray="4 5" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={350} />
                 {mode === 'acum' && a.projection !== null && (
-                  <Line type="monotone" dataKey="proj" stroke="#D4AF37" strokeOpacity={0.7} strokeWidth={2} strokeDasharray="2 6" strokeLinecap="round" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={1800} />
+                  <Line type="monotone" dataKey="proj" stroke="#D4AF37" strokeOpacity={0.7} strokeWidth={2} strokeDasharray="2 6" strokeLinecap="round" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={350} />
                 )}
                 <Area type="monotone" dataKey={yKey} stroke="#D4AF37" strokeWidth={2.5} fill="url(#pgGold)" dot={false}
-                  activeDot={{ r: 5, stroke: '#D4AF37', strokeWidth: 2, fill: ct.dot }} isAnimationActive={!reduced} animationDuration={1400} animationEasing="ease-out" />
+                  activeDot={{ r: 5, stroke: '#D4AF37', strokeWidth: 2, fill: ct.dot }} isAnimationActive={!reduced} animationDuration={350} animationEasing="ease-out" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -706,7 +706,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                     <Pie
                       data={a.depts} dataKey="value" nameKey="name" innerRadius="68%" outerRadius="96%"
                       paddingAngle={a.depts.length > 1 ? 3 : 0} cornerRadius={6} stroke="none" startAngle={90} endAngle={-270}
-                      isAnimationActive={!reduced} animationDuration={1200} animationEasing="ease-out"
+                      isAnimationActive={!reduced} animationDuration={350} animationEasing="ease-out"
                       onMouseEnter={(_: any, idx: number) => setActiveDept(idx)} onMouseLeave={() => setActiveDept(null)}
                       onClick={(_: any, idx: number) => setActiveDept(cur => (cur === idx ? null : idx))}
                     >
@@ -742,7 +742,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full transition-[width] duration-1000 ease-out" style={{ width: ready ? `${d.share}%` : '0%', backgroundColor: d.color, transitionDelay: `${i * 70}ms` }} />
+                      <div className="h-full rounded-full transition-[width] duration-300 ease-out" style={{ width: ready ? `${d.share}%` : '0%', backgroundColor: d.color, transitionDelay: `${i * 70}ms` }} />
                     </div>
                   </li>
                 ))}
@@ -773,7 +773,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                       </TipBox>
                     ) : null}
                   />
-                  <Bar dataKey="value" radius={[8, 8, 8, 8]} maxBarSize={44} isAnimationActive={!reduced} animationDuration={1100} animationEasing="ease-out">
+                  <Bar dataKey="value" radius={[8, 8, 8, 8]} maxBarSize={44} isAnimationActive={!reduced} animationDuration={350} animationEasing="ease-out">
                     {rhythmRows.map(r => <Cell key={r.name} fill={r === rhythmPeak ? '#D4AF37' : ct.barDim} />)}
                   </Bar>
                 </BarChart>
@@ -804,7 +804,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                     </div>
                     <p className="text-xs text-zinc-500 mb-2">{s.n} {s.n === 1 ? 'compra' : 'compras'} · ticket {brl.format(s.ticket)} · {Math.round(s.share)}% do gasto</p>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full bg-blue-500 transition-[width] duration-1000 ease-out" style={{ width: ready ? `${(s.total / maxStore) * 100}%` : '0%', transitionDelay: `${i * 70}ms` }} />
+                      <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-out" style={{ width: ready ? `${(s.total / maxStore) * 100}%` : '0%', transitionDelay: `${i * 70}ms` }} />
                     </div>
                   </button>
                 </li>

@@ -184,7 +184,7 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
                       <XAxis dataKey="name" hide={true} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#52525b', fontSize: 10 }} tickFormatter={(val) => `R$${val}`} />
                       <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />
-                      <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={2000}>
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={350}>
                           {establishmentData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                           ))}

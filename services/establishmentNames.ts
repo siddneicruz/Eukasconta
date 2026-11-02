@@ -57,19 +57,30 @@ export const buildStoreNamer = (establishments: Establishment[] = [], storeTypes
     if (idLike(d)) { const m = mAlias.get(d); if (m) return m; const hit = byCnpj.get(d); if (hit) return hit; }
     return byName.get(plain(name)) ?? null;
   };
-  const aliasOf = (name: string, cnpj?: string): string | null => {
+  // Estas funções rodam uma vez por cupom em todas as telas: o resultado de cada loja fica guardado
+  const memo = <T,>(fn: (name: string, cnpj?: string) => T) => {
+    const cache = new Map<string, T>();
+    return (name: string, cnpj?: string): T => {
+      const k = `${cnpj || ''}|${name}`;
+      if (cache.has(k)) return cache.get(k) as T;
+      const v = fn(name, cnpj);
+      cache.set(k, v);
+      return v;
+    };
+  };
+  const aliasOf = memo((name: string, cnpj?: string): string | null => {
     const a = rawAlias(name, cnpj);
     return a ? titleCase(a) : null;
-  };
-  const nameOf = (name: string, cnpj?: string): string => {
+  });
+  const nameOf = memo((name: string, cnpj?: string): string => {
     const a = aliasOf(name, cnpj);
     if (a) return a;
     return isUnidentifiedName(name) ? UNIDENTIFIED_LABEL : titleCase(name);
-  };
-  const keyOf = (name: string, cnpj?: string): string => {
+  });
+  const keyOf = memo((name: string, cnpj?: string): string => {
     const a = rawAlias(name, cnpj);
     return a ? `a:${plain(a)}` : `n:${plain(name)}`;
-  };
+  });
   const typeCache = new Map<string, string>();
   const typeOf = (name: string, cnpj?: string): string => {
     const ck = `${digits(cnpj)}|${name}`;

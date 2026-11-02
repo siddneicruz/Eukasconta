@@ -814,7 +814,7 @@ const Reports: React.FC<ReportsProps> = ({
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
       <div className="flex flex-col gap-3 md:gap-6 mb-4 md:mb-10 md:sticky md:top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 md:py-4 md:-mx-6 md:px-6">
         <div className="flex flex-col md:flex-row ls:flex-row md:items-center ls:items-center justify-between gap-3 md:gap-6 ls:gap-4 mb-0 md:mb-4 ls:mb-0">
             <div>
@@ -966,7 +966,7 @@ const Reports: React.FC<ReportsProps> = ({
                               <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} />
                               <Tooltip cursor={{fill: 'rgba(255,255,255,0.03)'}} content={<CustomTooltip />} />
                               {/* Fix: casting data to any when accessing realName to avoid TS error */}
-                              <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={28} animationDuration={700} onClick={(data) => data && onSelectEstablishment && onSelectEstablishment((data as any).realName)}>
+                              <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={28} animationDuration={350} onClick={(data) => data && onSelectEstablishment && onSelectEstablishment((data as any).realName)}>
                                   {establishmentRankData.map((entry, index) => (
                                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
                                   ))}

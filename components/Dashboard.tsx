@@ -586,7 +586,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
       {deptSheetOpen && <DeptFilterSheet options={deptOptions} filter={deptFilter} onChange={setDeptFilter} onClose={() => setDeptSheetOpen(false)} z="z-[250]" />}
       <div className="flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>
@@ -895,7 +895,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           </div>
 
       {/* NOVO: RELAÇÃO DE ESTABELECIMENTOS / RECIBOS */}
-      <div className="animate-in slide-in-from-bottom-8 duration-700">
+      <div className="animate-in slide-in-from-bottom-2 duration-300">
           <div className="flex items-center gap-3 mb-8 px-1">
               <History className="w-5 h-5 text-luxury-gold" />
               <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Relação de Aquisições por Fluxo</h3>
