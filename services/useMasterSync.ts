@@ -1,6 +1,7 @@
 // Mantém o app igual à tabela mãe: baixa quando a versão muda, troca a estrutura local e reclassifica os itens.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MasterProduct, Receipt, TaxonomyNode } from '../types';
+import { supabase } from './supabaseClient';
 import { applyMasterCodes } from './masterCodes';
 import type { MasterInfo } from '../components/MasterContext';
 import {
@@ -19,7 +20,7 @@ interface Opts {
   onToast?: (msg: string) => void;
 }
 
-const EVERY_MS = 5 * 60 * 1000;
+const EVERY_MS = 60 * 1000;   // confere a versão (uma consulta leve) a cada minuto, além do aviso em tempo real
 
 export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setReceipts, masterProducts, setMasterProducts, onToast }: Opts): MasterInfo => {
   const [master, setMaster] = useState<MasterData | null>(loadMasterCache);
@@ -68,7 +69,17 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
     const id = window.setInterval(tick, EVERY_MS);
     document.addEventListener('visibilitychange', tick);
     window.addEventListener('online', tick);
-    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick); window.removeEventListener('online', tick); };
+    // aviso em tempo real: quando o administrador publica, quem está com o app aberto atualiza na hora
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase.channel('master-meta')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'master_meta' }, () => { void syncNow(); })
+        .subscribe();
+    } catch { /* sem tempo real: segue a conferência a cada minuto */ }
+    return () => {
+      window.clearInterval(id); document.removeEventListener('visibilitychange', tick); window.removeEventListener('online', tick);
+      try { if (channel) void supabase.removeChannel(channel); } catch { /* já fechado */ }
+    };
   }, [userId, syncNow]);
 
   // A estrutura local é a da tabela mãe (também depois de restaurar um backup antigo)
