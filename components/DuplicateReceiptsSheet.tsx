@@ -30,7 +30,12 @@ const DuplicateReceiptsSheet: React.FC<Props> = ({ receipts, onConfirm, onClose,
   const [ignored, setIgnored] = useState<string[]>(() => loadIgnoredGroups());
   const groups = useMemo(() => findDuplicateGroups(receipts), [receipts]);
   const visible = groups.filter(g => !ignored.includes(g.key));
-  const removeCount = duplicateRemovalCount(visible);
+  // A pessoa escolhe qual cupom de cada grupo fica; sem escolha, fica o de leitura mais confiável (sugestão do app)
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const membersOf = (g: DuplicateGroup): { receipt: Receipt; reason: string }[] => [{ receipt: g.keep, reason: 'sugerido pelo app: leitura mais confiável' }, ...g.remove];
+  const keeperId = (g: DuplicateGroup): string => picked[g.key] && membersOf(g).some(m => m.receipt.id === picked[g.key]) ? picked[g.key] : g.keep.id;
+  const removeIdsOf = (g: DuplicateGroup): string[] => membersOf(g).filter(m => m.receipt.id !== keeperId(g)).map(m => m.receipt.id);
+  const removeCount = visible.reduce((n, g) => n + removeIdsOf(g).length, 0);
 
   const setIgn = (key: string, on: boolean) => {
     const next = on ? [...ignored, key] : ignored.filter(k => k !== key);
@@ -43,7 +48,7 @@ const DuplicateReceiptsSheet: React.FC<Props> = ({ receipts, onConfirm, onClose,
       <p className="text-[11px] text-zinc-400 mb-2 leading-snug tabular-nums" data-testid="dup-summary" aria-live="polite">
         {removeCount === 0 ? 'Nenhum cupom para remover.' : `${removeCount} ${removeCount === 1 ? 'cupom sai' : 'cupons saem'}; os que ficam não mudam. Antes disso eu guardo um ponto de restauração.`}
       </p>
-      <button type="button" data-testid="dup-confirm" disabled={removeCount === 0} onClick={() => onConfirm(visible.flatMap(g => g.remove.map(x => x.receipt.id)))}
+      <button type="button" data-testid="dup-confirm" disabled={removeCount === 0} onClick={() => onConfirm(visible.flatMap(removeIdsOf))}
         className="w-full h-12 rounded-xl bg-luxury-gold text-black text-[14px] font-bold active:opacity-80 disabled:opacity-40 flex items-center justify-center gap-2">
         <Trash2 className="w-4 h-4" /> {removeCount === 0 ? 'Remover' : `Remover ${removeCount} ${removeCount === 1 ? 'repetido' : 'repetidos'}`}
       </button>
@@ -60,17 +65,24 @@ const DuplicateReceiptsSheet: React.FC<Props> = ({ receipts, onConfirm, onClose,
         <span className="text-[14px] font-serif font-bold text-white tabular-nums shrink-0">{brl(g.keep.totalAmount)}</span>
       </div>
       <ul className="mt-2 space-y-1.5">
-        <li className="flex items-start gap-2 text-[12px]" data-testid="dup-keep">
-          <span className="shrink-0 w-[3.25rem] text-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold uppercase py-0.5 flex items-center justify-center gap-0.5"><Check className="w-3 h-3" strokeWidth={3} />Fica</span>
-          <span className="text-zinc-300 tabular-nums truncate">{itemsText(g.keep)}{readAt(g.keep.scannedAt) ? ` · ${readAt(g.keep.scannedAt)}` : ''}</span>
-        </li>
-        {g.remove.map(x => (
-          <li key={x.receipt.id} className="flex items-start gap-2 text-[12px]" data-testid="dup-remove">
-            <span className={`shrink-0 w-[3.25rem] text-center rounded-full text-[10px] font-bold uppercase py-0.5 ${off ? 'bg-white/10 text-zinc-400' : 'bg-rose-500/15 text-rose-400'}`}>{off ? 'Fica' : 'Sai'}</span>
-            <span className="text-zinc-400 tabular-nums leading-snug min-w-0">{itemsText(x.receipt)}{readAt(x.receipt.scannedAt) ? ` · ${readAt(x.receipt.scannedAt)}` : ''}{x.reason !== 'sem itens' ? ` · ${x.reason}` : ''}</span>
-          </li>
-        ))}
+        {membersOf(g).map(m => {
+          const isKeep = off || m.receipt.id === keeperId(g);
+          return (
+            <li key={m.receipt.id} data-testid={isKeep ? 'dup-keep' : 'dup-remove'}>
+              <button type="button" disabled={off} onClick={() => setPicked(p => ({ ...p, [g.key]: m.receipt.id }))} aria-pressed={isKeep}
+                className={`w-full flex items-start gap-2 text-left text-[12px] rounded-lg p-1.5 -mx-1.5 ${off ? '' : 'active:bg-white/5'}`}>
+                <span className={`shrink-0 w-[3.25rem] text-center rounded-full text-[10px] font-bold uppercase py-0.5 flex items-center justify-center gap-0.5 ${isKeep ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`}>
+                  {isKeep ? <><Check className="w-3 h-3" strokeWidth={3} /> Fica</> : 'Sai'}
+                </span>
+                <span className={`tabular-nums leading-snug min-w-0 ${isKeep ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                  {itemsText(m.receipt)}{readAt(m.receipt.scannedAt) ? ` · ${readAt(m.receipt.scannedAt)}` : ''} · {brl(m.receipt.totalAmount)}{m.reason !== 'sem itens' ? ` · ${m.reason}` : ' · sem itens'}
+                </span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
+      {!off && <p className="mt-1 text-[11px] text-zinc-500">Toque no cupom que deve ficar.</p>}
       <button type="button" data-testid={off ? 'dup-undo-ignore' : 'dup-ignore'} onClick={() => setIgn(g.key, !off)}
         className="mt-2 h-8 -ml-1 px-2 text-[12px] font-semibold text-zinc-500 active:text-luxury-gold">{off ? 'Voltar a tratar como repetido' : 'Manter os dois'}</button>
     </li>
@@ -86,7 +98,7 @@ const DuplicateReceiptsSheet: React.FC<Props> = ({ receipts, onConfirm, onClose,
       ) : (
         <>
           <p className="text-[12px] text-zinc-400 mb-2 leading-snug" data-testid="dup-intro">
-            {visible.length === 0 ? 'Você escolheu manter todos os grupos.' : `${visible.length} ${visible.length === 1 ? 'compra aparece' : 'compras aparecem'} mais de uma vez. Fica o cupom com a leitura mais confiável (itens com a conta certa).`}
+            {visible.length === 0 ? 'Você escolheu manter todos os grupos.' : `${visible.length} ${visible.length === 1 ? 'compra aparece' : 'compras aparecem'} mais de uma vez. Toque no cupom que deve ficar; o app sugere o de leitura mais confiável (itens com a conta certa).`}
           </p>
           <ul className="space-y-2 mb-3" data-testid="dup-list">{visible.map(g => card(g, false))}</ul>
           {ignoredGroups.length > 0 && (
