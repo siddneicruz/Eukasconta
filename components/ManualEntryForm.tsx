@@ -1,6 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Receipt, ReceiptItem } from '../types';
+import { Receipt, ReceiptItem, Establishment } from '../types';
+import { useMasterInfo } from './MasterContext';
+import { joinAddress } from '../services/establishmentEdit';
+import { formatCNPJ } from '../services/productNormalization';
+import { isValidCNPJ } from '../services/registryLookupService';
 import { generateId } from '../services/idUtils';
 import EggCountPicker from './EggCountPicker';
 import { isEggItem } from '../services/eggs';
@@ -14,9 +18,14 @@ interface ManualEntryFormProps {
   knownProducts: string[];
   categories: string[];
   allReceipts?: Receipt[];
+  /** cadastro de lojas do app: o CNPJ já cadastrado traz o registro completo e não deixa criar outro igual */
+  establishments?: Establishment[];
 }
 
-const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, knownEstablishments, knownProducts, categories, allReceipts = [] }) => {
+const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, knownEstablishments, knownProducts, categories, allReceipts = [], establishments = [] }) => {
+  const masterInfo = useMasterInfo();
+  const masterStores = masterInfo.master?.stores || [];
+  const [locked, setLocked] = useState<'tabela mãe' | 'cadastro' | 'cupom anterior' | null>(null);
   const [formData, setFormData] = useState<Receipt>({
     id: generateId(),
     establishmentName: '',
@@ -43,31 +52,39 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
     setFormData(prev => ({ ...prev, totalAmount: total }));
   }, [items]);
 
-  // Motor de Preenchimento Preditivo
-  const performLookup = (query: string, field: 'name' | 'cnpj') => {
-      if (query.length < 3) return;
-      
-      const match = allReceipts.find(r => {
-          if (field === 'cnpj') {
-              const cleanQ = query.replace(/\D/g, '');
-              const cleanR = (r.cnpj || '').replace(/\D/g, '');
-              return cleanQ && cleanR && cleanR === cleanQ;
-          } else {
-              return r.establishmentName.toLowerCase().trim() === query.toLowerCase().trim();
-          }
-      });
+  // CNPJ já conhecido: traz o registro completo (tabela mãe, depois o cadastro de lojas, depois cupons antigos) e trava os dados
+  // da loja, para não nascer um segundo cadastro com o mesmo CNPJ.
+  const digitsOf = (v: string) => String(v || '').replace(/\D/g, '');
+  const lookupByCnpj = (raw: string) => {
+      const d = digitsOf(raw);
+      if (d.length !== 14 && d.length !== 11) { setLocked(null); return; }
+      const m = masterStores.find(x => digitsOf(x.cnpj) === d);
+      const est = establishments.find(x => digitsOf(x.cnpj) === d);
+      const rec = allReceipts.find(r => digitsOf(r.cnpj) === d);
+      if (m) {
+          setFormData(prev => ({ ...prev, cnpj: m.cnpj, establishmentName: m.legalName || est?.originalName || rec?.establishmentName || prev.establishmentName,
+              address: joinAddress({ street: m.address, number: m.number, neighborhood: m.neighborhood }) || est?.address || rec?.address || prev.address,
+              city: m.city || est?.city || rec?.city || prev.city, state: m.state || est?.state || rec?.state || prev.state }));
+          setLocked('tabela mãe');
+      } else if (est) {
+          setFormData(prev => ({ ...prev, cnpj: est.cnpj, establishmentName: est.originalName, address: est.address || prev.address, city: est.city || prev.city, state: est.state || prev.state }));
+          setLocked('cadastro');
+      } else if (rec) {
+          setFormData(prev => ({ ...prev, cnpj: rec.cnpj, establishmentName: rec.establishmentName, address: rec.address || prev.address, city: rec.city || prev.city, state: rec.state || prev.state }));
+          setLocked('cupom anterior');
+      } else { setLocked(null); return; }
+      setIsDataPrefilled(true);
+      setTimeout(() => setIsDataPrefilled(false), 3000);
+  };
+  const clearStore = () => { setLocked(null); setFormData(prev => ({ ...prev, cnpj: '', establishmentName: '', address: '', city: '', state: '' })); };
 
+  // Nome já conhecido (sem CNPJ digitado): só completa, sem travar
+  const performLookup = (query: string) => {
+      if (query.length < 3) return;
+      const match = allReceipts.find(r => r.establishmentName.toLowerCase().trim() === query.toLowerCase().trim());
       if (match) {
-          setFormData(prev => ({
-              ...prev,
-              establishmentName: match.establishmentName,
-              cnpj: match.cnpj || prev.cnpj,
-              address: match.address || prev.address,
-              city: match.city || prev.city,
-              state: match.state || prev.state
-          }));
+          setFormData(prev => ({ ...prev, establishmentName: match.establishmentName, cnpj: match.cnpj || prev.cnpj, address: match.address || prev.address, city: match.city || prev.city, state: match.state || prev.state }));
           setIsDataPrefilled(true);
-          // Pequeno reset do feedback visual após alguns segundos
           setTimeout(() => setIsDataPrefilled(false), 3000);
       }
   };
@@ -101,6 +118,9 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
         alert("O nome do estabelecimento é obrigatório.");
         return;
     }
+    const dd = digitsOf(formData.cnpj);
+    if (dd.length > 0 && dd.length !== 11 && dd.length !== 14) { alert("O CNPJ tem 14 números (ou 11, se for CPF). Corrija ou deixe em branco."); return; }
+    if (dd.length === 14 && !isValidCNPJ(dd)) { alert("Este CNPJ não passa na conferência dos dígitos. Corrija antes de salvar."); return; }
     const validItems = items.filter(i => i.description.trim() !== '');
     if (validItems.length === 0) {
         alert("Adicione pelo menos um item válido.");
@@ -147,9 +167,13 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                           <input 
                               type="text" 
                               value={formData.cnpj}
+                              readOnly={!!locked}
+                              inputMode="numeric"
                               onChange={e => {
-                                  setFormData({...formData, cnpj: e.target.value});
-                                  if (e.target.value.length >= 14) performLookup(e.target.value, 'cnpj');
+                                  const d = digitsOf(e.target.value).slice(0, 14);
+                                  const shown = d.length === 14 ? formatCNPJ(d) : d.length === 11 ? d : e.target.value.slice(0, 18);
+                                  setFormData({...formData, cnpj: shown});
+                                  lookupByCnpj(d);
                               }}
                               className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-200 focus:border-luxury-gold outline-none transition-all"
                               placeholder="00.000.000/0000-00"
@@ -164,9 +188,10 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                               type="text" 
                               list="establishments-list-manual"
                               value={formData.establishmentName}
+                              readOnly={!!locked}
                               onChange={e => {
                                   setFormData({...formData, establishmentName: e.target.value});
-                                  performLookup(e.target.value, 'name');
+                                  performLookup(e.target.value);
                               }}
                               className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-zinc-100 focus:border-luxury-gold outline-none transition-all font-sans"
                               placeholder="NOME DA LOJA"
@@ -177,6 +202,17 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                       </div>
                   </div>
               </div>
+
+              {locked ? (
+                  <p className="mb-6 -mt-2 text-xs text-emerald-400 flex flex-wrap items-center gap-x-2" data-testid="manual-store-locked">
+                      <CheckCircle2 className="w-4 h-4" /> Loja já cadastrada ({locked}): dados completos trazidos e protegidos contra cadastro duplicado.
+                      <button type="button" onClick={clearStore} className="underline text-zinc-400 hover:text-white">Usar outra loja</button>
+                  </p>
+              ) : (digitsOf(formData.cnpj).length > 0 && digitsOf(formData.cnpj).length !== 11 && digitsOf(formData.cnpj).length !== 14) ? (
+                  <p className="mb-6 -mt-2 text-xs text-amber-500">O CNPJ tem 14 números (ou 11, se for CPF).</p>
+              ) : (digitsOf(formData.cnpj).length === 14 && !isValidCNPJ(digitsOf(formData.cnpj))) ? (
+                  <p className="mb-6 -mt-2 text-xs text-amber-500">Este CNPJ não passa na conferência dos dígitos. Veja se digitou certo.</p>
+              ) : null}
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
                   <div className="md:col-span-3">

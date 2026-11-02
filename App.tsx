@@ -1485,7 +1485,7 @@ const App: React.FC = () => {
                     />
                 )}
                 {view === 'scanner' && <Scanner onFinish={() => setView('history')} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} onImportReceipts={importQrReceipts} />}
-                {view === 'manual_entry' && <ManualEntryForm onSave={(r) => { handleScanComplete([r]); setView('history'); showNotification("Lançamento salvo com sucesso."); }} onCancel={() => setView('dashboard')} categories={categories} knownEstablishments={Array.from(new Set(receipts.map(r => r.establishmentName)))} knownProducts={[]} allReceipts={receipts} />}
+                {view === 'manual_entry' && <ManualEntryForm onSave={(r) => { handleScanComplete([r]); setView('history'); showNotification("Lançamento salvo com sucesso."); }} onCancel={() => setView('dashboard')} categories={categories} knownEstablishments={Array.from(new Set(receipts.map(r => r.establishmentName)))} knownProducts={[]} allReceipts={receipts} establishments={establishments} />}
                 {view === 'map' && (
                     <Suspense fallback={<div className="flex items-center justify-center py-24 text-zinc-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
                         <EstablishmentsMapView
