@@ -27,6 +27,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
   const [error, setError] = useState('');
   const [parsed, setParsed] = useState<{ file: string; data: ParsedMaster; diff: MasterDiff } | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [scope, setScope] = useState({ estrutura: false, produtos: false, lojas: false });
   const [sugs, setSugs] = useState<TaxSuggestion[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [working, setWorking] = useState<string | null>(null);
@@ -38,7 +39,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
 
   const currentNodes = info.master?.nodes ?? taxonomy;
 
-  const exportSheet = async () => {
+  const exportSheet = async (parts: { estrutura?: boolean; produtos?: boolean; lojas?: boolean } = {}, fileName?: string) => {
     setBusy('export'); setError('');
     try {
       const ix = info.master ? masterIndex(info.master) : null;
@@ -48,7 +49,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
       rows.forEach(r => {
         const nodePath = r.node_id && ix ? ix.path.get(r.node_id) : undefined;
         const legacy = (r.category || '').split(' - ').map(x => properCase(x)).filter(Boolean).slice(0, 2);
-        out.set(r.code, { code: r.code, description: r.description, unit: r.unit_type || undefined, brand: r.brand || '', manufacturer: r.manufacturer || '', suggestion: r.brand_suggestion || '', path: nodePath && nodePath.length ? nodePath : legacy });
+        out.set(r.code, { code: r.code, description: r.description, unit: r.unit_type || undefined, brand: r.brand || '', manufacturer: r.manufacturer || '', suggestion: r.brand_suggestion || '', idType: r.id_type || 'industrializado', path: nodePath && nodePath.length ? nodePath : legacy });
       });
       // produtos do seu cadastro (com os códigos que o app já aprendeu dos cupons)
       const storeName = (key: string) => {
@@ -81,12 +82,12 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
         if (!p) return;
         if (c.kind === 'ean') addCodes(p, [c.code], []); else addCodes(p, [], [[c.storeKey, [c.code]]]);
       });
-      downloadMasterWorkbook(currentNodes, [...out.values()], undefined, info.master?.storeTypes || [], (() => {
+      downloadMasterWorkbook(currentNodes, [...out.values()], fileName, info.master?.storeTypes || [], (() => {
         const known = info.master?.stores || [];
         let local: any[] = [];
         try { local = JSON.parse(localStorage.getItem('eukasconta_establishments') || '[]'); } catch { /* sem cadastro local */ }
         return [...known, ...storesFromLocal(known, Array.isArray(local) ? local : [])];
-      })());
+      })(), parts);
       onToast?.(`Planilha gerada: ${plural(out.size, 'produto', 'produtos')}, com os códigos de barras e das lojas.`);
     } catch (e: any) { setError(e?.message || 'Não consegui gerar a planilha.'); }
     finally { setBusy(''); }
@@ -97,6 +98,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
     try {
       const data = await parseMasterWorkbook(file);
       setParsed({ file: file.name, data, diff: diffStructure(currentNodes, data.payload.nodes) });
+      setScope({ estrutura: data.counts.nodes > 0, produtos: data.counts.products > 0, lojas: !!(data.payload.stores?.length || data.payload.storeTypes?.length) });
     } catch (e: any) { setError(e instanceof MasterSheetError ? e.message : 'Não consegui ler essa planilha.'); }
     finally { setBusy(''); if (fileRef.current) fileRef.current.value = ''; }
   };
@@ -107,12 +109,17 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
     try {
       // lojas e tipos primeiro: são pequenos e levam apelido, endereço e tipo a todos os aparelhos mesmo que a estrutura demore
       const types = parsed.data.payload.storeTypes;
-      if (types && types.length) { setProgress('Tipos de loja…'); await publishStoreTypes(types); }
+      if (scope.lojas && types && types.length) { setProgress('Tipos de loja…'); await publishStoreTypes(types); }
       const lojas = parsed.data.payload.stores;
-      if (lojas && lojas.length) { setProgress('Lojas…'); await publishMasterStores(lojas); }
-      const res = await publishMaster(parsed.data.payload, setProgress);
+      if (scope.lojas && lojas && lojas.length) { setProgress('Lojas…'); await publishMasterStores(lojas); }
+      let msg = scope.lojas ? `${plural(lojas?.length || 0, 'loja', 'lojas')}` : '';
+      if (scope.estrutura || scope.produtos) {
+        const payload = { ...parsed.data.payload, products: scope.produtos ? parsed.data.payload.products : [] };
+        const res = await publishMaster(payload, setProgress, { structure: scope.estrutura });
+        msg = [msg, scope.estrutura ? plural(res.nodes_added, 'categoria nova', 'categorias novas') : '', scope.produtos ? plural(res.products, 'produto', 'produtos') : ''].filter(Boolean).join(', ');
+      }
       await info.syncNow(true);
-      onToast?.(`Publicado (versão ${res.version}): ${plural(res.nodes_added, 'categoria nova', 'categorias novas')}, ${plural(res.products, 'produto', 'produtos')}.`);
+      onToast?.(`Publicado: ${msg || 'nada selecionado'}.`);
       setParsed(null); setConfirm(false);
     } catch (e: any) { setError(e?.message || 'Não consegui publicar.'); }
     finally { setBusy(''); setProgress(''); }
@@ -131,7 +138,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
 
   const nodeCount = info.master?.nodes.length ?? 0;
   const prodCount = info.master?.products.length ?? 0;
-  const bad = useMemo(() => !!parsed && parsed.data.errors.length > 0, [parsed]);
+  const bad = useMemo(() => !!parsed && (parsed.data.errors.length > 0 || !(scope.estrutura || scope.produtos || scope.lojas)), [parsed, scope]);
 
   return (
     <div className="space-y-6" data-testid="madmin">
@@ -153,13 +160,19 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
         </ol>
 
         <div className="mt-5 flex flex-col sm:flex-row gap-2.5">
-          <button type="button" onClick={exportSheet} disabled={!!busy} data-testid="madmin-export" className={`${btn} flex-1 bg-white/5 border border-white/10 text-zinc-100`}>
+          <button type="button" onClick={() => exportSheet()} disabled={!!busy} data-testid="madmin-export" className={`${btn} flex-1 bg-white/5 border border-white/10 text-zinc-100`}>
             {busy === 'export' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 text-luxury-gold" />} Baixar planilha atual
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} disabled={!!busy} data-testid="madmin-pick" className={`${btn} flex-1 bg-luxury-gold text-black`}>
             {busy === 'read' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Subir planilha (.xlsx)
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" data-testid="madmin-file" onChange={e => { const f = e.target.files?.[0]; if (f) void readSheet(f); }} />
+        </div>
+        <p className="mt-4 text-[11.5px] text-zinc-500">Ou baixe e publique cada tabela separada (uma não mexe nas outras):</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {([['Só lojas', { estrutura: false, produtos: false, lojas: true }, 'tabela-lojas.xlsx'], ['Só produtos e códigos', { estrutura: false, produtos: true, lojas: false }, 'tabela-produtos.xlsx'], ['Só estrutura', { estrutura: true, produtos: false, lojas: false }, 'tabela-estrutura.xlsx']] as const).map(([label, parts, file]) => (
+            <button key={label} type="button" disabled={!!busy} onClick={() => exportSheet(parts, file)} className="h-10 px-2 rounded-lg bg-white/5 border border-white/10 text-[11.5px] font-bold text-zinc-200 active:opacity-80 disabled:opacity-40">{label}</button>
+          ))}
         </div>
         {error && <p className="mt-3 text-xs text-red-400 leading-snug" data-testid="madmin-error" role="alert">{error}</p>}
       </div>
@@ -199,12 +212,22 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
             </details>
           )}
 
+          <fieldset className="mt-4 rounded-xl border border-white/10 p-3" data-testid="madmin-scope">
+            <legend className="px-1.5 text-[11px] text-zinc-400">O que publicar (o resto fica como está)</legend>
+            {([['lojas', 'Lojas e tipos de loja', !!(parsed.data.payload.stores?.length || parsed.data.payload.storeTypes?.length)], ['produtos', 'Produtos, EANs e códigos das lojas', parsed.data.counts.products > 0], ['estrutura', 'Estrutura de categorias (troca a de todos)', parsed.data.counts.nodes > 0]] as const).map(([k, label, present]) => (
+              <label key={k} className={`flex items-center gap-2.5 min-h-[36px] text-[12.5px] ${present ? 'text-zinc-200' : 'text-zinc-600'}`}>
+                <input type="checkbox" disabled={!present} checked={scope[k] && present} onChange={e => { setScope(sc => ({ ...sc, [k]: e.target.checked })); setConfirm(false); }} className="w-4 h-4 accent-yellow-500" />
+                {label}{!present && ' (não veio na planilha)'}
+              </label>
+            ))}
+          </fieldset>
+
           <div className="mt-5 flex flex-col sm:flex-row gap-2.5">
             {!confirm ? (
               <button type="button" disabled={bad || !!busy} onClick={() => setConfirm(true)} data-testid="madmin-publish" className={`${btn} flex-1 bg-luxury-gold text-black`}>Publicar para todos</button>
             ) : (
               <button type="button" disabled={bad || !!busy} onClick={publish} data-testid="madmin-confirm" className={`${btn} flex-1 bg-red-600 text-white`}>
-                {busy === 'publish' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {busy === 'publish' && progress ? progress : 'Confirmar: troca a estrutura de todos os usuários'}
+                {busy === 'publish' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {busy === 'publish' && progress ? progress : (scope.estrutura ? 'Confirmar: troca a estrutura de todos os usuários' : 'Confirmar publicação')}
               </button>
             )}
             <button type="button" onClick={() => { setParsed(null); setConfirm(false); }} className={`${btn} sm:w-36 bg-white/5 border border-white/10 text-zinc-300`}>Cancelar</button>

@@ -221,7 +221,7 @@ const rpcError = (e: { message?: string; code?: string } | null): string => {
 
 export interface PublishPayload {
   nodes: { path: string[]; icon?: string; color?: string }[];
-  products: { code: string; description: string; unit?: string; brand?: string; manufacturer?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }[];
+  products: { code: string; description: string; unit?: string; idType?: string; brand?: string; manufacturer?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }[];
   /** aba "Tipos de loja" da planilha (opcional) */
   storeTypes?: string[];
   /** aba "Lojas" da planilha (opcional) */
@@ -241,12 +241,13 @@ export const callRpc = async (fn: string, args: Record<string, unknown>): Promis
 };
 
 /** Publica em pedaços pequenos (o servidor corta cada pedido em 8 s): categorias, produtos e, no fim, o fechamento que apaga o que saiu e avisa os aparelhos. */
-export const publishMaster = async (payload: PublishPayload, onProgress?: (msg: string) => void): Promise<PublishResult> => {
+export const publishMaster = async (payload: PublishPayload, onProgress?: (msg: string) => void, opts: { structure?: boolean } = {}): Promise<PublishResult> => {
+  const withStructure = opts.structure !== false;
   const batch = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `${Date.now().toString(16).padStart(8, '0')}-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`;
   const nodes = payload.nodes.map((n, i) => ({ ...n, ord: i + 1 })).sort((a, b) => a.path.length - b.path.length || a.ord - b.ord);
-  if (nodes.length === 0) throw new Error('A planilha não tem nenhuma categoria; nada foi publicado');
+  if (withStructure && nodes.length === 0) throw new Error('A planilha não tem nenhuma categoria; nada foi publicado');
   let added = 0;
-  const nodeChunks = chunked(nodes, 300);
+  const nodeChunks = withStructure ? chunked(nodes, 300) : [];
   for (let i = 0; i < nodeChunks.length; i++) {
     onProgress?.(`Categorias ${i + 1} de ${nodeChunks.length}…`);
     const r = await callRpc('publish_master_nodes', { p: nodeChunks[i], batch });
@@ -262,7 +263,8 @@ export const publishMaster = async (payload: PublishPayload, onProgress?: (msg: 
     prods += Number(r?.products || 0); unmapped += Number(r?.unmapped || 0); codes += Number(r?.codes || 0);
   }
   onProgress?.('Concluindo…');
-  const fin = await callRpc('publish_master_finish', { batch });
+  // sem estrutura na publicação: só avisa os aparelhos, sem apagar nenhuma categoria
+  const fin = withStructure ? await callRpc('publish_master_finish', { batch }) : await callRpc('publish_master_touch', {});
   return { version: Number(fin?.version || 0), nodes_added: added, nodes_removed: Number(fin?.nodes_removed || 0), products: prods, unmapped, codes };
 };
 
@@ -306,5 +308,5 @@ export const fetchCodeRedirects = async (): Promise<Map<string, string>> => {
 };
 
 /** Todos os produtos da tabela mãe (com ou sem caminho), para o administrador completar na planilha. */
-export const fetchAllMasterProducts = (): Promise<{ code: string; description: string; unit_type: string | null; category: string | null; node_id: string | null; brand?: string; manufacturer?: string; brand_suggestion?: string }[]> =>
-  fetchAll('master_products', 'code,description,unit_type,category,node_id,brand,manufacturer,brand_suggestion', 'code');
+export const fetchAllMasterProducts = (): Promise<{ code: string; description: string; unit_type: string | null; category: string | null; node_id: string | null; brand?: string; manufacturer?: string; brand_suggestion?: string; id_type?: string }[]> =>
+  fetchAll('master_products', 'code,description,unit_type,category,node_id,brand,manufacturer,brand_suggestion,id_type', 'code');

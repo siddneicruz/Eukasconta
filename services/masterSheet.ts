@@ -53,8 +53,12 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
   let wb: XLSX.WorkBook;
   try { wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); }
   catch { throw new MasterSheetError('Não consegui abrir esse arquivo. Use um .xlsx.'); }
-  const est = sheetRows(wb, ['estrutura', 'taxonomia', 'categorias']);
-  if (!est || est.length < 2) throw new MasterSheetError('Não achei a aba "Estrutura" com linhas. Baixe o modelo para ver o formato.');
+  const estRaw = sheetRows(wb, ['estrutura', 'taxonomia', 'categorias']);
+  const hasStruct = !!estRaw && estRaw.length >= 2;
+  const hasOther = !!(sheetRows(wb, ['produtos', 'produto', 'itens']) || sheetRows(wb, ['lojas', 'estabelecimentos', 'apelidos']) || sheetRows(wb, ['tipos de loja', 'tipos de estabelecimento', 'tipos']) || sheetRows(wb, ['codigos das lojas', 'codigos lojas', 'codigos nativos']));
+  if (!hasStruct && !hasOther) throw new MasterSheetError('Não achei nenhuma aba conhecida (Estrutura, Produtos, Lojas…). Baixe o modelo para ver o formato.');
+  // arquivo parcial (só lojas, só produtos…) é aceito: o que não vier na planilha não é tocado
+  const est: any[][] = hasStruct ? estRaw! : [['Departamento', 'Categoria']];
 
   const errors: string[] = [], warnings: string[] = [];
   const eh = est[0].map(cell);
@@ -78,7 +82,7 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
     for (let l = 1; l <= lastFilled + 1; l++) add(full.slice(0, l).map(v => properCase(v)));
     last = full.map((v, i) => (i <= lastFilled ? v : ''));
   }
-  if (nodes.length === 0) throw new MasterSheetError('A aba "Estrutura" não tem nenhuma categoria válida.');
+  if (hasStruct && nodes.length === 0) throw new MasterSheetError('A aba "Estrutura" não tem nenhuma categoria válida.');
   nodes.forEach(n => { if (n.path.some(p => p.length > 80)) errors.push(`Nome longo demais: ${n.path[n.path.length - 1].slice(0, 40)}…`); });
 
   const products: PublishPayload['products'] = [];
@@ -87,7 +91,7 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
   if (prow && prow.length > 1) {
     const ph = prow[0].map(cell);
     const u2 = new Set<number>();
-    const pc = { code: findCol(ph, HEAD.code, u2), desc: findCol(ph, HEAD.desc, u2), unit: findCol(ph, HEAD.unit, u2), ean: findCol(ph, HEAD.ean, u2), dept: findCol(ph, HEAD.dept, u2), cat: findCol(ph, HEAD.cat, u2), grp: findCol(ph, HEAD.grp, u2), item: findCol(ph, HEAD.item, u2), brand: findCol(ph, HEAD.brand, u2), maker: findCol(ph, HEAD.maker, u2) };
+    const pc = { code: findCol(ph, HEAD.code, u2), desc: findCol(ph, HEAD.desc, u2), unit: findCol(ph, HEAD.unit, u2), ean: findCol(ph, HEAD.ean, u2), dept: findCol(ph, HEAD.dept, u2), cat: findCol(ph, HEAD.cat, u2), grp: findCol(ph, HEAD.grp, u2), item: findCol(ph, HEAD.item, u2), brand: findCol(ph, HEAD.brand, u2), maker: findCol(ph, HEAD.maker, u2), idt: findCol(ph, ['tipo de identificacao', 'identificacao'], u2) };
     if (pc.code < 0 || pc.desc < 0) throw new MasterSheetError('Na aba "Produtos" faltam as colunas Código e Descrição.');
     const byCode = new Map<string, number>();
     for (let r = 1; r < prow.length; r++) {
@@ -99,7 +103,8 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
       const raw = [pc.dept, pc.cat, pc.grp, pc.item].map(c => (c >= 0 ? cell(row[c]) : ''));
       const lastFilled = raw.reduce((a, v, i) => (v ? i : a), -1);
       const path = raw.slice(0, lastFilled + 1).map(v => properCase(v));
-      if (path.length === 0) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: "${description.slice(0, 40)}" ficou sem categoria.`); }
+      if (!hasStruct) { /* sem aba Estrutura: o caminho vale como está, o banco resolve pelos nomes */ }
+      else if (path.length === 0) { unmapped++; warnings.push(`Produtos, linha ${r + 1}: "${description.slice(0, 40)}" ficou sem categoria.`); }
       else {
         // caminho com buraco ou que não existe na Estrutura: o produto fica no ponto mais fundo que existe (nunca sem categoria, se ao menos o departamento existe)
         let keep = path.findIndex(p => !p); if (keep < 0) keep = path.length;
@@ -114,7 +119,7 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
       const unit = pc.unit >= 0 ? cell(row[pc.unit]).toUpperCase() : '';
       const eans = pc.ean >= 0 ? cell(row[pc.ean]).split(/[;,\n]/).map(x => cleanCode(x)).filter(Boolean) : undefined;
       const item: PublishPayload['products'][number] = { code, description, unit: unit || undefined, path, ...(eans ? { eans } : {}),
-        ...(pc.brand >= 0 ? { brand: cell(row[pc.brand]) } : {}), ...(pc.maker >= 0 ? { manufacturer: cell(row[pc.maker]) } : {}) };
+        ...(pc.idt >= 0 && idTypeFromLabel(cell(row[pc.idt])) ? { idType: idTypeFromLabel(cell(row[pc.idt])) } : {}), ...(pc.brand >= 0 ? { brand: cell(row[pc.brand]) } : {}), ...(pc.maker >= 0 ? { manufacturer: cell(row[pc.maker]) } : {}) };
       if (byCode.has(code)) { products[byCode.get(code)!] = item; warnings.push(`Produtos, linha ${r + 1}: código ${code} repetido; vale a última linha.`); }
       else { byCode.set(code, products.length); products.push(item); }
     }
@@ -183,7 +188,10 @@ export const diffStructure = (current: TaxonomyNode[], next: PublishPayload['nod
 
 // ---- gerar a planilha ----
 
-export interface SheetProduct { code: string; description: string; unit?: string; brand?: string; manufacturer?: string; suggestion?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }
+export const ID_LABEL: Record<string, string> = { industrializado: 'Industrializado (tem EAN)', granel: 'A granel / peso', propria: 'Produção própria da loja' };
+export const idTypeFromLabel = (v: string): string => { const t = plain(v); return /granel|peso/.test(t) ? 'granel' : /propria|producao/.test(t) ? 'propria' : /industrial/.test(t) ? 'industrializado' : ''; };
+
+export interface SheetProduct { idType?: string; code: string; description: string; unit?: string; brand?: string; manufacturer?: string; suggestion?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }
 
 const leafPaths = (nodes: TaxonomyNode[]): string[][] => {
   const byId = new Map(nodes.map(n => [n.id, n] as const));
@@ -211,33 +219,34 @@ export const storesFromLocal = (
   return out;
 };
 
-export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; number?: string; neighborhood?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = []) => {
+export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; number?: string; neighborhood?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = [], parts: { estrutura?: boolean; produtos?: boolean; lojas?: boolean } = {}) => {
+  const want = { estrutura: parts.estrutura !== false, produtos: parts.produtos !== false, lojas: parts.lojas !== false };
   const wb = XLSX.utils.book_new();
   const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);
   est['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 28 }];
   est['!freeze'] = { xSplit: 0, ySplit: 1 } as any;
-  XLSX.utils.book_append_sheet(wb, est, 'Estrutura');
+  if (want.estrutura) XLSX.utils.book_append_sheet(wb, est, 'Estrutura');
   const sorted = [...products].sort((a, b) => a.path.join('\u0001').localeCompare(b.path.join('\u0001'), 'pt-BR') || a.description.localeCompare(b.description, 'pt-BR'));
-  const prod = XLSX.utils.aoa_to_sheet([['Código', 'Descrição', 'Unidade', 'Departamento', 'Categoria', 'Grupo', 'Item', 'EAN', 'Marca', 'Fabricante', 'Sugestão de marca'],
-    ...sorted.map(p => [p.code, p.description, p.unit || '', p.path[0] || '', p.path[1] || '', p.path[2] || '', p.path[3] || '', (p.eans || []).join('; '), p.brand || '', p.manufacturer || '', p.suggestion || ''])]);
-  prod['!cols'] = [{ wch: 18 }, { wch: 44 }, { wch: 9 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 30 }, { wch: 22 }, { wch: 26 }, { wch: 22 }];
+  const prod = XLSX.utils.aoa_to_sheet([['Código', 'Descrição', 'Unidade', 'Departamento', 'Categoria', 'Grupo', 'Item', 'EAN', 'Marca', 'Fabricante', 'Sugestão de marca', 'Tipo de identificação'],
+    ...sorted.map(p => [p.code, p.description, p.unit || '', p.path[0] || '', p.path[1] || '', p.path[2] || '', p.path[3] || '', (p.eans || []).join('; '), p.brand || '', p.manufacturer || '', p.suggestion || '', ID_LABEL[p.idType || 'industrializado'] || ID_LABEL.industrializado])]);
+  prod['!cols'] = [{ wch: 18 }, { wch: 44 }, { wch: 9 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 30 }, { wch: 22 }, { wch: 26 }, { wch: 22 }, { wch: 26 }];
   Object.keys(prod).forEach(a => { if (a[0] === 'H' && a !== 'H1' && prod[a] && prod[a].t === 'n') { prod[a].t = 's'; prod[a].v = String(prod[a].v); } });
   // código como texto: o Excel não vira número científico
   Object.keys(prod).forEach(a => { if (a[0] === 'A' && a !== 'A1' && prod[a] && prod[a].t === 'n') { prod[a].t = 's'; prod[a].v = String(prod[a].v); } });
-  XLSX.utils.book_append_sheet(wb, prod, 'Produtos');
+  if (want.produtos) XLSX.utils.book_append_sheet(wb, prod, 'Produtos');
   const storeRows: string[][] = [];
   sorted.forEach(p => (p.stores || []).forEach(st => storeRows.push([p.code, p.description, /^\d{14}$|^\d{11}$/.test(st.key) ? st.key : '', st.name || (st.key.startsWith('n:') ? st.key.slice(2) : ''), st.code])));
   const lojas = XLSX.utils.aoa_to_sheet([['Código', 'Descrição', 'CNPJ', 'Loja', 'Código na loja'], ...storeRows]);
   lojas['!cols'] = [{ wch: 18 }, { wch: 44 }, { wch: 18 }, { wch: 34 }, { wch: 20 }];
   Object.keys(lojas).forEach(a => { if (/^[ACE]/.test(a) && !/^[ACE]1$/.test(a) && lojas[a] && lojas[a].t === 'n') { lojas[a].t = 's'; lojas[a].v = String(lojas[a].v); } });
-  XLSX.utils.book_append_sheet(wb, lojas, 'Códigos das lojas');
+  if (want.produtos) XLSX.utils.book_append_sheet(wb, lojas, 'Códigos das lojas');
   const tipos = XLSX.utils.aoa_to_sheet([['Tipo de estabelecimento'], ...(storeTypes.length ? storeTypes : ['Mercado', 'Restaurante e Lanchonete', 'Farmácia', 'Academia']).map(t => [t])]);
   tipos['!cols'] = [{ wch: 34 }];
-  XLSX.utils.book_append_sheet(wb, tipos, 'Tipos de loja');
+  if (want.lojas) XLSX.utils.book_append_sheet(wb, tipos, 'Tipos de loja');
   const lojasAba = XLSX.utils.aoa_to_sheet([['CNPJ', 'Apelido', 'Razão social', 'Tipo', 'Endereço', 'Número', 'Bairro', 'CEP', 'Cidade', 'UF'], ...[...stores].sort((a, b) => (a.name || a.cnpj).localeCompare(b.name || b.cnpj, 'pt-BR')).map(x => [x.cnpj, x.name, x.legalName || '', x.type, x.address || '', x.number || '', x.neighborhood || '', x.cep || '', x.city || '', x.state || ''])]);
   lojasAba['!cols'] = [{ wch: 18 }, { wch: 28 }, { wch: 40 }, { wch: 26 }, { wch: 48 }, { wch: 11 }, { wch: 22 }, { wch: 6 }];
   Object.keys(lojasAba).forEach(a => { if ((a[0] === 'A' || a[0] === 'F') && !/^[AF]1$/.test(a) && lojasAba[a] && lojasAba[a].t === 'n') { lojasAba[a].t = 's'; lojasAba[a].v = String(lojasAba[a].v); } });
-  XLSX.utils.book_append_sheet(wb, lojasAba, 'Lojas');
+  if (want.lojas) XLSX.utils.book_append_sheet(wb, lojasAba, 'Lojas');
   const help = XLSX.utils.aoa_to_sheet([
     ['Como usar'],
     ['Lojas: CNPJ, Apelido (como a loja aparece em todos os apps), Razão social, Tipo (um dos da aba Tipos de loja), Endereço, CEP, Cidade e UF. Quem já deu apelido, tipo ou endereço à própria loja no app continua vendo o dele.'],
