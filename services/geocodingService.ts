@@ -162,7 +162,7 @@ export const geocodeMissingEstablishments = async (
     // Sem internet não é "endereço não encontrado": para por aqui e deixa para a próxima vez, sem marcar ninguém.
     try { result = await geocodeStrict(est); } catch { return; }
     if (result) {
-      onUpdate(est, { latitude: result.latitude, longitude: result.longitude, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: result.approx ? true : undefined });
+      onUpdate(est, { latitude: result.latitude, longitude: result.longitude, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: result.approx ? true : undefined, poiSnapAt: undefined });
     } else {
       onUpdate(est, { geocodeStatus: 'not_found', geocodedAt: Date.now() });
     }

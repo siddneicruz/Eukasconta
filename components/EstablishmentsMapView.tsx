@@ -281,17 +281,19 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
 
   /* posição conferida com as lojas do mapa pelo nome (corrige o que caiu no centro da cidade ou na rua errada) */
   const snapRunning = useRef(false);
+  const snapCtrl = useRef(new AbortController());
+  const [snapTick, setSnapTick] = useState(0);
   const snapKey = establishments.filter(e => !e.poiSnapAt && !e.geocodeManual && e.geocodeStatus === 'found').length;
   useEffect(() => {
     if (snapKey === 0 || snapRunning.current || geo.running || geoRunning.current || masterGeoRunning.current) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     snapRunning.current = true;
-    const ctrl = new AbortController();
+    // não aborta quando o cadastro muda (cada ajuste muda o cadastro e interrompia a fila na primeira loja); só ao sair da tela
     snapToPois(establishments, e => [e.aliasName || '', e.originalName, namer.nameOf(e.originalName, e.cnpj)].filter(Boolean),
-      (e, patch) => onPatchEstablishment(e, patch), undefined, ctrl.signal)
-      .finally(() => { snapRunning.current = false; });
-    return () => ctrl.abort();
-  }, [snapKey, geo.running]); // eslint-disable-line react-hooks/exhaustive-deps
+      (e, patch) => onPatchEstablishment(e, patch), undefined, snapCtrl.current.signal)
+      .then(ok => { snapRunning.current = false; if (ok && alive.current) setSnapTick(t => t + 1); }, () => { snapRunning.current = false; });
+  }, [snapKey, geo.running, snapTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => snapCtrl.current.abort(), []);
 
   /* lojas com posição, somando o que foi gasto em cada uma */
   const agg = useMemo(() => {

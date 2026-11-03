@@ -20,11 +20,11 @@ export const snapToPois = async (
   onUpdate: (e: Establishment, patch: Partial<Establishment>) => void,
   onStep?: (done: number, total: number) => void,
   signal?: AbortSignal,
-): Promise<void> => {
+): Promise<boolean> => {
   const list = snapCandidates(all);
   let done = 0;
   for (const e of list) {
-    if (signal?.aborted) return;
+    if (signal?.aborted) return false;
     const wide = !!e.geocodeApprox || clustered(e, all);
     const radius = wide ? 6000 : 1500;
     const pin = { lat: e.latitude as number, lng: e.longitude as number };
@@ -41,12 +41,13 @@ export const snapToPois = async (
         onUpdate(e, { poiSnapAt: Date.now() });
       }
     } catch (err: any) {
-      if (err?.name === 'AbortError') return;
-      return; // sem internet ou mapa fora do ar: tenta de novo na próxima vez, sem marcar ninguém
+      if (err?.name === 'AbortError') return false;
+      return false; // sem internet ou mapa fora do ar: tenta de novo na próxima vez, sem marcar ninguém
     }
     done += 1; onStep?.(done, list.length);
     await new Promise(r => setTimeout(r, 1200)); // gentileza com o serviço público
   }
+  return true;
 };
 
 export { nameMatch };
