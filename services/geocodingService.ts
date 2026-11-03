@@ -41,7 +41,7 @@ export interface GeocodeResult {
   approx?: boolean;
 }
 
-type GeoInput = Pick<Establishment, 'address' | 'city' | 'state'> & Partial<Pick<Establishment, 'originalName'>>;
+type GeoInput = Pick<Establishment, 'address' | 'city' | 'state'> & Partial<Pick<Establishment, 'originalName' | 'cep'>>;
 
 // Cupom fiscal costuma trazer o endereço "solto" (rua, número e bairro na mesma linha), que a busca estruturada
 // nem sempre entende. Por isso a primeira tentativa é estruturada (rua/cidade/estado) e, se não achar nada, as
@@ -116,6 +116,13 @@ const geocodeStrict = async (est: GeoInput): Promise<GeocodeResult | null> => {
     if (hit) return hit;
   }
 
+  // CEP do cadastro: acha a rua mesmo quando o texto do endereço não casa
+  const cepDigits = String(est.cep || '').replace(/\D/g, '');
+  if (cepDigits.length === 8) {
+    hit = await attempt([`${cepDigits.slice(0, 5)}-${cepDigits.slice(5)}`, est.city, est.state, 'Brasil'].filter(Boolean).join(', '));
+    if (hit) return hit;
+  }
+
   const name = shortName(est.originalName);
   if (name && est.city) {
     hit = await attempt([name, est.city, est.state, 'Brasil'].filter(Boolean).join(', '));
@@ -159,5 +166,57 @@ export const geocodeMissingEstablishments = async (
     } else {
       onUpdate(est, { geocodeStatus: 'not_found', geocodedAt: Date.now() });
     }
+  }
+};
+
+/** Endereço completo da tabela mãe (rua, número, bairro, CEP, cidade) para localizar de novo as lojas que ficaram fora do mapa
+ *  (não encontradas ou só no centro da cidade). Cada loja é tentada uma vez por endereço; o resultado fica no cadastro. */
+const MASTER_TRIED_KEY = 'eukasconta_geo_master_tried';
+export interface MasterAddr { cnpj: string; address?: string; number?: string; neighborhood?: string; city?: string; state?: string; cep?: string; name?: string }
+const dg = (v?: string) => String(v || '').replace(/\D/g, '');
+
+const masterAddrOf = (m: MasterAddr) => ({
+  address: [m.address, m.number, m.neighborhood].map(x => String(x || '').trim()).filter(Boolean).join(', '),
+  city: m.city || '', state: m.state || '', cep: m.cep || '',
+});
+
+export const masterGeoCandidates = (ests: Establishment[], masters: MasterAddr[]): { est: Establishment; m: MasterAddr; key: string }[] => {
+  let tried: Record<string, number> = {};
+  try { tried = JSON.parse(localStorage.getItem(MASTER_TRIED_KEY) || '{}') || {}; } catch { /* sem armazenamento */ }
+  const byCnpj = new Map(masters.filter(m => dg(m.cnpj)).map(m => [dg(m.cnpj), m] as const));
+  const out: { est: Establishment; m: MasterAddr; key: string }[] = [];
+  ests.forEach(est => {
+    if (est.geocodeManual) return;
+    if (est.geocodeStatus === 'found' && !est.geocodeApprox) return;
+    const m = byCnpj.get(dg(est.cnpj));
+    if (!m) return;
+    const a = masterAddrOf(m);
+    if (!a.address && !a.cep) return;
+    const key = `${dg(m.cnpj)}|${a.address}|${a.cep}|${a.city}`;
+    if (tried[key]) return;
+    out.push({ est, m, key });
+  });
+  return out;
+};
+
+export const geocodeFromMaster = async (
+  cands: { est: Establishment; m: MasterAddr; key: string }[],
+  onUpdate: (est: Establishment, patch: Partial<Establishment>) => void,
+  onStep?: (done: number) => void,
+): Promise<void> => {
+  let tried: Record<string, number> = {};
+  try { tried = JSON.parse(localStorage.getItem(MASTER_TRIED_KEY) || '{}') || {}; } catch { /* sem armazenamento */ }
+  let done = 0;
+  for (const { est, m, key } of cands) {
+    const a = masterAddrOf(m);
+    let result: GeocodeResult | null;
+    try { result = await geocodeStrict({ originalName: est.originalName, address: a.address, city: a.city || est.city, state: a.state || est.state, cep: a.cep }); } catch { return; }
+    tried[key] = Date.now();
+    try { localStorage.setItem(MASTER_TRIED_KEY, JSON.stringify(tried)); } catch { /* sem armazenamento */ }
+    // só troca a posição atual se a nova for melhor (exata no lugar de aproximada) ou se a loja ainda não tinha posição
+    if (result && (!result.approx || est.geocodeStatus !== 'found')) {
+      onUpdate(est, { latitude: result.latitude, longitude: result.longitude, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: result.approx ? true : undefined });
+    }
+    done += 1; onStep?.(done);
   }
 };

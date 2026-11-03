@@ -5,7 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import { Browser } from '@capacitor/browser';
 import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X, WifiOff, Pencil, Move, CheckCircle2 } from 'lucide-react';
 import { Receipt, Establishment } from '../types';
-import { geocodeMissingEstablishments, needsGeocoding } from '../services/geocodingService';
+import { geocodeMissingEstablishments, needsGeocoding, masterGeoCandidates, geocodeFromMaster } from '../services/geocodingService';
+import { useMasterInfo } from './MasterContext';
 import { fetchRoute, haversineKm, formatDistance, formatDuration, navigationLinks, RouteResult, LatLng } from '../services/routingService';
 import { getCurrentPosition } from '../services/cloudService';
 import { isNativeApp } from '../services/platform';
@@ -263,6 +264,19 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
       onPatchEstablishment(est, patch);
     }).finally(() => { geoRunning.current = false; if (alive.current) setGeo(g => ({ ...g, running: false })); });
   }, [pending.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* lojas sem posição (ou só no centro da cidade) que a tabela mãe conhece: localiza de novo com o endereço completo dela */
+  const masterStoresForGeo = useMasterInfo().master?.stores;
+  const masterGeoRunning = useRef(false);
+  useEffect(() => {
+    if (!masterStoresForGeo?.length || masterGeoRunning.current || geoRunning.current) return;
+    const cands = masterGeoCandidates(establishments, masterStoresForGeo);
+    if (cands.length === 0) return;
+    masterGeoRunning.current = true;
+    setGeo({ running: true, done: 0, total: cands.length });
+    geocodeFromMaster(cands, (est, patch) => onPatchEstablishment(est, patch), d => { if (alive.current) setGeo({ running: true, done: d, total: cands.length }); })
+      .finally(() => { masterGeoRunning.current = false; if (alive.current) setGeo(g => ({ ...g, running: false })); });
+  }, [establishments.length, masterStoresForGeo, pending.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* lojas com posição, somando o que foi gasto em cada uma */
   const agg = useMemo(() => {
