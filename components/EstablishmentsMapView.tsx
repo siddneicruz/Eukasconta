@@ -7,6 +7,7 @@ import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, 
 import { Receipt, Establishment } from '../types';
 import { geocodeMissingEstablishments, needsGeocoding, masterGeoCandidates, geocodeFromMaster } from '../services/geocodingService';
 import { useMasterInfo } from './MasterContext';
+import { snapToPois } from '../services/poiSnap';
 import { fetchRoute, haversineKm, formatDistance, formatDuration, navigationLinks, RouteResult, LatLng } from '../services/routingService';
 import { getCurrentPosition } from '../services/cloudService';
 import { isNativeApp } from '../services/platform';
@@ -277,6 +278,20 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
     geocodeFromMaster(cands, (est, patch) => onPatchEstablishment(est, patch), d => { if (alive.current) setGeo({ running: true, done: d, total: cands.length }); })
       .finally(() => { masterGeoRunning.current = false; if (alive.current) setGeo(g => ({ ...g, running: false })); });
   }, [establishments.length, masterStoresForGeo, pending.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* posição conferida com as lojas do mapa pelo nome (corrige o que caiu no centro da cidade ou na rua errada) */
+  const snapRunning = useRef(false);
+  const snapKey = establishments.filter(e => !e.poiSnapAt && !e.geocodeManual && e.geocodeStatus === 'found').length;
+  useEffect(() => {
+    if (snapKey === 0 || snapRunning.current || geo.running || geoRunning.current || masterGeoRunning.current) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    snapRunning.current = true;
+    const ctrl = new AbortController();
+    snapToPois(establishments, e => [e.aliasName || '', e.originalName, namer.nameOf(e.originalName, e.cnpj)].filter(Boolean),
+      (e, patch) => onPatchEstablishment(e, patch), undefined, ctrl.signal)
+      .finally(() => { snapRunning.current = false; });
+    return () => ctrl.abort();
+  }, [snapKey, geo.running]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* lojas com posição, somando o que foi gasto em cada uma */
   const agg = useMemo(() => {

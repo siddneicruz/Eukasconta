@@ -55,6 +55,8 @@ export interface Establishment {
     geocodeApprox?: boolean;
     // true = a pessoa digitou a posição: a busca automática não mexe mais nela
     geocodeManual?: boolean;
+    // quando o app conferiu a posição com as lojas do mapa (OpenStreetMap), para não repetir a consulta
+    poiSnapAt?: number;
 }
 
 export interface MasterProduct {

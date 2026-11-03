@@ -463,6 +463,8 @@ function Segmented<T extends string>({ value, onChange, options }: { value: T; o
   );
 }
 
+const fmtDM = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
 const DeltaPill: React.FC<{ delta: number | null; label: string }> = ({ delta, label }) => {
   if (delta === null) return <span className="text-xs text-zinc-500">Sem dados do {label} para comparar</span>;
   const up = delta > 0.5, down = delta < -0.5;
@@ -611,6 +613,11 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
             <span className="text-4xl md:text-6xl font-serif font-bold tracking-tighter text-white leading-none">{brl.format(animatedTotal)}</span>
             <DeltaPill delta={a.delta} label={a.rg.prevLabel} />
           </div>
+          {a.rg.kind !== 'days' && a.prevTotal > 0 && (
+            <p className="-mt-3 mb-5 text-xs text-zinc-500" data-testid="panorama-compare-note">
+              A comparação usa o mesmo trecho do {a.rg.prevLabel}: {fmtDM(a.rg.prev.start)} a {fmtDM(a.rg.prev.end)} somou {brl.format(a.prevTotal)}.
+            </p>
+          )}
 
           <div className="h-[220px] md:h-[320px] -mx-2">
             <ResponsiveContainer width="100%" height="100%">
