@@ -4,7 +4,7 @@ import CategoryTagPicker from './CategoryTagPicker';
 import CategoryCompareBox from './CategoryCompareBox';
 import { useAddLayerNode, useLayers, useTaxonomy } from './LayersContext';
 import { useMasterInfo } from './MasterContext';
-import { nodeForItem } from '../services/masterService';
+import { nodeForItem, brandForItem } from '../services/masterService';
 import { currentPick, isSelectable, pathParts, pickOptions, resolvePick, restText } from '../services/categoryPick';
 import { saveLayerPin } from '../services/layerPins';
 import { buildAlignIndex, inStructure, resolveCategory, structureKeys } from '../services/categoryAlign';
@@ -77,6 +77,7 @@ const ItemCategoryPicker: React.FC<{
 
   // produto que a tabela mãe conhece: a categoria vem do administrador (muda pela planilha), aqui só se confere
   const fromMaster = !!(masterInfo.master && nodeForItem(masterInfo.master, code, description));
+  const brandInfo = fromMaster && masterInfo.master ? brandForItem(masterInfo.master, code, description) : null;
   if (fromMaster) {
     return (
       <div data-testid={`${testId}-master`}>
@@ -85,6 +86,7 @@ const ItemCategoryPicker: React.FC<{
             <React.Fragment key={i}>{i > 0 && <span className="text-luxury-gold/70 mx-1">›</span>}<span className={i === chain.length - 1 ? 'font-semibold text-zinc-100' : ''}>{p}</span></React.Fragment>
           ))}</p>
         )}
+        {brandInfo && <p className="mt-1 text-[12px] text-zinc-300" data-testid={`${testId}-brand`}>Marca: <span className="font-semibold text-zinc-100">{brandInfo.brand}</span>{brandInfo.manufacturer && brandInfo.manufacturer.toLowerCase() !== brandInfo.brand.toLowerCase() ? ` · Fabricante: ${brandInfo.manufacturer}` : ''}</p>}
         <p className="mt-1 text-[11.5px] text-zinc-500 leading-snug">Categoria definida pela tabela mãe{masterInfo.isAdmin ? '. Para mudar, edite a planilha e publique em Config › Tabela mãe.' : '. Se estiver errada, avise o administrador.'}</p>
       </div>
     );

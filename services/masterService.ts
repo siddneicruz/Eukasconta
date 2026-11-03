@@ -9,7 +9,7 @@ import { layerSlug } from './categoryLayers';
 import { catKey } from './textFormat';
 import { applyPinChanges } from './layerPins';
 
-export interface MasterProductRef { code: string; desc: string; nodeId: string | null }
+export interface MasterProductRef { code: string; desc: string; nodeId: string | null; brand?: string; manufacturer?: string }
 export interface MasterData {
   version: number;
   publishedAt: string | null;
@@ -80,7 +80,7 @@ type NodeRow = { id: string; parent_id: string | null; level: number; name: stri
 export const fetchMaster = async (version: number, publishedAt: string | null): Promise<MasterData> => {
   const [rows, prods, codeRows, typeRows, storeRows] = await Promise.all([
     fetchAll<NodeRow>('taxonomy_master', 'id,parent_id,level,name,sort,icon,color,updated_at', 'sort'),
-    fetchAll<{ code: string; description: string; node_id: string | null }>('master_products', 'code,description,node_id', 'code', q => q.not('node_id', 'is', null)),
+    fetchAll<{ code: string; description: string; node_id: string | null; brand?: string; manufacturer?: string }>('master_products', 'code,description,node_id,brand,manufacturer', 'code', q => q.not('node_id', 'is', null)),
     fetchAll<any>('master_product_codes', 'kind,store_key,store_name,code,master_products(code,description,unit_type,category)', 'id').catch(() => [] as any[]),
     fetchAll<{ name: string }>('store_types', 'name,sort', 'sort').catch(() => [] as { name: string }[]),
     fetchAll<any>('master_stores', 'cnpj,name,type,address,number,neighborhood,city,state,cep,legal_name', 'cnpj').catch(() => [] as MasterStore[]),
@@ -96,7 +96,7 @@ export const fetchMaster = async (version: number, publishedAt: string | null): 
   }));
   // mesma escrita do app (iniciais maiúsculas): assim a padronização local não briga com a tabela mãe
   const nodes = standardizeTaxonomy(raw).taxonomy;
-  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id })), codes, storeTypes: typeRows.map(t => t.name), stores: storeRows.map((r: any) => ({ cnpj: r.cnpj, name: r.name || '', type: r.type || '', address: r.address || '', number: r.number || '', neighborhood: r.neighborhood || '', city: r.city || '', state: r.state || '', cep: r.cep || '', legalName: r.legal_name || '' })) };
+  return { version, publishedAt, nodes, products: prods.map(p => ({ code: p.code, desc: p.description, nodeId: p.node_id, brand: p.brand || '', manufacturer: p.manufacturer || '' })), codes, storeTypes: typeRows.map(t => t.name), stores: storeRows.map((r: any) => ({ cnpj: r.cnpj, name: r.name || '', type: r.type || '', address: r.address || '', number: r.number || '', neighborhood: r.neighborhood || '', city: r.city || '', state: r.state || '', cep: r.cep || '', legalName: r.legal_name || '' })) };
 };
 
 /** Assinatura da estrutura, para saber se a local já é a da tabela mãe. */
@@ -155,6 +155,24 @@ export const nodeForItem = (m: MasterData, code: string | undefined | null, desc
   return d && ix.byDesc.has(d) ? ix.byDesc.get(d)! : null;
 };
 
+/** Marca e fabricante do produto da tabela mãe que corresponde ao item (pelo código ou pelo nome igual), se a tabela souber. */
+const brandCache = new WeakMap<MasterData, { byCode: Map<string, MasterProductRef>; byDesc: Map<string, MasterProductRef | null> }>();
+export const brandForItem = (m: MasterData, code: string | undefined | null, description: string | undefined | null): { brand: string; manufacturer: string } | null => {
+  let c = brandCache.get(m);
+  if (!c) {
+    c = { byCode: new Map(), byDesc: new Map() };
+    m.products.forEach(p => {
+      c!.byCode.set(p.code.trim(), p);
+      const d = layerSlug(p.desc);
+      if (d) c!.byDesc.set(d, c!.byDesc.has(d) ? null : p);
+    });
+    brandCache.set(m, c);
+  }
+  const k = String(code ?? '').trim();
+  const p = (k && c.byCode.get(k)) || c.byDesc.get(layerSlug(String(description ?? ''))) || null;
+  return p && p.brand ? { brand: p.brand, manufacturer: p.manufacturer || '' } : null;
+};
+
 /** A chave de grupo/item que a fixação usa (categoryLayers): nulo quando o nó é só categoria ou departamento. */
 const pinKeyFor = (ix: MasterIndex, nodeId: string, path: string[], category: string): string | null => {
   if (path.length < 3) return null;
@@ -203,7 +221,7 @@ const rpcError = (e: { message?: string; code?: string } | null): string => {
 
 export interface PublishPayload {
   nodes: { path: string[]; icon?: string; color?: string }[];
-  products: { code: string; description: string; unit?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }[];
+  products: { code: string; description: string; unit?: string; brand?: string; manufacturer?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }[];
   /** aba "Tipos de loja" da planilha (opcional) */
   storeTypes?: string[];
   /** aba "Lojas" da planilha (opcional) */
@@ -280,5 +298,5 @@ export const reviewSuggestion = async (id: string, approve: boolean, name?: stri
 };
 
 /** Todos os produtos da tabela mãe (com ou sem caminho), para o administrador completar na planilha. */
-export const fetchAllMasterProducts = (): Promise<{ code: string; description: string; unit_type: string | null; category: string | null; node_id: string | null }[]> =>
-  fetchAll('master_products', 'code,description,unit_type,category,node_id', 'code');
+export const fetchAllMasterProducts = (): Promise<{ code: string; description: string; unit_type: string | null; category: string | null; node_id: string | null; brand?: string; manufacturer?: string; brand_suggestion?: string }[]> =>
+  fetchAll('master_products', 'code,description,unit_type,category,node_id,brand,manufacturer,brand_suggestion', 'code');

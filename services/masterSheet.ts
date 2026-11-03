@@ -27,7 +27,7 @@ const pathKey = (path: string[]) => path.map(p => plain(p)).join('>');
 
 const HEAD: Record<string, string[]> = {
   dept: ['departamento', 'n1'], cat: ['categoria', 'n2'], grp: ['grupo', 'subcategoria', 'n3'], item: ['item', 'n4'],
-  code: ['codigo', 'cod'], ean: ['ean', 'gtin', 'codigo de barras'], cnpj: ['cnpj', 'loja cnpj'], store: ['loja', 'estabelecimento'], native: ['codigo na loja', 'codigo da loja', 'codigo nativo', 'codigo loja'], desc: ['descricao', 'produto', 'nome'], unit: ['unidade', 'un', 'unid', 'unit'],
+  code: ['codigo', 'cod'], ean: ['ean', 'gtin', 'codigo de barras'], cnpj: ['cnpj', 'loja cnpj'], store: ['loja', 'estabelecimento'], native: ['codigo na loja', 'codigo da loja', 'codigo nativo', 'codigo loja'], desc: ['descricao', 'produto', 'nome'], unit: ['unidade', 'un', 'unid', 'unit'], brand: ['marca'], maker: ['fabricante', 'industria'],
 };
 const findCol = (headers: string[], keys: string[], used: Set<number>): number => {
   const hs = headers.map(plain);
@@ -87,7 +87,7 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
   if (prow && prow.length > 1) {
     const ph = prow[0].map(cell);
     const u2 = new Set<number>();
-    const pc = { code: findCol(ph, HEAD.code, u2), desc: findCol(ph, HEAD.desc, u2), unit: findCol(ph, HEAD.unit, u2), ean: findCol(ph, HEAD.ean, u2), dept: findCol(ph, HEAD.dept, u2), cat: findCol(ph, HEAD.cat, u2), grp: findCol(ph, HEAD.grp, u2), item: findCol(ph, HEAD.item, u2) };
+    const pc = { code: findCol(ph, HEAD.code, u2), desc: findCol(ph, HEAD.desc, u2), unit: findCol(ph, HEAD.unit, u2), ean: findCol(ph, HEAD.ean, u2), dept: findCol(ph, HEAD.dept, u2), cat: findCol(ph, HEAD.cat, u2), grp: findCol(ph, HEAD.grp, u2), item: findCol(ph, HEAD.item, u2), brand: findCol(ph, HEAD.brand, u2), maker: findCol(ph, HEAD.maker, u2) };
     if (pc.code < 0 || pc.desc < 0) throw new MasterSheetError('Na aba "Produtos" faltam as colunas Código e Descrição.');
     const byCode = new Map<string, number>();
     for (let r = 1; r < prow.length; r++) {
@@ -113,7 +113,8 @@ export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => 
       }
       const unit = pc.unit >= 0 ? cell(row[pc.unit]).toUpperCase() : '';
       const eans = pc.ean >= 0 ? cell(row[pc.ean]).split(/[;,\n]/).map(x => cleanCode(x)).filter(Boolean) : undefined;
-      const item: PublishPayload['products'][number] = { code, description, unit: unit || undefined, path, ...(eans ? { eans } : {}) };
+      const item: PublishPayload['products'][number] = { code, description, unit: unit || undefined, path, ...(eans ? { eans } : {}),
+        ...(pc.brand >= 0 ? { brand: cell(row[pc.brand]) } : {}), ...(pc.maker >= 0 ? { manufacturer: cell(row[pc.maker]) } : {}) };
       if (byCode.has(code)) { products[byCode.get(code)!] = item; warnings.push(`Produtos, linha ${r + 1}: código ${code} repetido; vale a última linha.`); }
       else { byCode.set(code, products.length); products.push(item); }
     }
@@ -182,7 +183,7 @@ export const diffStructure = (current: TaxonomyNode[], next: PublishPayload['nod
 
 // ---- gerar a planilha ----
 
-export interface SheetProduct { code: string; description: string; unit?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }
+export interface SheetProduct { code: string; description: string; unit?: string; brand?: string; manufacturer?: string; suggestion?: string; path: string[]; eans?: string[]; stores?: { key: string; name?: string; code: string }[] }
 
 const leafPaths = (nodes: TaxonomyNode[]): string[][] => {
   const byId = new Map(nodes.map(n => [n.id, n] as const));
@@ -217,9 +218,9 @@ export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetPro
   est['!freeze'] = { xSplit: 0, ySplit: 1 } as any;
   XLSX.utils.book_append_sheet(wb, est, 'Estrutura');
   const sorted = [...products].sort((a, b) => a.path.join('\u0001').localeCompare(b.path.join('\u0001'), 'pt-BR') || a.description.localeCompare(b.description, 'pt-BR'));
-  const prod = XLSX.utils.aoa_to_sheet([['Código', 'Descrição', 'Unidade', 'Departamento', 'Categoria', 'Grupo', 'Item', 'EAN'],
-    ...sorted.map(p => [p.code, p.description, p.unit || '', p.path[0] || '', p.path[1] || '', p.path[2] || '', p.path[3] || '', (p.eans || []).join('; ')])]);
-  prod['!cols'] = [{ wch: 18 }, { wch: 44 }, { wch: 9 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 30 }];
+  const prod = XLSX.utils.aoa_to_sheet([['Código', 'Descrição', 'Unidade', 'Departamento', 'Categoria', 'Grupo', 'Item', 'EAN', 'Marca', 'Fabricante', 'Sugestão de marca'],
+    ...sorted.map(p => [p.code, p.description, p.unit || '', p.path[0] || '', p.path[1] || '', p.path[2] || '', p.path[3] || '', (p.eans || []).join('; '), p.brand || '', p.manufacturer || '', p.suggestion || ''])]);
+  prod['!cols'] = [{ wch: 18 }, { wch: 44 }, { wch: 9 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 30 }, { wch: 22 }, { wch: 26 }, { wch: 22 }];
   Object.keys(prod).forEach(a => { if (a[0] === 'H' && a !== 'H1' && prod[a] && prod[a].t === 'n') { prod[a].t = 's'; prod[a].v = String(prod[a].v); } });
   // código como texto: o Excel não vira número científico
   Object.keys(prod).forEach(a => { if (a[0] === 'A' && a !== 'A1' && prod[a] && prod[a].t === 'n') { prod[a].t = 's'; prod[a].v = String(prod[a].v); } });

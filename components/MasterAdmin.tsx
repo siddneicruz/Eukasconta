@@ -47,7 +47,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
       rows.forEach(r => {
         const nodePath = r.node_id && ix ? ix.path.get(r.node_id) : undefined;
         const legacy = (r.category || '').split(' - ').map(x => properCase(x)).filter(Boolean).slice(0, 2);
-        out.set(r.code, { code: r.code, description: r.description, unit: r.unit_type || undefined, path: nodePath && nodePath.length ? nodePath : legacy });
+        out.set(r.code, { code: r.code, description: r.description, unit: r.unit_type || undefined, brand: r.brand || '', manufacturer: r.manufacturer || '', suggestion: r.brand_suggestion || '', path: nodePath && nodePath.length ? nodePath : legacy });
       });
       // produtos do seu cadastro (com os códigos que o app já aprendeu dos cupons)
       const storeName = (key: string) => {
