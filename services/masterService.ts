@@ -61,6 +61,11 @@ const fetchAll = async <T,>(table: string, cols: string, order: string, filter?:
   return out;
 };
 
+/** Quantas categorias a tabela mãe tem na nuvem (consulta leve): se difere da cópia do aparelho, a estrutura mudou. */
+export const fetchNodeCount = async (): Promise<number | null> => {
+  const { count, error } = await supabase.from('taxonomy_master').select('id', { count: 'exact', head: true });
+  return error || count === null ? null : count;
+};
 export const fetchMasterVersion = async (): Promise<{ version: number; publishedAt: string | null } | null> => {
   const { data, error } = await supabase.from('master_meta').select('version, published_at').eq('id', true).maybeSingle();
   if (error || !data) return null;

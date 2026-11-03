@@ -5,6 +5,7 @@ import { useMonthPick } from './useMonthPick';
 import { Receipt, DashboardConfig, TaxonomyNode, MasterProduct } from '../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from 'recharts';
 import InteractiveDonut from './InteractiveDonut';
+import { groupTotals, spendGroupOf } from '../services/spendGroups';
 import PercentRing from './PercentRing';
 import PeriodPicker from './PeriodPicker';
 import ReceiptRow from './ReceiptRow';
@@ -430,6 +431,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const [deptFilter, setDeptFilter] = useDeptFilter();
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
   const [deptSheetOpen, setDeptSheetOpen] = useState(false);
+  const [groupSel, setGroupSel] = useState<string | null>(null); // tipo de gasto escolhido no gráfico de cima
   const deptActive = isDeptFilterActive(deptFilter);
   const hasFilters = !!(!isCurrentMonthPeriod(config) || config.establishment || config.item);
   const resetFilters = () => onConfigChange({ year: new Date().getFullYear(), month: new Date().getMonth(), category: null, quickFilter: null, customStartDate: '', customEndDate: '', establishment: null, item: null });
@@ -497,7 +499,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 
   // Departamentos: "HORTIFRUTI", "Hortifruti" e "hortifruti" (ou com/sem acento) viram um só.
   // O nome que representa o grupo é o da taxonomia, se existir; senão o que mais gastou.
-  const { chartData, totalSpent } = useMemo(() => {
+  const { chartData, totalSpent, allDepts, grandTotal } = useMemo(() => {
     const byKey = new Map<string, { total: number; variants: Map<string, number> }>();
     const official = new Map<string, string>();
     availableMasterCategories.forEach(n => official.set(deptKey(n), n));
@@ -519,8 +521,11 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         const name = official.get(key) || top;
         return { name, label: properCase(name), value: g.total, color: getCategoryColor(name), percentage: total > 0 ? (g.total / total) * 100 : 0 };
     });
-    return { chartData: rows.sort((a, b) => b.value - a.value), totalSpent: total };
-  }, [filteredReceipts, availableMasterCategories]);
+    const sorted = rows.sort((a, b) => b.value - a.value);
+    const shown = groupSel ? sorted.filter(r => spendGroupOf(r.name).id === groupSel) : sorted;
+    return { chartData: shown, totalSpent: groupSel ? shown.reduce((a, r) => a + r.value, 0) : total, allDepts: sorted, grandTotal: total };
+  }, [filteredReceipts, availableMasterCategories, groupSel]);
+  const groupRows = useMemo(() => groupTotals(allDepts), [allDepts]);
 
   // Lojas: o mesmo apelido (ou o mesmo nome) vira uma barra só. `name` é a identidade usada no filtro;
   // `raw` é o nome do cupom que mais gastou, para quando a loja não tem apelido.
@@ -772,6 +777,32 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       {config.item && (
           <div className="mb-10" data-testid="item-price-section">
               <ItemPriceInsight items={itemHistory} title={itemFilterTitle(config.item)} periodTitle={periodLabel(config)} />
+          </div>
+      )}
+
+      {groupRows.length > 0 && (
+          <div className="mb-6 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-8 shadow-2xl" data-testid="spend-groups">
+              <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Tipo de gasto</h3>
+                  {groupSel && <button type="button" onClick={() => setGroupSel(null)} className="text-[11px] font-bold uppercase tracking-wide text-luxury-gold">ver tudo ✕</button>}
+              </div>
+              <div className="flex h-3 rounded-full overflow-hidden mb-4 bg-white/5" aria-hidden="true">
+                  {groupRows.map(g => <div key={g.id} style={{ width: `${g.pct}%`, background: g.color, opacity: groupSel && groupSel !== g.id ? 0.25 : 1 }} />)}
+              </div>
+              <ul className="space-y-1.5">
+                  {groupRows.map(g => (
+                      <li key={g.id}>
+                          <button type="button" onClick={() => setGroupSel(groupSel === g.id ? null : g.id)} data-testid="spend-group" data-active={groupSel === g.id ? 'true' : 'false'}
+                              className={`w-full flex items-center gap-3 px-3 min-h-[44px] rounded-xl text-left border transition-colors ${groupSel === g.id ? 'border-luxury-gold/60 bg-luxury-gold/10' : 'border-transparent hover:bg-white/5'}`}>
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
+                              <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-100 font-semibold">{g.name}</span>
+                              <span className="text-[11px] text-zinc-500 shrink-0">{g.pct.toFixed(0)}%</span>
+                              <span className="text-[13px] text-zinc-200 font-semibold shrink-0 tabular-nums">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(g.value)}</span>
+                          </button>
+                      </li>
+                  ))}
+              </ul>
+              {groupSel && <p className="mt-3 text-[11px] text-zinc-500">O gráfico de departamentos abaixo mostra só este tipo de gasto (total {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(grandTotal)}).</p>}
           </div>
       )}
 

@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient';
 import { applyMasterCodes } from './masterCodes';
 import type { MasterInfo } from '../components/MasterContext';
 import {
-  MasterData, applyMasterToReceipts, cachedRole, fetchMaster, fetchMasterVersion, fetchPendingSuggestions, fetchRole,
+  MasterData, applyMasterToReceipts, cachedRole, fetchMaster, fetchMasterVersion, fetchNodeCount, fetchPendingSuggestions, fetchRole,
   loadMasterCache, reviewSuggestion, saveMasterCache, submitSuggestion, taxonomySignature,
 } from './masterService';
 
@@ -38,7 +38,11 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
     try { setPending((await fetchPendingSuggestions()).length); } catch { /* sem rede: mantém o número */ }
   }, [userId]);
 
-  const triedMeal = useRef(false);
+  // a estrutura pode mudar no banco sem a versão subir: confere o total de categorias (consulta leve)
+  const seenCount = useRef<number | null>(null); // total já baixado: não repete se a padronização local muda a contagem
+  const structureChanged = async (cur: MasterData) => {
+    try { const n = await fetchNodeCount(); if (n === null || n === cur.nodes.length || n === seenCount.current) return false; seenCount.current = n; return true; } catch { return false; }
+  };
   const syncNow = useCallback(async (force = false) => {
     if (!userId || busy.current) return;
     busy.current = true; setSyncing(true);
@@ -50,8 +54,7 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
         const cur = masterRef.current;
         if (meta.version <= 0) {
           if (cur) { saveMasterCache(null); setMaster(null); }
-        } else if (force || !cur || cur.version !== meta.version || (!triedMeal.current && !cur.nodes.some(n => n.level === 1 && n.name === 'Comer Fora e Delivery'))) {
-          triedMeal.current = true; // cópia guardada sem o departamento de refeições: baixa uma vez de novo (sem repetir se a nuvem também não tiver)
+        } else if (force || !cur || cur.version !== meta.version || (await structureChanged(cur))) {
           const fresh = await fetchMaster(meta.version, meta.publishedAt);
           saveMasterCache(fresh);
           setMaster(fresh);
