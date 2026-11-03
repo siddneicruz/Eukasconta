@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { TaxonomyNode, TaxonomySource } from '../types';
 import { slugify } from './taxonomyService';
 import { generateId } from './idUtils';
+import { downloadFile } from './nativeFiles';
 
 // Nomes de coluna aceitos por nível (minúsculo, sem acento) — flexível o
 // bastante pra aceitar variações de cabeçalho sem obrigar um nome exato.
@@ -101,5 +102,5 @@ export const downloadTaxonomyTemplate = () => {
   ws['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 22 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Taxonomia');
-  XLSX.writeFile(wb, 'modelo-taxonomia-eukasconta.xlsx');
+  void downloadFile(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'modelo-taxonomia-eukasconta.xlsx');
 };

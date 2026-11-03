@@ -1,3 +1,4 @@
+import { downloadFile } from './nativeFiles';
 // A planilha da tabela mãe: duas abas.
 //   Estrutura  → Departamento | Categoria | Grupo | Item   (uma linha por caminho; Grupo e Item podem ficar vazios)
 //   Produtos   → Código | Descrição | Unidade | Departamento | Categoria | Grupo | Item
@@ -219,7 +220,7 @@ export const storesFromLocal = (
   return out;
 };
 
-export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; number?: string; neighborhood?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = [], parts: { estrutura?: boolean; produtos?: boolean; lojas?: boolean } = {}) => {
+export const downloadMasterWorkbook = async (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; number?: string; neighborhood?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = [], parts: { estrutura?: boolean; produtos?: boolean; lojas?: boolean } = {}) => {
   const want = { estrutura: parts.estrutura !== false, produtos: parts.produtos !== false, lojas: parts.lojas !== false };
   const wb = XLSX.utils.book_new();
   const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);
@@ -259,5 +260,6 @@ export const downloadMasterWorkbook = (nodes: TaxonomyNode[], products: SheetPro
   ]);
   help['!cols'] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, help, 'Leia-me');
-  XLSX.writeFile(wb, fileName);
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  return downloadFile(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
 };
