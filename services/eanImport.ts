@@ -3,7 +3,7 @@
 // completado e conferido; o resto é rejeitado com o motivo. O mesmo EAN em várias planilhas vira uma linha só, com todas as fontes.
 
 export type EanSource = 'dpcnet' | 'dispan' | 'tirol';
-export interface EanRow { ean: string; description: string; brand: string; manufacturer: string; category_src: string; ncm: string; dun14: string; size_value: number | null; size_unit: string | null; size_text: string | null; image_url: string; sources: { s: EanSource; sku: string; d: string }[] }
+export interface EanRow { ean: string; description: string; brand: string; manufacturer: string; category_src: string; ncm: string; dun14: string; size_value: number | null; size_unit: string | null; size_text: string | null; image_url: string; sources: { s: string; sku: string; d: string }[] }
 export interface EanReject { ean: string; source: string; reason: 'vazio' | 'tamanho' | 'digito_verificador' | 'sem_descricao'; description: string }
 export interface EanPreview { catalog: EanRow[]; rejects: EanReject[]; perSource: Record<string, { rows: number; ok: number; fixed: number; rejected: number }>; conflicts: number; withSize: number; skipped: string[] }
 
@@ -59,14 +59,35 @@ export const detectSource = (header: string[]): EanSource | null => {
   return null;
 };
 
+/** Planilha já unificada (catalogo_ean_unificado.csv): cada linha é um EAN único, com as fontes de origem numa coluna. */
+const isUnified = (h: string[]) => h.includes('Fontes') && h.includes('Tamanho (valor)') && h.includes('EAN');
+
 export const buildPreview = (files: { name: string; text: string }[]): EanPreview => {
   const rejects: EanReject[] = []; const skipped: string[] = [];
   const perSource: EanPreview['perSource'] = {};
+  const direct: EanRow[] = []; let directConflicts = 0, directSize = 0;
   type Raw = { src: EanSource; ean: string; desc: string; brand: string; maker: string; cat: string; ncm: string; dun: string; sku: string; img: string };
   const raws: Raw[] = [];
   files.forEach(f => {
     const rows = parseCsv(f.text);
     if (!rows.length) { skipped.push(`${f.name}: arquivo vazio`); return; }
+    if (isUnified(rows[0].map(x => x.trim()))) {
+      const h = rows[0].map(x => x.trim()); const gi = (n: string) => h.indexOf(n);
+      const st = perSource['unificado'] || { rows: 0, ok: 0, fixed: 0, rejected: 0 }; perSource['unificado'] = st;
+      rows.slice(1).forEach(r => {
+        st.rows += 1;
+        const get = (n: string) => clean(r[gi(n)] ?? '');
+        const fx = fixEan(r[gi('EAN')] ?? ''); const desc = get('Descrição');
+        if (!fx.ean || fx.why === 'zeros' || !desc) { st.rejected += 1; rejects.push({ ean: String(r[gi('EAN')] ?? '').replace(/\D/g, ''), source: 'unificado', reason: !desc ? 'sem_descricao' : (fx.why === 'ok' ? 'digito_verificador' : (fx.why as EanReject['reason'])), description: desc.slice(0, 200) }); return; }
+        st.ok += 1;
+        const sv = get('Tamanho (valor)'); if (sv) directSize += 1;
+        if (/descrição diferente/i.test(get('Observação'))) directConflicts += 1;
+        direct.push({ ean: fx.ean, description: desc, brand: get('Marca'), manufacturer: get('Fabricante'), category_src: get('Categoria (origem)'), ncm: get('NCM').replace(/\D/g, '').slice(0, 8), dun14: get('DUN-14').replace(/\D/g, ''),
+          size_value: sv ? Number(sv.replace(',', '.')) : null, size_unit: get('Tamanho (unidade)') || null, size_text: get('Tamanho (texto)') || null, image_url: get('Imagem'),
+          sources: get('Fontes').split('|').map(x => x.trim()).filter(Boolean).map(x => { const i = x.indexOf(':'); return { s: (i > 0 ? x.slice(0, i) : x).toLowerCase(), sku: i > 0 ? x.slice(i + 1) : '', d: desc }; }) });
+      });
+      return;
+    }
     const src = detectSource(rows[0]);
     if (!src) { skipped.push(`${f.name}: formato não reconhecido (só entram DPCNet, Dispan e Tirol; a planilha da Nestlé está com colunas deslocadas e precisa ser extraída de novo)`); return; }
     const idx = (n: string) => rows[0].findIndex(x => x.trim() === n);
@@ -96,5 +117,5 @@ export const buildPreview = (files: { name: string; text: string }[]): EanPrevie
     catalog.push({ ean, description: p.desc, brand: p.brand, manufacturer: p.maker, category_src: p.cat, ncm: p.ncm, dun14: p.dun, size_value: sz.value, size_unit: sz.unit, size_text: sz.text, image_url: p.img,
       sources: rs.map(x => ({ s: x.src, sku: x.sku, d: x.desc })) });
   });
-  return { catalog, rejects, perSource, conflicts, withSize, skipped };
+  return { catalog: [...direct, ...catalog], rejects, perSource, conflicts: conflicts + directConflicts, withSize: withSize + directSize, skipped };
 };
