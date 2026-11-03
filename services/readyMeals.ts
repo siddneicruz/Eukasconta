@@ -5,9 +5,7 @@ import { Receipt } from '../types';
 import { sameDept } from './textFormat';
 
 export const MEAL_DEPT = 'Comer Fora e Delivery';
-export const MEAL_FOOD = `${MEAL_DEPT} - Pratos e Lanches`;
-export const MEAL_DRINK = `${MEAL_DEPT} - Bebidas e Sobremesas`;
-export const MEAL_NODES: { path: string[] }[] = [{ path: [MEAL_DEPT] }, { path: [MEAL_DEPT, 'Pratos e Lanches'] }, { path: [MEAL_DEPT, 'Bebidas e Sobremesas'] }];
+const cat = (c: string) => `${MEAL_DEPT} - ${c}`;
 
 const plain = (s: string): string => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -17,9 +15,17 @@ export const isMealStoreType = (type: string | undefined | null): boolean =>
 
 export const isMealCategory = (category: string | undefined | null): boolean => !!category && sameDept(category, MEAL_DEPT);
 
-const DRINK = /\b(refri|refrigerante|coca|guarana|fanta|sprite|suco|agua|cerveja|chopp?|chope|vinho|caipirinha|drink|drinque|cafe|cappuccino|expresso|cha\b|gin|vodka|whisky|energetico|sobremesa|sorvete|pudim|mousse|brownie|petit gateau|taca|long neck|heineken|brahma|skol|budweiser)\b/;
+const DESSERT = /\b(sobremesa|sorvete|pudim|mousse|brownie|petit gateau|acai|torta|doce|bolo|milkshake|picole|cheesecake|churros)\b/;
+const SNACK = /\b(hamburguer|burger|x-?\w+|lanche|pizza|pastel|hot ?dog|cachorro quente|batata frita|sanduiche|coxinha|salgado|esfiha|empada|porcao|combo|refri|refrigerante|coca|guarana|fanta|sprite|suco)\b/;
 
-export const mealCategoryFor = (description: string): string => (DRINK.test(plain(description)) ? MEAL_DRINK : MEAL_FOOD);
+/** Categoria que já existe em "Comer Fora e Delivery": sobremesa, lanche, ou almoço/jantar pelo horário do cupom. */
+export const mealCategoryFor = (description: string, time?: string): string => {
+  const d = plain(description);
+  if (DESSERT.test(d)) return cat('Sobremesas e Doces');
+  if (SNACK.test(d)) return cat('Lanches e Fast Food');
+  const h = parseInt(String(time || '').slice(0, 2), 10);
+  return cat(Number.isFinite(h) && h < 16 ? 'Almoço' : 'Jantar');
+};
 
 /** Itens do cupom de uma loja de consumo pronto passam para "Comer Fora e Delivery" (o que já está lá fica como está). */
 export const applyMealCategories = (r: Receipt, typeOf: (name: string, cnpj?: string) => string): { receipt: Receipt; items: number } => {
@@ -28,7 +34,7 @@ export const applyMealCategories = (r: Receipt, typeOf: (name: string, cnpj?: st
   const items = (r.items || []).map(i => {
     if (isMealCategory(i.category)) return i;
     n += 1;
-    return { ...i, category: mealCategoryFor(i.description) };
+    return { ...i, category: mealCategoryFor(i.description, r.time) };
   });
   return n > 0 ? { receipt: { ...r, items }, items: n } : { receipt: r, items: 0 };
 };
@@ -47,10 +53,3 @@ export const planMeals = (receipts: Receipt[], typeOf: (name: string, cnpj?: str
 
 export const applyMealsAll = (receipts: Receipt[], typeOf: (name: string, cnpj?: string) => string): Receipt[] =>
   receipts.map(r => applyMealCategories(r, typeOf).receipt);
-
-/** Garante o departamento e as duas categorias na estrutura que sobe para a tabela mãe. */
-export const withMealNodes = <T extends { path: string[] }>(nodes: T[]): T[] => {
-  const has = new Set(nodes.map(n => n.path.map(plain).join('>')));
-  const add = MEAL_NODES.filter(n => !has.has(n.path.map(plain).join('>'))) as unknown as T[];
-  return add.length ? [...nodes, ...add] : nodes;
-};

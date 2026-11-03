@@ -1,4 +1,4 @@
-import { withMealNodes } from './readyMeals';
+import { isMealCategory } from './readyMeals';
 // Tabela mãe: a estrutura de categorias e os produtos que valem para todos os usuários (Supabase).
 // O administrador publica pela planilha; todo app baixa, troca a estrutura local e reclassifica os itens pelo código do produto.
 import { supabase } from './supabaseClient';
@@ -175,6 +175,7 @@ export const applyMasterToReceipts = (receipts: Receipt[], m: MasterData): Apply
   const next = receipts.map(r => {
     let touched = false;
     const items = (r.items || []).map(it => {
+      if (isMealCategory(it.category)) return it;   // prato de restaurante: a tabela mãe não devolve ao mercado
       const id = nodeForItem(m, it.code, it.description);
       if (!id) return it;
       const path = ix.path.get(id);
@@ -224,7 +225,7 @@ const callRpc = async (fn: string, args: Record<string, unknown>): Promise<any> 
 /** Publica em pedaços pequenos (o servidor corta cada pedido em 8 s): categorias, produtos e, no fim, o fechamento que apaga o que saiu e avisa os aparelhos. */
 export const publishMaster = async (payload: PublishPayload, onProgress?: (msg: string) => void): Promise<PublishResult> => {
   const batch = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `${Date.now().toString(16).padStart(8, '0')}-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`;
-  const nodes = withMealNodes(payload.nodes).map((n, i) => ({ ...n, ord: i + 1 })).sort((a, b) => a.path.length - b.path.length || a.ord - b.ord);
+  const nodes = payload.nodes.map((n, i) => ({ ...n, ord: i + 1 })).sort((a, b) => a.path.length - b.path.length || a.ord - b.ord);
   if (nodes.length === 0) throw new Error('A planilha não tem nenhuma categoria; nada foi publicado');
   let added = 0;
   const nodeChunks = chunked(nodes, 300);
