@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ShoppingCart, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil, Save, Apple, Carrot, Beef,
+  ShoppingCart, ScanBarcode, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil, Save, Apple, Carrot, Beef,
 } from 'lucide-react';
 import { Receipt, MasterProduct } from '../types';
 import {
@@ -17,6 +17,9 @@ import ShoppingSetup, { GenOptions } from './ShoppingSetup';
 import ShoppingProgress from './ShoppingProgress';
 import { AddSheet, ConfirmSheet, ItemSheet, ListMenuSheet, RenameSheet, brl } from './ShoppingSheets';
 import ShoppingCatalogSheet from './ShoppingCatalogSheet';
+import ShoppingScanSheet from './ShoppingScanSheet';
+import { resolveBarcode, scanIntoCart } from '../services/shoppingScan';
+import { useMasterInfo } from './MasterContext';
 import { CatGroup, resolveIds } from '../services/shoppingCatalog';
 
 /* Lista de compras: gera a partir dos cupons, divide por semana ou pelos dias do mês, respeita teto e mínimo,
@@ -30,7 +33,7 @@ interface Props {
 }
 
 type Screen = 'home' | 'setup' | 'list';
-type SheetState = { kind: 'item'; pi: number; pid: string; group: Group } | { kind: 'add'; pi: number } | { kind: 'catalog'; pi: number; group: CatGroup } | { kind: 'delete'; id: string } | { kind: 'menu' } | { kind: 'rename'; id: string } | { kind: 'save'; id: string } | null;
+type SheetState = { kind: 'item'; pi: number; pid: string; group: Group } | { kind: 'add'; pi: number } | { kind: 'scan'; pi: number } | { kind: 'catalog'; pi: number; group: CatGroup } | { kind: 'delete'; id: string } | { kind: 'menu' } | { kind: 'rename'; id: string } | { kind: 'save'; id: string } | null;
 
 interface Section { key: string; title: string; sub?: string; entries: Entry[] }
 
@@ -171,6 +174,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
 
   const hasKey = hasAnyUserApiKey();
   const aiLabel = getActiveProviderLabel();
+  const masterInfo = useMasterInfo();
   const history = useMemo(() => analyzeHistory(receipts, masters, { today }), [receipts, masters, today]);
 
   useEffect(() => { saveLists(lists); }, [lists]);
@@ -608,8 +612,12 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
         )}
 
         <div className="border-t border-white/5 p-3 space-y-2">
-          <button type="button" onClick={() => setSheet({ kind: 'add', pi: idx })} data-testid="shop-add"
-            className="w-full h-11 rounded-xl border border-dashed border-white/20 text-[13px] font-semibold text-zinc-300 hover:text-luxury-gold hover:border-luxury-gold/40 flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> Adicionar item</button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setSheet({ kind: 'add', pi: idx })} data-testid="shop-add"
+              className="h-11 rounded-xl border border-dashed border-white/20 text-[13px] font-semibold text-zinc-300 hover:text-luxury-gold hover:border-luxury-gold/40 flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> Adicionar item</button>
+            <button type="button" onClick={() => setSheet({ kind: 'scan', pi: idx })} data-testid="shop-scan"
+              className="h-11 rounded-xl bg-luxury-gold/15 border border-luxury-gold/40 text-[13px] font-semibold text-luxury-gold flex items-center justify-center gap-1.5 active:bg-luxury-gold/25"><ScanBarcode className="w-4 h-4" /> Bipar produto</button>
+          </div>
           <div className="grid grid-cols-3 gap-2" role="group" aria-label="Escolher no catálogo">
             {([['fruta', 'Frutas', Apple], ['verdura', 'Verduras', Carrot], ['carne', 'Carnes', Beef]] as const).map(([g, label, Icon]) => (
               <button key={g} type="button" onClick={() => setSheet({ kind: 'catalog', pi: idx, group: g })} data-testid={`shop-cat-${g}`} aria-label={`Escolher ${label.toLowerCase()} no catálogo`}
@@ -673,6 +681,11 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
           onClose={() => setSheet(null)}
           onRemove={() => { const s = sheet; update(l => removeEntry(l, s.pi, s.pid)); setSheet(null); }}
           onSave={(qty, price) => { const s = sheet; update(l => { let n = setQty(l, s.pi, s.pid, qty); if (price !== sheetEntry.price) n = setPrice(n, s.pid, price); return n; }); setSheet(null); }} />
+      )}
+      {sheet?.kind === 'scan' && list.purchases[sheet.pi] && (
+        <ShoppingScanSheet purchase={list.purchases[sheet.pi]} purchaseLabel={shortDate(list.purchases[sheet.pi].date)} onClose={() => setSheet(null)}
+          resolve={code => resolveBarcode(code, { masters, master: masterInfo.master, receipts, history })}
+          onAdd={(hit, qty, price) => { const s = sheet; update(l => scanIntoCart(l, s.pi, hit, qty, price)); }} />
       )}
       {sheet?.kind === 'add' && (
         <AddSheet history={history} purchaseLabel={shortDate(list.purchases[sheet.pi].date)} onClose={() => setSheet(null)}
