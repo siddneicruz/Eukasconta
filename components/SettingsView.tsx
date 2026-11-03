@@ -32,6 +32,7 @@ import { AppMark, PDLogo } from './Brand';
 import NicknameSuggestSheet from './NicknameSuggestSheet';
 import StoreDuplicatesSheet from './StoreDuplicatesSheet';
 import MasterReconcileSheet from './MasterReconcileSheet';
+import ReadyMealsSheet from './ReadyMealsSheet';
 import { findStoreGroups, removableCount, type MergePlan } from '../services/storeDedupe';
 import { agoText, parseWhen, useFileBackupAt, useNow, whenText } from '../services/lastWhen';
 import type { ProductGroup } from '../services/productUnify';
@@ -71,6 +72,7 @@ interface SettingsViewProps {
   // Juntar lojas repetidas (cupons, códigos e dados passam para a loja que fica)
   onMergeStores?: (plans: MergePlan[]) => void;
   onSaveStore?: (prev: Establishment, draft: StoreDraft) => string | null;
+  onApplyMeals?: () => void;
   restore: RestorePointsApi;
   onEditIcon?: (category: string) => void;
   onUnifyEstablishments?: () => void;
@@ -138,7 +140,7 @@ const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key =>
 const SettingsView: React.FC<SettingsViewProps> = ({ 
   taxonomy, onUpdateTaxonomy, onMergeCategories, onClearData, onExportData, onExportTxtZip, onImportData, 
   onCleanupDuplicates, onReprocessCategories, onAuditPrices, onUpdateGlobalMapping, onUpdateBatchMapping,
-  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, onMergeStores, onSaveStore, restore, 
+  receipts = [], masterProducts = [], onUnifyProducts, onSplitProduct, onEditCodes, establishments = [], onUpdateEstablishment, onEditEstablishment, onApplyAliases, onMergeStores, onSaveStore, onApplyMeals, restore, 
   onEditIcon, onUnifyEstablishments, aiLearning, onUpdateAiLearning, cloud, backup, initialTab, onOpenAlerts
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -153,6 +155,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const [nickOpen, setNickOpen] = useState(false);
   const [dupOpen, setDupOpen] = useState(false);
   const [reconOpen, setReconOpen] = useState(false);
+  const [mealsOpen, setMealsOpen] = useState(false);
   // quantos cadastros sobrariam a menos: só se calcula com a aba de lojas aberta e fora do caminho da digitação do apelido
   const dupStores = useDeferredValue(establishments);
   const dupCount = useMemo(() => (settingsTab === 'establishments' && onMergeStores ? removableCount(findStoreGroups(dupStores, receipts)) : 0), [settingsTab, onMergeStores, dupStores, receipts]);
@@ -260,6 +263,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                   <Link2 className="w-4 h-4" /> Conferir com a tabela mãe
                               </button>
                           )}
+                          {onApplyMeals && (
+                              <button onClick={() => setMealsOpen(true)} data-testid="meals-open"
+                                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 text-zinc-300 text-xs font-bold hover:border-luxury-gold/40 hover:text-luxury-gold transition-all">
+                                  Refeições fora de casa
+                              </button>
+                          )}
                           {onMergeStores && (
                               <button onClick={() => setDupOpen(true)} data-testid="dup-open" data-count={dupCount}
                                   className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-semibold text-sm transition-all border whitespace-nowrap justify-center ${dupCount > 0 ? 'bg-luxury-gold text-black border-luxury-gold hover:brightness-110' : 'bg-white/5 text-zinc-400 border-white/5 hover:bg-luxury-gold hover:text-black'}`}>
@@ -347,6 +356,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
       )}
 
+      {mealsOpen && onApplyMeals && <ReadyMealsSheet receipts={receipts} onApply={onApplyMeals} onClose={() => setMealsOpen(false)} />}
       {reconOpen && onMergeStores && onSaveStore && (
           <MasterReconcileSheet establishments={establishments} receipts={receipts} masterStores={master.master?.stores || []} onMerge={onMergeStores} onSave={onSaveStore} onClose={() => setReconOpen(false)} />
       )}

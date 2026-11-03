@@ -1,3 +1,4 @@
+import { isMealCategory } from './readyMeals';
 import { Receipt, ReceiptItem, MasterProduct, ItemFilter } from '../types';
 import { titleCase } from './textFormat';
 import { HistoryItem, normalizeUnit } from './productPriceStats';
@@ -68,6 +69,7 @@ export const toHistoryItems = (receipts: Receipt[], match: (item: ReceiptItem) =
   receipts.forEach(r => {
     (r.items || []).forEach((item, idx) => {
       if (!match(item)) return;
+      if (isMealCategory(item.category)) return;   // prato de restaurante não entra no preço do produto
       // ovo com a quantidade conhecida vira preço da dúzia (quantidade em dúzias); o dinheiro gasto continua o do cupom
       const basis = priceBasis(item);
       const unitPrice = basis.unitPrice;

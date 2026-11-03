@@ -44,6 +44,7 @@ const EstablishmentsMapView = lazy(() => import('./components/EstablishmentsMapV
 import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
 import { buildStoreNamer } from './services/establishmentNames';
+import { applyMealCategories, applyMealsAll } from './services/readyMeals';
 import ShoppingListView from './components/ShoppingListView';
 import { LayersProvider } from './components/LayersContext';
 import { MasterProvider } from './components/MasterContext';
@@ -244,7 +245,11 @@ const App: React.FC = () => {
   const alignIndex = useMemo(() => buildAlignIndex(taxonomy), [taxonomy]);
   // Tabela mãe de lojas (a mesma para todos): corrige CNPJ, razão social e endereço do cupom na hora em que ele entra
   const masterStoresRef = useRef<MasterStore[]>([]);
-  const snapNew = (r: Receipt): Receipt => resolveReceiptStore(snapReceiptCategories([r], alignIndex, loadAliases()).receipts[0], masterStoresRef.current).receipt;
+  const snapNew = (r: Receipt): Receipt => {
+      const resolved = resolveReceiptStore(snapReceiptCategories([r], alignIndex, loadAliases()).receipts[0], masterStoresRef.current).receipt;
+      // loja de consumo pronto (restaurante, lanchonete, bar): itens vão para "Comer Fora e Delivery", não para categorias de mercado
+      return applyMealCategories(resolved, buildStoreNamer(establishments, master.master?.storeTypes, master.master?.stores || []).typeOf).receipt;
+  };
 
   // Tela "Alinhar categorias": abre pelo botão da Estrutura e pelo aviso das listas de escolha
   const [alignOpen, setAlignOpen] = useState(false);
@@ -498,6 +503,14 @@ const App: React.FC = () => {
           setMetaVersion(v => v + 1);
       } catch { /* sem armazenamento: as compras e a árvore já foram acertadas */ }
       showNotification(`${summary}.${itemsChanged > 0 ? ` ${itemsChanged} ${itemsChanged === 1 ? 'item das compras' : 'itens das compras'} passou para a categoria que ficou.` : ''}`, 7000);
+  };
+
+  // Refeições fora de casa: itens de restaurante, lanchonete, bar e café saem das categorias de mercado.
+  const handleApplyMeals = () => {
+      const typeOf = buildStoreNamer(establishments, master.master?.storeTypes, master.master?.stores || []).typeOf;
+      restore.before('separar refeições fora de casa');
+      setReceipts(prev => applyMealsAll(prev, typeOf));
+      showNotification('Itens de restaurante e lanchonete passaram para Comer Fora e Delivery. Um ponto de restauração foi guardado.', 7000);
   };
 
   // Alinhar categorias: cada nome antigo dos cupons passa para a categoria da Estrutura de Taxonomia.
@@ -1526,6 +1539,7 @@ const App: React.FC = () => {
                         onApplyAliases={handleApplyAliases}
                         onMergeStores={handleMergeStores}
                         onSaveStore={handleSaveStore}
+                        onApplyMeals={handleApplyMeals}
                         onClearData={() => {
                             // Antes de apagar tudo, guarda um ponto de restauração (os pontos não são apagados pelo Hard Reset)
                             restore.before('apagar tudo');
