@@ -78,6 +78,41 @@ export const parseCupomOcr = (raw: string, qr?: NfceQr | null): CupomOcr => {
     if (!item.code) delete (item as any).code;
     items.push(item);
   });
+  // Formato B (ex.: restaurantes): "001 15 DESCRIÇÃO" e, na linha de baixo, "2 UN X 29,90"
+  const grandPre = (() => { const l = lines.find(x => /VALOR\s*TOTAL/i.test(x) && /\d[.,]\d{2}/.test(x)) || ''; const m = l.match(/(\d{1,3}(?:\.\d{3})*[.,]\d{2})\s*$/); return m ? money(m[1]) : null; })();
+  if (items.length === 0) {
+    const heads: number[] = [];
+    lines.forEach((l, i) => { if (/^\d{3}\s+\d{1,14}\s+\S/.test(l)) heads.push(i); });
+    const blocks: { desc: string; code: string; qty: number; unit: number; ut: string; region: string[] }[] = [];
+    heads.forEach((h, k) => {
+      const m = lines[h].match(/^\d{3}\s+(\d{1,14})\s+(.+)$/)!;
+      const end = k + 1 < heads.length ? heads[k + 1] : Math.min(lines.length, h + 4);
+      const region = lines.slice(h, end + 1);
+      const q = region.slice(1, end - h).map(l => l.match(/(\d+(?:[.,]\d+)?)\s*([A-Za-z]{1,4})\s*[xX×]\s*(\d+[.,]\d{2})/)).find(Boolean);
+      if (!q) return;
+      const qty = qtyNum(q[1]), unit = money(q[3]);
+      if (qty === null || unit === null) return;
+      const desc = m[2].replace(/[|]+/g, ' ').replace(/\s+(?:\S*\d[.,]\d{2}|[|])\s*$/, '').replace(/\s+/g, ' ').trim();
+      blocks.push({ desc, code: fixDigits(m[1]), qty, unit, ut: q[2].toUpperCase(), region });
+    });
+    blocks.forEach(b => items.push({ description: b.desc, quantity: b.qty, unitPrice: b.unit, totalPrice: r2(b.qty * b.unit), category: 'Outros', unitType: b.ut, ...(b.code.length <= 7 ? { code: cleanCode(b.code) || undefined } : gtinOk(b.code) ? { code: b.code } : {}) } as ReceiptItem));
+    items.forEach(i => { if (!i.code) delete (i as any).code; });
+    // um dígito mal lido no unitário: se sobrar um valor impresso na região que faça a soma fechar, usa ele
+    if (items.length && grandPre !== null) {
+      const delta = r2(grandPre - items.reduce((a, i) => a + i.totalPrice, 0));
+      if (Math.abs(delta) > 0.02) {
+        outer: for (let i = 0; i < items.length; i++) {
+          const toks = (blocks[i].region.join(' ').match(/\d+[.,]\d{2}/g) || []).map(t => money(t)!).filter(v => v !== null);
+          for (const t of toks) {
+            if (Math.abs(t - items[i].totalPrice - delta) < 0.006 && Math.abs(t / items[i].quantity - Math.round((t / items[i].quantity) * 100) / 100) < 0.0001) {
+              notes.push(`"${items[i].description.slice(0, 24)}": corrigi o valor lido para ${t.toFixed(2)} pelo total impresso.`);
+              items[i].totalPrice = t; items[i].unitPrice = r2(t / items[i].quantity); break outer;
+            }
+          }
+        }
+      }
+    }
+  }
   if (items.length === 0) return { ok: false, receipt: null, notes: ['Não achei linhas de item (código, descrição, quantidade, unidade, valores).'], text };
 
   const totalLine = lines.find(l => /VALOR\s*TOTAL/i.test(l) && /\d[.,]\d{2}/.test(l)) || lines.find(l => /TOTAL\s*R\$/i.test(l) && /\d[.,]\d{2}/.test(l)) || '';
@@ -88,7 +123,7 @@ export const parseCupomOcr = (raw: string, qr?: NfceQr | null): CupomOcr => {
   if (grand === null) { ok = false; notes.push('Não consegui ler o valor total do cupom.'); }
   else if (Math.abs(grand - sum) > 0.02) { ok = false; notes.push(`A soma dos itens (R$ ${sum.toFixed(2)}) não fecha com o total do cupom (R$ ${grand.toFixed(2)}).`); }
 
-  const cntLine = lines.find(l => /QUANTIDADE\s+TOTAL\s+DE\s+ITENS/i.test(l)) || '';
+  const cntLine = lines.find(l => /(?:QUANTIDADE|QTD\.?)\s+TOTAL\s+DE\s+ITENS/i.test(l)) || '';
   const cm = cntLine.match(/(\d{1,3})\s*$/);
   if (cm && Number(cm[1]) !== items.length && Number(cm[1]) > 0) { ok = false; notes.push(`O cupom diz ${cm[1]} itens e li ${items.length}.`); }
 
