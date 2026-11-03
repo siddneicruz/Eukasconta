@@ -253,7 +253,9 @@ export const publishMaster = async (payload: PublishPayload, onProgress?: (msg: 
     added += Number(r?.added || 0);
   }
   let prods = 0, unmapped = 0, codes = 0;
-  const prodChunks = chunked(payload.products || [], 150);
+  // códigos antigos já unificados (planilha velha): não recriar duplicados
+  const redir = new Set((await fetchAll<{ old_code: string }>('master_code_redirects', 'old_code', 'old_code').catch(() => [] as { old_code: string }[])).map(r => r.old_code));
+  const prodChunks = chunked((payload.products || []).filter((p: any) => !redir.has(p.code)), 150);
   for (let i = 0; i < prodChunks.length; i++) {
     onProgress?.(`Produtos ${i + 1} de ${prodChunks.length}…`);
     const r = await callRpc('publish_master_products', { p: prodChunks[i] });
@@ -295,6 +297,12 @@ export const fetchPendingSuggestions = async (): Promise<TaxSuggestion[]> => {
 export const reviewSuggestion = async (id: string, approve: boolean, name?: string): Promise<void> => {
   const { error } = await supabase.rpc('review_suggestion', { p_id: id, p_approve: approve, p_name: name?.trim() || null });
   if (error) throw new Error(rpcError(error));
+};
+
+/** Códigos antigos unificados: antigo → vigente (13 dígitos). */
+export const fetchCodeRedirects = async (): Promise<Map<string, string>> => {
+  const rows = await fetchAll<{ old_code: string; new_code: string }>('master_code_redirects', 'old_code,new_code', 'old_code').catch(() => [] as { old_code: string; new_code: string }[]);
+  return new Map(rows.map(r => [r.old_code, r.new_code]));
 };
 
 /** Todos os produtos da tabela mãe (com ou sem caminho), para o administrador completar na planilha. */

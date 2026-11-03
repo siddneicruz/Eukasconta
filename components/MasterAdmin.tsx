@@ -6,7 +6,7 @@ import { useMasterInfo } from './MasterContext';
 import { useLayers } from './LayersContext';
 import { MasterDiff, MasterSheetError, ParsedMaster, SheetProduct, diffStructure, downloadMasterWorkbook, storesFromLocal, parseMasterWorkbook } from '../services/masterSheet';
 import {
-  TaxSuggestion, fetchAllMasterProducts, fetchPendingSuggestions, masterIndex, publishMaster, publishStoreTypes, publishMasterStores, reviewSuggestion,
+  TaxSuggestion, fetchAllMasterProducts, fetchPendingSuggestions, masterIndex, publishMaster, fetchCodeRedirects, publishStoreTypes, publishMasterStores, reviewSuggestion,
 } from '../services/masterService';
 import { leafFor } from '../services/categoryLayers';
 import { properCase } from '../services/textFormat';
@@ -43,6 +43,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
     try {
       const ix = info.master ? masterIndex(info.master) : null;
       const rows = await fetchAllMasterProducts();
+      const redir = await fetchCodeRedirects();
       const out = new Map<string, SheetProduct>();
       rows.forEach(r => {
         const nodePath = r.node_id && ix ? ix.path.get(r.node_id) : undefined;
@@ -62,7 +63,9 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
         p.stores = st;
       };
       masters.forEach(m => {
-        let p = out.get(m.code);
+        const mc = redir.get(m.code) || m.code; // código antigo já unificado → vigente
+        let p = out.get(mc);
+        if (!p && mc !== m.code) return;
         if (!p) {
           const base = (m.category || '').split(' - ').map(x => x.trim()).filter(Boolean).slice(0, 2);
           const leaf = leafFor(layers, m.category, m.description);
