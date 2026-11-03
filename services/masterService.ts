@@ -212,7 +212,7 @@ export interface PublishPayload {
 export interface PublishResult { version: number; nodes_added: number; nodes_removed: number; products: number; unmapped: number; codes?: number }
 
 const chunked = <T,>(arr: T[], size: number): T[][] => { const out: T[][] = []; for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size)); return out; };
-const callRpc = async (fn: string, args: Record<string, unknown>): Promise<any> => {
+export const callRpc = async (fn: string, args: Record<string, unknown>): Promise<any> => {
   // uma nova tentativa para falha de rede passageira; erro do servidor vale na primeira
   for (let attempt = 0; ; attempt++) {
     const { data, error } = await supabase.rpc(fn, args);

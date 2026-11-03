@@ -10,6 +10,7 @@ import {
 } from '../services/masterService';
 import { leafFor } from '../services/categoryLayers';
 import { properCase } from '../services/textFormat';
+import EanImportPanel from './EanImportPanel';
 
 /* Tela do administrador: baixar a planilha, subir a nova, ver o que muda e publicar para todos; e responder às sugestões. */
 
@@ -230,6 +231,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
           </ul>
         )}
       </div>
+      {info.isAdmin && <EanImportPanel onToast={onToast} />}
     </div>
   );
 };
