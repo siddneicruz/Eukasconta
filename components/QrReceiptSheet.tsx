@@ -6,16 +6,19 @@ import { Receipt } from '../types';
 import { readClipboardText, writeClipboardText } from '../services/clipboard';
 import { parseNfeXml } from '../services/nfeXml';
 import { decodeQrFromFile, parseNfceQr, parseSefazText, NfceQr } from '../services/nfceQr';
+import { ocrImage, parseCupomOcr, CupomOcr } from '../services/receiptOcr';
 
 /* Ler cupom pelo QR Code, sem IA: câmera ou galeria → página da SEFAZ → copiar e colar o texto → cupom no histórico.
    Vale para vários cupons de uma vez: a pessoa valida um a um e marca "humano" os que ficaram para depois. */
 
 type Status = 'pendente' | 'importado' | 'humano';
-interface Entry { id: string; fileName: string; qr: NfceQr | null; status: Status; text: string; error: string }
+interface Entry { id: string; fileName: string; qr: NfceQr | null; status: Status; text: string; error: string; ocr?: CupomOcr; ocrBusy?: boolean }
 
 interface Props {
   /** devolve os cupons lidos; o app grava no histórico (cadastro de lojas e produtos incluídos) */
   onImport: (receipts: Receipt[]) => Promise<void> | void;
+  /** cupons já no histórico: avisa quando a nota lida já foi lançada e mostra o nome da loja pelo CNPJ */
+  existing?: Receipt[];
   onClose: () => void;
 }
 
@@ -24,7 +27,11 @@ const openExternal = (url: string) => {
   else window.open(url, '_blank', 'noopener');
 };
 
-const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
+const QrReceiptSheet: React.FC<Props> = ({ onImport, existing = [], onClose }) => {
+  const ocrRef = useRef<HTMLInputElement>(null);
+  const ocrFor = useRef<string | null>(null);
+  const storeName = (q: NfceQr) => existing.find(r => (r.cnpj || '').replace(/\D/g, '') === q.cnpj)?.establishmentName || '';
+  const already = (q: NfceQr) => existing.find(r => r.id === q.key || ((r.cnpj || '').replace(/\D/g, '') === q.cnpj && String(r.receiptNumber || '').replace(/^0+/, '') === String(q.number).replace(/^0+/, '') && (r.date || '').slice(0, 7) === q.month));
   const [entries, setEntries] = useState<Entry[]>([]);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -93,6 +100,27 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
     setOpenId(next ? next.id : null);
   };
 
+  const runOcr = async (file: File | undefined) => {
+    const id = ocrFor.current; ocrFor.current = null;
+    if (!file || !id) return;
+    const e = entries.find(x => x.id === id);
+    patch(id, { ocrBusy: true, error: '', ocr: undefined });
+    try {
+      const text = await ocrImage(file);
+      patch(id, { ocr: parseCupomOcr(text, e?.qr ?? null), ocrBusy: false });
+    } catch (err) {
+      patch(id, { ocrBusy: false, error: 'Não consegui ler a foto neste aparelho. Use a leitura por IA ou cole o texto da SEFAZ.' });
+    }
+  };
+
+  const importOcr = async (e: Entry) => {
+    if (!e.ocr?.ok || !e.ocr.receipt) return;
+    await onImport([e.ocr.receipt]);
+    patch(e.id, { status: 'importado', error: '' });
+    const next = entries.find(x => x.id !== e.id && x.status === 'pendente');
+    setOpenId(next ? next.id : null);
+  };
+
   const copyKey = async (e: Entry) => {
     if (!e.qr) return;
     const ok = await writeClipboardText(e.qr.key);
@@ -137,6 +165,7 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={ev => { addFiles(ev.target.files); ev.target.value = ''; }} />
           <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={ev => { addFiles(ev.target.files); ev.target.value = ''; }} />
         </div>
+        <input ref={ocrRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={ev => { runOcr(ev.target.files?.[0]); ev.target.value = ''; }} />
         {busy && <p className="flex items-center gap-2 text-xs text-zinc-400 mb-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Lendo os QR Codes…</p>}
 
         {entries.length > 0 && (
@@ -152,6 +181,7 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
                   {e.status === 'importado' ? <Check className="w-4 h-4 text-emerald-400 shrink-0" /> : e.status === 'humano' ? <UserRound className="w-4 h-4 text-amber-400 shrink-0" /> : <QrCode className="w-4 h-4 text-luxury-gold shrink-0" />}
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm text-zinc-100 truncate">{e.qr ? `Nota ${e.qr.number} · ${e.qr.uf} · ${e.qr.month}` : e.fileName}</span>
+                    {e.qr && (storeName(e.qr) || already(e.qr)) && <span className={`block text-[11px] truncate ${already(e.qr) ? 'text-amber-300' : 'text-zinc-400'}`}>{already(e.qr) ? 'Já está no seu histórico' : ''}{already(e.qr) && storeName(e.qr) ? ' · ' : ''}{storeName(e.qr)}</span>}
                     <span className="block text-[11px] text-zinc-500 truncate">{e.qr ? `Chave ${e.qr.key.slice(0, 8)}…${e.qr.key.slice(-6)}${e.qr.keyValid ? '' : ' · dígito da chave não fecha'}` : e.error}</span>
                   </span>
                   <span className="text-[11px] text-zinc-500 shrink-0">{e.status === 'importado' ? 'Importado' : e.status === 'humano' ? 'Humano' : 'A validar'}</span>
@@ -168,6 +198,19 @@ const QrReceiptSheet: React.FC<Props> = ({ onImport, onClose }) => {
                     <button type="button" onClick={() => copyKey(e)} data-testid="qr-copy-key"
                       className="w-full py-2 rounded-xl border border-white/10 text-zinc-300 text-[11px] font-semibold">Copiar a chave de acesso ({e.qr.key.slice(0, 4)}…{e.qr.key.slice(-4)})</button>
                     <p className="text-[11px] text-zinc-500 leading-relaxed">Se a SEFAZ disser "excesso de requisições", espere alguns minutos e abra um cupom por vez.</p>
+                    <button type="button" onClick={() => { ocrFor.current = e.id; ocrRef.current?.click(); }} disabled={!!e.ocrBusy} data-testid="qr-ocr"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-luxury-gold text-black text-xs font-bold disabled:opacity-50">
+                      {e.ocrBusy ? <><Loader2 className="w-4 h-4 animate-spin" /> Lendo a foto…</> : <><Camera className="w-4 h-4" /> Foto do cupom impresso (lê no celular, sem IA)</>}
+                    </button>
+                    {e.ocr && (
+                      <div className={`rounded-xl border p-3 text-xs space-y-1 ${e.ocr.ok ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-amber-400/40 bg-amber-400/5'}`} data-testid="qr-ocr-result">
+                        {e.ocr.receipt && <p className="text-zinc-200 font-semibold">{e.ocr.receipt.items.length} itens · R$ {e.ocr.receipt.totalAmount.toFixed(2).replace('.', ',')}</p>}
+                        {e.ocr.receipt?.items.map((i, k) => <p key={k} className="text-zinc-400 truncate">{i.quantity}× {i.description} · R$ {i.totalPrice.toFixed(2).replace('.', ',')}{i.code ? ` · ${i.code}` : ''}</p>)}
+                        {e.ocr.ok ? <p className="text-emerald-400">A soma dos itens fecha com o total. Confira e importe.</p> : <p className="text-amber-300">Não importei sozinho: {e.ocr.notes.join(' ')}</p>}
+                        {e.ocr.ok && e.ocr.notes.length > 0 && <p className="text-zinc-500">{e.ocr.notes.join(' ')}</p>}
+                        {e.ocr.ok && <button type="button" onClick={() => importOcr(e)} data-testid="qr-ocr-import" className="w-full mt-1 py-2.5 rounded-xl bg-emerald-500 text-black text-xs font-bold">Importar este cupom</button>}
+                      </div>
+                    )}
                     <textarea value={e.text} onChange={ev => patch(e.id, { text: ev.target.value, error: '' })} rows={4} placeholder="Texto copiado da página da nota…" data-testid="qr-text"
                       className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-100 outline-none focus:border-luxury-gold/50 placeholder:text-zinc-600" />
                     {e.error && <p className="flex items-start gap-2 text-xs text-red-400" role="alert"><AlertCircle className="w-4 h-4 shrink-0" />{e.error}</p>}

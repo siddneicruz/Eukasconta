@@ -23,6 +23,7 @@ interface ScannerProps {
   masterProducts?: MasterProduct[];
   // Cupons lidos pelo QR Code (sem IA): o app grava no histórico.
   onImportReceipts?: (receipts: Receipt[]) => Promise<void> | void;
+  existingReceipts?: Receipt[];
 }
 
 const getErrorIcon = (category: string) => {
@@ -39,7 +40,7 @@ const getErrorIcon = (category: string) => {
 // Provedores que de fato leem cupom hoje (OpenAI ainda é só um espaço reservado).
 const READING_PROVIDERS: AiProvider[] = ['gemini', 'anthropic', 'openrouter'];
 
-const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, knownEstablishments, categories, establishments = [], masterProducts = [], onImportReceipts }) => {
+const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, knownEstablishments, categories, establishments = [], masterProducts = [], onImportReceipts, existingReceipts }) => {
   const [qrOpen, setQrOpen] = useState(false);
   // A leitura roda em segundo plano (services/scanQueue): esta tela só mostra o andamento e continua certa
   // se a pessoa sair e voltar durante o lote.
@@ -327,7 +328,7 @@ const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, kn
                     </>
                 )}
              </div>
-             {qrOpen && onImportReceipts && <QrReceiptSheet onImport={onImportReceipts} onClose={() => setQrOpen(false)} />}
+             {qrOpen && onImportReceipts && <QrReceiptSheet onImport={onImportReceipts} existing={existingReceipts} onClose={() => setQrOpen(false)} />}
         </div>
         
         <div className="mt-12 flex items-center justify-center gap-8 opacity-40">
