@@ -97,7 +97,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
     setBusy('read'); setError(''); setParsed(null); setConfirm(false);
     try {
       const data = await parseMasterWorkbook(file);
-      setParsed({ file: file.name, data, diff: diffStructure(currentNodes, data.payload.nodes) });
+      setParsed({ file: file.name, data, diff: data.counts.nodes > 0 ? diffStructure(currentNodes, data.payload.nodes) : { added: [], removed: [], kept: 0 } });
       setScope({ estrutura: data.counts.nodes > 0, produtos: data.counts.products > 0, lojas: !!(data.payload.stores?.length || data.payload.storeTypes?.length) });
     } catch (e: any) { setError(e instanceof MasterSheetError ? e.message : 'Não consegui ler essa planilha.'); }
     finally { setBusy(''); if (fileRef.current) fileRef.current.value = ''; }
