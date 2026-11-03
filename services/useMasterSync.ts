@@ -38,6 +38,7 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
     try { setPending((await fetchPendingSuggestions()).length); } catch { /* sem rede: mantém o número */ }
   }, [userId]);
 
+  const triedMeal = useRef(false);
   const syncNow = useCallback(async (force = false) => {
     if (!userId || busy.current) return;
     busy.current = true; setSyncing(true);
@@ -49,7 +50,8 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
         const cur = masterRef.current;
         if (meta.version <= 0) {
           if (cur) { saveMasterCache(null); setMaster(null); }
-        } else if (force || !cur || cur.version !== meta.version) {
+        } else if (force || !cur || cur.version !== meta.version || (!triedMeal.current && !cur.nodes.some(n => n.level === 1 && n.name === 'Comer Fora e Delivery'))) {
+          triedMeal.current = true; // cópia guardada sem o departamento de refeições: baixa uma vez de novo (sem repetir se a nuvem também não tiver)
           const fresh = await fetchMaster(meta.version, meta.publishedAt);
           saveMasterCache(fresh);
           setMaster(fresh);
