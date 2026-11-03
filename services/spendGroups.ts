@@ -6,12 +6,11 @@ export interface SpendGroup { id: string; name: string; color: string; depts: st
 
 export const SPEND_GROUPS: SpendGroup[] = [
   { id: 'mercado', name: 'Mercado e Alimentação', color: '#22c55e', depts: ['Açougue', 'Bebidas', 'Congelados', 'Frios e Laticínios', 'Hortifruti', 'Mercearia Básica', 'Mercearia Doce e Matinais', 'Mercearia Salgada e Conservas', 'Padaria e Confeitaria', 'Peixaria', 'Saudáveis e Especiais', 'Rotisseria e Comida Pronta'] },
-  { id: 'fora', name: 'Comer Fora', color: '#f97316', depts: ['Comer Fora e Delivery'] },
   { id: 'casa', name: 'Casa', color: '#38bdf8', depts: ['Limpeza', 'Bazar e Utilidades Domésticas', 'Casa e Construção'] },
   { id: 'saude', name: 'Saúde e Cuidados', color: '#ef4444', depts: ['Higiene e Perfumaria', 'Farmácia e Saúde'] },
   { id: 'transporte', name: 'Transporte', color: '#eab308', depts: ['Transporte'] },
   { id: 'vestuario', name: 'Vestuário', color: '#a855f7', depts: ['Vestuário'] },
-  { id: 'lazer', name: 'Lazer', color: '#ec4899', depts: ['Lazer e Entretenimento'] },
+  { id: 'lazer', name: 'Lazer e Comer Fora', color: '#ec4899', depts: ['Lazer e Entretenimento', 'Comer Fora e Delivery'] },
   { id: 'educacao', name: 'Educação', color: '#14b8a6', depts: ['Educação'] },
   { id: 'pets', name: 'Pets', color: '#fb923c', depts: ['Pet Shop'] },
   { id: 'filhos', name: 'Filhos', color: '#f472b6', depts: ['Mundo Infantil'] },
