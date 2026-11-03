@@ -64,6 +64,24 @@ const query = async (params: URLSearchParams): Promise<GeocodeResult | null> => 
 
 const freeText = (q: string) => query(new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'br', q }));
 
+/** Procura um lugar pelo nome perto de um ponto (Nominatim, mesma fila de 1 por segundo). Devolve candidatos com nome e posição. */
+export const searchPlacesByName = async (name: string, city: string | undefined, state: string | undefined, near: { lat: number; lng: number }, km = 8): Promise<{ name: string; lat: number; lng: number }[]> => {
+  const dLat = km / 111, dLng = km / (111 * Math.max(0.2, Math.cos(near.lat * Math.PI / 180)));
+  const params = new URLSearchParams({
+    format: 'jsonv2', limit: '8', countrycodes: 'br', namedetails: '1', bounded: '1',
+    viewbox: [near.lng - dLng, near.lat + dLat, near.lng + dLng, near.lat - dLat].join(','),
+    q: [name, city].filter(Boolean).join(' '),
+  });
+  const res = await throttledFetch(`${NOMINATIM_URL}?${params.toString()}`);
+  if (!res.ok) throw new Error(`busca indisponível (${res.status})`);
+  const data = await res.json();
+  if (!Array.isArray(data)) return [];
+  return data.map((d: any) => ({
+    name: String(d?.namedetails?.name || d?.name || String(d?.display_name || '').split(',')[0] || ''),
+    lat: parseFloat(d.lat), lng: parseFloat(d.lon),
+  })).filter(x => x.name && Number.isFinite(x.lat) && Number.isFinite(x.lng));
+};
+
 const NO_NUMBER = /^(?:S\s*\/\s*N|S\.\s*N\.?|SN|SEM\s+N[UÚ]MERO)$/i;
 
 /** "AVENIDA SANTA CATARINA, SN, CENTRO" -> rua, número (se houver) e bairro */
@@ -162,7 +180,7 @@ export const geocodeMissingEstablishments = async (
     // Sem internet não é "endereço não encontrado": para por aqui e deixa para a próxima vez, sem marcar ninguém.
     try { result = await geocodeStrict(est); } catch { return; }
     if (result) {
-      onUpdate(est, { latitude: result.latitude, longitude: result.longitude, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: result.approx ? true : undefined, poiSnapAt: undefined });
+      onUpdate(est, { latitude: result.latitude, longitude: result.longitude, geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: result.approx ? true : undefined, poiSnapAt: undefined, poiSnapV: undefined });
     } else {
       onUpdate(est, { geocodeStatus: 'not_found', geocodedAt: Date.now() });
     }

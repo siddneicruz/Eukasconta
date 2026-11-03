@@ -57,6 +57,8 @@ export interface Establishment {
     geocodeManual?: boolean;
     // quando o app conferiu a posição com as lojas do mapa (OpenStreetMap), para não repetir a consulta
     poiSnapAt?: number;
+    /** versão do método de conferência com o mapa que marcou a loja (lojas marcadas por métodos antigos são conferidas de novo) */
+    poiSnapV?: number;
 }
 
 export interface MasterProduct {

@@ -7,7 +7,7 @@ import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, 
 import { Receipt, Establishment } from '../types';
 import { geocodeMissingEstablishments, needsGeocoding, masterGeoCandidates, geocodeFromMaster } from '../services/geocodingService';
 import { useMasterInfo } from './MasterContext';
-import { snapToPois } from '../services/poiSnap';
+import { snapDone, snapToPois } from '../services/poiSnap';
 import { fetchRoute, haversineKm, formatDistance, formatDuration, navigationLinks, RouteResult, LatLng } from '../services/routingService';
 import { getCurrentPosition } from '../services/cloudService';
 import { isNativeApp } from '../services/platform';
@@ -283,7 +283,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const snapRunning = useRef(false);
   const snapCtrl = useRef(new AbortController());
   const [snapTick, setSnapTick] = useState(0);
-  const snapKey = establishments.filter(e => !e.poiSnapAt && !e.geocodeManual && e.geocodeStatus === 'found').length;
+  const snapKey = establishments.filter(e => !snapDone(e) && !e.geocodeManual && e.geocodeStatus === 'found').length;
   useEffect(() => {
     if (snapKey === 0 || snapRunning.current || geo.running || geoRunning.current || masterGeoRunning.current) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
