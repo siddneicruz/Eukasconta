@@ -588,8 +588,6 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
           </div>
         </div>
 
-        {check && <div className="px-3 pb-2"><ValidationCard check={check} purchase={purchase} receipts={receipts} onOpenReceipt={onOpenReceipt} /></div>}
-
         {purchase.entries.length > 0 && (
           <div className="flex justify-end px-4 pb-1">
             <button type="button" onClick={() => update(l => setAllCart(l, idx, !allChecked))} data-testid="shop-check-all"
@@ -635,6 +633,8 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
             ))}
           </div>
         </div>
+
+        {check && <div className="px-3 pb-3 pt-1 border-t border-white/5"><ValidationCard check={check} purchase={purchase} receipts={receipts} onOpenReceipt={onOpenReceipt} /></div>}
       </section>
 
       {list.cut.length > 0 && (
