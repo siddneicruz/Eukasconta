@@ -42,7 +42,7 @@ interface ReceiptDetailProps {
 
 // Texto do cupom (monoespaçado): ajusta a letra para a linha mais larga caber inteira na tela,
 // sem quebrar (antes o "TOTAL" e os traços desciam para a linha de baixo no celular).
-const FitPre: React.FC<{ text: string; maxPx?: number; minPx?: number }> = ({ text, maxPx = 12, minPx = 7 }) => {
+const FitPre: React.FC<{ text: string; maxPx?: number; minPx?: number; red?: Set<number> }> = ({ text, maxPx = 12, minPx = 7, red }) => {
     const boxRef = useRef<HTMLDivElement>(null);
     const preRef = useRef<HTMLPreElement>(null);
     const [size, setSize] = useState(9);
@@ -73,14 +73,24 @@ const FitPre: React.FC<{ text: string; maxPx?: number; minPx?: number }> = ({ te
     }, [text, maxPx, minPx]);
     return (
         <div ref={boxRef} className="w-full flex justify-center" data-testid="coupon-fit">
-            <pre ref={preRef} className="whitespace-pre select-text relative z-0" style={{ fontSize: `${size}px`, lineHeight: 1.5, width: 'max-content' }} data-testid="coupon-pre">{text}</pre>
+            <pre ref={preRef} className="whitespace-pre select-text relative z-0" style={{ fontSize: `${size}px`, lineHeight: 1.5, width: 'max-content' }} data-testid="coupon-pre">{red && red.size ? text.split('\n').map((ln, i, a) => <React.Fragment key={i}>{red.has(i) ? <span className="text-red-500 font-bold" data-testid="coupon-line-hit">{ln}</span> : ln}{i < a.length - 1 ? '\n' : ''}</React.Fragment>) : text}</pre>
         </div>
     );
 };
 
-const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
+const ThermalReceiptView: React.FC<{ receipt: Receipt; highlight?: ItemFilter | null }> = ({ receipt, highlight }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const txtContent = useMemo(() => generateReceiptText(receipt), [receipt]);
+    // linhas do cupom que são o item procurado (as linhas de item começam com o número "001 ", na ordem dos itens)
+    const redLines = useMemo(() => {
+        const out = new Set<number>();
+        if (!highlight) return out;
+        const m = makeItemMatcher(highlight);
+        const lines = txtContent.split('\n');
+        let k = 0;
+        lines.forEach((ln, i) => { if (/^\s*\d{3}\s/.test(ln)) { const it = receipt.items[k++]; if (it && m(it)) out.add(i); } });
+        return out;
+    }, [txtContent, receipt, highlight]);
     const establishmentSlug = useMemo(() => {
         return receipt.establishmentName.split(' ')[0].toUpperCase().replace(/[^A-Z0-9]/g, '');
     }, [receipt.establishmentName]);
@@ -130,7 +140,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
                 {/* efeitos de tela de cupom (só no escuro): no claro o cupom é texto limpo sobre fundo claro */}
                 <div className="thermal-fx absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-20"></div>
                 <div className="thermal-fx absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none z-10"></div>
-                <FitPre text={txtContent} />
+                <FitPre text={txtContent} red={redLines} />
             </div>
             <div className="flex justify-between items-center bg-black border border-white/10 rounded-xl p-4 animate-in slide-in-from-bottom-2 gap-4">
                 <div className="flex flex-col flex-1">
@@ -333,7 +343,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
                       onChange={updateEditedItem} onRemove={removeEditedItem} onAdd={addEmptyItem} />
               </div>
           ) : (
-            viewMode === 'thermal' ? (<ThermalReceiptView receipt={receipt} />) : (
+            viewMode === 'thermal' ? (<ThermalReceiptView receipt={receipt} highlight={highlight} />) : (
                 <ReceiptStructuredView highlight={highlight ? makeItemMatcher(highlight) : undefined} items={receipt.items} totalAmount={receipt.totalAmount} categories={categories} onEditItem={handleEditItemCategory}
                   onEggCount={handleEggCount}
                   eggSame={eggSameCount ? (i) => eggSameCount(receipt, i) : undefined}

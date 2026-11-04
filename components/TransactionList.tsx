@@ -9,7 +9,7 @@ import ConfirmDialog from './ConfirmDialog';
 import ItemSearchBox from './ItemSearchBox';
 import ItemPriceInsight from './ItemPriceInsight';
 import { useStoreNames } from './StoreNamesContext';
-import { makeItemMatcher, textFilter, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
+import { makeItemMatcher, eanQuery, itemHasCode, textFilter, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel, normalizeUnit, isDateInPeriod } from '../services/productPriceStats';
 import { priceBasis } from '../services/eggs';
 
@@ -120,7 +120,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
         if (itemMatch && !r.items.some(itemMatch)) return false;
         const matchesSearch = normalizeText(r.establishmentName).includes(term) || normalizeText(nameOf(r.establishmentName, r.cnpj)).includes(term) || 
                               r.totalAmount.toString().includes(term) ||
-                              r.items.some(item => normalizeText(item.description).includes(term));
+                              r.items.some(item => normalizeText(item.description).includes(term) || (!!eanQuery(searchTerm) && itemHasCode(item, eanQuery(searchTerm))));
         const matchesEstablishment = establishmentFilter ? normalizeText(r.establishmentName).includes(normalizeText(establishmentFilter)) : true;
         
         // período: o mesmo do Início (ano, mês, 7 dias ou datas escolhidas)

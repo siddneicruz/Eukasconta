@@ -23,6 +23,10 @@ export const queryTokens = (q: string): string[] => fold(q).split(' ').filter(Bo
 
 const matcherCache = new WeakMap<ItemFilter, (item: ReceiptItem) => boolean>();
 
+/** Busca por código de barras: só dígitos (8+), sem zeros à esquerda; vale para o EAN impresso no cupom. */
+export const eanQuery = (q: string): string => { const t = (q || '').replace(/[\s.-]/g, ''); return /^\d{8,14}$/.test(t) ? t.replace(/^0+/, '') : ''; };
+export const itemHasCode = (item: ReceiptItem, code: string): boolean => !!code && String(item.code || '').replace(/\D/g, '').replace(/^0+/, '') === code;
+
 export const makeItemMatcher = (f: ItemFilter): ((item: ReceiptItem) => boolean) => {
   const hit = matcherCache.get(f);
   if (hit) return hit;
@@ -30,6 +34,9 @@ export const makeItemMatcher = (f: ItemFilter): ((item: ReceiptItem) => boolean)
   if (f.descs && f.descs.length) {
     const set = new Set(f.descs.map(descKey));
     fn = item => set.has(descKey(item.description));
+  } else if (f.text && eanQuery(f.text)) {
+    const code = eanQuery(f.text);
+    fn = item => itemHasCode(item, code);
   } else if (f.text) {
     const tokens = queryTokens(f.text);
     fn = tokens.length ? item => { const d = fold(item.description); return tokens.every(t => d.includes(t)); } : () => false;
@@ -43,6 +50,7 @@ export const makeItemMatcher = (f: ItemFilter): ((item: ReceiptItem) => boolean)
 // Busca livre digitada (ex.: "cebola") como filtro; nulo quando é curta demais para valer como item.
 export const textFilter = (text: string): ItemFilter | null => {
   const t = text.trim();
+  if (eanQuery(t)) return { label: `código ${t}`, text: t };
   return fold(t).length >= MIN_CHART_QUERY ? { label: t, text: t } : null;
 };
 
