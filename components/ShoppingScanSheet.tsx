@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { ScanBarcode, Minus, Plus, Check, Camera } from 'lucide-react';
 import { Entry, cartTotal, fmtQty, round3, stepOf, unitLabel, PlanPurchase } from '../services/shoppingList';
-import { EanInfo, NearPrices, ScanHit, fetchEanInfo, learnCode, nearbyPrices } from '../services/shoppingScan';
+import { beepOk } from '../services/beep';
+import { EanInfo, infoOf, NearPrices, ScanHit, fetchEanInfo, learnCode, nearbyPrices } from '../services/shoppingScan';
 import { barcodeFromPhoto, scanBarcode } from '../services/barcodeScan';
 import { Sheet, brl, moneyText, parseMoney } from './ShoppingSheets';
 
@@ -29,8 +30,11 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const [choices, setChoices] = useState<ScanHit[]>([]);   // código ligado a mais de um produto: a pessoa escolhe
   const pick = (hit: ScanHit) => {
     setChoices([]);
-    setCur(hit); setUnknown(null); setQty(stepOf(hit.unit)); setPriceTxt(moneyText(hit.price));
-    setSrc(hit.price > 0 ? `seu último preço${hit.store ? ` · ${hit.store}` : ''}${hit.priceDate ? ` · ${hit.priceDate.split('-').reverse().join('/')}` : ''}` : '');
+    setEanInfo(null); fetchEanInfo(hit.code).then(setEanInfo);
+    setCur(hit); setUnknown(null); setQty(stepOf(hit.unit));
+    const own = hit.avg && hit.avg > 0 ? hit.avg : hit.price;
+    setPriceTxt(moneyText(own));
+    setSrc(hit.avg && hit.avg > 0 ? `seu preço médio em ${hit.avgN} ${hit.avgN === 1 ? 'compra' : 'compras'}${hit.avgN && hit.avgN > 1 && Math.abs(hit.price - hit.avg) > 0.005 ? ` · último ${brl(hit.price)}` : ''}` : hit.price > 0 ? `seu último preço${hit.store ? ` · ${hit.store}` : ''}${hit.priceDate ? ` · ${hit.priceDate.split('-').reverse().join('/')}` : ''}` : '');
     askNear(hit);
   };
   const photoRef = useRef<HTMLInputElement>(null);
@@ -41,7 +45,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
     setNear(null); setNearBusy(true);
     nearbyPrices(hit).then(r => {
       setNear(r);
-      if (r.nearest) { setPriceTxt(moneyText(r.nearest.unit_price)); setSrc(`${r.nearest.establishment_name} · a ${r.nearest.distance_km.toLocaleString('pt-BR')} km · ${r.nearest.observed_on.split('-').reverse().join('/')}`); }
+      if (r.nearest && !(hit.avg && hit.avg > 0) && !(hit.price > 0)) { setPriceTxt(moneyText(r.nearest.unit_price)); setSrc(`${r.nearest.establishment_name} · a ${r.nearest.distance_km.toLocaleString('pt-BR')} km · ${r.nearest.observed_on.split('-').reverse().join('/')}`); }
     }).finally(() => setNearBusy(false));
   };
 
@@ -49,6 +53,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const noPrice = inCart.filter(e => !(e.price > 0)).length;
 
   const open = (code: string) => {
+    beepOk();
     setMsg(''); setLast('');
     const hits = resolve(code);
     if (hits.length > 1) { setChoices(hits); setEanInfo(null); fetchEanInfo(hits[0].code).then(setEanInfo); setCur(null); setUnknown(null); setNear(null); return; }
@@ -137,6 +142,10 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
           {cur ? (
             <>
               <p className="text-[16px] font-semibold text-white leading-snug">{cur.name}</p>
+              {infoOf(cur) && <p className="text-[12.5px] text-luxury-gold font-medium" data-testid="shop-scan-pack">{infoOf(cur)}</p>}
+              {eanInfo && (eanInfo.size || eanInfo.brand)
+                ? <p className="text-[11.5px] text-zinc-400" data-testid="shop-scan-cat">Catálogo: {[eanInfo.brand, eanInfo.size].filter(Boolean).join(' · ')}{eanInfo.description ? ` · ${eanInfo.description}` : ''}</p>
+                : !cur.size && <p className="text-[11px] text-zinc-600">Peso/embalagem: este código ainda não está no catálogo de EAN.</p>}
               <p className="text-[11px] text-zinc-500 tabular-nums">{cur.dept} · código {cur.code}</p>
               <p className="text-[12px] mt-1 text-zinc-400" data-testid="shop-scan-source">
                 {nearBusy ? 'Procurando o preço mais próximo de você…' : src ? <>Preço de: <span className="text-zinc-200">{src}</span></> : <span className="text-amber-300">Sem preço registrado: informe o preço da etiqueta.</span>}

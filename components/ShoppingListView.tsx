@@ -74,6 +74,11 @@ const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit:
         <span className="block text-[11px] text-zinc-500 tabular-nums truncate">
           {fmtQty(e.qty, e.unit)}{e.price > 0 ? ` · ${brl(e.price)}/${unitLabel(e.unit)}` : ' · sem preço'}
         </span>
+        {(e.info || (e.avg && e.avg > 0 && Math.abs(e.avg - e.price) > 0.005)) && (
+          <span className="block text-[11px] text-zinc-400 truncate" data-testid="shop-row-info">
+            {[e.info, e.avg && e.avg > 0 && Math.abs(e.avg - e.price) > 0.005 ? `médio ${brl(e.avg)}` : ''].filter(Boolean).join(' · ')}
+          </span>
+        )}
         {check && (
           <span className={`block text-[11px] tabular-nums truncate ${check.status === 'comprado' ? 'text-emerald-400' : check.status === 'parcial' ? 'text-amber-400' : 'text-rose-400'}`} data-testid="shop-row-check" data-status={check.status}>
             {check.status === 'faltou' ? 'não veio no cupom'

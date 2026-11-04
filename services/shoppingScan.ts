@@ -27,7 +27,11 @@ export interface ScanHit {
   /** marca e embalagem/peso (da tabela mãe e do nome) para ajudar a escolher entre produtos parecidos */
   brand?: string;
   size?: string;
+  avg?: number;
+  avgN?: number;
 }
+
+export const infoOf = (h: Pick<ScanHit, 'brand' | 'size' | 'unit'>): string => [h.brand, h.size, h.unit && h.unit !== 'UN' ? h.unit : ''].filter(Boolean).join(' · ');
 
 const SIZE_RE = /(\d+(?:[.,]\d+)?)\s?(kg|g|gr|ml|l|lt|un|und)\b/i;
 export const sizeOfName = (name: string): string => { const m = SIZE_RE.exec(name || ''); return m ? m[0].replace(/\s+/g, ' ') : ''; };
@@ -53,7 +57,7 @@ export const resolveBarcode = (code: string, ctx: { masters: MasterProduct[]; ma
   const prods = new Map<string, Product>();
   ctx.history.longProducts.forEach(p => prods.set(p.pid, p));
   ctx.history.products.forEach(p => { if (!prods.has(p.pid)) prods.set(p.pid, p); });
-  const fromProduct = (p: Product, source: ScanHit['source']): ScanHit => ({ code, pid: p.pid, name: p.name, unit: p.unit, dept: p.dept, category: p.category, price: p.price, priceDate: p.priceDate, store: p.store, source });
+  const fromProduct = (p: Product, source: ScanHit['source']): ScanHit => ({ size: sizeOfName(p.name), code, pid: p.pid, name: p.name, unit: p.unit, dept: p.dept, category: p.category, price: p.price, avg: p.avg, avgN: p.avgN, priceDate: p.priceDate, store: p.store, source });
 
   // 0. escolha que a pessoa já fez para este código (vale mais que a tabela)
   const learnedName = loadLearned()[code];
@@ -103,7 +107,7 @@ export const scanIntoCart = (l: ShoppingList, pi: number, hit: ScanHit, qty: num
   if (cur) {
     n = cur.cart ? setQty(n, pi, hit.pid, cur.qty + qty) : toggleCart(n, pi, hit.pid, cur.group);
   } else {
-    n = addManual(n, pi, { pid: hit.pid, name: hit.name, unit: hit.unit, price, dept: hit.dept, category: hit.category, qty, priceDate: hit.priceDate, store: hit.store, group: 'manual' });
+    n = addManual(n, pi, { pid: hit.pid, name: hit.name, unit: hit.unit, price, info: infoOf(hit), avg: hit.avg, dept: hit.dept, category: hit.category, qty, priceDate: hit.priceDate, store: hit.store, group: 'manual' });
     n = toggleCart(n, pi, hit.pid, 'manual');
   }
   if (price > 0 && (!cur || Math.abs(cur.price - price) > 0.004)) n = setPrice(n, hit.pid, price);

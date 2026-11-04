@@ -163,6 +163,8 @@ export interface Product {
   category: string;
   unit: string;           // unidade da última compra: o preço e as quantidades usam esta
   price: number;          // preço da última compra
+  avg?: number;           // preço médio de tudo que já foi comprado (mesma unidade)
+  avgN?: number;          // em quantas compras
   priceDate: string;
   store: string;
   buys: number;           // dias de compra na janela
@@ -227,7 +229,7 @@ const buildProducts = (lines: PLine[], from: string, to: string, span: number, t
     const due = dates.length >= 2 && gap !== null && gap > 0 && daysSince >= gap * 0.9;
     const score = freq * 100 + (due ? 15 : 0) - (TREATS.has(deptKey(last.dept)) ? 25 : 0);
     out.push({
-      pid, name: titleCase(last.name), dept: properCase(last.dept), category, unit, price: last.price, priceDate: last.date, store: last.store,
+      pid, name: titleCase(last.name), dept: properCase(last.dept), category, unit, price: last.price, avg: same.reduce((s, l) => s + l.price, 0) / same.length, avgN: same.length, priceDate: last.date, store: last.store,
       buys: dates.length, qty, typical: median(Array.from(perDay.values())), rate: qty / span, freq, gap, daysSince, lastDate, kind,
       meat: meatClassOf(last.desc, last.dept), packKg: packKgOf(last.desc), score: Math.max(0, score),
     });
@@ -436,6 +438,8 @@ export interface Entry {
   group: Group;
   cart: boolean;          // já está no carrinho
   note?: string;
+  info?: string;          // marca · peso/embalagem (vem do código de barras)
+  avg?: number;           // preço médio das compras anteriores
 }
 
 export interface PlanPurchase { id: string; date: string; days: number; entries: Entry[] }
@@ -467,12 +471,12 @@ export interface PlanResult { purchases: PlanPurchase[]; cut: CutLine[]; notes: 
 
 interface Row {
   pid: string; name: string; dept: string; category: string; unit: string; price: number; priceDate: string; store: string;
-  group: Group; qtys: number[]; notes: (string | undefined)[]; score: number;
+  group: Group; qtys: number[]; notes: (string | undefined)[]; score: number; avg?: number;
 }
 
 const cost = (r: { price: number; qtys: number[] }) => r.price * r.qtys.reduce((s, q) => s + q, 0);
 const rowOf = (p: Product, group: Group, n: number, score: number): Row => ({
-  pid: p.pid, name: p.name, dept: p.dept, category: p.category, unit: p.unit, price: p.price, priceDate: p.priceDate, store: p.store,
+  pid: p.pid, name: p.name, dept: p.dept, category: p.category, unit: p.unit, price: p.price, priceDate: p.priceDate, store: p.store, avg: p.avg,
   group, qtys: new Array(n).fill(0), notes: new Array(n).fill(undefined), score,
 });
 
@@ -747,7 +751,7 @@ export const buildList = (h: History, opts: PlanOptions, advice: Advice = {}): P
     id: `p${i + 1}`, date: p.date, days: p.days,
     entries: kept.filter(r => r.qtys[i] > 0).map<Entry>(r => ({
       pid: r.pid, name: r.name, dept: r.dept, category: r.category, unit: r.unit, price: r.price, priceDate: r.priceDate, store: r.store,
-      qty: r.qtys[i], group: r.group, cart: false, ...(r.notes[i] ? { note: r.notes[i] } : {}),
+      qty: r.qtys[i], group: r.group, cart: false, ...(r.notes[i] ? { note: r.notes[i] } : {}), ...(r.avg && r.avg > 0 ? { avg: r.avg } : {}),
     })).sort(entryOrder),
   }));
   const cut: CutLine[] = [
@@ -921,7 +925,7 @@ export const restoreCut = (l: ShoppingList, pid: string, why?: CutLine['why']): 
   return withPurchases(l, purchases, l.cut.filter(x => x !== c));
 };
 
-export const addManual = (l: ShoppingList, pi: number, item: { pid?: string; name: string; unit?: string; price?: number; dept?: string; category?: string; qty?: number; priceDate?: string; store?: string; group?: Group; note?: string }): ShoppingList => {
+export const addManual = (l: ShoppingList, pi: number, item: { pid?: string; name: string; unit?: string; price?: number; dept?: string; category?: string; qty?: number; priceDate?: string; store?: string; group?: Group; note?: string; info?: string; avg?: number }): ShoppingList => {
   const name = item.name.trim();
   if (!name || !l.purchases[pi]) return l;
   const pid = item.pid || `U:${name.toUpperCase()}`;
@@ -932,7 +936,7 @@ export const addManual = (l: ShoppingList, pi: number, item: { pid?: string; nam
     if (p.entries.some(e => e.pid === pid)) return { ...p, entries: p.entries.map(e => (e.pid === pid ? { ...e, qty: round3(e.qty + qty) } : e)) };
     const entry: Entry = {
       pid, name, dept: item.dept || 'Outros', category: item.category || '', unit, price: item.price && item.price > 0 ? item.price : 0,
-      priceDate: item.priceDate || '', store: item.store || '', qty, group: item.group || 'manual', cart: false, ...(item.note ? { note: item.note } : {}),
+      priceDate: item.priceDate || '', store: item.store || '', qty, group: item.group || 'manual', cart: false, ...(item.note ? { note: item.note } : {}), ...(item.info ? { info: item.info } : {}), ...(item.avg && item.avg > 0 ? { avg: item.avg } : {}),
     };
     return { ...p, entries: [...p.entries, entry].sort(entryOrder) };
   });
