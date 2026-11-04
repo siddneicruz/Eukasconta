@@ -15,6 +15,8 @@ import { normalizeReceiptNumbers } from '../services/receiptNumbers';
 import ItemCategoryPicker from './ItemCategoryPicker';
 import ReceiptItemsEditor from './ReceiptItemsEditor';
 import ReceiptStructuredView from './ReceiptStructuredView';
+import { makeItemMatcher } from '../services/itemSearch';
+import type { ItemFilter } from '../types';
 
 interface ReceiptDetailProps {
   receipt: Receipt;
@@ -34,6 +36,8 @@ interface ReceiptDetailProps {
   // Ovos: quantas outras compras do mesmo item (mesma loja) ainda estão sem a quantidade, e o atalho que copia a escolha para elas
   eggSameCount?: (receipt: Receipt, index: number) => number;
   onApplyEggSame?: (receipt: Receipt, index: number) => number;
+  /** item procurado no histórico: fica em vermelho no cupom */
+  highlight?: ItemFilter | null;
 }
 
 // Texto do cupom (monoespaçado): ajusta a letra para a linha mais larga caber inteira na tela,
@@ -146,7 +150,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
     );
 };
 
-const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [], establishments = [], onEditStore, eggSameCount, onApplyEggSame }) => {
+const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdateReceipt, onDelete, onNext, onPrev, hasNext, hasPrev, categories, knownEstablishments = [], knownProducts = [], establishments = [], onEditStore, eggSameCount, onApplyEggSame, highlight }) => {
   const { aliasOf, nameOf } = useStoreNames();
   const [otherStore, setOtherStore] = useState(false);
   const digitsOf = (v?: string) => String(v || '').replace(/\D/g, '');
@@ -330,7 +334,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
               </div>
           ) : (
             viewMode === 'thermal' ? (<ThermalReceiptView receipt={receipt} />) : (
-                <ReceiptStructuredView items={receipt.items} totalAmount={receipt.totalAmount} categories={categories} onEditItem={handleEditItemCategory}
+                <ReceiptStructuredView highlight={highlight ? makeItemMatcher(highlight) : undefined} items={receipt.items} totalAmount={receipt.totalAmount} categories={categories} onEditItem={handleEditItemCategory}
                   onEggCount={handleEggCount}
                   eggSame={eggSameCount ? (i) => eggSameCount(receipt, i) : undefined}
                   onEggApplySame={onApplyEggSame ? (i) => { onApplyEggSame(receipt, i); } : undefined} />

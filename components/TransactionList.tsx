@@ -125,7 +125,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
         
         // período: o mesmo do Início (ano, mês, 7 dias ou datas escolhidas)
         let matchesTime = true;
-        if (config) {
+        // buscando um item: histórico inteiro, sem o filtro de período
+        if (config && !itemFilter) {
             const rDate = new Date(r.date + 'T12:00:00');
             if (!isNaN(rDate.getTime())) matchesTime = isDateInPeriod(r.date, config);
             // data inválida: só aparece quando o período é o ano todo
@@ -179,7 +180,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
   }, [filteredReceipts, searchMatcher]);
   const priceItems = useMemo(() => (searchMatcher ? toHistoryItems(filteredReceipts, searchMatcher, nameOf) : []), [filteredReceipts, searchMatcher, nameOf]);
   const priceFor = (r: Receipt) => (itemFilter && rowInfo.get(r.id) ? rowInfo.get(r.id)!.subtotal : (Number(r.totalAmount) || 0));
-  const itemPeriodTitle = useMemo(() => (config ? periodLabel(config) : 'Todo o histórico'), [config]);
+  const itemPeriodTitle = useMemo(() => (config && !itemFilter ? periodLabel(config) : 'Todo o histórico'), [config, itemFilter]);
 
   const monthGroups = useMemo(() => (Object.entries(groupedReceipts) as [string, Receipt[]][]).map(([month, items]) => ({
       month, items, total: items.reduce((s, r) => s + priceFor(r), 0),

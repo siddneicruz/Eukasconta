@@ -1658,7 +1658,7 @@ const App: React.FC = () => {
       {dupOpen && <DuplicateReceiptsSheet receipts={receipts} onConfirm={removeDuplicates} onClose={() => setDupOpen(false)} onIgnoredChange={setDupIgnored} />}
       {alignOpen && <AlignCategoriesSheet taxonomy={taxonomy} receipts={receipts} masters={masterProducts} onApply={handleAlignCategories} onClose={() => setAlignOpen(false)} />}
       {editingStore && <EstablishmentEditSheet est={editingStore} receipts={receipts} onSave={handleSaveStore} onDelete={handleDeleteStore} onViewReceipts={(est, ids) => { setStoreCheck({ label: buildStoreNamer(establishments, master.master?.storeTypes, master.master?.stores || []).nameOf(est.originalName, est.cnpj), ids }); setEditingStore(null); setSelectedReceiptId(null); setView('history'); }} onClose={() => setEditingStore(null)} />}
-      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} establishments={establishments} onEditStore={setEditingStore} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} />}
+      {selectedReceipt && <ReceiptDetail receipt={selectedReceipt} onClose={() => setSelectedReceiptId(null)} onUpdateReceipt={handleUpdateReceipt} onDelete={() => requestDeleteReceipt(selectedReceipt.id)} categories={categories} establishments={establishments} onEditStore={setEditingStore} eggSameCount={(r, i) => sameEggTargets(r, i).length} onApplyEggSame={handleApplyEggSame} highlight={view === 'history' ? dashboardConfig.item : null} />}
       {pendingDelete && (
         <ConfirmDialog
           title="Excluir este lançamento?"

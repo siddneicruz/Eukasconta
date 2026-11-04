@@ -27,6 +27,8 @@ interface Props {
   onEggCount?: (index: number, count: number | undefined) => void;
   eggSame?: (index: number) => number;
   onEggApplySame?: (index: number) => void;
+  /** item procurado no histórico: aparece em vermelho */
+  highlight?: (item: ReceiptItem) => boolean;
 }
 
 const splitCategory = (cat: string): { dept: string; name: string } => {
@@ -34,7 +36,7 @@ const splitCategory = (cat: string): { dept: string; name: string } => {
   return i > 0 ? { dept: cat.slice(0, i), name: cat.slice(i + 3) } : { dept: '', name: cat };
 };
 
-const ReceiptStructuredView: React.FC<Props> = ({ items, totalAmount, categories, onEditItem, onEggCount, eggSame, onEggApplySame }) => {
+const ReceiptStructuredView: React.FC<Props> = ({ items, totalAmount, categories, onEditItem, onEggCount, eggSame, onEggApplySame, highlight }) => {
   const layers = useLayers();
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
@@ -127,7 +129,7 @@ const ReceiptStructuredView: React.FC<Props> = ({ items, totalAmount, categories
                         <button type="button" onClick={() => setOpenItem(open ? null : idx)} aria-expanded={open} data-testid={`struct-item-toggle-${idx}`}
                           className="w-full flex items-start gap-2 px-1.5 py-2 text-left">
                           <span className="min-w-0 flex-1">
-                            <span className="block text-[13.5px] font-medium text-zinc-100 leading-snug break-words">{titleCase(item.description)}</span>
+                            <span className={`block text-[13.5px] font-medium leading-snug break-words ${highlight && highlight(item) ? 'text-red-500 font-bold' : 'text-zinc-100'}`} data-highlight={highlight && highlight(item) ? '1' : undefined}>{titleCase(item.description)}</span>
                             <span className="block text-[11px] text-zinc-500 leading-snug break-words">
                               {qtyFmt.format(Number(item.quantity) || 0)} {(item.unitType || 'UN').toLowerCase()} × {brl.format(Number(item.unitPrice) || 0)}
                               {' · '}<span className={lay.none ? 'text-amber-500/80' : ''} data-testid="struct-layer">{lay.text}</span>
