@@ -121,7 +121,15 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
             </>
           ) : (
             <>
-              <p className="text-[13px] text-zinc-300">Não conheço o código <span className="tabular-nums text-white">{unknown}</span>. Como se chama este produto?</p>
+              <p className="text-[13px] text-zinc-300">Não conheço este código. Confira se o número abaixo é igual ao impresso na embalagem; se a câmera errou algum dígito, corrija aqui.</p>
+              <div className="flex gap-2 mt-2">
+                <input value={unknown || ''} onChange={e => setUnknown(e.target.value.replace(/\D/g, ''))} inputMode="numeric" aria-label="Código lido" data-testid="shop-scan-code"
+                  className="min-w-0 flex-1 h-11 rounded-xl bg-white/5 border border-white/10 px-3 text-[15px] text-white tabular-nums outline-none focus:border-luxury-gold/60" />
+                <button type="button" onClick={() => { const c = (unknown || '').replace(/\D/g, ''); if (c.length >= 8) open(c); }} data-testid="shop-scan-recheck"
+                  className="shrink-0 h-11 px-4 rounded-xl border border-white/15 text-[13px] font-semibold text-zinc-200">Buscar</button>
+              </div>
+              <button type="button" onClick={() => { setUnknown(null); void doScan(); }} className="mt-2 text-[12px] text-luxury-gold underline underline-offset-2 min-h-[32px]">Ler de novo com a câmera</button>
+              <p className="text-[13px] text-zinc-300 mt-2">Se o número está certo, como se chama este produto?</p>
               <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: Leite integral 1 L" aria-label="Nome do produto" data-testid="shop-scan-name"
                 className="w-full h-12 mt-2 rounded-xl bg-white/5 border border-white/10 px-3 text-[15px] text-white outline-none focus:border-luxury-gold/60 placeholder:text-zinc-500" />
             </>

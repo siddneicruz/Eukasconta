@@ -16,7 +16,7 @@ export const scanBarcode = async (): Promise<ScanOutcome> => {
       try { await BarcodeScanner.installGoogleBarcodeScannerModule(); } catch { /* segue: o aviso abaixo explica */ }
       return { error: 'Estou baixando o leitor do Google (só na primeira vez). Espere alguns segundos e toque de novo.' };
     }
-    const res = await BarcodeScanner.scan({ formats: [BarcodeFormat.Ean13, BarcodeFormat.Ean8, BarcodeFormat.UpcA, BarcodeFormat.UpcE] });
+    const res = await BarcodeScanner.scan({ formats: [BarcodeFormat.Ean13, BarcodeFormat.Ean8, BarcodeFormat.UpcA, BarcodeFormat.UpcE], autoZoom: true });
     const v = clean(res.barcodes?.[0]?.rawValue || res.barcodes?.[0]?.displayValue || '');
     return v ? { code: v } : { cancelled: true };
   } catch (e: any) {
