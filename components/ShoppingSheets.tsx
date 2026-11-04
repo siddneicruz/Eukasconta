@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Minus, Plus, Search, Check, Trash2, Pencil, Copy, Star } from 'lucide-react';
-import { Entry, Group, History, LineCheck, Product, findProducts, fmtQty, round3, stepOf, unitLabel } from '../services/shoppingList';
+import { Entry, Group, History, LineCheck, Product, findProducts, fmtQty, round3, roundTo, stepOf, unitLabel } from '../services/shoppingList';
 import { searchCatalog } from '../services/shoppingCatalog';
 
 /* Folhas da lista de compras: editar um item, adicionar item do histórico e confirmar. */
@@ -115,13 +115,27 @@ export const ItemSheet: React.FC<ItemSheetProps> = ({ entry, purchaseLabel, chec
 interface AddSheetProps {
   history: History;
   purchaseLabel: string;
-  onAdd: (p: Product | null, name: string, group?: Group) => void;
+  onAdd: (p: Product | null, name: string, group?: Group, qty?: number) => void;
   onClose: () => void;
 }
+
+/** − quantidade + (passo da unidade: 1 un, 0,5 kg…) */
+const Stepper: React.FC<{ qty: number; unit: string; onChange: (q: number) => void; testId?: string }> = ({ qty, unit, onChange, testId }) => {
+  const st = stepOf(unit);
+  return (
+    <span className="shrink-0 inline-flex items-center rounded-full border border-white/10 bg-white/5" data-testid={testId}>
+      <button type="button" aria-label="Diminuir" onMouseDown={e => e.preventDefault()} onClick={() => onChange(Math.max(st, roundTo(qty - st, st)))} className="w-9 h-9 flex items-center justify-center text-zinc-200 text-[18px] active:bg-white/10 rounded-full">−</button>
+      <span className="min-w-[44px] text-center text-[12.5px] font-semibold tabular-nums text-white">{fmtQty(qty, unit)}</span>
+      <button type="button" aria-label="Aumentar" onMouseDown={e => e.preventDefault()} onClick={() => onChange(roundTo(qty + st, st))} className="w-9 h-9 flex items-center justify-center text-luxury-gold text-[18px] active:bg-white/10 rounded-full">+</button>
+    </span>
+  );
+};
 
 export const AddSheet: React.FC<AddSheetProps> = ({ history, purchaseLabel, onAdd, onClose }) => {
   const [q, setQ] = useState('');
   const [added, setAdded] = useState<string[]>([]);
+  const [qtys, setQtys] = useState<Record<string, number>>({});
+  const qOf = (id: string, unit: string, dflt?: number) => qtys[id] ?? Math.max(stepOf(unit), dflt ? roundTo(dflt, stepOf(unit)) : stepOf(unit));
   const found = findProducts(history, q, 8);
   // o que você nunca comprou, mas existe no catálogo (frutas, verduras e carnes)
   const fresh = searchCatalog(history, q, 5).filter(c => !found.some(f => f.pid === c.id));
@@ -137,40 +151,43 @@ export const AddSheet: React.FC<AddSheetProps> = ({ history, purchaseLabel, onAd
         {found.map(p => {
           const done = added.includes(p.pid);
           return (
-            <li key={p.pid}>
-              <button type="button" data-testid="shop-add-row" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(p, p.name); setAdded(a => [...a, p.pid]); }}
-                className="w-full text-left flex items-center gap-3 min-h-[56px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
+            <li key={p.pid} className="flex items-center gap-1">
+              <button type="button" data-testid="shop-add-row" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(p, p.name, undefined, qOf(p.pid, p.unit, p.typical)); setAdded(a => [...a, p.pid]); }}
+                className="min-w-0 flex-1 text-left flex items-center gap-3 min-h-[56px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold text-zinc-100 truncate">{p.name}</span>
                   <span className="block text-[11px] text-zinc-500 tabular-nums">{p.dept} · última {brl(p.price)}/{unitLabel(p.unit)}</span>
                 </span>
                 {done ? <Check className="w-5 h-5 text-emerald-400 shrink-0" /> : <Plus className="w-5 h-5 text-luxury-gold shrink-0" />}
               </button>
+              <Stepper qty={qOf(p.pid, p.unit, p.typical)} unit={p.unit} onChange={q => setQtys(s => ({ ...s, [p.pid]: q }))} testId="shop-add-step" />
             </li>
           );
         })}
         {fresh.map(c => {
           const done = added.includes(c.id);
           return (
-            <li key={c.id}>
-              <button type="button" data-testid="shop-add-catalog" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(c.product, c.name, c.group === 'carne' ? 'churrasco' : c.group); setAdded(a => [...a, c.id]); }}
-                className="w-full text-left flex items-center gap-3 min-h-[56px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
+            <li key={c.id} className="flex items-center gap-1">
+              <button type="button" data-testid="shop-add-catalog" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(c.product, c.name, c.group === 'carne' ? 'churrasco' : c.group, qOf(c.id, c.product.unit)); setAdded(a => [...a, c.id]); }}
+                className="min-w-0 flex-1 text-left flex items-center gap-3 min-h-[56px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold text-zinc-100 truncate">{c.name}</span>
                   <span className="block text-[11px] text-zinc-500 tabular-nums">{c.product.dept} · do catálogo, nunca comprou · sem preço</span>
                 </span>
                 {done ? <Check className="w-5 h-5 text-emerald-400 shrink-0" /> : <Plus className="w-5 h-5 text-luxury-gold shrink-0" />}
               </button>
+              <Stepper qty={qOf(c.id, c.product.unit)} unit={c.product.unit} onChange={q => setQtys(s => ({ ...s, [c.id]: q }))} />
             </li>
           );
         })}
         {name.length >= 2 && (
-          <li>
-            <button type="button" data-testid="shop-add-free" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(null, name); setAdded(a => [...a, 'U:' + name]); }}
-              className="w-full text-left flex items-center gap-3 min-h-[52px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
+          <li className="flex items-center gap-1">
+            <button type="button" data-testid="shop-add-free" onMouseDown={e => e.preventDefault()} onClick={() => { onAdd(null, name, undefined, qOf('U:' + name, 'UN')); setAdded(a => [...a, 'U:' + name]); }}
+              className="min-w-0 flex-1 text-left flex items-center gap-3 min-h-[52px] px-2 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10">
               <span className="min-w-0 flex-1 text-[14px] text-zinc-300 truncate">Adicionar “{name}” como item novo</span>
               {added.includes('U:' + name) ? <Check className="w-5 h-5 text-emerald-400 shrink-0" /> : <Plus className="w-5 h-5 text-luxury-gold shrink-0" />}
             </button>
+            <Stepper qty={qOf('U:' + name, 'UN')} unit="UN" onChange={q => setQtys(s => ({ ...s, ['U:' + name]: q }))} />
           </li>
         )}
       </ul>

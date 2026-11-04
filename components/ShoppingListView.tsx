@@ -59,7 +59,7 @@ const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Mat
 const savedLabel = (ts: number) => { const d = new Date(ts); const p = (n: number) => String(n).padStart(2, '0'); return `Gravada em ${p(d.getDate())}/${p(d.getMonth() + 1)} às ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '');
 
-const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit: () => void }> = ({ e, check, onToggle, onEdit }) => (
+const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit: () => void; onQty: (q: number) => void }> = ({ e, check, onToggle, onEdit, onQty }) => (
   <li className="flex items-stretch" data-testid="shop-row" data-pid={e.pid} data-cart={e.cart ? '1' : '0'}>
     <button type="button" role="checkbox" aria-checked={e.cart} aria-label={`No carrinho: ${e.name}`} onClick={onToggle} data-testid="shop-check"
       className="w-12 shrink-0 flex items-center justify-center">
@@ -89,6 +89,10 @@ const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit:
       </span>
       <span className={`shrink-0 text-[14px] font-semibold tabular-nums ${e.cart ? 'text-zinc-500' : 'text-white'}`}>{e.price > 0 ? brl(entryCost(e)) : '—'}</span>
     </button>
+    <span className="shrink-0 self-center inline-flex items-center rounded-full border border-white/10 bg-white/5 mr-1" data-testid="shop-row-step">
+      <button type="button" aria-label={`Diminuir ${e.name}`} onClick={() => onQty(Math.max(stepOf(e.unit), roundTo(e.qty - stepOf(e.unit), stepOf(e.unit))))} className="w-8 h-8 flex items-center justify-center text-zinc-200 text-[17px] rounded-full active:bg-white/10">−</button>
+      <button type="button" aria-label={`Aumentar ${e.name}`} onClick={() => onQty(roundTo(e.qty + stepOf(e.unit), stepOf(e.unit)))} className="w-8 h-8 flex items-center justify-center text-luxury-gold text-[17px] rounded-full active:bg-white/10">+</button>
+    </span>
   </li>
 );
 
@@ -609,6 +613,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
                 {sec.entries.map(e => (
                   <Row key={`${e.group}:${e.pid}`} e={e} check={lineOf(e)}
                     onToggle={() => update(l => toggleCart(l, idx, e.pid, e.group))}
+                    onQty={q => update(l => setQty(l, idx, e.pid, q))}
                     onEdit={() => setSheet({ kind: 'item', pi: idx, pid: e.pid, group: e.group })} />
                 ))}
               </ul>
@@ -694,11 +699,11 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
       )}
       {sheet?.kind === 'add' && (
         <AddSheet history={history} purchaseLabel={shortDate(list.purchases[sheet.pi].date)} onClose={() => setSheet(null)}
-          onAdd={(p, name, group) => {
+          onAdd={(p, name, group, qty) => {
             const s = sheet;
             update(l => p
-              ? addManual(l, s.pi, { pid: p.pid, name: p.name, unit: p.unit, price: p.price, dept: p.dept, category: p.category, qty: Math.max(stepOf(p.unit), roundTo(p.typical, stepOf(p.unit))), priceDate: p.priceDate, store: p.store, ...(group ? { group } : {}) })
-              : addManual(l, s.pi, { name }));
+              ? addManual(l, s.pi, { pid: p.pid, name: p.name, unit: p.unit, price: p.price, dept: p.dept, category: p.category, qty: qty && qty > 0 ? qty : Math.max(stepOf(p.unit), roundTo(p.typical, stepOf(p.unit))), priceDate: p.priceDate, store: p.store, ...(group ? { group } : {}) })
+              : addManual(l, s.pi, { name, ...(qty && qty > 0 ? { qty } : {}) }));
           }} />
       )}
       {sheet?.kind === 'catalog' && (
