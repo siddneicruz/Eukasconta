@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ScanBarcode, Minus, Plus, Check, Camera } from 'lucide-react';
 import { Entry, cartTotal, fmtQty, round3, stepOf, unitLabel, PlanPurchase } from '../services/shoppingList';
-import { NearPrices, ScanHit, learnCode, nearbyPrices } from '../services/shoppingScan';
+import { EanInfo, NearPrices, ScanHit, fetchEanInfo, learnCode, nearbyPrices } from '../services/shoppingScan';
 import { barcodeFromPhoto, scanBarcode } from '../services/barcodeScan';
 import { Sheet, brl, moneyText, parseMoney } from './ShoppingSheets';
 
@@ -25,6 +25,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const [qty, setQty] = useState(1);
   const [priceTxt, setPriceTxt] = useState('');
   const [last, setLast] = useState('');
+  const [eanInfo, setEanInfo] = useState<EanInfo | null>(null);
   const [choices, setChoices] = useState<ScanHit[]>([]);   // código ligado a mais de um produto: a pessoa escolhe
   const pick = (hit: ScanHit) => {
     setChoices([]);
@@ -50,7 +51,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const open = (code: string) => {
     setMsg(''); setLast('');
     const hits = resolve(code);
-    if (hits.length > 1) { setChoices(hits); setCur(null); setUnknown(null); setNear(null); return; }
+    if (hits.length > 1) { setChoices(hits); setEanInfo(null); fetchEanInfo(hits[0].code).then(setEanInfo); setCur(null); setUnknown(null); setNear(null); return; }
     setChoices([]);
     const hit = hits[0] || null;
     if (hit) pick(hit);
@@ -96,11 +97,19 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
       {choices.length > 1 && (
         <div className="mb-2" data-testid="shop-scan-choices">
           <p className="text-[13px] text-zinc-300">Este código (<span className="tabular-nums text-white">{choices[0].code}</span>) está ligado a mais de um produto na tabela. Qual é o que você está segurando?</p>
+          {eanInfo && (
+            <div className="mt-2 rounded-xl border border-luxury-gold/30 bg-luxury-gold/[0.06] px-3 py-2" data-testid="shop-scan-eaninfo">
+              <p className="text-[10.5px] uppercase tracking-wide text-luxury-gold">O catálogo diz que esse código é</p>
+              <p className="text-[13.5px] font-semibold text-zinc-100 leading-snug">{eanInfo.description || '—'}</p>
+              <p className="text-[11.5px] text-zinc-400">{[eanInfo.brand, eanInfo.size].filter(Boolean).join(' · ') || 'sem marca/peso no catálogo'}</p>
+            </div>
+          )}
           <ul className="mt-2 space-y-1.5">
             {choices.map(h => (
               <li key={h.pid}>
                 <button type="button" onClick={() => choose(h)} className="w-full text-left min-h-[48px] px-3 py-2 rounded-xl border border-white/10 bg-white/[0.03] active:bg-white/10">
                   <span className="block text-[14px] font-semibold text-zinc-100">{h.name}</span>
+                  <span className="block text-[11.5px] text-zinc-300">{[h.brand, h.size || 'sem peso no nome', h.unit && h.unit !== 'UN' ? h.unit : ''].filter(Boolean).join(' · ')}</span>
                   <span className="block text-[11px] text-zinc-500">{h.dept}{h.price > 0 ? ` · último ${brl(h.price)}` : ''}</span>
                 </button>
               </li>

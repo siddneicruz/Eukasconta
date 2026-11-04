@@ -24,7 +24,25 @@ export interface ScanHit {
   priceDate: string;
   store: string;
   source: 'historico' | 'tabela' | 'aprendido';
+  /** marca e embalagem/peso (da tabela mãe e do nome) para ajudar a escolher entre produtos parecidos */
+  brand?: string;
+  size?: string;
 }
+
+const SIZE_RE = /(\d+(?:[.,]\d+)?)\s?(kg|g|gr|ml|l|lt|un|und)\b/i;
+export const sizeOfName = (name: string): string => { const m = SIZE_RE.exec(name || ''); return m ? m[0].replace(/\s+/g, ' ') : ''; };
+
+/** O que o catálogo de EAN diz sobre o código lido (nome, marca, peso/embalagem). */
+export interface EanInfo { description: string; brand: string; size: string }
+export const fetchEanInfo = async (code: string): Promise<EanInfo | null> => {
+  try {
+    const c = stripKey(code);
+    const { data } = await supabase.from('ean_catalog').select('description,brand,size_text,size_value,size_unit').in('ean', [c, c.padStart(13, '0')]).limit(1).maybeSingle();
+    if (!data) return null;
+    const size = data.size_text || (data.size_value ? `${data.size_value} ${data.size_unit || ''}`.trim() : '') || sizeOfName(data.description || '');
+    return { description: data.description || '', brand: data.brand || '', size };
+  } catch { return null; }
+};
 
 const stripKey = (c: string) => String(c || '').replace(/\D/g, '');
 const same = (a: string, b: string) => { const x = stripKey(a), y = stripKey(b); return !!x && !!y && (x === y || x.replace(/^0+/, '') === y.replace(/^0+/, '')); };
@@ -44,9 +62,12 @@ export const resolveBarcode = (code: string, ctx: { masters: MasterProduct[]; ma
   (ctx.master?.codes || []).forEach(c => { if (c.kind === 'ean' && same(c.code, code)) cand.set(c.master, { code: c.master, desc: c.desc, unit: c.unit || 'UN', category: c.category || '' }); });
   ctx.masters.forEach(m => { if ((m.eans || []).some(e => same(e, code))) cand.set(m.code, { code: m.code, desc: m.description, unit: m.unitType || 'UN', category: m.category || '' }); });
   const list = [...cand.values()];
+  const brandOf = new Map<string, string>();
+  (ctx.master?.products || []).forEach(x => { if (x.brand) brandOf.set(x.code, x.brand); });
   const toHit = (c: { code: string; desc: string; unit: string; category: string }): ScanHit => {
     const p = prods.get(`M:${c.code}`);
-    return p ? fromProduct(p, 'tabela') : { code, pid: `M:${c.code}`, name: c.desc, unit: c.unit, dept: (c.category || '').split(' - ')[0] || 'Outros', category: c.category, price: 0, priceDate: '', store: '', source: 'tabela' };
+    const extra = { brand: brandOf.get(c.code) || '', size: sizeOfName(p?.name || c.desc) };
+    return p ? { ...fromProduct(p, 'tabela'), ...extra } : { ...extra, code, pid: `M:${c.code}`, name: c.desc, unit: c.unit, dept: (c.category || '').split(' - ')[0] || 'Outros', category: c.category, price: 0, priceDate: '', store: '', source: 'tabela' };
   };
   if (!learnedName && list.length > 1) { out.push(...list.map(toHit)); return out; }
   if (!learnedName && list.length === 1) return [toHit(list[0])];
