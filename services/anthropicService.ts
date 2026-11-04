@@ -137,3 +137,19 @@ export const askClaudeForJson = async (apiKey: string, prompt: string): Promise<
     .join('\n');
   return text.replace(/```json|```/g, '').trim();
 };
+
+// Várias fotos + um pedido de JSON (cadastro de produto por fotos).
+export const askClaudeVisionJson = async (apiKey: string, images: { b64: string; mime: string }[], prompt: string): Promise<any> => {
+  const data = await callAnthropic(apiKey, {
+    max_tokens: 1500,
+    temperature: 0,
+    messages: [{ role: 'user', content: [
+      ...images.map(i => ({ type: 'image', source: { type: 'base64', media_type: i.mime, data: i.b64 } })),
+      { type: 'text', text: prompt },
+    ] }],
+  });
+  const text = (data.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('');
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new GeminiError('O Claude não devolveu os dados do produto.', 'PARSING', true);
+  return JSON.parse(m[0]);
+};

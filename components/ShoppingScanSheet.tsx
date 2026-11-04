@@ -4,6 +4,7 @@ import { Entry, cartTotal, fmtQty, round3, stepOf, unitLabel, PlanPurchase } fro
 import { beepOk } from '../services/beep';
 import { EanInfo, infoOf, NearPrices, ScanHit, fetchEanInfo, learnCode, nearbyPrices } from '../services/shoppingScan';
 import { barcodeFromPhoto, scanBarcode } from '../services/barcodeScan';
+import ProductPhotoSheet from './ProductPhotoSheet';
 import { Sheet, brl, moneyText, parseMoney } from './ShoppingSheets';
 
 /* Bipar produto durante a compra: lê o código, traz o último preço pago (a pessoa pode ajustar ou informar) e põe no
@@ -22,6 +23,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const [msg, setMsg] = useState('');
   const [cur, setCur] = useState<ScanHit | null>(null);
   const [unknown, setUnknown] = useState<string | null>(null);
+  const [photoReg, setPhotoReg] = useState(false);
   const [name, setName] = useState('');
   const [qty, setQty] = useState(1);
   const [priceTxt, setPriceTxt] = useState('');
@@ -90,6 +92,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const editing = cur || unknown;
   const choose = (hit: ScanHit) => { learnCode(hit.code, hit.name); pick(hit); };
   return (
+    <>
     <Sheet title="Bipar produto" subtitle={`Compra de ${purchaseLabel}`} onClose={onClose} testId="shop-scan-sheet">
       <div className="rounded-2xl border border-luxury-gold/30 bg-luxury-gold/[0.06] px-4 py-3 mb-3" data-testid="shop-scan-total">
         <p className="text-[11px] uppercase tracking-wide text-zinc-400">No carrinho · estimado</p>
@@ -169,6 +172,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
                 <button type="button" onClick={() => { const c = (unknown || '').replace(/\D/g, ''); if (c.length >= 8) open(c); }} data-testid="shop-scan-recheck"
                   className="shrink-0 h-11 px-4 rounded-xl border border-white/15 text-[13px] font-semibold text-zinc-200">Buscar</button>
               </div>
+              <button type="button" onClick={() => setPhotoReg(true)} data-testid="shop-scan-photo-reg" className="mt-2 w-full h-12 rounded-xl border border-luxury-gold/50 text-luxury-gold text-[14px] font-semibold flex items-center justify-center gap-2"><Camera className="w-4 h-4" />Cadastrar com fotos (IA)</button>
               <button type="button" onClick={() => { setUnknown(null); void doScan(); }} className="mt-2 text-[12px] text-luxury-gold underline underline-offset-2 min-h-[32px]">Ler de novo com a câmera</button>
               <p className="text-[13px] text-zinc-300 mt-2">Se o número está certo, como se chama este produto?</p>
               <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: Leite integral 1 L" aria-label="Nome do produto" data-testid="shop-scan-name"
@@ -198,6 +202,8 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
         </div>
       )}
     </Sheet>
+    {photoReg && <ProductPhotoSheet initialCode={unknown || ''} onClose={() => setPhotoReg(false)} onSaved={(c, n) => { learnCode(c, n); setPhotoReg(false); open(c); }} />}
+    </>
   );
 };
 

@@ -609,3 +609,22 @@ export const filterFreeModels = (data: any): FreeModel[] => {
   }
   return out.sort((a, b) => Number(b.vision) - Number(a.vision) || b.context - a.context || a.name.localeCompare(b.name));
 };
+
+// Várias fotos + um pedido de JSON (cadastro de produto por fotos). Mesmo caminho de modelos da leitura de cupom.
+export const askOpenRouterVisionJson = async (apiKey: string, images: { b64: string; mime: string }[], prompt: string): Promise<any> => {
+  const primary = getOpenRouterModel('vision') || DEFAULT_PAID_VISION_MODEL;
+  const candidates = [primary, ...DEFAULT_VISION_MODELS, FREE_ROUTER].filter(m => m && (m === FREE_ROUTER || !isModelBlocked(m)));
+  const { value } = await runWithFallback(
+    apiKey, candidates,
+    () => ({
+      maxTokens: 2000,
+      messages: [{ role: 'user', content: [
+        ...images.map(i => ({ type: 'image_url', image_url: { url: `data:${i.mime};base64,${i.b64}` } })),
+        { type: 'text', text: prompt },
+      ] }],
+    }),
+    (text) => extractJson(text),
+    'ler as fotos do produto',
+  );
+  return value;
+};

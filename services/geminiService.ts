@@ -280,3 +280,24 @@ export const askAiForJson = async (prompt: string, opts: { budgetMs?: number } =
     throw classifyGeminiError(error);
   }
 };
+
+// Fotos do produto → JSON com os dados do cadastro (usa o provedor de IA que a pessoa escolheu).
+export const askVisionJson = async (images: { b64: string; mime: string }[], prompt: string): Promise<any> => {
+  const claudeKey = resolveClaudeKey();
+  if (claudeKey) return (await import('./anthropicService')).askClaudeVisionJson(claudeKey, images, prompt);
+  const orKey = resolveOpenRouterKey();
+  if (orKey) return (await import('./openrouterService')).askOpenRouterVisionJson(orKey, images, prompt);
+  const apiKey = resolveGeminiApiKey();
+  if (!apiKey) throw new GeminiError("API Key não configurada. Adicione a sua em Config > Chave IA.", 'AUTH', false);
+  const ai = new GoogleGenAI({ apiKey });
+  try {
+    const r = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { parts: [...images.map(i => ({ inlineData: { data: i.b64, mimeType: i.mime } })), { text: prompt }] },
+      config: { responseMimeType: 'application/json', temperature: 0 },
+    });
+    return JSON.parse(r.text || '{}');
+  } catch (error: any) {
+    throw classifyGeminiError(error);
+  }
+};
