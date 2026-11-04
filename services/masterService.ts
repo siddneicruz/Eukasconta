@@ -66,6 +66,10 @@ export const fetchNodeCount = async (): Promise<number | null> => {
   const { count, error } = await supabase.from('taxonomy_master').select('id', { count: 'exact', head: true });
   return error || count === null ? null : count;
 };
+export const fetchCodeCount = async (): Promise<number | null> => {
+  const { count, error } = await supabase.from('master_product_codes').select('id', { count: 'exact', head: true });
+  return error || count === null ? null : count;
+};
 export const fetchMasterVersion = async (): Promise<{ version: number; publishedAt: string | null } | null> => {
   const { data, error } = await supabase.from('master_meta').select('version, published_at').eq('id', true).maybeSingle();
   if (error || !data) return null;

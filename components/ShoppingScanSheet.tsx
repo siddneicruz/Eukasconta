@@ -11,7 +11,7 @@ import { Sheet, brl, moneyText, parseMoney } from './ShoppingSheets';
 interface Props {
   purchase: PlanPurchase;
   purchaseLabel: string;
-  resolve: (code: string) => ScanHit | null;
+  resolve: (code: string) => ScanHit[];
   onAdd: (hit: ScanHit, qty: number, price: number) => void;
   onClose: () => void;
 }
@@ -25,6 +25,13 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const [qty, setQty] = useState(1);
   const [priceTxt, setPriceTxt] = useState('');
   const [last, setLast] = useState('');
+  const [choices, setChoices] = useState<ScanHit[]>([]);   // código ligado a mais de um produto: a pessoa escolhe
+  const pick = (hit: ScanHit) => {
+    setChoices([]);
+    setCur(hit); setUnknown(null); setQty(stepOf(hit.unit)); setPriceTxt(moneyText(hit.price));
+    setSrc(hit.price > 0 ? `seu último preço${hit.store ? ` · ${hit.store}` : ''}${hit.priceDate ? ` · ${hit.priceDate.split('-').reverse().join('/')}` : ''}` : '');
+    askNear(hit);
+  };
   const photoRef = useRef<HTMLInputElement>(null);
   const [near, setNear] = useState<NearPrices | null>(null);
   const [nearBusy, setNearBusy] = useState(false);
@@ -42,12 +49,11 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
 
   const open = (code: string) => {
     setMsg(''); setLast('');
-    const hit = resolve(code);
-    if (hit) {
-      setCur(hit); setUnknown(null); setQty(stepOf(hit.unit)); setPriceTxt(moneyText(hit.price));
-      setSrc(hit.price > 0 ? `seu último preço${hit.store ? ` · ${hit.store}` : ''}${hit.priceDate ? ` · ${hit.priceDate.split('-').reverse().join('/')}` : ''}` : '');
-      askNear(hit);
-    }
+    const hits = resolve(code);
+    if (hits.length > 1) { setChoices(hits); setCur(null); setUnknown(null); setNear(null); return; }
+    setChoices([]);
+    const hit = hits[0] || null;
+    if (hit) pick(hit);
     else { setCur(null); setUnknown(code); setName(''); setQty(1); setPriceTxt(''); setSrc(''); setNear(null); }
   };
   const doScan = async () => {
@@ -76,6 +82,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   };
 
   const editing = cur || unknown;
+  const choose = (hit: ScanHit) => { learnCode(hit.code, hit.name); pick(hit); };
   return (
     <Sheet title="Bipar produto" subtitle={`Compra de ${purchaseLabel}`} onClose={onClose} testId="shop-scan-sheet">
       <div className="rounded-2xl border border-luxury-gold/30 bg-luxury-gold/[0.06] px-4 py-3 mb-3" data-testid="shop-scan-total">
@@ -86,7 +93,23 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
 
       {last && <p className="flex items-center gap-2 text-[12px] text-emerald-400 mb-2" role="status"><Check className="w-4 h-4" /> {last}</p>}
 
-      {!editing && (
+      {choices.length > 1 && (
+        <div className="mb-2" data-testid="shop-scan-choices">
+          <p className="text-[13px] text-zinc-300">Este código (<span className="tabular-nums text-white">{choices[0].code}</span>) está ligado a mais de um produto na tabela. Qual é o que você está segurando?</p>
+          <ul className="mt-2 space-y-1.5">
+            {choices.map(h => (
+              <li key={h.pid}>
+                <button type="button" onClick={() => choose(h)} className="w-full text-left min-h-[48px] px-3 py-2 rounded-xl border border-white/10 bg-white/[0.03] active:bg-white/10">
+                  <span className="block text-[14px] font-semibold text-zinc-100">{h.name}</span>
+                  <span className="block text-[11px] text-zinc-500">{h.dept}{h.price > 0 ? ` · último ${brl(h.price)}` : ''}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={() => { const c = choices[0].code; setChoices([]); setUnknown(c); setName(''); }} className="mt-2 text-[12px] text-luxury-gold underline underline-offset-2 min-h-[32px]">Nenhum desses: é outro produto</button>
+        </div>
+      )}
+      {!editing && choices.length < 2 && (
         <>
           <button type="button" onClick={doScan} data-testid="shop-scan-go" className="w-full h-12 rounded-xl bg-luxury-gold text-black text-[14px] font-bold flex items-center justify-center gap-2 active:opacity-80"><ScanBarcode className="w-5 h-5" /> Ler código de barras</button>
           <div className="flex gap-2 mt-2">

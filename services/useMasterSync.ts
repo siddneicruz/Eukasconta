@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient';
 import { applyMasterCodes } from './masterCodes';
 import type { MasterInfo } from '../components/MasterContext';
 import {
-  MasterData, applyMasterToReceipts, cachedRole, fetchMaster, fetchMasterVersion, fetchNodeCount, fetchPendingSuggestions, fetchRole,
+  MasterData, applyMasterToReceipts, cachedRole, fetchMaster, fetchMasterVersion, fetchNodeCount, fetchCodeCount, fetchPendingSuggestions, fetchRole,
   loadMasterCache, reviewSuggestion, saveMasterCache, submitSuggestion, taxonomySignature,
 } from './masterService';
 
@@ -39,9 +39,16 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
   }, [userId]);
 
   // a estrutura pode mudar no banco sem a versão subir: confere o total de categorias (consulta leve)
+  const seenCodes = useRef<number | null>(null);
   const seenCount = useRef<number | null>(null); // total já baixado: não repete se a padronização local muda a contagem
   const structureChanged = async (cur: MasterData) => {
-    try { const n = await fetchNodeCount(); if (n === null || n === cur.nodes.length || n === seenCount.current) return false; seenCount.current = n; return true; } catch { return false; }
+    try {
+      const n = await fetchNodeCount();
+      if (n !== null && n !== cur.nodes.length && n !== seenCount.current) { seenCount.current = n; return true; }
+      const c = await fetchCodeCount();
+      if (c !== null && c !== (cur.codes?.length ?? 0) && c !== seenCodes.current) { seenCodes.current = c; return true; }
+      return false;
+    } catch { return false; }
   };
   const syncNow = useCallback(async (force = false) => {
     if (!userId || busy.current) return;

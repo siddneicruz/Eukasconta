@@ -29,42 +29,46 @@ export interface ScanHit {
 const stripKey = (c: string) => String(c || '').replace(/\D/g, '');
 const same = (a: string, b: string) => { const x = stripKey(a), y = stripKey(b); return !!x && !!y && (x === y || x.replace(/^0+/, '') === y.replace(/^0+/, '')); };
 
-export const resolveBarcode = (code: string, ctx: { masters: MasterProduct[]; master: MasterData | null; receipts: Receipt[]; history: History }): ScanHit | null => {
+export const resolveBarcode = (code: string, ctx: { masters: MasterProduct[]; master: MasterData | null; receipts: Receipt[]; history: History }): ScanHit[] => {
+  const out: ScanHit[] = [];
   const keyer = makeKeyer(ctx.masters);
   const prods = new Map<string, Product>();
   ctx.history.longProducts.forEach(p => prods.set(p.pid, p));
   ctx.history.products.forEach(p => { if (!prods.has(p.pid)) prods.set(p.pid, p); });
   const fromProduct = (p: Product, source: ScanHit['source']): ScanHit => ({ code, pid: p.pid, name: p.name, unit: p.unit, dept: p.dept, category: p.category, price: p.price, priceDate: p.priceDate, store: p.store, source });
 
-  // 1. produto da tabela mãe com esse EAN
-  const mc = ctx.master?.codes?.find(c => c.kind === 'ean' && same(c.code, code));
-  const local = ctx.masters.find(m => (m.eans || []).some(e => same(e, code)));
-  const masterCode = mc?.master || local?.code;
-  if (masterCode) {
-    const p = prods.get(`M:${masterCode}`);
-    if (p) return fromProduct(p, 'tabela');
-    const name = mc?.desc || local?.description || '';
-    if (name) return { code, pid: `M:${masterCode}`, name, unit: mc?.unit || local?.unitType || 'UN', dept: (mc?.category || local?.category || '').split(' - ')[0] || 'Outros', category: mc?.category || local?.category || '', price: 0, priceDate: '', store: '', source: 'tabela' };
-  }
+  // 0. escolha que a pessoa já fez para este código (vale mais que a tabela)
+  const learnedName = loadLearned()[code];
+  // 1. produtos da tabela mãe com esse EAN: se for mais de um, a tabela está em dúvida e quem decide é a pessoa
+  const cand = new Map<string, { code: string; desc: string; unit: string; category: string }>();
+  (ctx.master?.codes || []).forEach(c => { if (c.kind === 'ean' && same(c.code, code)) cand.set(c.master, { code: c.master, desc: c.desc, unit: c.unit || 'UN', category: c.category || '' }); });
+  ctx.masters.forEach(m => { if ((m.eans || []).some(e => same(e, code))) cand.set(m.code, { code: m.code, desc: m.description, unit: m.unitType || 'UN', category: m.category || '' }); });
+  const list = [...cand.values()];
+  const toHit = (c: { code: string; desc: string; unit: string; category: string }): ScanHit => {
+    const p = prods.get(`M:${c.code}`);
+    return p ? fromProduct(p, 'tabela') : { code, pid: `M:${c.code}`, name: c.desc, unit: c.unit, dept: (c.category || '').split(' - ')[0] || 'Outros', category: c.category, price: 0, priceDate: '', store: '', source: 'tabela' };
+  };
+  if (!learnedName && list.length > 1) { out.push(...list.map(toHit)); return out; }
+  if (!learnedName && list.length === 1) return [toHit(list[0])];
   // 2. cupom que trouxe esse código (XML ou cupom impresso)
   for (const r of ctx.receipts) {
     for (const it of r.items || []) {
       if (same(String(it.code || ''), code)) {
         const k = keyer(it.description);
         const p = k ? prods.get(k.pid) : undefined;
-        if (p) return fromProduct(p, 'historico');
+        if (p) return [fromProduct(p, 'historico')];
       }
     }
   }
   // 3. nome que a pessoa já deu a esse código
-  const nm = loadLearned()[code];
+  const nm = learnedName;
   if (nm) {
     const k = keyer(nm);
     const p = k ? prods.get(k.pid) : undefined;
-    if (p) return fromProduct(p, 'aprendido');
-    return { code, pid: `U:${nm.toUpperCase()}`, name: nm, unit: 'UN', dept: 'Outros', category: '', price: 0, priceDate: '', store: '', source: 'aprendido' };
+    if (p) return [fromProduct(p, 'aprendido')];
+    return [{ code, pid: `U:${nm.toUpperCase()}`, name: nm, unit: 'UN', dept: 'Outros', category: '', price: 0, priceDate: '', store: '', source: 'aprendido' }];
   }
-  return null;
+  return [];
 };
 
 import { ShoppingList, addManual, setPrice, setQty, toggleCart } from './shoppingList';
