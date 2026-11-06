@@ -35,6 +35,7 @@ import {
     Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake, ArrowLeftRight
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
+import { Plus as PlusIcon, Minus as MinusIcon } from 'lucide-react';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
 import DeptFilterSheet from './DeptFilterSheet';
@@ -431,6 +432,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const [deptFilter, setDeptFilter] = useDeptFilter();
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
   const [deptSheetOpen, setDeptSheetOpen] = useState(false);
+  const [spendOpen, setSpendOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_spend_open') !== '0'; } catch { return true; } });
+  const toggleSpend = () => setSpendOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_spend_open', n ? '1' : '0'); } catch { /* sem armazenamento */ } return n; });
   const [groupSel, setGroupSel] = useState<string | null>(null); // tipo de gasto escolhido no gráfico de cima
   const deptActive = isDeptFilterActive(deptFilter);
   const hasFilters = !!(!isCurrentMonthPeriod(config) || config.establishment || config.item);
@@ -799,34 +802,56 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           </div>
       )}
 
-      {groupRows.length > 0 && (
-          <div className="mb-6 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-8 shadow-2xl" data-testid="spend-groups">
-              <div className="flex items-center justify-between mb-3">
+      {groupRows.length > 0 && (() => {
+          const money = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
+          const k = kindSplit(groupRows);
+          const sel = groupRows.find(g => g.id === groupSel) || null;
+          return (
+          <div className="mb-5 bg-zinc-950 border border-white/5 rounded-[1.75rem] md:rounded-[2.5rem] px-4 py-3.5 md:p-8 shadow-2xl" data-testid="spend-groups" data-open={spendOpen ? 'true' : 'false'}>
+              <div className="flex items-center justify-between gap-2 mb-2">
                   <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Tipo de gasto</h3>
-                  {groupSel && <button type="button" onClick={() => setGroupSel(null)} className="text-[11px] font-bold uppercase tracking-wide text-luxury-gold">ver tudo ✕</button>}
+                  <div className="flex items-center gap-2">
+                      {groupSel && <button type="button" onClick={() => setGroupSel(null)} className="text-[11px] font-bold uppercase tracking-wide text-luxury-gold min-h-[32px]">ver tudo ✕</button>}
+                      <button type="button" onClick={toggleSpend} data-testid="spend-toggle" aria-expanded={spendOpen} aria-label={spendOpen ? 'Recolher tipos de gasto' : 'Expandir tipos de gasto'}
+                          className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-zinc-300 active:bg-white/10">
+                          {spendOpen ? <MinusIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
+                      </button>
+                  </div>
               </div>
-              {(() => { const k = kindSplit(groupRows); const m = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v); return (
-                  <p className="text-[12px] text-zinc-400 mb-3" data-testid="spend-kind">Essencial <span className="text-zinc-100 font-semibold tabular-nums">{m(k.essencial)} ({k.pctEssencial.toFixed(0)}%)</span> · Flexível <span className="text-zinc-100 font-semibold tabular-nums">{m(k.flexivel)} ({(100 - k.pctEssencial).toFixed(0)}%)</span></p>
-              ); })()}
-              <div className="flex h-3 rounded-full overflow-hidden mb-4 bg-white/5" aria-hidden="true">
-                  {groupRows.map(g => <div key={g.id} style={{ width: `${g.pct}%`, background: g.color, opacity: groupSel && groupSel !== g.id ? 0.25 : 1 }} />)}
+              <p className="text-[12px] text-zinc-400 mb-2" data-testid="spend-kind">Essencial <span className="text-zinc-100 font-semibold tabular-nums">{money(k.essencial)} ({k.pctEssencial.toFixed(0)}%)</span> · Flexível <span className="text-zinc-100 font-semibold tabular-nums">{money(k.flexivel)} ({(100 - k.pctEssencial).toFixed(0)}%)</span></p>
+              {/* recolhido a barra fica 30% mais grossa (12 → 16 px) e cada trecho é tocável */}
+              <div className={`flex rounded-full overflow-hidden bg-white/5 ${spendOpen ? 'h-3 mb-2' : 'h-4 mb-1'}`} role={spendOpen ? undefined : 'group'} aria-label="Tipos de gasto">
+                  {groupRows.map(g => spendOpen
+                      ? <div key={g.id} style={{ width: `${g.pct}%`, background: g.color, opacity: groupSel && groupSel !== g.id ? 0.25 : 1 }} />
+                      : <button key={g.id} type="button" onClick={() => setGroupSel(groupSel === g.id ? null : g.id)} aria-label={`${g.name}: ${g.pct.toFixed(0)}%`} data-testid="spend-bar-seg"
+                          style={{ width: `${g.pct}%`, background: g.color, opacity: groupSel && groupSel !== g.id ? 0.25 : 1 }} className="h-full" />)}
               </div>
-              <ul className="space-y-1.5">
+              {!spendOpen && (
+                  <p className="text-[12px] min-h-[20px] mt-1.5 text-zinc-300" data-testid="spend-bar-label">
+                      {sel
+                          ? <><span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ background: sel.color }} /><span className="font-semibold text-zinc-100">{sel.name}</span> · {sel.pct.toFixed(0)}% · <span className="tabular-nums">{money(sel.value)}</span> · {sel.kind === 'essencial' ? 'essencial' : 'flexível'}</>
+                          : <span className="text-zinc-500">Toque na barra para ver o tipo de gasto.</span>}
+                  </p>
+              )}
+              {spendOpen && (
+              <ul className="space-y-0.5 mt-1">
                   {groupRows.map(g => (
                       <li key={g.id}>
                           <button type="button" onClick={() => setGroupSel(groupSel === g.id ? null : g.id)} data-testid="spend-group" data-active={groupSel === g.id ? 'true' : 'false'}
-                              className={`w-full flex items-center gap-3 px-3 min-h-[44px] rounded-xl text-left border transition-colors ${groupSel === g.id ? 'border-luxury-gold/60 bg-luxury-gold/10' : 'border-transparent hover:bg-white/5'}`}>
+                              className={`w-full flex items-center gap-3 px-3 min-h-[38px] rounded-xl text-left border transition-colors ${groupSel === g.id ? 'border-luxury-gold/60 bg-luxury-gold/10' : 'border-transparent hover:bg-white/5'}`}>
                               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
                               <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-100 font-semibold">{g.name}<span className="ml-2 text-[10px] font-normal text-zinc-500">{g.kind === 'essencial' ? 'essencial' : 'flexível'}</span></span>
                               <span className="text-[11px] text-zinc-500 shrink-0">{g.pct.toFixed(0)}%</span>
-                              <span className="text-[13px] text-zinc-200 font-semibold shrink-0 tabular-nums">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(g.value)}</span>
+                              <span className="text-[13px] text-zinc-200 font-semibold shrink-0 tabular-nums">{money(g.value)}</span>
                           </button>
                       </li>
                   ))}
               </ul>
-              {groupSel && <p className="mt-3 text-[11px] text-zinc-500">O gráfico de departamentos abaixo mostra só este tipo de gasto (total {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(grandTotal)}).</p>}
+              )}
+              {groupSel && spendOpen && <p className="mt-2 text-[11px] text-zinc-500">O gráfico de departamentos abaixo mostra só este tipo de gasto (total {money(grandTotal)}).</p>}
           </div>
-      )}
+          );
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-10">
           <div className="lg:col-span-6 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 min-h-[420px] md:min-h-[500px] shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
