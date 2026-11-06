@@ -858,15 +858,15 @@ const Reports: React.FC<ReportsProps> = ({
                             {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-black text-white">{y}</option>)}
                         </select>
                     </div>
-                    <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 flex items-center justify-start md:justify-between gap-1 px-2 md:px-4 overflow-x-auto no-scrollbar">
+                    <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 grid grid-cols-7 md:flex items-center justify-start md:justify-between gap-1 px-2 md:px-4 md:overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => onConfigChange({ ...config, month: null, months: undefined, quickFilter: null })} 
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${yearOn(config) ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
+                            className={`px-1 md:px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${yearOn(config) ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
                         >
                             ANUAL
                         </button>
                         {MONTHS_SHORT.map((m, idx) => (
-                            <button key={m} onClick={() => pickMonth(idx)} className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${monthOn(config, idx) ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                            <button key={m} onClick={() => pickMonth(idx)} className={`px-1 md:px-3 py-2 rounded-full text-xs font-bold transition-all ${monthOn(config, idx) ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                 {m}
                             </button>
                         ))}

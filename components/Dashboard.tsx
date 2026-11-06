@@ -689,15 +689,15 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                             {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-black text-white">{y}</option>)}
                         </select>
                     </div>
-                    <div className={`order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 ${moreCls} items-center justify-start md:justify-between gap-0.5 md:gap-1 px-1 md:px-4 overflow-x-auto no-scrollbar`} data-testid="filter-months">
+                    <div className={`order-4 md:order-3 ls:order-3 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 min-w-0 ${filtersOpen ? 'grid grid-cols-7 md:flex' : 'hidden md:flex ls:flex'} items-center justify-start md:justify-between gap-1 md:gap-1 px-1 md:px-4 md:overflow-x-auto no-scrollbar`} data-testid="filter-months">
                         <button
                             onClick={() => onConfigChange({ ...config, month: null, months: undefined, quickFilter: null })}
-                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${yearOn(config) ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
+                            className={`px-1 md:px-4 py-2 min-h-[36px] md:min-h-0 md:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${yearOn(config) ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}
                         >
                             ANUAL
                         </button>
                         {MONTHS_SHORT.map((m, idx) => (
-                            <button key={m} onClick={() => pickMonth(idx)} className={`px-2.5 py-1.5 md:px-3 md:py-2 rounded-full text-xs font-bold transition-all ${monthOn(config, idx) ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                            <button key={m} onClick={() => pickMonth(idx)} className={`px-1 md:px-3 py-2 min-h-[36px] md:min-h-0 rounded-full text-xs font-bold transition-all ${monthOn(config, idx) ? 'bg-luxury-gold/15 text-luxury-gold' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                 {m}
                             </button>
                         ))}
