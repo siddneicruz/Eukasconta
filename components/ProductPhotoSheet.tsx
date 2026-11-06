@@ -46,7 +46,7 @@ const ProductPhotoSheet: React.FC<Props> = ({ initialCode = '', onClose, onSaved
 
   const set = (k: keyof ProductDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setD(x => ({ ...x, [k]: e.target.value }));
   const codeOk = d.barcode.length >= 8 && gtinValid(d.barcode);
-  const full = [d.name, d.variant, d.brand && `- ${d.brand}`, d.sizeValue && `${d.sizeValue}${d.sizeUnit}`].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  const full = [d.name, d.variant, d.brand && `- ${d.brand}`, d.sizeValue && `${d.sizeValue}${d.sizeUnit}`, d.dimensions].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
   const canSave = codeOk && d.name.trim().length >= 2 && d.brand.trim().length >= 2;
 
   const save = async () => {
@@ -94,6 +94,7 @@ const ProductPhotoSheet: React.FC<Props> = ({ initialCode = '', onClose, onSaved
               <label className="block"><span className="text-[11px] text-zinc-500">Embalagem</span><input list="photo-packs" value={d.packaging} onChange={set('packaging')} className={field} data-testid="photo-pack" /><datalist id="photo-packs">{PACKS.map(p => <option key={p} value={p} />)}</datalist></label>
               <label className="block"><span className="text-[11px] text-zinc-500">Unidades no pacote</span><input value={d.units} onChange={e => setD(x => ({ ...x, units: e.target.value.replace(/\D/g, '') }))} inputMode="numeric" className={field} /></label>
             </div>
+            <label className="block"><span className="text-[11px] text-zinc-500">Dimensões (ex.: 28 x 22 cm)</span><input value={d.dimensions} onChange={set('dimensions')} placeholder="largura x altura" className={field} data-testid="photo-dim" /></label>
             {full && <p className="text-[12px] text-zinc-400">Vai aparecer como: <span className="text-zinc-200">{full}</span></p>}
             <button type="button" onClick={save} disabled={!canSave || busy} data-testid="photo-save" className="w-full h-12 rounded-xl bg-luxury-gold text-black text-[14px] font-bold disabled:opacity-40">{busy ? 'Enviando…' : 'Salvar e enviar ao catálogo'}</button>
             <p className="text-[11px] text-zinc-500">O envio passa por revisão antes de entrar no catálogo de todos; neste aparelho já vale na hora.</p>

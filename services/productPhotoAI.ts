@@ -12,8 +12,9 @@ export interface ProductDraft {
   packaging: string;                     // embalagem: garrafa, lata, caixa, pacote...
   units: string;                         // unidades na embalagem (ex.: 12)
   variant: string;                       // sabor/tipo
+  dimensions: string;                    // medidas da peça (ex.: 28 x 22 cm): guardanapo, papel toalha, filme, saco…
 }
-export const emptyDraft = (): ProductDraft => ({ barcode: '', brand: '', name: '', sizeValue: '', sizeUnit: 'g', packaging: '', units: '', variant: '' });
+export const emptyDraft = (): ProductDraft => ({ barcode: '', brand: '', name: '', sizeValue: '', sizeUnit: 'g', packaging: '', units: '', variant: '', dimensions: '' });
 
 // Reduz a foto (lado maior 1280 px, JPEG) para caber rápido na IA e no celular.
 export const shrinkPhoto = (file: File): Promise<{ b64: string; mime: string; url: string }> => new Promise((ok, fail) => {
@@ -32,7 +33,7 @@ export const shrinkPhoto = (file: File): Promise<{ b64: string; mime: string; ur
 
 const PROMPT = `Você recebe de 1 a 3 fotos da MESMA embalagem de um produto de supermercado brasileiro (frente, verso, código de barras).
 Leia só o que está impresso; não invente. Devolva APENAS este JSON:
-{"barcode":"dígitos do código de barras (8 a 14) ou vazio","brand":"marca","name":"nome do produto sem a marca e sem o peso","variant":"sabor/tipo ou vazio","sizeValue":"número do conteúdo líquido (ex.: 500) ou vazio","sizeUnit":"g, kg, ml, l ou un","packaging":"tipo de embalagem: garrafa, lata, caixa, pacote, saco, pote, bandeja, sachê, tubo, frasco, etc.","units":"unidades dentro do pacote (ex.: 12 para fardo c/12) ou vazio"}
+{"barcode":"dígitos do código de barras (8 a 14) ou vazio","brand":"marca","name":"nome do produto sem a marca e sem o peso","variant":"sabor/tipo ou vazio","sizeValue":"número do conteúdo líquido (ex.: 500) ou vazio","sizeUnit":"g, kg, ml, l ou un","packaging":"tipo de embalagem: garrafa, lata, caixa, pacote, saco, pote, bandeja, sachê, tubo, frasco, etc.","units":"unidades dentro do pacote (ex.: 12 para fardo c/12, 50 folhas) ou vazio","dimensions":"medidas de cada peça como impresso, ex.: 28 x 22 cm (guardanapo, papel toalha, saco, filme, esponja…), ou vazio"}
 Use vírgula nunca; ponto decimal se precisar. Se não tem certeza de um campo, deixe vazio.`;
 
 export const readProductPhotos = async (photos: { b64: string; mime: string }[]): Promise<ProductDraft> => {
@@ -42,7 +43,7 @@ export const readProductPhotos = async (photos: { b64: string; mime: string }[])
   return {
     barcode: s(r.barcode).replace(/\D/g, ''), brand: s(r.brand), name: s(r.name), variant: s(r.variant),
     sizeValue: s(r.sizeValue).replace(',', '.'), sizeUnit: ['g', 'kg', 'ml', 'l', 'un'].includes(unit) ? unit : 'g',
-    packaging: s(r.packaging).toLowerCase(), units: s(r.units).replace(/\D/g, ''),
+    packaging: s(r.packaging).toLowerCase(), units: s(r.units).replace(/\D/g, ''), dimensions: s(r.dimensions),
   };
 };
 
@@ -52,7 +53,7 @@ export const submitProduct = async (d: ProductDraft): Promise<boolean> => {
     const { error } = await supabase.from('product_submissions').insert({
       user_id: u.user?.id, ean: d.barcode, brand: d.brand, name: d.name, variant: d.variant,
       size_value: d.sizeValue ? Number(d.sizeValue) : null, size_unit: d.sizeUnit, packaging: d.packaging,
-      units: d.units ? Number(d.units) : null,
+      units: d.units ? Number(d.units) : null, dimensions: d.dimensions || null,
     });
     return !error;
   } catch { return false; }
