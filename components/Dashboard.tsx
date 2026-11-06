@@ -522,7 +522,23 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         return { name, label: properCase(name), value: g.total, color: getCategoryColor(name), percentage: total > 0 ? (g.total / total) * 100 : 0 };
     });
     const sorted = rows.sort((a, b) => b.value - a.value);
-    const shown = groupSel ? sorted.filter(r => spendGroupOf(r.name).id === groupSel) : sorted;
+    let shown = groupSel ? sorted.filter(r => spendGroupOf(r.name).id === groupSel) : sorted;
+    // um tipo de gasto com um departamento só (ex.: Comer Fora e Delivery) não tem o que dividir: mostra as categorias dele
+    if (groupSel && shown.length === 1) {
+        const dept = shown[0].name, dk = deptKey(dept);
+        const subs = new Map<string, number>();
+        filteredReceipts.forEach(r => r.items.forEach(item => {
+            const parts = (item.category || '').split(' - ');
+            if (deptKey(parts[0].trim()) !== dk) return;
+            const sub = (parts.slice(1).join(' - ').trim()) || 'Sem categoria';
+            subs.set(sub, (subs.get(sub) || 0) + (Number(item.totalPrice) || 0));
+        }));
+        const sum = Array.from(subs.values()).reduce((a, v) => a + v, 0);
+        if (subs.size > 1 && sum > 0) {
+            const PAL = ['#ec4899', '#f59e0b', '#22c55e', '#38bdf8', '#a855f7', '#ef4444', '#14b8a6', '#eab308'];
+            shown = Array.from(subs.entries()).sort((a, b) => b[1] - a[1]).map(([sub, v], i) => ({ name: `${dept} - ${sub}`, label: properCase(sub), value: v, color: PAL[i % PAL.length], percentage: (v / sum) * 100 }));
+        }
+    }
     return { chartData: shown, totalSpent: groupSel ? shown.reduce((a, r) => a + r.value, 0) : total, allDepts: sorted, grandTotal: total };
   }, [filteredReceipts, availableMasterCategories, groupSel]);
   const groupRows = useMemo(() => groupTotals(allDepts), [allDepts]);
@@ -532,17 +548,20 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const establishmentData = useMemo(() => {
     const agg = new Map<string, { value: number; alias: string | null; raws: Map<string, number> }>();
     filteredReceipts.forEach(r => {
+        // com um tipo de gasto escolhido, a loja vale só pelos itens desse tipo
+        const v = groupSel ? r.items.reduce((a, it) => a + (spendGroupOf(it.category).id === groupSel ? (Number(it.totalPrice) || 0) : 0), 0) : r.totalAmount;
+        if (groupSel && v <= 0) return;
         const key = keyOf(r.establishmentName, r.cnpj);
         let g = agg.get(key);
         if (!g) { g = { value: 0, alias: aliasOf(r.establishmentName, r.cnpj), raws: new Map() }; agg.set(key, g); }
-        g.value += r.totalAmount;
-        g.raws.set(r.establishmentName, (g.raws.get(r.establishmentName) || 0) + r.totalAmount);
+        g.value += v;
+        g.raws.set(r.establishmentName, (g.raws.get(r.establishmentName) || 0) + v);
     });
     return Array.from(agg.entries())
         .map(([name, g]) => ({ name, alias: g.alias, raw: Array.from(g.raws.entries()).sort((a, b) => b[1] - a[1])[0][0], value: g.value }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 15); // Top 15 para manter a estética limpa
-  }, [filteredReceipts, keyOf, aliasOf]);
+  }, [filteredReceipts, keyOf, aliasOf, groupSel]);
 
   // Nome para mostrar de cada loja (por identidade), também para as lojas que o filtro escondeu
   const storeLabels = useMemo(() => {
@@ -819,7 +838,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                        data={chartData}
                        centerLabel={deptActive ? 'Total filtrado' : 'Total Investido'}
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalSpent)}
-                       onSliceClick={(entry) => onCategoryClick && onCategoryClick(entry.name)}
+                       onSliceClick={(entry) => onCategoryClick && onCategoryClick(String(entry.name).split(' - ')[0])}
                    />
                </div>
           </div>
@@ -904,8 +923,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                         data-testid="dept-card"
                         data-dept={cat.name}
                         aria-label={`Abrir ${cat.label}`}
-                        onClick={() => onCategoryClick && onCategoryClick(cat.name)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCategoryClick && onCategoryClick(cat.name); } }}
+                        onClick={() => onCategoryClick && onCategoryClick(cat.name.split(' - ')[0])}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCategoryClick && onCategoryClick(cat.name.split(' - ')[0]); } }}
                         className="flex items-center justify-between py-1 pl-1.5 pr-2.5 md:p-5 bg-white/[0.01] border border-white/5 rounded-xl md:rounded-2xl hover:bg-white/[0.04] hover:border-luxury-gold/20 active:bg-white/[0.06] transition-all group relative overflow-hidden cursor-pointer focus:outline-none focus-visible:border-luxury-gold/50"
                       >
                           <div className="flex items-center gap-2.5 md:gap-4 z-10 min-w-0">
