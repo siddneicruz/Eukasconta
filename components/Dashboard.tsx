@@ -485,6 +485,17 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const filteredReceipts = useMemo(
     () => [...applyDeptFilter(periodReceipts, deptFilter, layers)].sort((a, b) => b.date.localeCompare(a.date)),
     [periodReceipts, deptFilter, layers]);
+  // Com um tipo de gasto escolhido, cada cupom fica só com as linhas desse tipo (e vale a soma delas); cupom sem linha do tipo sai
+  const shownReceipts = useMemo(() => {
+    if (!groupSel) return filteredReceipts;
+    const out: Receipt[] = [];
+    filteredReceipts.forEach(r => {
+        const items = r.items.filter(it => spendGroupOf(it.category).id === groupSel);
+        if (items.length === 0) return;
+        out.push({ ...r, items, totalAmount: items.reduce((a, it) => a + (Number(it.totalPrice) || 0), 0) });
+    });
+    return out;
+  }, [filteredReceipts, groupSel]);
   const deptOptions = useMemo(() => buildDeptOptions(receipts, periodReceipts, layers), [receipts, periodReceipts, layers]);
   const deptLabel = deptFilterLabel(deptFilter, k => deptLabelFor(deptOptions, k));
 
@@ -550,10 +561,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   // `raw` é o nome do cupom que mais gastou, para quando a loja não tem apelido.
   const establishmentData = useMemo(() => {
     const agg = new Map<string, { value: number; alias: string | null; raws: Map<string, number> }>();
-    filteredReceipts.forEach(r => {
-        // com um tipo de gasto escolhido, a loja vale só pelos itens desse tipo
-        const v = groupSel ? r.items.reduce((a, it) => a + (spendGroupOf(it.category).id === groupSel ? (Number(it.totalPrice) || 0) : 0), 0) : r.totalAmount;
-        if (groupSel && v <= 0) return;
+    shownReceipts.forEach(r => {
+        const v = r.totalAmount;
         const key = keyOf(r.establishmentName, r.cnpj);
         let g = agg.get(key);
         if (!g) { g = { value: 0, alias: aliasOf(r.establishmentName, r.cnpj), raws: new Map() }; agg.set(key, g); }
@@ -564,7 +573,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
         .map(([name, g]) => ({ name, alias: g.alias, raw: Array.from(g.raws.entries()).sort((a, b) => b[1] - a[1])[0][0], value: g.value }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 15); // Top 15 para manter a estética limpa
-  }, [filteredReceipts, keyOf, aliasOf, groupSel]);
+  }, [shownReceipts, keyOf, aliasOf]);
 
   // Nome para mostrar de cada loja (por identidade), também para as lojas que o filtro escondeu
   const storeLabels = useMemo(() => {
@@ -598,7 +607,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineWidth = useElementWidth(timelineRef);
   const plotWidth = Math.max(120, timelineWidth - TL_AXIS_Y_WIDTH - TIMELINE_MARGIN_RIGHT);
-  const series = useMemo(() => buildEvolution(filteredReceipts, config, plotWidth), [filteredReceipts, config, plotWidth]);
+  const series = useMemo(() => buildEvolution(shownReceipts, config, plotWidth), [shownReceipts, config, plotWidth]);
   const evolutionData = series.points;
   const peakIdx = useMemo(() => {
       let best = -1;
@@ -982,13 +991,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Relação de Aquisições por Fluxo</h3>
           </div>
           <div className="space-y-1">
-              {filteredReceipts.slice(0, 12).map((receipt) => (
+              {shownReceipts.slice(0, 12).map((receipt) => (
                   <ReceiptRow key={receipt.id} receipt={receipt} onClick={openOriginal} />
               ))}
           </div>
-          {filteredReceipts.length > 12 && (
+          {shownReceipts.length > 12 && (
               <button onClick={onHistoryClick} className="w-full mt-8 py-4 border border-dashed border-white/10 rounded-2xl text-[11px] font-bold text-zinc-500 uppercase tracking-[0.1em] hover:text-luxury-gold hover:border-luxury-gold/30 transition-all">
-                  Ver todo o histórico auditado ({filteredReceipts.length} registros)
+                  Ver todo o histórico auditado ({shownReceipts.length} registros)
               </button>
           )}
       </div>
