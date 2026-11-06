@@ -5,7 +5,7 @@ import { useMonthPick } from './useMonthPick';
 import { Receipt, DashboardConfig, TaxonomyNode, MasterProduct } from '../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from 'recharts';
 import InteractiveDonut from './InteractiveDonut';
-import { groupTotals, spendGroupOf } from '../services/spendGroups';
+import { groupTotals, kindSplit, spendGroupOf } from '../services/spendGroups';
 import PercentRing from './PercentRing';
 import PeriodPicker from './PeriodPicker';
 import ReceiptRow from './ReceiptRow';
@@ -786,6 +786,9 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                   <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Tipo de gasto</h3>
                   {groupSel && <button type="button" onClick={() => setGroupSel(null)} className="text-[11px] font-bold uppercase tracking-wide text-luxury-gold">ver tudo ✕</button>}
               </div>
+              {(() => { const k = kindSplit(groupRows); const m = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v); return (
+                  <p className="text-[12px] text-zinc-400 mb-3" data-testid="spend-kind">Essencial <span className="text-zinc-100 font-semibold tabular-nums">{m(k.essencial)} ({k.pctEssencial.toFixed(0)}%)</span> · Flexível <span className="text-zinc-100 font-semibold tabular-nums">{m(k.flexivel)} ({(100 - k.pctEssencial).toFixed(0)}%)</span></p>
+              ); })()}
               <div className="flex h-3 rounded-full overflow-hidden mb-4 bg-white/5" aria-hidden="true">
                   {groupRows.map(g => <div key={g.id} style={{ width: `${g.pct}%`, background: g.color, opacity: groupSel && groupSel !== g.id ? 0.25 : 1 }} />)}
               </div>
@@ -795,7 +798,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                           <button type="button" onClick={() => setGroupSel(groupSel === g.id ? null : g.id)} data-testid="spend-group" data-active={groupSel === g.id ? 'true' : 'false'}
                               className={`w-full flex items-center gap-3 px-3 min-h-[44px] rounded-xl text-left border transition-colors ${groupSel === g.id ? 'border-luxury-gold/60 bg-luxury-gold/10' : 'border-transparent hover:bg-white/5'}`}>
                               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
-                              <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-100 font-semibold">{g.name}</span>
+                              <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-100 font-semibold">{g.name}<span className="ml-2 text-[10px] font-normal text-zinc-500">{g.kind === 'essencial' ? 'essencial' : 'flexível'}</span></span>
                               <span className="text-[11px] text-zinc-500 shrink-0">{g.pct.toFixed(0)}%</span>
                               <span className="text-[13px] text-zinc-200 font-semibold shrink-0 tabular-nums">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(g.value)}</span>
                           </button>
