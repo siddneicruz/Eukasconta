@@ -45,12 +45,14 @@ export const parseTaxonomyWorkbook = async (file: File): Promise<TaxonomyNode[]>
     3: findColumn(headers, 3),
     4: findColumn(headers, 4),
   };
-  const missing = Object.entries(colIndex).filter(([, idx]) => idx === -1).map(([lvl]) => lvl);
+  // Só Departamento e Categoria são obrigatórios; Subcategoria e Item são opcionais (caminhos de 2, 3 ou 4 camadas).
+  const missing = [1, 2].filter(l => colIndex[l as 1 | 2] === -1);
   if (missing.length > 0) {
     throw new TaxonomyImportError(
       `Não encontrei as colunas de nível ${missing.join(', ')}. Use o modelo (Departamento, Categoria, Subcategoria, Item).`
     );
   }
+  const cell = (row: any[], idx: number) => (idx >= 0 && row[idx] ? String(row[idx]).trim() : '');
 
   const nodes: TaxonomyNode[] = [];
   let lastNames: Record<number, string | null> = { 1: null, 2: null, 3: null };
@@ -60,11 +62,11 @@ export const parseTaxonomyWorkbook = async (file: File): Promise<TaxonomyNode[]>
     const row = rows[i];
     if (!row || row.every(c => c === undefined || c === null || String(c).trim() === '')) continue;
 
-    const n1 = row[colIndex[1]] ? String(row[colIndex[1]]).trim() : '';
-    const n2 = row[colIndex[2]] ? String(row[colIndex[2]]).trim() : '';
-    const n3 = row[colIndex[3]] ? String(row[colIndex[3]]).trim() : '';
-    const n4 = row[colIndex[4]] ? String(row[colIndex[4]]).trim() : '';
-    if (!n1 || !n2 || !n3 || !n4) continue; // linha incompleta: ignora
+    const n1 = cell(row, colIndex[1]);
+    const n2 = cell(row, colIndex[2]);
+    const n3 = cell(row, colIndex[3]);
+    const n4 = n3 ? cell(row, colIndex[4]) : ''; // item sem subcategoria não entra
+    if (!n1 || !n2) continue; // precisa de Departamento e Categoria
 
     if (n1 !== lastNames[1]) {
       const id = generateId();
@@ -78,12 +80,13 @@ export const parseTaxonomyWorkbook = async (file: File): Promise<TaxonomyNode[]>
       lastIds[2] = id; lastNames[2] = n2;
       lastNames[3] = null;
     }
+    if (!n3) { lastNames[3] = null; continue; }
     if (n3 !== lastNames[3]) {
       const id = generateId();
       nodes.push({ id, parentId: lastIds[2], level: 3, name: n3, slug: slugify(n3), sourceType: TaxonomySource.SYSTEM, isCustomized: false, lastUpdated: Date.now() });
       lastIds[3] = id; lastNames[3] = n3;
     }
-    nodes.push({ id: generateId(), parentId: lastIds[3], level: 4, name: n4, slug: slugify(n4), sourceType: TaxonomySource.SYSTEM, isCustomized: false, lastUpdated: Date.now() });
+    if (n4) nodes.push({ id: generateId(), parentId: lastIds[3], level: 4, name: n4, slug: slugify(n4), sourceType: TaxonomySource.SYSTEM, isCustomized: false, lastUpdated: Date.now() });
   }
 
   if (nodes.length === 0) throw new TaxonomyImportError('Nenhuma linha válida encontrada na planilha.');
