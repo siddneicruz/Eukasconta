@@ -98,6 +98,7 @@ const RECEIPT_FORMAT_HINT = `Responda SOMENTE com um objeto JSON válido (sem ma
   "establishmentName": "nome do estabelecimento",
   "receiptNumber": "número do cupom",
   "cnpj": "CNPJ do estabelecimento",
+  "ie": "Inscrição Estadual (IE) da loja, só números; \"\" se não aparecer",
   "address": "endereço",
   "city": "cidade",
   "state": "UF com 2 letras",

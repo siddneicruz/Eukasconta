@@ -52,7 +52,7 @@ import { useMasterSync } from './services/useMasterSync';
 
 import { Receipt, ViewState, DEFAULT_CATEGORIES, DEFAULT_TAXONOMY_STRING, DashboardConfig, UnifiedVault, Establishment, TaxonomyNode, TaxonomySource, AILearningEntry, CategoryMeta, MasterProduct } from './types';
 import { diagnostics } from './services/diagnosticService';
-import { auditAndRepairReceipt, cleanCNPJ, formatCNPJ } from './services/productNormalization';
+import { auditAndRepairReceipt, cleanCNPJ, cleanIE, formatCNPJ } from './services/productNormalization';
 import { resolveNodeStyle, migrateLegacyTaxonomy, findBestMatch, syncMissingDefaultTaxonomy } from './services/taxonomyService';
 import {
   MergeResult, addHiddenDefaults, buildRemapper, droppedDefaultRoots, loadHiddenDefaults, remapFilterKeys, remapGoals, remapLearning,
@@ -378,15 +378,22 @@ const App: React.FC = () => {
 
           receipts.forEach(r => {
               const cleanedRCNPJ = cleanCNPJ(r.cnpj);
-              const exists = currentTable.find(e => {
+              const existsAt = currentTable.findIndex(e => {
                   const cleanedEstCNPJ = cleanCNPJ(e.cnpj);
                   return (cleanedEstCNPJ && cleanedEstCNPJ === cleanedRCNPJ) || 
                          (e.originalName === r.establishmentName && !cleanedRCNPJ);
               });
 
+              const exists = existsAt >= 0 ? currentTable[existsAt] : undefined;
+              if (exists) {
+                  // a IE lida no cupom completa o cadastro da loja que ainda não tem
+                  const rie = cleanIE(r.ie);
+                  if (rie && !cleanIE(exists.ie)) { currentTable[existsAt] = { ...exists, ie: rie }; changed = true; }
+              }
               if (!exists) {
                   currentTable.push({
                       cnpj: cleanedRCNPJ,
+                      ...(cleanIE(r.ie) ? { ie: cleanIE(r.ie) } : {}),
                       originalName: r.establishmentName,
                       address: r.address,
                       city: r.city,

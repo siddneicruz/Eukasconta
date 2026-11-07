@@ -6,7 +6,7 @@
 // Tudo aqui é função pura (não lê localStorage nem chama rede), então dá para testar isolada.
 
 import { Establishment, Receipt } from '../types';
-import { cleanCNPJ } from './productNormalization';
+import { cleanCNPJ, cleanIE } from './productNormalization';
 
 export const sameStore = (a: Pick<Establishment, 'cnpj' | 'originalName'>, b: Pick<Establishment, 'cnpj' | 'originalName'>): boolean =>
   cleanCNPJ(a.cnpj) === cleanCNPJ(b.cnpj) && a.originalName === b.originalName;
@@ -99,6 +99,7 @@ export interface StoreDraft {
   aliasName: string;
   originalName: string;
   cnpj: string;
+  ie: string;
   cep: string;
   address: string;
   number: string;
@@ -114,6 +115,7 @@ export const draftOf = (e: Establishment): StoreDraft => ({
   aliasName: (e.aliasName || '').trim(),
   originalName: e.originalName || '',
   cnpj: cleanCNPJ(e.cnpj),
+  ie: cleanIE(e.ie),
   cep: formatCep(e.cep) || cepFromAddress(e.address),
   ...(() => { const a = splitAddress(e.address); return { address: a.street, number: a.number, neighborhood: a.neighborhood }; })(),
   city: e.city || '',
@@ -141,6 +143,9 @@ export const applyStoreEdit = (
 
   const cnpj = cleanCNPJ(draft.cnpj);
   if (cnpj && cnpj.length !== 14 && cnpj.length !== 11) return { ok: false, error: 'O CNPJ precisa ter 14 números (ou 11, se for CPF). Deixe vazio se a loja não tem.' };
+
+  const ieRaw = String(draft.ie || '').replace(/\D/g, '');
+  if (ieRaw && !cleanIE(ieRaw)) return { ok: false, error: 'A Inscrição Estadual tem de 8 a 14 números. Deixe vazio se não souber.' };
 
   const state = squash(draft.state).toUpperCase();
   if (state && !/^[A-Z]{2}$/.test(state)) return { ok: false, error: 'A UF tem 2 letras, como SC.' };
@@ -173,6 +178,7 @@ export const applyStoreEdit = (
   const type = squash(draft.type);
   if (type) next.type = type; else delete next.type;
   if (cepDigits) next.cep = formatCep(cepDigits); else delete next.cep;
+  if (ieRaw) next.ie = cleanIE(ieRaw); else delete next.ie;
   if (!address) delete next.address;
   if (!city) delete next.city;
   if (!state) delete next.state;

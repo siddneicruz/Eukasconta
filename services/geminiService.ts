@@ -77,6 +77,7 @@ ${categories.join('\n')}
 
 INSTRUÇÕES TÉCNICAS:
 - 'state': Use apenas a sigla (ex: SP, SC).
+- 'ie': a Inscrição Estadual (IE) da loja, impressa perto do CNPJ no topo do cupom. Escreva só os números. Se não aparecer, deixe vazio. NÃO confunda com o CNPJ nem com o número do cupom.
 - 'totalAmount': Deve ser o valor final pago.
 - 'items': Extraia descrição, quantidade, tipo de unidade (KG, UN, L), preço unitário e o total do item.
 - 'code' (em cada item): o código do produto que está impresso na linha do item, o de barras (EAN, 8 a 14 dígitos) ou o código interno da loja. Escreva só os caracteres do código, sem espaços. Se um dígito estiver ilegível, escreva ? no lugar dele. Se a linha não tem código, deixe vazio. NÃO coloque o código dentro de 'description': ela leva só o nome do produto como está impresso.
@@ -92,6 +93,7 @@ const RECEIPT_SCHEMA = {
     establishmentName: { type: Type.STRING },
     receiptNumber: { type: Type.STRING },
     cnpj: { type: Type.STRING },
+    ie: { type: Type.STRING, description: "Inscrição Estadual da loja (IE), só números; vazio se não aparece" },
     address: { type: Type.STRING },
     city: { type: Type.STRING },
     state: { type: Type.STRING, description: "Sigla da UF" },

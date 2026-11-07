@@ -16,7 +16,8 @@
 import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanDescriptionForMatching } from './productMasterService';
 import { ruleCategoryFor } from './categoryRules';
-import { cleanCNPJ, formatCNPJ } from './productNormalization';
+import { cleanCNPJ, cleanIE, formatCNPJ } from './productNormalization';
+import { addressCompat, cityCompat, cnpjGap } from './storeDedupe';
 import { CodeIndex, CodeVia, buildCodeIndex, cleanCode, codeKind, identifyByCode, leadingCode, looseSimilarity } from './productCodes';
 
 /* ───────────────────────────── CNPJ ───────────────────────────── */
@@ -69,13 +70,30 @@ const NAME_MATCH_MIN = 0.8;
 
 export type EstablishmentMatch =
   | { kind: 'cnpj'; establishment: Establishment }
+  | { kind: 'ie'; establishment: Establishment }
+  | { kind: 'near'; establishment: Establishment; gap: number }
+  | { kind: 'address'; establishment: Establishment }
   | { kind: 'name'; establishment: Establishment }
   | { kind: 'none'; cnpjStatus: 'valid' | 'invalid' | 'empty' };
+
+/** O que mais o cupom diz sobre a loja além do nome e do CNPJ: serve para reconhecer a loja quando o CNPJ foi lido errado. */
+export interface StoreClues { ie?: string; address?: string; city?: string; state?: string }
+
+const bothValidAndDifferent = (a: string, b: string): boolean =>
+  a.length === 14 && b.length === 14 && a !== b && isValidCNPJ(a) && isValidCNPJ(b);
+
+// Só devolve a loja quando há uma única candidata melhor; empate = ambíguo, melhor não adivinhar.
+const uniqueBest = <T,>(list: { e: T; score: number }[]): T | null => {
+  if (list.length === 0) return null;
+  const sorted = [...list].sort((a, b) => b.score - a.score);
+  return sorted.length === 1 || sorted[0].score > sorted[1].score ? sorted[0].e : null;
+};
 
 export const findEstablishment = (
   readName: string,
   readCnpj: string,
   registry: Establishment[],
+  clues: StoreClues = {},
 ): EstablishmentMatch => {
   const cnpj = cleanCNPJ(readCnpj);
 
@@ -85,27 +103,56 @@ export const findEstablishment = (
     if (hit) return { kind: 'cnpj', establishment: hit };
   }
 
+  // 2) Inscrição Estadual igual: é única por loja. Só não vale se os dois CNPJs são completos, certos e diferentes (outra empresa).
+  const ie = cleanIE(clues.ie);
+  if (ie) {
+    const sameIe = registry.filter(e => cleanIE(e.ie) === ie && !bothValidAndDifferent(cnpj, cleanCNPJ(e.cnpj)));
+    const hit = uniqueBest(sameIe.map(e => ({ e, score: cleanCNPJ(e.cnpj) && cnpj ? 1 - (cnpjGap(cnpj, e.cnpj) ?? 9) / 10 : 0 })));
+    if (hit) return { kind: 'ie', establishment: hit };
+  }
+
   // Um CNPJ válido que não está no cadastro é uma loja nova. Não a confundimos com outra pelo nome:
   // redes têm várias filiais com o mesmo nome e CNPJs diferentes.
   const cnpjStatus: 'valid' | 'invalid' | 'empty' = !cnpj ? 'empty' : isValidCNPJ(cnpj) ? 'valid' : 'invalid';
   if (cnpjStatus === 'valid') return { kind: 'none', cnpjStatus };
 
-  // 2) CNPJ vazio ou inválido (provavelmente erro de leitura): procura pelo nome.
   const target = isPlaceholderName(readName) ? '' : normalizeName(readName);
   const tTokens = nameTokens(target);
-  if (target && tTokens.length > 0) {
-    const scored = registry
-      .map(e => {
-        const n = normalizeName(e.originalName);
-        return { e, score: n === target ? 1 : jaccard(tTokens, nameTokens(n)) };
-      })
-      .filter(x => x.score >= NAME_MATCH_MIN)
-      .sort((a, b) => b.score - a.score);
+  const nameScore = (e: Establishment): number => {
+    if (!target) return 0;
+    const n = normalizeName(e.originalName);
+    return n === target ? 1 : jaccard(tTokens, nameTokens(n));
+  };
+  const probe: Establishment = { cnpj, originalName: readName, address: clues.address, city: clues.city, state: clues.state };
 
-    // Duas lojas empatadas = ambíguo; melhor não adivinhar.
-    if (scored.length === 1 || (scored.length > 1 && scored[0].score > scored[1].score)) {
-      return { kind: 'name', establishment: scored[0].e };
-    }
+  // 3) CNPJ vazio ou inválido (provavelmente erro de leitura). Primeiro: CNPJ "quase igual" (1 ou 2 dígitos trocados)
+  //    no mesmo endereço e cidade. O nome pode ter sido lido errado junto (Mepar x Nucar), então não é exigido.
+  if (cnpj) {
+    const near = registry
+      .map(e => ({ e, gap: cnpjGap(cnpj, e.cnpj), addr: addressCompat(probe, e), city: cityCompat(probe, e) }))
+      .filter(x => x.gap !== null && x.gap <= 2 && x.addr !== 'diferente' && x.city !== 'diferente' && (x.gap <= 1 || x.addr === 'igual'))
+      .map(x => ({ e: x.e, gap: x.gap as number, score: 10 - (x.gap as number) * 3 + (x.addr === 'igual' ? 2 : 0) + nameScore(x.e) }));
+    const hit = uniqueBest(near);
+    if (hit) return { kind: 'near', establishment: hit, gap: near.find(n => n.e === hit)!.gap };
+  }
+
+  // 4) Mesmo endereço (rua e número) e cidade, com algum outro indício: nome parecido ou CNPJ lido com até 3 dígitos de diferença.
+  //    Só o endereço não basta: galerias e shoppings têm várias lojas no mesmo número.
+  const sameAddr = registry
+    .filter(e => addressCompat(probe, e) === 'igual' && cityCompat(probe, e) !== 'diferente' && !bothValidAndDifferent(cnpj, cleanCNPJ(e.cnpj)))
+    .map(e => {
+      const gap = cnpj ? cnpjGap(cnpj, e.cnpj) : null;
+      return { e, ok: nameScore(e) >= 0.34 || (gap !== null && gap <= 3), score: nameScore(e) + (gap !== null ? 1 - gap / 10 : 0) };
+    })
+    .filter(x => x.ok);
+  const byAddress = uniqueBest(sameAddr);
+  if (byAddress) return { kind: 'address', establishment: byAddress };
+
+  // 5) Pelo nome (só se houver uma única candidata clara).
+  if (target && tTokens.length > 0) {
+    const scored = registry.map(e => ({ e, score: nameScore(e) })).filter(x => x.score >= NAME_MATCH_MIN);
+    const hit = uniqueBest(scored);
+    if (hit) return { kind: 'name', establishment: hit };
   }
   return { kind: 'none', cnpjStatus };
 };
@@ -226,10 +273,10 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
   const readCnpj = input.cnpj || '';
 
   /* estabelecimento */
-  const found = findEstablishment(readName, readCnpj, ctx.establishments);
+  const found = findEstablishment(readName, readCnpj, ctx.establishments, { ie: input.ie, address: input.address, city: input.city, state: input.state });
   let matched: Establishment | null = null;
 
-  if (found.kind === 'cnpj' || found.kind === 'name') {
+  if (found.kind !== 'none') {
     const est = found.establishment;
     matched = est;
     const registeredCnpj = cleanCNPJ(est.cnpj);
@@ -238,13 +285,23 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
     if (est.address) receipt.address = est.address;
     if (est.city) receipt.city = est.city;
     if (est.state) receipt.state = est.state;
+    const registeredIe = cleanIE(est.ie), readIe = cleanIE(input.ie);
+    if (registeredIe) receipt.ie = registeredIe; else if (readIe) receipt.ie = readIe;
 
     const shown = est.aliasName || est.originalName;
+    const cnpjTxt = registeredCnpj ? ` (CNPJ ${formatCNPJ(registeredCnpj)})` : '';
+    const readTxt = readCnpj ? formatCNPJ(readCnpj) : 'vazio';
     if (found.kind === 'cnpj') {
       const differs = readName && stripKey(readName) !== stripKey(est.originalName);
       notes.push(`Loja já cadastrada (CNPJ ${formatCNPJ(registeredCnpj)}): ${shown}.${differs ? ` Nome lido na foto: "${readName}".` : ''}`);
+    } else if (found.kind === 'ie') {
+      notes.push(`Reconheci a loja "${shown}" pela Inscrição Estadual ${readIe}${cnpjTxt}. CNPJ lido na foto: ${readTxt}.`);
+    } else if (found.kind === 'near') {
+      notes.push(`CNPJ lido (${readTxt}) difere em ${found.gap} ${found.gap === 1 ? 'dígito' : 'dígitos'} do da loja "${shown}"${cnpjTxt} e o endereço bate; usei a loja cadastrada.${readName && stripKey(readName) !== stripKey(est.originalName) ? ` Nome lido na foto: "${readName}".` : ''}`);
+    } else if (found.kind === 'address') {
+      notes.push(`Pelo endereço${readCnpj ? ` (CNPJ lido ${readTxt} não confere)` : ''}, usei a loja cadastrada "${shown}"${cnpjTxt}.`);
     } else {
-      notes.push(`CNPJ lido (${readCnpj ? formatCNPJ(readCnpj) : 'vazio'}) não é válido; usei a loja cadastrada "${shown}" pelo nome${registeredCnpj ? ` (CNPJ ${formatCNPJ(registeredCnpj)})` : ''}.`);
+      notes.push(`CNPJ lido (${readTxt}) não é válido; usei a loja cadastrada "${shown}" pelo nome${cnpjTxt}.`);
     }
   } else if (found.cnpjStatus === 'invalid') {
     notes.push(`Atenção: o CNPJ lido (${readCnpj}) não passa na validação e a loja não está cadastrada. Confira no cupom.`);
@@ -333,6 +390,7 @@ export const learnEstablishment = (registry: Establishment[], r: RegistryResult)
   if (cnpj && !r.cnpjUsable) return; // CNPJ suspeito não deve ensinar nada ao lote
   registry.push({
     cnpj: cnpj,
+    ...(cleanIE(r.receipt.ie) ? { ie: cleanIE(r.receipt.ie) } : {}),
     originalName: name,
     address: r.receipt.address,
     city: r.receipt.city,

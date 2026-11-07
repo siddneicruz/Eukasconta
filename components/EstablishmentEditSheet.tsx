@@ -152,6 +152,9 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onDele
               <input type="text" inputMode="numeric" value={draft.cnpj.replace(/\D/g, '').length === 14 ? formatCNPJ(draft.cnpj) : draft.cnpj}
                 onChange={e => set({ cnpj: e.target.value })} placeholder="00.000.000/0000-00" data-testid="store-edit-cnpj" className={`${inputCls} tabular-nums`} />
             </Field>
+            <Field label="Inscrição Estadual (IE)" hint={<span className="text-zinc-500">Opcional. Ajuda o app a reconhecer a loja quando o CNPJ do cupom sai errado.</span>}>
+              <input type="text" inputMode="numeric" value={draft.ie} onChange={e => set({ ie: e.target.value })} placeholder="Só números" data-testid="store-edit-ie" className={`${inputCls} tabular-nums`} />
+            </Field>
             {identityChanged && mine > 0 && (
               <p className="text-xs text-amber-500 leading-snug" data-testid="store-edit-identity-note">
                 Mudar o nome ou o CNPJ corrige também {mine === 1 ? 'o 1 cupom' : `os ${mine} cupons`} desta loja.

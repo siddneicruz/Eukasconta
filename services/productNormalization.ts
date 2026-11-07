@@ -138,6 +138,12 @@ export const normalizeReceiptDate = normalizeDateString;
 
 export const cleanCNPJ = (cnpj: string) => (cnpj || '').replace(/\D/g, '');
 
+// Inscrição Estadual: só dígitos (cada UF formata de um jeito). Menos de 8 dígitos é leitura incompleta e não vale como chave.
+export const cleanIE = (ie: unknown): string => {
+  const d = String(ie ?? '').replace(/\D/g, '');
+  return d.length >= 8 && d.length <= 14 && !/^(\d)\1+$/.test(d) ? d : '';
+};
+
 export const formatCNPJ = (cnpj: string) => {
     const cleaned = cleanCNPJ(cnpj);
     if (cleaned.length !== 14) return cnpj;

@@ -18,7 +18,7 @@
 // que só dividem o endereço (shopping).
 
 import { Establishment, MasterProduct, Receipt } from '../types';
-import { cleanCNPJ } from './productNormalization';
+import { cleanCNPJ, cleanIE } from './productNormalization';
 import { isUnidentifiedName } from './textFormat';
 import { rekeyStoreCodes } from './productCodes';
 
@@ -338,7 +338,25 @@ const relateBase = (pa: Prof, pb: Prof): Relation | null => {
   return null;
 };
 
+/** Mesma Inscrição Estadual, ou CNPJ quase igual no mesmo endereço e cidade com o nome lido diferente (Mepar x Nucar): é a mesma loja. */
+const relateClues = (pa: Prof, pb: Prof): Relation | null => {
+  const a = pa.m.est, b = pb.m.est;
+  const ia = cleanIE(a.ie), ib = cleanIE(b.ie);
+  const da = digits(a.cnpj), db = digits(b.cnpj);
+  const bothValidDiff = da.length === 14 && db.length === 14 && da !== db && validDocument(da) && validDocument(db);
+  if (ia && ia === ib && !bothValidDiff && cityCompat(a, b) !== 'diferente') {
+    return { strength: 'alta', reason: 'Mesma Inscrição Estadual', differentIds: da !== db };
+  }
+  const gap = cnpjGap(a.cnpj, b.cnpj);
+  if (gap !== null && gap > 0 && gap <= 2 && addressCompat(a, b) === 'igual' && cityCompat(a, b) !== 'diferente') {
+    return { strength: 'alta', reason: 'CNPJ quase igual (lido com defeito) no mesmo endereço', differentIds: true };
+  }
+  return null;
+};
+
 export const relate = (pa: Prof, pb: Prof): Relation | null => {
+  const clue = relateClues(pa, pb);
+  if (clue) return clue;
   const base = relateBase(pa, pb);
   if (base && base.strength === 'alta') return base;
   const near = relateNear(pa, pb);
@@ -519,6 +537,7 @@ export const mergeFields = (keeper: Establishment, others: Establishment[]): Est
     if (!out.city && o.city) out.city = o.city;
     if (!out.state && o.state) out.state = o.state;
     if (!out.cep && o.cep) out.cep = o.cep;
+    if (!cleanIE(out.ie) && cleanIE(o.ie)) out.ie = cleanIE(o.ie);
     if (geoRank(o) > geoRank(out)) {
       GEO_FIELDS.forEach(f => { delete (out as any)[f]; if ((o as any)[f] !== undefined) (out as any)[f] = (o as any)[f]; });
     }

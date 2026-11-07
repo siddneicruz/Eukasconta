@@ -14,7 +14,7 @@ import { cleanCode, splitLeadingCode } from './productCodes';
 import { SCAN_LIMIT_OPENROUTER_MS } from './openrouterService';
 import { diagnostics } from './diagnosticService';
 import { generateId } from './idUtils';
-import { normalizeReceiptDate } from './productNormalization';
+import { cleanIE, normalizeReceiptDate } from './productNormalization';
 
 export interface FailedItem {
   file: File;
@@ -383,6 +383,7 @@ const runBatch = async (files: File[], ctx: ScanContext, isRetry: boolean) => {
         id: generateId(),
         establishmentName: extractedData.establishmentName || 'Estabelecimento Desconhecido',
         cnpj: extractedData.cnpj || '',
+        ...(cleanIE(extractedData.ie) ? { ie: cleanIE(extractedData.ie) } : {}),
         address: extractedData.address || '',
         city: extractedData.city || '',
         state: (extractedData.state || '').toUpperCase().substring(0, 2),

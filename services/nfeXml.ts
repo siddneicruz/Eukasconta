@@ -1,5 +1,6 @@
 import { Receipt, ReceiptItem } from '../types';
 import { cleanCode, codeKind } from './productCodes';
+import { cleanIE } from './productNormalization';
 
 /* XML da NFC-e/NF-e ("Baixar documento XML" na página da SEFAZ). Diferente do texto da página, o XML traz o código de barras
    (EAN) de cada item e todos os valores já separados: é o jeito mais seguro de ler um cupom sem IA. */
@@ -56,7 +57,7 @@ export const parseNfeXml = (xml: string): NfeParse => {
 
   const receipt: Receipt = {
     id: key || `xml-${cnpj}-${dm[1]}${dm[2]}${dm[3]}-${nNF}-${total.toFixed(2)}`,
-    establishmentName: txt(emit, 'xFant') || txt(emit, 'xNome'), cnpj, address,
+    establishmentName: txt(emit, 'xFant') || txt(emit, 'xNome'), cnpj, ...(cleanIE(txt(emit, 'IE')) ? { ie: cleanIE(txt(emit, 'IE')) } : {}), address,
     city: txt(addr, 'xMun'), state: txt(addr, 'UF'),
     date: `${dm[1]}-${dm[2]}-${dm[3]}`, time: dm[4] ? `${dm[4]}:${dm[5]}` : '12:00', totalAmount: total, items,
     scannedAt: new Date().toISOString(),

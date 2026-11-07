@@ -18,6 +18,7 @@ const RECEIPT_JSON_SCHEMA = {
     establishmentName: { type: 'string' },
     receiptNumber: { type: 'string' },
     cnpj: { type: 'string' },
+    ie: { type: 'string', description: 'Inscrição Estadual da loja (IE), só números; vazio se não aparece' },
     address: { type: 'string' },
     city: { type: 'string' },
     state: { type: 'string', description: 'Sigla da UF' },

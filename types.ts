@@ -23,6 +23,8 @@ export interface Receipt {
   establishmentName: string;
   receiptNumber?: string;
   cnpj: string;
+  /** Inscrição Estadual impressa no cupom (só dígitos); ajuda a reconhecer a loja quando o CNPJ foi lido errado */
+  ie?: string;
   address: string;
   city: string;
   state: string;
@@ -35,6 +37,8 @@ export interface Receipt {
 
 export interface Establishment {
     cnpj: string;
+    /** Inscrição Estadual (só dígitos): única por loja no estado, serve para conferir CNPJ lido errado */
+    ie?: string;
     originalName: string;
     aliasName?: string;
     // tipo do estabelecimento (Mercado, Restaurante...), da lista da tabela mãe; vazio = o app deduz pelo nome
