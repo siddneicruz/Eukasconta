@@ -319,3 +319,28 @@ export const fetchCodeRedirects = async (): Promise<Map<string, string>> => {
 /** Todos os produtos da tabela mãe (com ou sem caminho), para o administrador completar na planilha. */
 export const fetchAllMasterProducts = (): Promise<{ code: string; description: string; unit_type: string | null; category: string | null; node_id: string | null; brand?: string; manufacturer?: string; brand_suggestion?: string; id_type?: string }[]> =>
   fetchAll('master_products', 'code,description,unit_type,category,node_id,brand,manufacturer,brand_suggestion,id_type', 'code');
+
+/* ---- Fila de aprovação do administrador (lojas repetidas, cadastros de produto, correções) ---- */
+
+export interface AuditFinding {
+  id: number; kind: 'store_dup' | 'store_cnpj_invalid'; subject_a: string; subject_b: string | null;
+  strength: 'alta' | 'media'; reason: string; details: Record<string, any>; created_at: string;
+}
+export interface ProductSubmission {
+  id: number; user_id: string; ean: string | null; brand: string | null; name: string | null; variant: string | null;
+  size_value: number | null; size_unit: string | null; packaging: string | null; units: number | null; created_at: string;
+}
+export interface AdminQueue { findings: AuditFinding[]; submissions: ProductSubmission[]; corrections: { id: string; suggested_description: string | null; reason: string | null; created_at: string }[] }
+
+export const fetchAdminQueue = async (): Promise<AdminQueue> => {
+  const q = await callRpc('admin_pending_queue', {});
+  return { findings: q?.findings || [], submissions: q?.submissions || [], corrections: q?.corrections || [] };
+};
+export const reviewFinding = async (id: number, approve: boolean): Promise<void> => { await callRpc('admin_review_finding', { p_id: id, p_approve: approve }); };
+/** Aprovar cadastro de produto: o usuário ganha `credits` leituras de cupom. */
+export const reviewSubmission = async (id: number, approve: boolean, credits = 1): Promise<number> => {
+  const r = await callRpc('admin_review_submission', { p_id: id, p_approve: approve, p_credits: credits });
+  return Number(r?.credits || 0);
+};
+/** Saldo de leituras de cupom do usuário logado. */
+export const fetchMyReadCredits = async (): Promise<number> => Number(await callRpc('my_read_credits', {})) || 0;
