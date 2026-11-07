@@ -2,12 +2,13 @@
 // Regras de blindagem: só entra código com dígito verificador certo (GTIN 8/12/13/14); UPC que perdeu o zero da frente é
 // completado e conferido; o resto é rejeitado com o motivo. O mesmo EAN em várias planilhas vira uma linha só, com todas as fontes.
 
-export type EanSource = 'dpcnet' | 'dispan' | 'tirol';
+export type EanSource = 'dpcnet' | 'dispan' | 'tirol' | 'consultaprodutos';
 export interface EanRow { ean: string; description: string; brand: string; manufacturer: string; category_src: string; ncm: string; dun14: string; size_value: number | null; size_unit: string | null; size_text: string | null; image_url: string; sources: { s: string; sku: string; d: string }[] }
 export interface EanReject { ean: string; source: string; reason: 'vazio' | 'tamanho' | 'digito_verificador' | 'sem_descricao'; description: string }
 export interface EanPreview { catalog: EanRow[]; rejects: EanReject[]; perSource: Record<string, { rows: number; ok: number; fixed: number; rejected: number }>; conflicts: number; withSize: number; skipped: string[] }
 
-const PRIORITY: Record<EanSource, number> = { dpcnet: 1, tirol: 2, dispan: 3 };
+// consultaprodutos vem de varredura de site (nome de anúncio): vale menos que as planilhas dos distribuidores
+const PRIORITY: Record<EanSource, number> = { dpcnet: 1, tirol: 2, dispan: 3, consultaprodutos: 4 };
 
 export const parseCsv = (text: string, sep = ';'): string[][] => {
   const out: string[][] = []; let row: string[] = []; let cur = ''; let q = false;
@@ -56,6 +57,7 @@ export const detectSource = (header: string[]): EanSource | null => {
   if (h.includes('EAN 13') && h.includes('Volume/Peso')) return 'tirol';
   if (h.includes('Cód. Fabricante') && h.includes('URL Produto')) return 'dispan';
   if (h.includes('Código/SKU') && h.includes('Qtd. Emb.')) return 'dpcnet';
+  if (h.includes('Marca') && h.includes('Código/SKU') && h.includes('EAN') && h.includes('URL Produto') && !h.includes('Cód. Fabricante')) return 'consultaprodutos';
   return null;
 };
 
@@ -89,7 +91,7 @@ export const buildPreview = (files: { name: string; text: string }[]): EanPrevie
       return;
     }
     const src = detectSource(rows[0]);
-    if (!src) { skipped.push(`${f.name}: formato não reconhecido (só entram DPCNet, Dispan e Tirol; a planilha da Nestlé está com colunas deslocadas e precisa ser extraída de novo)`); return; }
+    if (!src) { skipped.push(`${f.name}: formato não reconhecido (só entram DPCNet, Dispan, Tirol e ConsultaProdutos; a planilha da Nestlé está com colunas deslocadas e precisa ser extraída de novo)`); return; }
     const idx = (n: string) => rows[0].findIndex(x => x.trim() === n);
     const g = (r: string[], n: string) => { const i = idx(n); return i >= 0 ? r[i] ?? '' : ''; };
     const st = perSource[src] || { rows: 0, ok: 0, fixed: 0, rejected: 0 }; perSource[src] = st;
