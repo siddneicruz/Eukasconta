@@ -337,6 +337,12 @@ export const fetchAdminQueue = async (): Promise<AdminQueue> => {
   const q = await callRpc('admin_pending_queue', {});
   return { companies: q?.companies || [], findings: q?.findings || [], submissions: q?.submissions || [], corrections: q?.corrections || [] };
 };
+export interface AddressSuggestion { id: number; cnpj: string; store_name: string | null; field: string; kind: 'preencher' | 'divergente'; current_value: string | null; suggested_value: string; source: string }
+export const fetchAddressSuggestions = async (): Promise<AddressSuggestion[]> => {
+  const r = await callRpc('admin_address_suggestions', {});
+  return Array.isArray(r) ? r : [];
+};
+export const reviewAddressSuggestion = async (id: number, approve: boolean): Promise<void> => { await callRpc('admin_review_address_suggestion', { p_id: id, p_approve: approve }); };
 export const reviewFinding = async (id: number, approve: boolean): Promise<void> => { await callRpc('admin_review_finding', { p_id: id, p_approve: approve }); };
 export const reviewCompany = async (id: string, approve: boolean): Promise<void> => { await callRpc('admin_review_company', { p_id: id, p_approve: approve }); };
 /** Aprovar cadastro de produto: o usuário ganha `credits` leituras de cupom. */
