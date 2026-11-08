@@ -98,3 +98,7 @@ button:focus-visible, select:focus-visible {
 }
 
 html.light-theme { --ek-bg: #F6F3EA; --ek-tab: #FFFFFF; }
+
+/* Cabeçalho de mês fixo no Histórico: no celular gruda logo abaixo do cabeçalho do app; no desktop/paisagem a lista rola por dentro */
+.month-sticky { top: calc(3.5rem + var(--safe-top)); }
+@media (min-width: 768px) { .month-sticky { top: 0; } }

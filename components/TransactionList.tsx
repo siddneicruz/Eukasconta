@@ -123,15 +123,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
                               r.items.some(item => normalizeText(item.description).includes(term) || (!!eanQuery(searchTerm) && itemHasCode(item, eanQuery(searchTerm))));
         const matchesEstablishment = establishmentFilter ? normalizeText(r.establishmentName).includes(normalizeText(establishmentFilter)) : true;
         
-        // período: o mesmo do Início (ano, mês, 7 dias ou datas escolhidas)
-        let matchesTime = true;
-        // buscando um item: histórico inteiro, sem o filtro de período
-        if (config && !itemFilter) {
-            const rDate = new Date(r.date + 'T12:00:00');
-            if (!isNaN(rDate.getTime())) matchesTime = isDateInPeriod(r.date, config);
-            // data inválida: só aparece quando o período é o ano todo
-            else matchesTime = config.month === null && !config.quickFilter;
-        }
+        // O Histórico mostra todos os meses (o filtro de período do Início não vale aqui): os meses ficam recolhidos por mês
+        const matchesTime = true;
 
         const matchesCategory = selectedCategories.length > 0 ? r.items.some(item => selectedCategories.includes(item.category)) : true;
 
@@ -145,7 +138,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
         }
         return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount;
     });
-  }, [receipts, searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, config, itemFilter, nameOf, storeCheck]);
+  }, [receipts, searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, itemFilter, nameOf, storeCheck]);
 
   // Agrupamento para exibição por mês (Timeline)
   const groupedReceipts = useMemo(() => {
@@ -180,7 +173,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
   }, [filteredReceipts, searchMatcher]);
   const priceItems = useMemo(() => (searchMatcher ? toHistoryItems(filteredReceipts, searchMatcher, nameOf) : []), [filteredReceipts, searchMatcher, nameOf]);
   const priceFor = (r: Receipt) => (itemFilter && rowInfo.get(r.id) ? rowInfo.get(r.id)!.subtotal : (Number(r.totalAmount) || 0));
-  const itemPeriodTitle = useMemo(() => (config && !itemFilter ? periodLabel(config) : 'Todo o histórico'), [config, itemFilter]);
+  const itemPeriodTitle = useMemo(() => 'Todo o histórico', []);
 
   const monthGroups = useMemo(() => (Object.entries(groupedReceipts) as [string, Receipt[]][]).map(([month, items]) => ({
       month, items, total: items.reduce((s, r) => s + priceFor(r), 0),
@@ -188,17 +181,26 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
 
   const [manualCollapsed, setManualCollapsed] = useState<Set<string> | null>(null);
   useEffect(() => { setManualCollapsed(null); },
-      [searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, config?.year, config?.month, config?.quickFilter, config?.customStartDate, config?.customEndDate, itemFilter]);
+      [searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, itemFilter]);
 
   const autoCollapsed = useMemo(() => {
       const closed = new Set<string>();
+      const filtering = !!(searchTerm || establishmentFilter || selectedCategories.length || itemFilter || storeCheck);
+      if (!filtering) {
+          // Sem busca: só o mês atual fica aberto (ou o mais recente, se não houver cupom neste mês); os demais, recolhidos
+          const now = new Date();
+          const cur = (m => m.charAt(0).toUpperCase() + m.slice(1))(now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }));
+          const open = monthGroups.some(g => g.month === cur) ? cur : monthGroups[0]?.month;
+          monthGroups.forEach(g => { if (g.month !== open) closed.add(g.month); });
+          return closed;
+      }
       let shown = 0;
       monthGroups.forEach((g, i) => {
           if (i > 0 && shown >= AUTO_OPEN_ROWS) closed.add(g.month);
           else shown += g.items.length;
       });
       return closed;
-  }, [monthGroups]);
+  }, [monthGroups, searchTerm, establishmentFilter, selectedCategories, itemFilter, storeCheck]);
   const collapsed = manualCollapsed ?? autoCollapsed;
   const allCollapsed = monthGroups.length > 0 && monthGroups.every(g => collapsed.has(g.month));
   const toggleMonth = (month: string) => {
@@ -234,8 +236,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
               )}
           </div>
       </div>
-
-      {config && onConfigChange && <div className="-mb-3"><PeriodFilterBar config={config} onConfigChange={onConfigChange} /></div>}
 
       {duplicateCount > 0 && onReviewDuplicates && (
         <button type="button" onClick={onReviewDuplicates} data-testid="hist-dup" aria-label={`Revisar ${duplicateCount} cupons repetidos`}
@@ -300,7 +300,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
           <button type="button" onClick={onClearStoreCheck} className="shrink-0 text-xs font-bold text-luxury-gold hover:text-white">Mostrar todos ✕</button>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto space-y-10 pr-2 pb-20 custom-scrollbar relative z-10">
+      <div className="flex-1 overflow-visible md:overflow-y-auto ls:overflow-y-auto space-y-10 pr-2 pb-20 custom-scrollbar relative z-10">
         {priceItems.length > 0 && (
           <div data-testid="hist-price-section">
               <ItemPriceInsight items={priceItems} title={searchTitle} periodTitle={itemPeriodTitle} testId="hist-price" />
@@ -329,8 +329,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
             const isCollapsed = collapsed.has(month);
             return (
             <div key={month} data-month={month} className="space-y-4">
-                <button type="button" onClick={() => toggleMonth(month)} aria-expanded={!isCollapsed}
-                    className="w-full flex items-center gap-4 px-2 py-1 rounded-xl text-center hover:bg-white/[0.03] transition-colors">
+                <button type="button" onClick={() => toggleMonth(month)} aria-expanded={!isCollapsed} data-testid="month-header"
+                    className="month-sticky sticky z-30 w-full flex items-center gap-4 px-2 py-2.5 text-center bg-black border-b border-white/5 transition-colors">
                     <div className="h-px bg-white/10 flex-1" />
                     <span className="flex flex-col items-center min-w-0">
                         <span className="flex items-center gap-1.5 text-[13px] font-semibold text-luxury-gold tracking-wide whitespace-nowrap">
