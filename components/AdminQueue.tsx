@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, ClipboardCheck, Loader2, X } from 'lucide-react';
-import { AdminQueue as Queue, AuditFinding, ProductSubmission, fetchAdminQueue, reviewFinding, reviewSubmission } from '../services/masterService';
+import { AdminQueue as Queue, AuditFinding, MasterCompany, ProductSubmission, fetchAdminQueue, reviewCompany, reviewFinding, reviewSubmission } from '../services/masterService';
 import { formatCNPJ } from '../services/productNormalization';
 
 /* Fila única do administrador: só você decide unificar lojas, corrigir e aprovar cadastros.
@@ -23,13 +23,18 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
     try { await reviewFinding(f.id, approve); await load(); onToast?.(approve ? 'Marcado como repetida. A junção é feita em Lojas repetidas.' : 'Sugestão recusada.'); }
     catch (e: any) { setError(e?.message || 'Não consegui concluir.'); } finally { setWorking(null); }
   };
+  const doCompany = async (c: MasterCompany, approve: boolean) => {
+    setWorking(`c${c.id}`);
+    try { await reviewCompany(c.id, approve); await load(); onToast?.(approve ? 'Empresa aprovada.' : 'Empresa ignorada.'); }
+    catch (e: any) { setError(e?.message || 'Não consegui concluir.'); } finally { setWorking(null); }
+  };
   const doSub = async (s: ProductSubmission, approve: boolean) => {
     setWorking(`s${s.id}`);
     try { const c = await reviewSubmission(s.id, approve, 1); await load(); onToast?.(approve ? `Cadastro aprovado. O usuário ganhou ${c} leitura de cupom.` : 'Cadastro recusado.'); }
     catch (e: any) { setError(e?.message || 'Não consegui concluir.'); } finally { setWorking(null); }
   };
 
-  const total = q ? q.findings.length + q.submissions.length + q.corrections.length : 0;
+  const total = q ? q.companies.length + q.findings.length + q.submissions.length + q.corrections.length : 0;
   const cn = (d: string | null) => (d && d.length === 14 ? formatCNPJ(d) : d || '');
 
   return (
@@ -59,6 +64,26 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {q && q.companies.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[11px] uppercase tracking-wider text-zinc-500">Empresas (marcas e fornecedores) · {q.companies.length}</p>
+          <ul className="mt-2 space-y-2">
+            {q.companies.slice(0, 30).map(c => (
+              <li key={c.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3" data-testid="admin-company">
+                <p className="text-[13px] text-zinc-100 break-words">{c.name} <span className="text-[11px] text-zinc-500">· {c.kind} · {c.n_eans.toLocaleString('pt-BR')} EANs</span></p>
+                {c.conferir && <p className="text-[11px] font-bold text-amber-500">Conferir: nome estranho</p>}
+                {c.example && <p className="mt-0.5 text-[11.5px] text-zinc-500 break-words">Ex.: {c.example}</p>}
+                <div className="mt-2 flex gap-2">
+                  <button type="button" disabled={working === `c${c.id}`} onClick={() => doCompany(c, true)} className={`${btn} flex-1 bg-luxury-gold text-black`}><Check className="w-4 h-4" /> Aprovar</button>
+                  <button type="button" disabled={working === `c${c.id}`} onClick={() => doCompany(c, false)} className={`${btn} flex-1 bg-white/5 border border-white/10 text-zinc-300`}>Ignorar</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {q.companies.length > 30 && <p className="mt-2 text-[11.5px] text-zinc-500">Mostrando 30 de {q.companies.length}; as outras aparecem quando você decidir essas.</p>}
         </div>
       )}
 

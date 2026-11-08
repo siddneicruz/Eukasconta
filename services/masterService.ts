@@ -330,13 +330,15 @@ export interface ProductSubmission {
   id: number; user_id: string; ean: string | null; brand: string | null; name: string | null; variant: string | null;
   size_value: number | null; size_unit: string | null; packaging: string | null; units: number | null; created_at: string;
 }
-export interface AdminQueue { findings: AuditFinding[]; submissions: ProductSubmission[]; corrections: { id: string; suggested_description: string | null; reason: string | null; created_at: string }[] }
+export interface MasterCompany { id: string; name: string; kind: 'marca' | 'fornecedor' | 'fabricante'; source: string | null; n_eans: number; example: string | null; conferir: boolean }
+export interface AdminQueue { companies: MasterCompany[]; findings: AuditFinding[]; submissions: ProductSubmission[]; corrections: { id: string; suggested_description: string | null; reason: string | null; created_at: string }[] }
 
 export const fetchAdminQueue = async (): Promise<AdminQueue> => {
   const q = await callRpc('admin_pending_queue', {});
-  return { findings: q?.findings || [], submissions: q?.submissions || [], corrections: q?.corrections || [] };
+  return { companies: q?.companies || [], findings: q?.findings || [], submissions: q?.submissions || [], corrections: q?.corrections || [] };
 };
 export const reviewFinding = async (id: number, approve: boolean): Promise<void> => { await callRpc('admin_review_finding', { p_id: id, p_approve: approve }); };
+export const reviewCompany = async (id: string, approve: boolean): Promise<void> => { await callRpc('admin_review_company', { p_id: id, p_approve: approve }); };
 /** Aprovar cadastro de produto: o usuário ganha `credits` leituras de cupom. */
 export const reviewSubmission = async (id: number, approve: boolean, credits = 1): Promise<number> => {
   const r = await callRpc('admin_review_submission', { p_id: id, p_approve: approve, p_credits: credits });
