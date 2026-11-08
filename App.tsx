@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
-import { LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, ShoppingCart, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
+import { UserRound, LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, ShoppingCart, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
 import PhoneFrame from './components/PhoneFrame';
 import SideDrawer from './components/SideDrawer';
 import * as LucideIcons from 'lucide-react';
@@ -1387,8 +1387,12 @@ const App: React.FC = () => {
                 <button onClick={() => setView('shopping')} className={`p-2 transition-colors ${view === 'shopping' ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`} title="Lista de compras" aria-label="Lista de compras" data-testid="header-shopping"><ShoppingCart className="w-4 h-4" /></button>
                 <button onClick={() => setView('map')} className={`p-2 transition-colors ${view === 'map' ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`} title="Mapa" aria-label="Mapa" data-testid="header-map"><MapIcon className="w-4 h-4" /></button>
             </nav>
-            <div className="flex md:hidden items-center gap-1">
-                <BellButton count={cloud.unread} active={view === 'alerts'} onClick={() => setView('alerts')} className="p-3" />
+            <div className="flex md:hidden items-center">
+                <button onClick={goToAccount} className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center ${cloud.user ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label={cloud.user ? 'Minha conta' : 'Entrar ou criar conta'} data-testid="header-login"><UserRound className="w-5 h-5" /></button>
+                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-500 active:text-luxury-gold" aria-label="Alternar tema" data-testid="header-theme">
+                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+                <BellButton count={cloud.unread} active={view === 'alerts'} onClick={() => setView('alerts')} className="p-2.5 min-w-[44px] min-h-[44px]" />
             </div>
         </div>
       </header>

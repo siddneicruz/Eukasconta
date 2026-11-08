@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Browser } from '@capacitor/browser';
 import { ChevronLeft, MapPin, Loader2, RefreshCw, LocateFixed, Navigation, Car, Store, X, WifiOff, Pencil, Move, CheckCircle2 } from 'lucide-react';
 import { Receipt, Establishment } from '../types';
+import { suggestStoreType } from '../services/storeTypes';
 import { geocodeMissingEstablishments, needsGeocoding, masterGeoCandidates, geocodeFromMaster } from '../services/geocodingService';
 import { useMasterInfo } from './MasterContext';
 import { snapDone, snapToPois } from '../services/poiSnap';
@@ -96,8 +97,34 @@ const useIsLight = () => {
 // De longe (zoom baixo, muitas lojas juntas) viram bolinhas, para não virar uma mancha escura.
 // Os ícones são criados uma vez só: trocar o objeto a cada desenho faria o Leaflet recolocar todos os pinos.
 const pinCache = new Map<string, L.DivIcon>();
-const pinIcon = (selected: boolean, nearest: boolean, compact: boolean, light: boolean) => {
-  const key = `${selected ? 1 : 0}${nearest ? 1 : 0}${compact ? 1 : 0}${light ? 1 : 0}`;
+// Desenho dentro do pino, por tipo de loja (traços de 24x24)
+const GLYPHS: Record<string, string> = {
+  cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2.5l2.7 12.4a2 2 0 0 0 2 1.6h9.6a2 2 0 0 0 2-1.6L22 7H5.2"/>',
+  pharm: '<path d="M12 4v16M4 12h16"/>',
+  fuel: '<path d="M4 22h11M5 9h9M15 22V4a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v18M15 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0V9.8a2 2 0 0 0-.6-1.4L19 5"/>',
+  food: '<path d="M4 2v6a3 3 0 0 0 6 0V2M7 2v20M20 15V2a5 5 0 0 0-5 5v6a2 2 0 0 0 2 2h3zM20 15v7"/>',
+  gym: '<path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/>',
+  shirt: '<path d="M20.4 3.5 16 2a4 4 0 0 1-8 0L3.6 3.5a2 2 0 0 0-1.3 2.2l.6 3.5a1 1 0 0 0 1 .8H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.1a1 1 0 0 0 1-.8l.6-3.5a2 2 0 0 0-1.3-2.2z"/>',
+  home: '<path d="M3 11l9-8 9 8M5 10v11h14V10M10 21v-6h4v6"/>',
+  paw: '<circle cx="6" cy="10" r="1.6"/><circle cx="10" cy="5.5" r="1.6"/><circle cx="14" cy="5.5" r="1.6"/><circle cx="18" cy="10" r="1.6"/><path d="M12 12c-3 0-5.5 2.7-5.5 5 0 2 2 2.5 5.5 2.5s5.5-.5 5.5-2.5c0-2.3-2.5-5-5.5-5z"/>',
+  plug: '<rect x="4" y="5" width="16" height="11" rx="2"/><path d="M8 21h8M12 16v5"/>',
+  store: '<path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M9 20v-6h6v6"/>',
+};
+const glyphFor = (type: string): string => {
+  const t = (type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/mercado|hortifruti/.test(t)) return 'cart';
+  if (/farmac/.test(t)) return 'pharm';
+  if (/posto|combust/.test(t)) return 'fuel';
+  if (/restaurante|lanchonete/.test(t)) return 'food';
+  if (/academia/.test(t)) return 'gym';
+  if (/roupa|calcado/.test(t)) return 'shirt';
+  if (/casa|constru/.test(t)) return 'home';
+  if (/pet/.test(t)) return 'paw';
+  if (/eletr/.test(t)) return 'plug';
+  return 'store';
+};
+const pinIcon = (selected: boolean, nearest: boolean, compact: boolean, light: boolean, glyph = 'store') => {
+  const key = `${selected ? 1 : 0}${nearest ? 1 : 0}${compact ? 1 : 0}${light ? 1 : 0}${glyph}`;
   const hit = pinCache.get(key);
   if (hit) return hit;
   const color = selected ? '#F2D36B' : nearest ? '#DDB94B' : '#B8902E';
@@ -118,7 +145,7 @@ const pinIcon = (selected: boolean, nearest: boolean, compact: boolean, light: b
       html: `<div style="width:${px}px;height:${px}px;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.35));">
       <svg viewBox="0 0 24 24" width="${px}" height="${px}">
         <path d="M12 1C6.9 1 3 5 3 10c0 6.8 9 13 9 13s9-6.2 9-13c0-5-3.9-9-9-9z" fill="${color}" stroke="${edge}" stroke-opacity=".95" stroke-width="1.4" stroke-linejoin="round"/>
-        <circle cx="12" cy="10" r="3.4" fill="${edge}" fill-opacity=".92"/>
+        <g transform="translate(6.6 4.6) scale(.45)" fill="none" stroke="#1A1405" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[glyph] || GLYPHS.store}</g>
       </svg></div>`,
       iconSize: [px, px],
       iconAnchor: [px / 2, px - 1],
@@ -587,7 +614,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
               <Marker
                 key={s.id}
                 position={[s.lat, s.lng]}
-                icon={pinIcon(s.id === selectedId, s.id === nearestId, zoom < 14, light)}
+                icon={pinIcon(s.id === selectedId, s.id === nearestId, zoom < 14, light, glyphFor(s.est.type || suggestStoreType(s.est.aliasName || s.est.originalName) || ''))}
                 zIndexOffset={s.id === selectedId ? 1000 : s.id === nearestId ? 500 : 0}
                 eventHandlers={{ click: () => { if (!moving) { setSelectedPoi(null); setManual({ id: s.id }); } } }}
               />
