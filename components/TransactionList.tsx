@@ -325,10 +325,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
                 </button>
             </div>
           )}
+          {/* Todos os cabeçalhos de mês são irmãos no mesmo bloco: assim o do mês atual fica fixo mesmo com os meses recolhidos */}
+          <div data-testid="months">
           {monthGroups.map(({ month, items, total }) => {
             const isCollapsed = collapsed.has(month);
             return (
-            <div key={month} data-month={month} className="space-y-4">
+            <React.Fragment key={month}>
                 <button type="button" onClick={() => toggleMonth(month)} aria-expanded={!isCollapsed} data-testid="month-header"
                     className="month-sticky sticky z-30 w-full flex items-center gap-4 px-2 py-2.5 text-center bg-black border-b border-white/5 transition-colors">
                     <div className="h-px bg-white/10 flex-1" />
@@ -342,7 +344,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
                     <div className="h-px bg-white/10 flex-1" />
                 </button>
                 {!isCollapsed && (
-                <div className="space-y-3">
+                <div className="space-y-3 pt-3 pb-8" data-month={month}>
                     {items.map((receipt) => {
                          const rDate = new Date(receipt.date + 'T12:00:00');
                          const dayNum = isNaN(rDate.getTime()) ? '?' : rDate.getDate();
@@ -405,9 +407,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
                     })}
                 </div>
                 )}
-            </div>
+            </React.Fragment>
             );
           })}
+          </div>
           </>
         )}
       </div>
