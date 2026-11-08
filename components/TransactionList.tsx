@@ -183,24 +183,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
   useEffect(() => { setManualCollapsed(null); },
       [searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, itemFilter]);
 
-  const autoCollapsed = useMemo(() => {
-      const closed = new Set<string>();
-      const filtering = !!(searchTerm || establishmentFilter || selectedCategories.length || itemFilter || storeCheck);
-      if (!filtering) {
-          // Sem busca: só o mês atual fica aberto (ou o mais recente, se não houver cupom neste mês); os demais, recolhidos
-          const now = new Date();
-          const cur = (m => m.charAt(0).toUpperCase() + m.slice(1))(now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }));
-          const open = monthGroups.some(g => g.month === cur) ? cur : monthGroups[0]?.month;
-          monthGroups.forEach(g => { if (g.month !== open) closed.add(g.month); });
-          return closed;
-      }
-      let shown = 0;
-      monthGroups.forEach((g, i) => {
-          if (i > 0 && shown >= AUTO_OPEN_ROWS) closed.add(g.month);
-          else shown += g.items.length;
-      });
-      return closed;
-  }, [monthGroups, searchTerm, establishmentFilter, selectedCategories, itemFilter, storeCheck]);
+  // Padrão: todos os meses abertos (quem quiser recolhe tocando no mês ou no botão de recolher todos)
+  const autoCollapsed = useMemo(() => new Set<string>(), []);
   const collapsed = manualCollapsed ?? autoCollapsed;
   const allCollapsed = monthGroups.length > 0 && monthGroups.every(g => collapsed.has(g.month));
   const toggleMonth = (month: string) => {
