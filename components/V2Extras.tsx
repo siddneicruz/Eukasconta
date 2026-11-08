@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScanLine, PencilLine, ShoppingCart, Map as MapIcon, Target, Bell, Sun, Moon, Terminal, KeyRound, Info } from 'lucide-react';
+import { ScanLine, PencilLine, ShoppingCart, Map as MapIcon, Target, Bell, Terminal, KeyRound, Info } from 'lucide-react';
 import { PDLogo } from './Brand';
 
 // Redesign v2: atalhos redondos do Início e bloco "Aparência e sistema" dos Ajustes.
@@ -35,10 +35,10 @@ export const HomeShortcuts: React.FC<{
 type Row = { label: string; icon: React.ElementType; on: () => void; t: string };
 
 export const SettingsQuick: React.FC<{
-  theme: 'dark' | 'light'; setTheme: (t: 'dark' | 'light') => void;
+  theme?: 'dark' | 'light'; setTheme?: (t: 'dark' | 'light') => void;
   onDiagnostics: () => void; onMap: () => void; onList: () => void; onAlerts: () => void;
   isAdmin?: boolean; onMaster?: () => void;
-}> = ({ theme, setTheme, onDiagnostics, onMap, onList, onAlerts, isAdmin, onMaster }) => {
+}> = ({ onDiagnostics, onMap, onList, onAlerts, isAdmin, onMaster }) => {
   const rows: Row[] = [
     { label: 'Mapa dos estabelecimentos', icon: MapIcon, on: onMap, t: 'quick-map' },
     { label: 'Lista de compras', icon: ShoppingCart, on: onList, t: 'quick-list' },
@@ -46,20 +46,9 @@ export const SettingsQuick: React.FC<{
     ...(isAdmin && onMaster ? [{ label: 'Tabela mãe (importar planilha)', icon: KeyRound, on: onMaster, t: 'drawer-master' }] : []),
     { label: 'Diagnóstico', icon: Terminal, on: onDiagnostics, t: 'quick-diag' },
   ];
-  const opt = (v: 'dark' | 'light', label: string, Icon: React.ElementType) => (
-    <button onClick={() => setTheme(v)} aria-pressed={theme === v} data-testid={`theme-${v}`}
-      className={`flex-1 min-h-[44px] rounded-xl flex items-center justify-center gap-2 text-sm font-semibold border transition-colors ${theme === v ? 'text-[#1A1405] border-transparent' : 'bg-zinc-900 border-white/10 text-zinc-400'}`}
-      style={theme === v ? { background: 'linear-gradient(135deg,#F5DB88,#DDB94B 55%,#B38A2B)' } : undefined}>
-      <Icon className="w-4 h-4" /> {label}
-    </button>
-  );
   return (
     <div className="mb-6 space-y-4" data-testid="settings-quick">
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
-        <div className="text-sm font-semibold text-zinc-200 mb-3">Aparência</div>
-        <div className="flex gap-2">{opt('dark', 'Escuro', Moon)}{opt('light', 'Claro', Sun)}</div>
-      </div>
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/60 overflow-hidden">
+      <div className="rounded-2xl border border-white/10 bg-zinc-900/50 overflow-hidden">
         {rows.map((r, i) => (
           <button key={r.label} onClick={r.on} data-testid={r.t} className={`w-full min-h-[52px] flex items-center gap-3 px-4 text-left active:bg-white/5 ${i ? 'border-t border-white/5' : ''}`}>
             <r.icon className="w-5 h-5 text-luxury-gold shrink-0" />
@@ -67,7 +56,7 @@ export const SettingsQuick: React.FC<{
           </button>
         ))}
       </div>
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-4 flex items-center gap-4">
+      <div className="rounded-2xl border border-white/10 bg-zinc-900/50 p-4 flex items-center gap-4">
         <Info className="w-5 h-5 text-zinc-500 shrink-0" />
         <div className="min-w-0">
           <div className="text-sm font-semibold text-zinc-200">Sobre o Eu Kasconta</div>
