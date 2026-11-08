@@ -123,7 +123,7 @@ const NicknameSuggestSheet: React.FC<Props> = ({ establishments, receipts, onApp
                 <li key={`${l.row.cnpj}|${l.row.name}`} className={`rounded-2xl border p-3.5 transition-colors ${l.on ? 'border-luxury-gold/30 bg-luxury-gold/[0.04]' : 'border-white/5 bg-white/[0.02]'}`} data-testid="nick-row">
                   <div className="flex items-start gap-3">
                     <input type="checkbox" checked={l.on} onChange={e => setLine(i, { on: e.target.checked })} aria-label={`Aplicar apelido em ${titleCase(l.row.name)}`}
-                      className="mt-1 w-5 h-5 shrink-0 accent-[#D4AF37]" />
+                      className="mt-1 w-5 h-5 shrink-0 accent-[#DDB94B]" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-zinc-200 font-semibold leading-snug break-words">{titleCase(l.row.name)}</p>
                       <p className="text-xs text-zinc-500 mt-0.5 break-words">

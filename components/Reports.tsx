@@ -49,7 +49,7 @@ interface ReportsProps {
   taxonomy?: TaxonomyNode[];
 }
 
-const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
+const CHART_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
 const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 const getEstablishmentDisplayName = (originalName: string, cnpj: string, establishments: Establishment[] = [], aliasOf?: (n: string, c?: string) => string | null) => {
@@ -801,7 +801,7 @@ const Reports: React.FC<ReportsProps> = ({
                         return (
                             <div key={idx} className="flex items-center justify-between gap-4">
                                 <span className="flex items-center gap-1.5 min-w-0">
-                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color || p.fill || '#D4AF37' }} />
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color || p.fill || '#DDB94B' }} />
                                     <span className="text-[11px] text-zinc-300 truncate">{p.name && p.name !== 'value' ? p.name : (isDelta ? 'Diferença' : 'Gasto')}</span>
                                 </span>
                                 <span className="text-right shrink-0">

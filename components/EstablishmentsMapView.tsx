@@ -100,7 +100,7 @@ const pinIcon = (selected: boolean, nearest: boolean, compact: boolean, light: b
   const key = `${selected ? 1 : 0}${nearest ? 1 : 0}${compact ? 1 : 0}${light ? 1 : 0}`;
   const hit = pinCache.get(key);
   if (hit) return hit;
-  const color = selected ? '#F2D36B' : nearest ? '#D4AF37' : '#B8902E';
+  const color = selected ? '#F2D36B' : nearest ? '#DDB94B' : '#B8902E';
   // contorno que destaca o pino do mapa nos dois temas (claro no escuro, escuro no claro)
   const edge = light ? '#3a2a05' : '#ffffff';
   let icon: L.DivIcon;
@@ -563,7 +563,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
             {route.data && (
               <>
                 <Polyline positions={route.data.path} pathOptions={{ color: light ? '#ffffff' : '#000000', weight: 9, opacity: 0.75, lineCap: 'round', lineJoin: 'round' }} />
-                <Polyline positions={route.data.path} pathOptions={{ color: '#D4AF37', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />
+                <Polyline positions={route.data.path} pathOptions={{ color: '#DDB94B', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />
               </>
             )}
             {(showPois || !!moving) && poiZoomOk && (

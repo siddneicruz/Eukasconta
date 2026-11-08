@@ -140,8 +140,8 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
                 <AreaChart data={a.series.points} margin={{ top: 8, right: TL_MARGIN_RIGHT, left: 0, bottom: 2 }}>
                   <defs>
                     <linearGradient id="cutFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.38} />
-                      <stop offset="100%" stopColor="#D4AF37" stopOpacity={0.03} />
+                      <stop offset="0%" stopColor="#DDB94B" stopOpacity={0.38} />
+                      <stop offset="100%" stopColor="#DDB94B" stopOpacity={0.03} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -151,14 +151,14 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="#D4AF37"
+                    stroke="#DDB94B"
                     strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     fill="url(#cutFill)"
                     fillOpacity={1}
-                    dot={a.series.showAllDots ? { r: 2.25, className: 'tl-dot', stroke: '#D4AF37', strokeWidth: 1.25 } : false}
-                    activeDot={{ r: 3.5, className: 'tl-dot', stroke: '#D4AF37', strokeWidth: 1.5 }}
+                    dot={a.series.showAllDots ? { r: 2.25, className: 'tl-dot', stroke: '#DDB94B', strokeWidth: 1.25 } : false}
+                    activeDot={{ r: 3.5, className: 'tl-dot', stroke: '#DDB94B', strokeWidth: 1.5 }}
                     animationDuration={700}
                   />
                 </AreaChart>

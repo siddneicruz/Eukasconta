@@ -169,7 +169,7 @@ const StoreDuplicatesSheet: React.FC<Props> = ({ establishments, receipts, onMer
                 className={`rounded-2xl border p-3.5 transition-colors ${act ? 'border-luxury-gold/30 bg-luxury-gold/[0.04]' : 'border-white/5 bg-white/[0.02]'}`}>
                 <div className="flex items-start gap-3">
                   <input type="checkbox" checked={act} disabled={!canMerge(g)} onChange={e => setOn(prev => ({ ...prev, [g.id]: e.target.checked }))} data-testid="dup-check"
-                    aria-label={`Juntar ${nameOf(keeper.est)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#D4AF37]" />
+                    aria-label={`Juntar ${nameOf(keeper.est)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#DDB94B]" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm text-zinc-100 font-semibold leading-snug break-words min-w-0" data-testid="dup-title-name">{nameOf(keeper.est)}</p>

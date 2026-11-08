@@ -85,7 +85,7 @@ interface SettingsViewProps {
 }
 
 const LUXURY_COLORS = [
-    { name: 'Gold 1', hex: '#D4AF37' }, { name: 'Gold 2', hex: '#C5A028' }, { name: 'Gold 3', hex: '#B69119' }, 
+    { name: 'Gold 1', hex: '#DDB94B' }, { name: 'Gold 2', hex: '#C5A028' }, { name: 'Gold 3', hex: '#B69119' }, 
     { name: 'Gold 4', hex: '#A7820A' }, { name: 'Bronze', hex: '#9F4D19' }, { name: 'Ocre', hex: '#B9A329' },
     { name: 'Studio', hex: '#27A46D' }, { name: 'Forest', hex: '#0D6041' }, { name: 'Emerald', hex: '#10B981' }, 
     { name: 'Jade', hex: '#059669' }, { name: 'Lime', hex: '#22C55E' }, { name: 'Neon', hex: '#17FF7C' },

@@ -20,7 +20,7 @@
         <item name="android:background">@drawable/splash</item>
         <!-- Abertura (Android 12+): o ticket em pé sobre o fundo escuro do app. O ícone do celular agora é
              um quadrado dourado, por isso a abertura usa o próprio símbolo (cabe no círculo da abertura). -->
-        <item name="windowSplashScreenBackground">#09090B</item>
+        <item name="windowSplashScreenBackground">#0A0A0C</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
     </style>
 </resources>

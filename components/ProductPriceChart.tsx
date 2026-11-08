@@ -65,11 +65,11 @@ const PinnedLabels: React.FC<PinnedProps> = ({ points, pins, avg, light }) => {
         const d = pctVsAvg(p.price, avg);
         return (
           <g key={p.t} data-pin={p.date}>
-            <line x1={cx} x2={cx} y1={above ? cy - 6 : cy + 6} y2={above ? by + boxH : by} stroke="#D4AF37" strokeOpacity={0.6} strokeWidth={1} />
-            <circle cx={cx} cy={cy} r={6} fill={bg} stroke="#D4AF37" strokeWidth={2.25} />
+            <line x1={cx} x2={cx} y1={above ? cy - 6 : cy + 6} y2={above ? by + boxH : by} stroke="#DDB94B" strokeOpacity={0.6} strokeWidth={1} />
+            <circle cx={cx} cy={cy} r={6} fill={bg} stroke="#DDB94B" strokeWidth={2.25} />
             <rect x={bx} y={by} width={boxW} height={boxH} rx={10} fill={bg} stroke={stroke} />
             <text x={bx + 10} y={by + 15} fontSize={10} fontWeight={700} letterSpacing="0.04em" fill={sub}>{shortDate(p.date)}</text>
-            <text x={bx + 10} y={by + 32} fontSize={14} fontWeight={700} fill="#D4AF37" fontFamily="ui-serif, Georgia, serif">{brl.format(p.price)}</text>
+            <text x={bx + 10} y={by + 32} fontSize={14} fontWeight={700} fill="#DDB94B" fontFamily="ui-serif, Georgia, serif">{brl.format(p.price)}</text>
             <text x={bx + 10} y={by + 44} fontSize={10} fontWeight={700} fill={pctColor(d, light)}>{fmtPct(d)} vs média</text>
           </g>
         );
@@ -226,8 +226,8 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
                 <ComposedChart data={points} margin={{ top: 6, right: 14, left: -8, bottom: 0 }}>
                   <defs>
                     <linearGradient id="ppGold" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.42} />
-                      <stop offset="100%" stopColor="#D4AF37" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#DDB94B" stopOpacity={0.42} />
+                      <stop offset="100%" stopColor="#DDB94B" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
@@ -237,15 +237,15 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
                   <YAxis domain={[view.yLo, view.yHi]} ticks={view.yTicks} axisLine={false} tickLine={false} width={46}
                     tick={{ fill: '#8b8b95', fontSize: 11 }}
                     tickFormatter={(v: number) => (v >= 100 ? String(Math.round(v)) : Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ','))} />
-                  <Tooltip cursor={{ stroke: '#D4AF37', strokeOpacity: 0.35, strokeDasharray: '3 3' }} wrapperStyle={{ pointerEvents: 'none', zIndex: 20 }}
+                  <Tooltip cursor={{ stroke: '#DDB94B', strokeOpacity: 0.35, strokeDasharray: '3 3' }} wrapperStyle={{ pointerEvents: 'none', zIndex: 20 }}
                     content={(p: any) => <HoverTip {...p} pins={pins} avg={avg} unit={unit} />} />
                   {avg > 0 && (
                     <ReferenceLine y={avg} stroke={light ? '#15803d' : '#34d399'} strokeOpacity={0.85} strokeDasharray="5 5"
                       label={{ value: `média ${brl.format(avg)}`, position: 'insideBottomRight', fill: light ? '#15803d' : '#34d399', fontSize: 10, fontWeight: 700 }} />
                   )}
-                  <Area type="monotone" dataKey="price" stroke="#D4AF37" strokeWidth={2.5} fill="url(#ppGold)"
-                    dot={points.length <= 60 ? { r: 3, fill: '#D4AF37', stroke: dotFill, strokeWidth: 1.5 } : false}
-                    activeDot={{ r: 5.5, stroke: '#D4AF37', strokeWidth: 2, fill: dotFill }}
+                  <Area type="monotone" dataKey="price" stroke="#DDB94B" strokeWidth={2.5} fill="url(#ppGold)"
+                    dot={points.length <= 60 ? { r: 3, fill: '#DDB94B', stroke: dotFill, strokeWidth: 1.5 } : false}
+                    activeDot={{ r: 5.5, stroke: '#DDB94B', strokeWidth: 2, fill: dotFill }}
                     isAnimationActive={!reduced} animationDuration={1200} animationEasing="ease-out" />
                   <PinnedLabels points={points} pins={pins} avg={avg} light={light} />
                   <ClickLayer points={points} onPick={toggle} />

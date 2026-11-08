@@ -19,13 +19,18 @@ export default {
     },
     extend: {
       colors: {
-        background: '#09090b',
-        surface: '#18181b',
-        surfaceHighlight: '#27272a',
+        black: '#0A0A0C',
+        background: '#0A0A0C',
+        surface: '#131316',
+        surfaceHighlight: '#25252C',
+        zinc: {
+          100: '#F6F3EA', 200: '#E6E1D2', 300: '#CFCABD', 400: '#B9B4A8', 500: '#948F84',
+          600: '#6B675E', 700: '#3A3A42', 800: '#25252C', 900: '#131316', 950: '#0A0A0C',
+        },
         border: 'rgba(255, 255, 255, 0.08)',
         luxury: {
-          gold: '#D4AF37',
-          goldDim: '#997B28',
+          gold: '#DDB94B',
+          goldDim: '#A67C0A',
           accent: '#F59E0B',
         },
       },

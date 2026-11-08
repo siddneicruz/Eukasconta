@@ -147,7 +147,7 @@ interface Dept { name: string; value: number; share: number; pct: number; prev: 
 type Tone = 'gold' | 'good' | 'bad' | 'info';
 interface Insight { icon: React.ComponentType<{ className?: string }>; tone: Tone; text: React.ReactNode; /** cupom que a leitura cita: tocar abre */ open?: string }
 
-const DEPT_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#8B5CF6', '#06B6D4'];
+const DEPT_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#8B5CF6', '#06B6D4'];
 const DEPT_REST = '#71717a';
 
 function buildSeries(rg: Ranges, cur: Receipt[], prevPlot: Receipt[]) {
@@ -503,8 +503,8 @@ const HeroTooltip = ({ active, payload, mode, prevLabel, monthly }: any) => {
   const p = acum ? row.prevCum : row.prev;
   return (
     <TipBox title={row.full}>
-      {c !== undefined && <TipRow color="#D4AF37" label={acum ? 'Acumulado' : monthly ? 'No mês' : 'No dia'} value={c} />}
-      {c === undefined && row.proj !== undefined && <TipRow color="#D4AF37" label="Projeção" value={row.proj} dashed />}
+      {c !== undefined && <TipRow color="#DDB94B" label={acum ? 'Acumulado' : monthly ? 'No mês' : 'No dia'} value={c} />}
+      {c === undefined && row.proj !== undefined && <TipRow color="#DDB94B" label="Projeção" value={row.proj} dashed />}
       {p !== undefined && <TipRow color="#a1a1aa" label={cap(prevLabel)} value={p} dashed />}
     </TipBox>
   );
@@ -624,20 +624,20 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
               <ComposedChart data={a.rows} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
                 <defs>
                   <linearGradient id="pgGold" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#D4AF37" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#DDB94B" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#DDB94B" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={ct.grid} />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10, fontWeight: 600 }} interval="preserveStartEnd" minTickGap={26} dy={8} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10 }} tickFormatter={compact} width={48} />
-                <Tooltip cursor={{ stroke: '#D4AF37', strokeOpacity: 0.3, strokeDasharray: '3 3' }} content={(p: any) => <HeroTooltip {...p} mode={mode} prevLabel={a.rg.prevLabel} monthly={a.monthly} />} />
+                <Tooltip cursor={{ stroke: '#DDB94B', strokeOpacity: 0.3, strokeDasharray: '3 3' }} content={(p: any) => <HeroTooltip {...p} mode={mode} prevLabel={a.rg.prevLabel} monthly={a.monthly} />} />
                 <Line type="monotone" dataKey={pKey} stroke={ct.prev} strokeWidth={1.5} strokeDasharray="4 5" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={350} />
                 {mode === 'acum' && a.projection !== null && (
-                  <Line type="monotone" dataKey="proj" stroke="#D4AF37" strokeOpacity={0.7} strokeWidth={2} strokeDasharray="2 6" strokeLinecap="round" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={350} />
+                  <Line type="monotone" dataKey="proj" stroke="#DDB94B" strokeOpacity={0.7} strokeWidth={2} strokeDasharray="2 6" strokeLinecap="round" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={350} />
                 )}
-                <Area type="monotone" dataKey={yKey} stroke="#D4AF37" strokeWidth={2.5} fill="url(#pgGold)" dot={false}
-                  activeDot={{ r: 5, stroke: '#D4AF37', strokeWidth: 2, fill: ct.dot }} isAnimationActive={!reduced} animationDuration={350} animationEasing="ease-out" />
+                <Area type="monotone" dataKey={yKey} stroke="#DDB94B" strokeWidth={2.5} fill="url(#pgGold)" dot={false}
+                  activeDot={{ r: 5, stroke: '#DDB94B', strokeWidth: 2, fill: ct.dot }} isAnimationActive={!reduced} animationDuration={350} animationEasing="ease-out" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -775,13 +775,13 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                     cursor={{ fill: light ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.03)' }}
                     content={(p: any) => p.active && p.payload?.length ? (
                       <TipBox title={cap(p.payload[0].payload.long)}>
-                        <TipRow color="#D4AF37" label="Gasto" value={p.payload[0].payload.value} />
+                        <TipRow color="#DDB94B" label="Gasto" value={p.payload[0].payload.value} />
                         <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-[0.08em]">{p.payload[0].payload.count} {p.payload[0].payload.count === 1 ? 'compra' : 'compras'}</p>
                       </TipBox>
                     ) : null}
                   />
                   <Bar dataKey="value" radius={[8, 8, 8, 8]} maxBarSize={44} isAnimationActive={!reduced} animationDuration={350} animationEasing="ease-out">
-                    {rhythmRows.map(r => <Cell key={r.name} fill={r === rhythmPeak ? '#D4AF37' : ct.barDim} />)}
+                    {rhythmRows.map(r => <Cell key={r.name} fill={r === rhythmPeak ? '#DDB94B' : ct.barDim} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

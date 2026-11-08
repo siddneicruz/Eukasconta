@@ -104,7 +104,7 @@ export const ProductUnifySheet: React.FC<UnifyProps> = ({ groups, categories, on
                   <li key={g.key}>
                     <label className={`flex items-start gap-3 rounded-2xl border p-3 cursor-pointer transition-colors ${on ? 'border-luxury-gold/30 bg-luxury-gold/[0.04]' : 'border-white/5 bg-white/[0.02] opacity-70'}`} data-testid="unify-member">
                       <input type="checkbox" checked={on} onChange={e => setOff(prev => ({ ...prev, [g.key]: !e.target.checked }))}
-                        aria-label={`Incluir ${titleCase(g.name)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#D4AF37]" />
+                        aria-label={`Incluir ${titleCase(g.name)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#DDB94B]" />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-zinc-100 leading-snug break-words">{titleCase(g.name)}</span>
                         <span className="block text-xs text-zinc-500 mt-0.5">
@@ -128,13 +128,13 @@ export const ProductUnifySheet: React.FC<UnifyProps> = ({ groups, categories, on
             <div className="space-y-1.5" role="radiogroup" aria-label="Nome do produto">
               {options.map(o => (
                 <label key={o.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 min-h-[48px] cursor-pointer transition-colors ${effectivePick === o.id ? 'border-luxury-gold/40 bg-luxury-gold/[0.06]' : 'border-white/5 bg-white/[0.02]'}`} data-testid="unify-name-option">
-                  <input type="radio" name="unify-name" checked={effectivePick === o.id} onChange={() => setPick(o.id)} className="w-4 h-4 shrink-0 accent-[#D4AF37]" />
+                  <input type="radio" name="unify-name" checked={effectivePick === o.id} onChange={() => setPick(o.id)} className="w-4 h-4 shrink-0 accent-[#DDB94B]" />
                   <span className="min-w-0 flex-1 text-sm font-semibold text-zinc-100 break-words">{titleCase(o.name)}</span>
                   <span className="shrink-0 text-xs text-zinc-500">{plural(o.count, 'compra', 'compras')}</span>
                 </label>
               ))}
               <label className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 min-h-[48px] cursor-pointer transition-colors ${effectivePick === CUSTOM ? 'border-luxury-gold/40 bg-luxury-gold/[0.06]' : 'border-white/5 bg-white/[0.02]'}`}>
-                <input type="radio" name="unify-name" checked={effectivePick === CUSTOM} onChange={() => setPick(CUSTOM)} className="w-4 h-4 shrink-0 accent-[#D4AF37]" aria-label="Outro nome" />
+                <input type="radio" name="unify-name" checked={effectivePick === CUSTOM} onChange={() => setPick(CUSTOM)} className="w-4 h-4 shrink-0 accent-[#DDB94B]" aria-label="Outro nome" />
                 <input type="text" value={custom} placeholder="Outro nome" data-testid="unify-name-custom"
                   onFocus={() => setPick(CUSTOM)} onChange={e => { setCustom(e.target.value); setPick(CUSTOM); }}
                   className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-luxury-gold placeholder:text-zinc-500 placeholder:font-medium outline-none" />

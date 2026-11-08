@@ -361,7 +361,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
                                 {selectMode ? (
                                     <label className="flex items-start gap-3 cursor-pointer">
                                         <input type="checkbox" checked={isOn} onChange={() => toggleSelect(g.key)} aria-label={`Marcar ${titleCase(g.name)}`}
-                                            data-testid="prod-check" className="mt-0.5 w-5 h-5 shrink-0 accent-[#D4AF37]" />
+                                            data-testid="prod-check" className="mt-0.5 w-5 h-5 shrink-0 accent-[#DDB94B]" />
                                         <span className="min-w-0 flex-1 block">{body}</span>
                                     </label>
                                 ) : (

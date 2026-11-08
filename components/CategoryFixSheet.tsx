@@ -66,7 +66,7 @@ const CategoryFixSheet: React.FC<Props> = ({ sections, categories, onApply, onCl
                     <li key={i.desc}>
                       <label className={`flex items-start gap-3 rounded-2xl border p-3 cursor-pointer transition-colors ${on ? 'border-luxury-gold/30 bg-luxury-gold/[0.04]' : 'border-white/5 bg-white/[0.02] opacity-70'}`} data-testid="fix-row">
                         <input type="checkbox" checked={on} onChange={e => setOff(prev => ({ ...prev, [keyOf(s, i.desc)]: !e.target.checked }))}
-                          aria-label={`Mover ${titleCase(i.desc)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#D4AF37]" />
+                          aria-label={`Mover ${titleCase(i.desc)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#DDB94B]" />
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold text-zinc-100 leading-snug break-words">{titleCase(i.desc)}</span>
                           <span className="block text-xs text-zinc-500 mt-0.5 break-words">{plural(i.count, 'compra', 'compras')} · hoje em {i.from.join(', ')}</span>

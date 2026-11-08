@@ -426,7 +426,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
                           <p className="text-center">Cria um arquivo .zip com um .txt separado para cada cupom, igual ao da aba "Cupom TXT".</p>
                           {hidden > 0 && (
                               <label className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer">
-                                  <input type="checkbox" checked={exportAll} onChange={e => setExportAll(e.target.checked)} data-testid="export-txt-all" className="mt-0.5 w-4 h-4 accent-[#D4AF37]" />
+                                  <input type="checkbox" checked={exportAll} onChange={e => setExportAll(e.target.checked)} data-testid="export-txt-all" className="mt-0.5 w-4 h-4 accent-[#DDB94B]" />
                                   <span className="text-sm text-zinc-300">Incluir também os {hidden} {hidden === 1 ? 'cupom' : 'cupons'} que os filtros e o período escondem ({receipts.length} no total)</span>
                               </label>
                           )}

@@ -21,7 +21,7 @@ export const slugify = (text: string) => {
  */
 export const resolveNodeStyle = (nodeId: string, nodes: TaxonomyNode[]): { icon: string, color: string } => {
     const node = nodes.find(n => n.id === nodeId);
-    if (!node) return { icon: 'FolderOpen', color: '#D4AF37' };
+    if (!node) return { icon: 'FolderOpen', color: '#DDB94B' };
 
     // 1. Se o nível atual tem personalização, usa ela.
     let finalIcon = node.icon;
@@ -40,7 +40,7 @@ export const resolveNodeStyle = (nodeId: string, nodes: TaxonomyNode[]): { icon:
     // 3. Fallback
     return {
         icon: finalIcon || 'FolderOpen',
-        color: finalColor || '#D4AF37'
+        color: finalColor || '#DDB94B'
     };
 };
 

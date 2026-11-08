@@ -101,7 +101,7 @@ const LayerRefineSheet: React.FC<Props> = ({ receipts, onClose, onApplied }) => 
                   <li key={keyOf(r)}>
                     <label className={`flex items-start gap-3 rounded-2xl border p-3 cursor-pointer transition-colors ${on ? 'border-luxury-gold/30 bg-luxury-gold/[0.04]' : 'border-white/5 bg-white/[0.02] opacity-70'}`} data-testid="refine-row">
                       <input type="checkbox" checked={on} onChange={e => setOff(prev => ({ ...prev, [keyOf(r)]: !e.target.checked }))}
-                        aria-label={`Fixar ${titleCase(r.description)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#D4AF37]" />
+                        aria-label={`Fixar ${titleCase(r.description)}`} className="mt-0.5 w-5 h-5 shrink-0 accent-[#DDB94B]" />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-zinc-100 leading-snug break-words">{titleCase(r.description)}</span>
                         <span className="block text-[12.5px] text-luxury-gold leading-snug mt-0.5 break-words" data-testid="refine-path">{r.path}</span>

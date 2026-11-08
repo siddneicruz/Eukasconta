@@ -78,12 +78,13 @@ import { App as CapApp } from '@capacitor/app';
 import { isNativeApp, WEB_LOGIN_REQUIRED } from './services/platform';
 import WebLoginGate from './components/WebLoginGate';
 import { STORAGE_FULL_EVENT } from './services/storageGuard';
-import { AppMark } from './components/Brand';
+import { AppMark, BrandName } from './components/Brand';
+import { HomeShortcuts, SettingsQuick } from './components/V2Extras';
 
 import { normalizeReceiptList } from './services/receiptNumbers';
 const LUXURY_COLORS = [
     // Golds & Bronzes
-    { name: 'Gold 1', hex: '#D4AF37' }, { name: 'Gold 2', hex: '#C5A028' }, { name: 'Gold 3', hex: '#B69119' }, 
+    { name: 'Gold 1', hex: '#DDB94B' }, { name: 'Gold 2', hex: '#C5A028' }, { name: 'Gold 3', hex: '#B69119' }, 
     { name: 'Gold 4', hex: '#A7820A' }, { name: 'Bronze', hex: '#9F4D19' }, { name: 'Ocre', hex: '#B9A329' },
     // Greens & Emeralds
     { name: 'Studio', hex: '#27A46D' }, { name: 'Forest', hex: '#0D6041' }, { name: 'Emerald', hex: '#10B981' }, 
@@ -651,7 +652,7 @@ const App: React.FC = () => {
               if (meta[master]) return meta[master];
           }
       }
-      return { icon: 'FolderOpen', color: '#D4AF37' };
+      return { icon: 'FolderOpen', color: '#DDB94B' };
   };
 
   // um aviso novo cancela o timer do anterior (senão o timer velho apagava o aviso novo antes da hora)
@@ -1365,22 +1366,16 @@ const App: React.FC = () => {
 
       <header className="app-header fixed top-0 inset-x-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-20 flex items-center justify-between">
-            <button onClick={() => setIsDrawerOpen(true)} className="p-2 -ml-2 mr-1 text-zinc-500 hover:text-luxury-gold transition-colors" aria-label="Abrir menu">
-                <Menu className="w-5 h-5" />
-            </button>
             <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('dashboard')}>
-                <AppMark className="h-9 md:h-11 w-auto shrink-0 drop-shadow-[0_2px_8px_rgba(212,175,55,0.25)]" />
-                <div className="flex flex-col">
-                    <h1 className="font-serif text-base md:text-lg font-bold tracking-tight">Eukasconta</h1>
-                    <span className="text-[11px] text-luxury-gold font-semibold tracking-wide">Projeto Design</span>
-                </div>
+                <AppMark title="Eu Kasconta" className="h-[34px] w-[34px] md:h-11 md:w-11 shrink-0" />
+                <BrandName className="text-[15px] md:text-lg" />
             </div>
             <nav className="hidden md:flex gap-2 items-center">
                 <NavItem id="dashboard" label="Início" icon={LayoutDashboard} view={view} setView={setView} />
                 <NavItem id="scanner" label="Escanear" icon={ScanLine} view={view} setView={setView} />
-                <NavItem id="history" label="Histórico" icon={History} view={view} setView={setView} />
-                <NavItem id="reports" label="Relatórios" icon={BarChart3} view={view} setView={setView} />
-                <NavItem id="settings" label="Config" icon={Settings} view={view} setView={setView} />
+                <NavItem id="history" label="Compras" icon={History} view={view} setView={setView} />
+                <NavItem id="reports" label="Análises" icon={BarChart3} view={view} setView={setView} />
+                <NavItem id="settings" label="Ajustes" icon={Settings} view={view} setView={setView} />
                 <div className="h-4 w-px bg-white/10 mx-2"></div>
                 <BellButton count={cloud.unread} active={view === 'alerts'} onClick={() => setView('alerts')} className="p-2" />
                 <button onClick={() => setIsMobilePreview(true)} style={{ display: isInsideEmulator ? 'none' : undefined }} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Emular visualização mobile">
@@ -1394,24 +1389,9 @@ const App: React.FC = () => {
             </nav>
             <div className="flex md:hidden items-center gap-1">
                 <BellButton count={cloud.unread} active={view === 'alerts'} onClick={() => setView('alerts')} className="p-3" />
-                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-3 text-zinc-500 active:text-luxury-gold" aria-label="Alternar tema">
-                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-                <button onClick={() => setView('shopping')} className={`p-2.5 ${view === 'shopping' ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label="Lista de compras" data-testid="header-shopping-m"><ShoppingCart className="w-5 h-5" /></button>
-                <button onClick={() => setView('map')} className={`p-3 ${view === 'map' ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label="Mapa" data-testid="header-map-m"><MapIcon className="w-5 h-5" /></button>
             </div>
         </div>
       </header>
-
-      <SideDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        view={view}
-        setView={setView}
-        onOpenDiagnostics={() => setIsDiagnosticOpen(true)}
-        isAdmin={master.isAdmin}
-        onOpenMaster={() => { setSettingsInitialTab('master'); setView('settings'); }}
-      />
 
       <main className="app-main flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto p-4 md:p-12 w-full">
@@ -1436,6 +1416,9 @@ const App: React.FC = () => {
                             <button onClick={goToAccount} className="shrink-0 px-3.5 py-2 rounded-full border border-luxury-gold/40 text-xs font-bold text-luxury-gold hover:bg-luxury-gold/15 transition-all">Entrar</button>
                         </div>
                     )
+                )}
+                {view === 'dashboard' && (
+                    <HomeShortcuts alertCount={cloud.unread} onScan={() => setView('scanner')} onManual={() => setView('manual_entry')} onList={() => setView('shopping')} onMap={() => setView('map')} onGoals={() => setView('reports')} onAlerts={() => setView('alerts')} />
                 )}
                 {view === 'dashboard' && (
                     <Dashboard 
@@ -1529,6 +1512,9 @@ const App: React.FC = () => {
                     <AlertsView cloud={cloud} draft={alertDraft} onDraftConsumed={() => setAlertDraft(null)} onGoToAccount={goToAccount} onBack={() => setView('dashboard')} />
                 )}
                 {view === 'settings' && (
+                    <SettingsQuick theme={theme} setTheme={setTheme} onDiagnostics={() => setIsDiagnosticOpen(true)} onMap={() => setView('map')} onList={() => setView('shopping')} onAlerts={() => setView('alerts')} isAdmin={master.isAdmin} onMaster={() => { setSettingsInitialTab('master'); setView('settings'); }} />
+                )}
+                {view === 'settings' && (
                     <SettingsView 
                         cloud={cloud}
                         backup={backup}
@@ -1578,18 +1564,18 @@ const App: React.FC = () => {
       <ScanProgressChip hidden={view === 'scanner'} onOpen={() => setView('scanner')} />
 
       {/* Barra de abas do celular (some em telas médias/grandes, onde o menu do topo aparece) */}
-      <nav className="app-tabbar md:hidden fixed bottom-0 inset-x-0 z-50 bg-black/90 backdrop-blur-xl border-t border-white/10">
-          <div className="tabbar-grid grid grid-cols-5 items-end h-16 px-2">
+      <nav className="app-tabbar md:hidden fixed bottom-0 inset-x-0 z-50 backdrop-blur-xl border-t border-white/10" style={{ background: 'var(--ek-tab)' }}>
+          <div className="tabbar-grid grid grid-cols-5 items-end h-[68px] px-2">
               <MobileTab id="dashboard" label="Início" icon={LayoutDashboard} view={view} setView={setView} />
-              <MobileTab id="history" label="Histórico" icon={History} view={view} setView={setView} />
-              <button onClick={() => setView('scanner')} className="tab-scan flex flex-col items-center justify-end pb-2 -mt-6" aria-label="Escanear cupom">
-                  <span className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-luxury-gold/20 border-4 border-black ${view === 'scanner' ? 'bg-white' : 'bg-luxury-gold'}`}>
-                      <ScanLine className="w-6 h-6 text-black" />
+              <MobileTab id="history" label="Compras" icon={History} view={view} setView={setView} />
+              <button onClick={() => setView('scanner')} className="tab-scan flex flex-col items-center justify-end pb-2 -mt-7" aria-label="Escanear cupom">
+                  <span className="w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-lg shadow-black/30" style={{ border: '5px solid var(--ek-bg)', background: 'linear-gradient(135deg,#F5DB88,#DDB94B 55%,#B38A2B)', outline: view === 'scanner' ? '2px solid #DDB94B' : undefined, outlineOffset: view === 'scanner' ? 2 : undefined }}>
+                      <ScanLine className="w-6 h-6" style={{ color: '#1A1405' }} />
                   </span>
-                  <span className={`text-[11px] font-semibold mt-1 ${view === 'scanner' ? 'text-luxury-gold' : 'text-zinc-400'}`}>Escanear</span>
+                  <span className={`text-xs font-semibold mt-1 ${view === 'scanner' ? 'text-luxury-gold' : 'text-zinc-400'}`}>Escanear</span>
               </button>
-              <MobileTab id="reports" label="Relatórios" icon={BarChart3} view={view} setView={setView} />
-              <MobileTab id="settings" label="Config" icon={Settings} view={view} setView={setView} />
+              <MobileTab id="reports" label="Análises" icon={BarChart3} view={view} setView={setView} />
+              <MobileTab id="settings" label="Ajustes" icon={Settings} view={view} setView={setView} />
           </div>
       </nav>
 
@@ -1703,9 +1689,10 @@ const BellButton = ({ count, active, onClick, className }: { count: number; acti
 );
 
 const MobileTab = ({ id, label, icon: Icon, view, setView }: any) => (
-    <button onClick={() => setView(id)} className="flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition-transform" aria-label={label}>
+    <button onClick={() => setView(id)} className="relative flex flex-col items-center justify-center gap-1 h-full min-h-[44px] active:scale-95 transition-transform" aria-label={label}>
+        {view === id && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[3px] rounded-b-full bg-luxury-gold" />}
         <Icon className={`w-[22px] h-[22px] ${view === id ? 'text-luxury-gold' : 'text-zinc-400'}`} />
-        <span className={`text-[11px] font-semibold leading-none ${view === id ? 'text-luxury-gold' : 'text-zinc-400'}`}>{label}</span>
+        <span className={`text-xs font-semibold leading-none ${view === id ? 'text-luxury-gold' : 'text-zinc-400'}`}>{label}</span>
     </button>
 );
 

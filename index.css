@@ -13,6 +13,7 @@
 
 /* Celular: respeita entalhe (notch) e barra de gestos do aparelho */
 :root {
+  --ek-bg: #0A0A0C; --ek-tab: #101013;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -29,7 +30,7 @@
 .app-header { padding-top: var(--safe-top); }
 .app-main {
   padding-top: calc(3.5rem + var(--safe-top));
-  padding-bottom: calc(4rem + var(--safe-bottom));
+  padding-bottom: calc(4.25rem + var(--safe-bottom));
 }
 .app-tabbar { padding-bottom: var(--safe-bottom); }
 @media (min-width: 768px) {
@@ -39,7 +40,7 @@
 /* Aviso flutuante da leitura de cupons em segundo plano: fica logo acima da barra de abas */
 .scan-chip {
   left: 0.75rem; right: 0.75rem;
-  bottom: calc(4rem + var(--safe-bottom) + 0.5rem);
+  bottom: calc(4.25rem + var(--safe-bottom) + 0.5rem);
 }
 @media (min-width: 768px) {
   .scan-chip { left: auto; right: 1.5rem; bottom: 1.5rem; width: 22rem; }
@@ -84,7 +85,7 @@ button, select {
 }
 button:focus-visible, select:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.4);
+  box-shadow: 0 0 0 2px rgba(221, 185, 75, 0.4);
 }
 
 /* Gráficos (Recharts): ao tocar numa barra/fatia o navegador desenhava um retângulo de foco
@@ -95,3 +96,5 @@ button:focus-visible, select:focus-visible {
 .recharts-surface * {
   outline: none !important;
 }
+
+html.light-theme { --ek-bg: #F6F3EA; --ek-tab: #FFFFFF; }

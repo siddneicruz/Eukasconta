@@ -150,8 +150,8 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                     <AreaChart data={latencyData}>
                                         <defs>
                                             <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.2}/>
-                                                <stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/>
+                                                <stop offset="5%" stopColor="#DDB94B" stopOpacity={0.2}/>
+                                                <stop offset="95%" stopColor="#DDB94B" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
@@ -159,10 +159,10 @@ const DiagnosticPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                         <YAxis tick={{fill: '#3f3f46', fontSize: 8}} axisLine={false} tickLine={false} unit="ms" />
                                         <Tooltip 
                                             contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', fontSize: '9px', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#D4AF37' }}
+                                            itemStyle={{ color: '#DDB94B' }}
                                             labelStyle={{ display: 'none' }}
                                         />
-                                        <Area type="monotone" dataKey="ms" stroke="#D4AF37" strokeWidth={2} fillOpacity={1} fill="url(#colorLatency)" animationDuration={1000} />
+                                        <Area type="monotone" dataKey="ms" stroke="#DDB94B" strokeWidth={2} fillOpacity={1} fill="url(#colorLatency)" animationDuration={1000} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>

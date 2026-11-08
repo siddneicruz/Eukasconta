@@ -16,7 +16,7 @@ const { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ComposedChart
 
 export const GOALS_KEY = 'eukasconta_category_goals';
 export const GOAL_COLORS_KEY = 'eukasconta_goal_colors';
-const PALETTE = ['#D4AF37', '#10B981', '#3B82F6', '#A855F7', '#EC4899', '#F97316', '#06B6D4', '#EF4444'];
+const PALETTE = ['#DDB94B', '#10B981', '#3B82F6', '#A855F7', '#EC4899', '#F97316', '#06B6D4', '#EF4444'];
 const UNDO_MS = 7000;
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 

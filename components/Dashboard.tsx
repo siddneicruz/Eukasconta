@@ -64,7 +64,7 @@ interface DashboardProps {
   masterProducts?: MasterProduct[];
 }
 
-const CHART_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
+const CHART_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
 
 export const getCustomMeta = (category: string) => {
     try {
@@ -335,7 +335,7 @@ export const getCategoryColor = (category: string) => {
     if (norm.includes('combustivel')) return '#F59E0B'; 
     if (norm.includes('padaria')) return '#D97706'; 
     if (norm.includes('leite') || norm.includes('queijo')) return '#10B981'; 
-    if (norm.includes('luxo') || norm.includes('premium')) return '#D4AF37'; 
+    if (norm.includes('luxo') || norm.includes('premium')) return '#DDB94B'; 
     if (norm.includes('unha') || norm.includes('esmalte')) return '#EC4899';
     if (norm.includes('cabelo')) return '#6366F1';
     
@@ -621,7 +621,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       const key = `dot-${index}`;
       const emph = index === peakIdx || index === lastIdx;
       if ((!series.showAllDots && !emph) || cx == null || cy == null) return <g key={key} />;
-      return <circle key={key} className="tl-dot" cx={cx} cy={cy} r={emph ? 3 : 2.25} stroke="#D4AF37" strokeWidth={1.25} />;
+      return <circle key={key} className="tl-dot" cx={cx} cy={cy} r={emph ? 3 : 2.25} stroke="#DDB94B" strokeWidth={1.25} />;
   };
 
   return (
@@ -792,14 +792,14 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                   <AreaChart data={evolutionData} margin={{ top: 10, right: TIMELINE_MARGIN_RIGHT, left: 0, bottom: 2 }}>
                       <defs>
                           <linearGradient id="colorDashboard" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.2}/><stop offset="100%" stopColor="#D4AF37" stopOpacity={0}/>
+                              <stop offset="0%" stopColor="#DDB94B" stopOpacity={0.2}/><stop offset="100%" stopColor="#DDB94B" stopOpacity={0}/>
                           </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} ticks={series.ticks} interval={0} tick={renderTimelineTick} height={24} />
                       <YAxis axisLine={false} tickLine={false} width={TL_AXIS_Y_WIDTH} tick={renderTimelineYTick} tickCount={4} />
                       <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(212,175,55,0.3)', strokeWidth: 1, strokeDasharray: '3 4' }} />
-                      <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fillOpacity={1} fill="url(#colorDashboard)" isAnimationActive={false} dot={renderTimelineDot} activeDot={{ r: 3.5, stroke: '#D4AF37', strokeWidth: 1.5, className: 'tl-dot' }} />
+                      <Area type="monotone" dataKey="value" stroke="#DDB94B" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fillOpacity={1} fill="url(#colorDashboard)" isAnimationActive={false} dot={renderTimelineDot} activeDot={{ r: 3.5, stroke: '#DDB94B', strokeWidth: 1.5, className: 'tl-dot' }} />
                   </AreaChart>
               </ResponsiveContainer>
           </div>

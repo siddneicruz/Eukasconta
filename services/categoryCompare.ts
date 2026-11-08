@@ -28,7 +28,7 @@ export const NO_CATEGORY = 'Sem categoria';
 
 // Até 5 linhas ao mesmo tempo; cada escolha fica com a mesma cor até sair da comparação.
 export const MAX_COMPARE = 5;
-export const CMP_COLORS = ['#D4AF37', '#27A46D', '#3B82F6', '#EC4899', '#8B5CF6'];
+export const CMP_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#8B5CF6'];
 
 // "Hortifruti - Frutas" -> departamento e categoria, já em chaves comparáveis (cache: as mesmas strings se repetem muito)
 const keyCache = new Map<string, { d: string; c: string }>();
