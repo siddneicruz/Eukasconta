@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, ClipboardCheck, Loader2, X } from 'lucide-react';
-import { AdminQueue as Queue, AuditFinding, MasterCompany, ProductSubmission, AddressSuggestion, fetchAddressSuggestions, reviewAddressSuggestion, fetchAdminQueue, reviewCompany, reviewFinding, reviewSubmission } from '../services/masterService';
+import { AdminQueue as Queue, AuditFinding, MasterCompany, ProductSubmission, AddressSuggestion, StoreCandidate, fetchStoreCandidates, reviewStoreCandidate, fetchAddressSuggestions, reviewAddressSuggestion, fetchAdminQueue, reviewCompany, reviewFinding, reviewSubmission } from '../services/masterService';
 import { formatCNPJ } from '../services/productNormalization';
 
 /* Fila única do administrador: só você decide unificar lojas, corrigir e aprovar cadastros.
@@ -11,11 +11,12 @@ const btn = 'inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl 
 const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) => {
   const [q, setQ] = useState<Queue | null>(null);
   const [addr, setAddr] = useState<AddressSuggestion[]>([]);
+  const [cands, setCands] = useState<StoreCandidate[]>([]);
   const [error, setError] = useState('');
   const [working, setWorking] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    try { setQ(await fetchAdminQueue()); setAddr(await fetchAddressSuggestions().catch(() => [])); setError(''); } catch (e: any) { setError(e?.message || 'Não consegui ler a fila.'); }
+    try { setQ(await fetchAdminQueue()); setAddr(await fetchAddressSuggestions().catch(() => [])); setCands(await fetchStoreCandidates().catch(() => [])); setError(''); } catch (e: any) { setError(e?.message || 'Não consegui ler a fila.'); }
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -34,13 +35,18 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
     try { await reviewAddressSuggestion(a.id, approve); await load(); onToast?.(approve ? 'Dado da loja atualizado.' : 'Sugestão recusada.'); }
     catch (e: any) { setError(e?.message || 'Não consegui concluir.'); } finally { setWorking(null); }
   };
+  const doCand = async (c: StoreCandidate, approve: boolean) => {
+    setWorking(`n${c.cnpj}`);
+    try { await reviewStoreCandidate(c.cnpj, approve); await load(); onToast?.(approve ? 'Loja cadastrada.' : 'Loja ignorada.'); }
+    catch (e: any) { setError(e?.message || 'Não consegui concluir.'); } finally { setWorking(null); }
+  };
   const doSub = async (s: ProductSubmission, approve: boolean) => {
     setWorking(`s${s.id}`);
     try { const c = await reviewSubmission(s.id, approve, 1); await load(); onToast?.(approve ? `Cadastro aprovado. O usuário ganhou ${c} leitura de cupom.` : 'Cadastro recusado.'); }
     catch (e: any) { setError(e?.message || 'Não consegui concluir.'); } finally { setWorking(null); }
   };
 
-  const total = q ? q.companies.length + q.findings.length + q.submissions.length + q.corrections.length + addr.length : 0;
+  const total = q ? q.companies.length + q.findings.length + q.submissions.length + q.corrections.length + addr.length + cands.length : 0;
   const cn = (d: string | null) => (d && d.length === 14 ? formatCNPJ(d) : d || '');
 
   return (
@@ -111,6 +117,26 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
             ))}
           </ul>
           {addr.length > 30 && <p className="mt-2 text-[11.5px] text-zinc-500">Mostrando 30 de {addr.length}.</p>}
+        </div>
+      )}
+
+      {q && cands.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[11px] uppercase tracking-wider text-zinc-500">Novas lojas da região (mercados, farmácias, postos) · {cands.length}</p>
+          <ul className="mt-2 space-y-2">
+            {cands.slice(0, 30).map(c => (
+              <li key={c.cnpj} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3" data-testid="admin-candidate">
+                <p className="text-[12.5px] text-zinc-100 break-words">{c.name || c.legal_name} <span className="text-[11px] text-zinc-500">· {c.grupo}</span></p>
+                <p className="text-[11.5px] text-zinc-500 break-words tabular-nums">{cn(c.cnpj)} · {c.legal_name}</p>
+                <p className="text-[11.5px] text-zinc-400 break-words">{[c.address, c.neighborhood, c.cep, c.city + '/' + c.state].filter(Boolean).join(' · ')}</p>
+                <div className="mt-2 flex gap-2">
+                  <button type="button" disabled={working === `n${c.cnpj}`} onClick={() => doCand(c, true)} className={`${btn} flex-1 bg-luxury-gold text-black`}><Check className="w-4 h-4" /> Cadastrar</button>
+                  <button type="button" disabled={working === `n${c.cnpj}`} onClick={() => doCand(c, false)} className={`${btn} flex-1 bg-white/5 border border-white/10 text-zinc-300`}>Ignorar</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {cands.length > 30 && <p className="mt-2 text-[11.5px] text-zinc-500">Mostrando 30 de {cands.length}.</p>}
         </div>
       )}
 
