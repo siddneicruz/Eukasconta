@@ -1,14 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
-  useXAxisScale, useYAxisScale, useChartWidth, usePlotArea,
 } from 'recharts';
-import { Pin, X } from 'lucide-react';
 import { PriceSeries, SeriesPoint } from '../services/productPriceStats';
 
 /* Gráfico de área do preço pago por dia, com a média do período em linha tracejada.
-   Passar o dedo/mouse mostra a legenda; clicar num ponto TRAVA o rótulo nele (clicar de novo solta),
-   e "Limpar rótulos" solta todos. */
+   Passar o dedo/mouse mostra a legenda do ponto. */
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const num = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
@@ -32,81 +29,12 @@ const fmtPct = (p: number) => `${p > 0 ? '+' : ''}${Math.round(p)}%`;
 // Mais caro que a média é ruim (vermelho); mais barato é bom (verde).
 const pctColor = (p: number, light: boolean) => (Math.abs(p) < 1 ? '#a1a1aa' : p > 0 ? (light ? '#dc2626' : '#f87171') : (light ? '#15803d' : '#34d399'));
 
-interface PinnedProps {
-  points: SeriesPoint[];
-  pins: number[];
-  avg: number;
-  light: boolean;
-}
-
-// Desenha, dentro do gráfico, o ponto destacado e a caixinha de cada rótulo travado.
-const PinnedLabels: React.FC<PinnedProps> = ({ points, pins, avg, light }) => {
-  const xScale = useXAxisScale();
-  const yScale = useYAxisScale();
-  const width = useChartWidth();
-  const plot = usePlotArea();
-  if (!xScale || !yScale || !plot || !pins.length) return null;
-
-  const boxW = 104, boxH = 50;
-  const bg = light ? '#ffffff' : '#09090b';
-  const stroke = light ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.16)';
-  const txt = light ? '#09090b' : '#fafafa';
-  const sub = light ? '#71717a' : '#a1a1aa';
-
-  return (
-    <g style={{ pointerEvents: 'none' }}>
-      {points.filter(p => pins.includes(p.t)).map(p => {
-        const cx = xScale(p.t) as number;
-        const cy = yScale(p.price) as number;
-        if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
-        const above = cy - boxH - 14 >= plot.y - 6;
-        const by = above ? cy - boxH - 14 : cy + 14;
-        const bx = Math.min(Math.max(cx - boxW / 2, 4), width - boxW - 4);
-        const d = pctVsAvg(p.price, avg);
-        return (
-          <g key={p.t} data-pin={p.date}>
-            <line x1={cx} x2={cx} y1={above ? cy - 6 : cy + 6} y2={above ? by + boxH : by} stroke="#DDB94B" strokeOpacity={0.6} strokeWidth={1} />
-            <circle cx={cx} cy={cy} r={6} fill={bg} stroke="#DDB94B" strokeWidth={2.25} />
-            <rect x={bx} y={by} width={boxW} height={boxH} rx={10} fill={bg} stroke={stroke} />
-            <text x={bx + 10} y={by + 15} fontSize={10} fontWeight={700} letterSpacing="0.04em" fill={sub}>{shortDate(p.date)}</text>
-            <text x={bx + 10} y={by + 32} fontSize={14} fontWeight={700} fill="#DDB94B" fontFamily="ui-serif, Georgia, serif">{brl.format(p.price)}</text>
-            <text x={bx + 10} y={by + 44} fontSize={10} fontWeight={700} fill={pctColor(d, light)}>{fmtPct(d)} vs média</text>
-          </g>
-        );
-      })}
-    </g>
-  );
-};
-
-interface ClickLayerProps { points: SeriesPoint[]; onPick: (t: number) => void; }
-
-// Retângulo transparente sobre a área do gráfico: o clique/toque escolhe o ponto mais próximo no eixo do tempo.
-const ClickLayer: React.FC<ClickLayerProps> = ({ points, onPick }) => {
-  const xScale = useXAxisScale();
-  const plot = usePlotArea();
-  if (!xScale || !plot || !points.length) return null;
-  const handle = (e: React.MouseEvent<SVGRectElement>) => {
-    const svg = e.currentTarget.ownerSVGElement;
-    if (!svg) return;
-    const x = e.clientX - svg.getBoundingClientRect().left;
-    let best = points[0], bestDist = Infinity;
-    points.forEach(p => {
-      const px = xScale(p.t) as number;
-      const d = Math.abs(px - x);
-      if (Number.isFinite(d) && d < bestDist) { best = p; bestDist = d; }
-    });
-    onPick(best.t);
-  };
-  return <rect className="click-layer" data-testid="click-layer" x={plot.x} y={plot.y} width={plot.width} height={plot.height} fill="transparent" style={{ cursor: 'pointer' }} onClick={handle} />;
-};
-
 // DZ lê melhor como "dúzia" (ovos)
 const unitName = (u: string) => (u === 'DZ' ? 'dúzia' : u);
 
-const HoverTip = ({ active, payload, pins, avg, unit }: any) => {
+const HoverTip = ({ active, payload, avg, unit }: any) => {
   if (!active || !payload || !payload.length) return null;
   const p: SeriesPoint = payload[0].payload;
-  if (pins.includes(p.t)) return null; // já tem rótulo fixo aqui
   const d = pctVsAvg(p.price, avg);
   return (
     <div className="bg-zinc-950 border border-white/10 px-3 py-2 rounded-xl shadow-2xl backdrop-blur-md min-w-[120px] pointer-events-none">
@@ -154,11 +82,6 @@ interface Props {
 const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange, footer }) => {
   const light = useIsLight();
   const { points, avg, unit, units } = series;
-  const [pins, setPins] = useState<number[]>([]);
-
-  // trocar de unidade ou de período limpa os rótulos travados
-  useEffect(() => { setPins([]); }, [points]);
-
   const reduced = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const view = useMemo(() => {
@@ -179,8 +102,6 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange,
     const longSpan = (last - first) / day > 45 && new Set(monthLabels).size === monthLabels.length;
     return { xLo, xHi, yLo, yHi, yTicks, ticks, fmtX: (t: number) => (longSpan ? monthYear(t) : dayMonth(t)) };
   }, [points, avg]);
-
-  const toggle = (t: number) => setPins(prev => (prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]));
 
   const gridColor = light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
   const dotFill = light ? '#ffffff' : '#121214';
@@ -222,7 +143,7 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange,
               )}
             </div>
 
-            <div className="h-[210px] md:h-[300px] -mx-2 select-none [&_.recharts-wrapper]:!outline-none [&_.recharts-surface]:!outline-none [&_svg]:!outline-none [&_.recharts-surface_*:not(.click-layer)]:!pointer-events-none" style={{ cursor: 'pointer' }}>
+            <div className="h-[210px] md:h-[300px] -mx-2 select-none [&_.recharts-wrapper]:!outline-none [&_.recharts-surface]:!outline-none [&_svg]:!outline-none">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={points} margin={{ top: 6, right: 14, left: -8, bottom: 0 }}>
                   <defs>
@@ -239,7 +160,7 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange,
                     tick={{ fill: '#8b8b95', fontSize: 11 }}
                     tickFormatter={(v: number) => (v >= 100 ? String(Math.round(v)) : Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ','))} />
                   <Tooltip cursor={{ stroke: '#DDB94B', strokeOpacity: 0.35, strokeDasharray: '3 3' }} wrapperStyle={{ pointerEvents: 'none', zIndex: 20 }}
-                    content={(p: any) => <HoverTip {...p} pins={pins} avg={avg} unit={unit} />} />
+                    content={(p: any) => <HoverTip {...p} avg={avg} unit={unit} />} />
                   {avg > 0 && (
                     <ReferenceLine y={avg} stroke={light ? '#15803d' : '#34d399'} strokeOpacity={0.85} strokeDasharray="5 5"
                       label={{ value: `média ${brl.format(avg)}`, position: 'insideBottomRight', fill: light ? '#15803d' : '#34d399', fontSize: 10, fontWeight: 700 }} />
@@ -248,24 +169,15 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange,
                     dot={points.length <= 60 ? { r: 3, fill: '#DDB94B', stroke: dotFill, strokeWidth: 1.5 } : false}
                     activeDot={{ r: 5.5, stroke: '#DDB94B', strokeWidth: 2, fill: dotFill }}
                     isAnimationActive={!reduced} animationDuration={1200} animationEasing="ease-out" />
-                  <PinnedLabels points={points} pins={pins} avg={avg} light={light} />
-                  <ClickLayer points={points} onPick={toggle} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="flex items-center justify-between gap-3 mt-3 text-xs text-zinc-500">
+            <div className="flex items-center gap-3 mt-3 text-xs text-zinc-500">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="inline-flex items-center gap-2"><span className="w-4 h-[2px] bg-luxury-gold rounded-full" /> Preço pago</span>
                 <span className="inline-flex items-center gap-2"><span className="w-4 border-t-2 border-dashed" style={{ borderColor: light ? '#15803d' : '#34d399' }} /> Média do período</span>
               </div>
-              {pins.length > 0 ? (
-                <button onClick={() => setPins([])} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-zinc-300 font-bold uppercase tracking-[0.08em] text-[11px] hover:border-luxury-gold/40 hover:text-luxury-gold transition-colors">
-                  <X className="w-3 h-3" /> Limpar rótulos ({pins.length})
-                </button>
-              ) : (
-                <span className="shrink-0 inline-flex items-center gap-1 text-zinc-600"><Pin className="w-3 h-3" /> toque num ponto para fixar</span>
-              )}
             </div>
           </>
         )}
