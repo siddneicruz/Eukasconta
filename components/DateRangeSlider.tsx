@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /* Barrinha de período com um puxador em cada ponta. Arrastar (dedo ou mouse) ou usar as setas do teclado
-   (1 dia; Shift = 7 dias). Mostra a data sob cada puxador e, abaixo, a legenda "15/11/2025 à 09/11/2026".
+   (1 dia; Shift = 7 dias) e, em cada ponta, duas setas que andam o puxador um mês. Mostra a data sob cada puxador e, abaixo, a legenda "15/11/2025 à 09/11/2026".
    As datas vão e voltam como AAAA-MM-DD; o filtro em si é de quem usa. */
 
 const DAY = 86400000;
@@ -11,8 +11,6 @@ const toIso = (idx: number) => new Date(idx * DAY).toISOString().slice(0, 10);
 const long = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const short = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 
-const ym = (iso: string) => iso.slice(0, 7);
-const monthOf = (y: number, m0: number) => ({ first: toIso(Math.round(Date.UTC(y, m0, 1) / DAY)), last: toIso(Math.round(Date.UTC(y, m0 + 1, 0) / DAY)) });
 
 const THUMB = 22;      // diâmetro visível do puxador
 const LABEL_W = 58;    // largura reservada para a data sob o puxador
@@ -115,31 +113,23 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
     lb = la + LABEL_W + 4;
   }
 
-  // setas: pulam de mês em mês (recortando nas pontas do período). Se o recorte ainda não é um mês só,
-  // a primeira setinha escolhe o mês do fim do recorte e as seguintes andam daí.
-  const single = ym(toIso(a)) === ym(toIso(b));
-  const anchor = toIso(b);
-  const curY = +anchor.slice(0, 4), curM = +anchor.slice(5, 7) - 1;
-  const minYm = ym(min), maxYm = ym(max);
-  const goMonth = (y: number, m0: number) => {
-    const { first, last } = monthOf(y, m0);
-    onChange(first < min ? min : first, last > max ? max : last);
-  };
-  const step = (dir: -1 | 1) => {
-    if (!single) { goMonth(curY, curM); return; }
-    const d = new Date(Date.UTC(curY, curM + dir, 1));
-    goMonth(d.getUTCFullYear(), d.getUTCMonth());
-  };
-  const prevYm = ym(new Date(Date.UTC(curY, curM - 1, 1)).toISOString());
-  const nextYm = ym(new Date(Date.UTC(curY, curM + 1, 1)).toISOString());
-  const canPrev = single ? prevYm >= minYm : true;
-  const canNext = single ? nextYm <= maxYm : false;
+  // Duas setas em cada ponta: voltam / avançam o puxador daquele lado um mês por vez, sempre caindo no
+  // começo do mês (puxador de início) ou no fim do mês (puxador de fim), sem passar das pontas do período.
+  const isoA = toIso(a), isoB = toIso(b);
+  const firstOfMonth = (iso: string, add: number) => { const d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1 + add, 1)); return d.toISOString().slice(0, 10); };
+  const lastOfMonth = (iso: string, add: number) => { const d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) + add, 0)); return d.toISOString().slice(0, 10); };
+  const dayBefore = (iso: string) => toIso(toIdx(iso) - 1);
 
-  const arrow = (dir: -1 | 1, enabled: boolean) => (
-    <button type="button" disabled={!enabled} onClick={() => step(dir)}
-      aria-label={dir < 0 ? 'Mês anterior' : 'Próximo mês'} data-testid={`${testId}-${dir < 0 ? 'prev' : 'next'}`}
-      className="shrink-0 w-9 h-9 -mt-3 flex items-center justify-center rounded-full text-zinc-500 hover:text-luxury-gold active:bg-white/5 disabled:opacity-25 disabled:hover:text-zinc-500 transition-colors">
-      {dir < 0 ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+  const startBack = isoA > min ? (() => { const t = firstOfMonth(dayBefore(isoA), 0); return t < min ? min : t; })() : null;
+  const startFwd = (() => { const t = firstOfMonth(isoA, 1); return t <= isoB ? t : null; })();
+  const endBack = (() => { const t = lastOfMonth(isoB, -1); return t >= isoA && t >= min && isoB > min ? t : null; })();
+  const endFwd = isoB < max ? (() => { const t = isoB < lastOfMonth(isoB, 0) ? lastOfMonth(isoB, 0) : lastOfMonth(isoB, 1); return t > max ? max : t; })() : null;
+
+  const arrow = (id: string, label: string, dir: -1 | 1, target: string | null, apply: (t: string) => void) => (
+    <button type="button" disabled={target === null} onClick={() => target !== null && apply(target)}
+      aria-label={label} data-testid={`${testId}-${id}`}
+      className="shrink-0 w-6 h-9 -mt-3 flex items-center justify-center rounded-full text-zinc-500 hover:text-luxury-gold active:bg-white/5 disabled:opacity-25 disabled:hover:text-zinc-500 transition-colors">
+      {dir < 0 ? <ChevronLeft className="w-[18px] h-[18px]" /> : <ChevronRight className="w-[18px] h-[18px]" />}
     </button>
   );
 
@@ -168,7 +158,10 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
   return (
     <div className="select-none" data-testid={testId}>
       <div className="flex items-center gap-1">
-      {arrow(-1, canPrev)}
+      <div className="flex shrink-0">
+        {arrow('start-back', 'Início: voltar um mês', -1, startBack, t => onChange(t, toIso(b)))}
+        {arrow('start-fwd', 'Início: avançar um mês', 1, startFwd, t => onChange(t, toIso(b)))}
+      </div>
       <div className="flex-1 min-w-0">
       <div ref={trackRef} className="relative h-11 cursor-pointer" style={{ touchAction: 'none' }} onPointerDown={onTrackDown}>
         {/* trilho */}
@@ -186,7 +179,10 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
         <span className="absolute whitespace-nowrap text-center" style={{ left: lb, width: LABEL_W }}>{short(toIso(b))}</span>
       </div>
       </div>
-      {arrow(1, canNext)}
+      <div className="flex shrink-0">
+        {arrow('end-back', 'Fim: voltar um mês', -1, endBack, t => onChange(toIso(a), t))}
+        {arrow('end-fwd', 'Fim: avançar um mês', 1, endFwd, t => onChange(toIso(a), t))}
+      </div>
       </div>
 
       {/* legenda do período */}
