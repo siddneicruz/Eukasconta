@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /* Barrinha de período com um puxador em cada ponta. Arrastar (dedo ou mouse) ou usar as setas do teclado
@@ -9,6 +10,9 @@ const toIdx = (iso: string) => Math.round(Date.UTC(+iso.slice(0, 4), +iso.slice(
 const toIso = (idx: number) => new Date(idx * DAY).toISOString().slice(0, 10);
 const long = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const short = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
+
+const ym = (iso: string) => iso.slice(0, 7);
+const monthOf = (y: number, m0: number) => ({ first: toIso(Math.round(Date.UTC(y, m0, 1) / DAY)), last: toIso(Math.round(Date.UTC(y, m0 + 1, 0) / DAY)) });
 
 const THUMB = 22;      // diâmetro visível do puxador
 const LABEL_W = 58;    // largura reservada para a data sob o puxador
@@ -111,6 +115,34 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
     lb = la + LABEL_W + 4;
   }
 
+  // setas: pulam de mês em mês (recortando nas pontas do período). Se o recorte ainda não é um mês só,
+  // a primeira setinha escolhe o mês do fim do recorte e as seguintes andam daí.
+  const single = ym(toIso(a)) === ym(toIso(b));
+  const anchor = toIso(b);
+  const curY = +anchor.slice(0, 4), curM = +anchor.slice(5, 7) - 1;
+  const minYm = ym(min), maxYm = ym(max);
+  const goMonth = (y: number, m0: number) => {
+    const { first, last } = monthOf(y, m0);
+    onChange(first < min ? min : first, last > max ? max : last);
+  };
+  const step = (dir: -1 | 1) => {
+    if (!single) { goMonth(curY, curM); return; }
+    const d = new Date(Date.UTC(curY, curM + dir, 1));
+    goMonth(d.getUTCFullYear(), d.getUTCMonth());
+  };
+  const prevYm = ym(new Date(Date.UTC(curY, curM - 1, 1)).toISOString());
+  const nextYm = ym(new Date(Date.UTC(curY, curM + 1, 1)).toISOString());
+  const canPrev = single ? prevYm >= minYm : true;
+  const canNext = single ? nextYm <= maxYm : false;
+
+  const arrow = (dir: -1 | 1, enabled: boolean) => (
+    <button type="button" disabled={!enabled} onClick={() => step(dir)}
+      aria-label={dir < 0 ? 'Mês anterior' : 'Próximo mês'} data-testid={`${testId}-${dir < 0 ? 'prev' : 'next'}`}
+      className="shrink-0 w-9 h-9 -mt-3 flex items-center justify-center rounded-full text-zinc-500 hover:text-luxury-gold active:bg-white/5 disabled:opacity-25 disabled:hover:text-zinc-500 transition-colors">
+      {dir < 0 ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+    </button>
+  );
+
   const thumb = (which: 'from' | 'to', x: number, val: string) => {
     const active = drag === which;
     return (
@@ -135,6 +167,9 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
 
   return (
     <div className="select-none" data-testid={testId}>
+      <div className="flex items-center gap-1">
+      {arrow(-1, canPrev)}
+      <div className="flex-1 min-w-0">
       <div ref={trackRef} className="relative h-11 cursor-pointer" style={{ touchAction: 'none' }} onPointerDown={onTrackDown}>
         {/* trilho */}
         <div className="absolute left-[11px] right-[11px] top-1/2 -mt-[2px] h-1 rounded-full bg-white/10" />
@@ -149,6 +184,9 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
       <div className="relative h-4 -mt-1 text-[11px] font-bold tabular-nums text-luxury-gold" aria-hidden="true">
         <span className="absolute whitespace-nowrap text-center" style={{ left: la, width: LABEL_W }}>{short(toIso(a))}</span>
         <span className="absolute whitespace-nowrap text-center" style={{ left: lb, width: LABEL_W }}>{short(toIso(b))}</span>
+      </div>
+      </div>
+      {arrow(1, canNext)}
       </div>
 
       {/* legenda do período */}
