@@ -148,9 +148,10 @@ interface Props {
   series: PriceSeries;
   periodTitle: string;
   onUnitChange?: (unit: string) => void;
+  footer?: React.ReactNode;   // abaixo do gráfico (ex.: barrinha de período)
 }
 
-const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange }) => {
+const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange, footer }) => {
   const light = useIsLight();
   const { points, avg, unit, units } = series;
   const [pins, setPins] = useState<number[]>([]);
@@ -268,6 +269,7 @@ const ProductPriceChart: React.FC<Props> = ({ series, periodTitle, onUnitChange 
             </div>
           </>
         )}
+        {footer && <div className="mt-4 pt-3 border-t border-white/5">{footer}</div>}
       </div>
     </div>
   );

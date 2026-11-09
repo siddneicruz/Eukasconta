@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { TrendingDown, TrendingUp, DollarSign } from 'lucide-react';
 import ProductPriceChart from './ProductPriceChart';
+import DateRangeSlider from './DateRangeSlider';
 import { HistoryItem, buildPriceSeries, normalizeUnit } from '../services/productPriceStats';
 import { titleCase } from '../services/textFormat';
 
@@ -15,6 +16,8 @@ interface Props {
   title: string;        // nome do item ou da busca
   periodTitle: string;  // "Outubro de 2026"
   testId?: string;
+  // quem usa pode acompanhar o recorte escolhido na barrinha (null = período inteiro), p.ex. para filtrar a lista
+  onRangeChange?: (r: { from: string; to: string } | null) => void;
 }
 
 const Cell = ({ icon: Icon, color, label, value, sub, title }: any) => (
@@ -28,13 +31,30 @@ const Cell = ({ icon: Icon, color, label, value, sub, title }: any) => (
   </div>
 );
 
-const ItemPriceInsight: React.FC<Props> = ({ items, title, periodTitle, testId = 'item-price' }) => {
+const longDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
+const ItemPriceInsight: React.FC<Props> = ({ items: allItems, title, periodTitle, testId = 'item-price', onRangeChange }) => {
   const [unit, setUnit] = useState('');
-  useEffect(() => { setUnit(''); }, [title]);
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
+  useEffect(() => { setUnit(''); setRange(null); }, [title]);
+  useEffect(() => { onRangeChange?.(range); }, [range]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // limites do período inteiro e recorte escolhido na barrinha
+  const bounds = useMemo(() => {
+    if (!allItems.length) return null;
+    let mn = allItems[0].date, mx = allItems[0].date;
+    allItems.forEach(i => { if (i.date < mn) mn = i.date; if (i.date > mx) mx = i.date; });
+    return { min: mn, max: mx };
+  }, [allItems]);
+  const clipped = !!range && !!bounds && (range.from > bounds.min || range.to < bounds.max);
+  const items = useMemo(
+    () => (clipped && range ? allItems.filter(i => i.date >= range.from && i.date <= range.to) : allItems),
+    [allItems, clipped, range]
+  );
   const series = useMemo(() => buildPriceSeries(items, unit), [items, unit]);
 
   // menor e teto olhando cada compra (não a média do dia), na unidade que está no gráfico
-  const range = useMemo(() => {
+  const rng = useMemo(() => {
     const sel = items.filter(i => i.unitPrice > 0 && normalizeUnit(i.unitType) === series.unit);
     if (!sel.length) return null;
     let lo = sel[0], hi = sel[0];
@@ -47,17 +67,24 @@ const ItemPriceInsight: React.FC<Props> = ({ items, title, periodTitle, testId =
 
   return (
     <div className="space-y-3" data-testid={testId}>
-      {range && (
+      {rng && (
         <div className="bg-black/60 border border-white/10 rounded-2xl grid grid-cols-3 divide-x divide-white/5 shadow-lg" data-testid={`${testId}-strip`}>
-          <Cell icon={TrendingDown} color="text-emerald-500" label="Menor" value={brl.format(range.lo.unitPrice)}
-            sub={shortDate(range.lo.date)} title={`${titleCase(range.lo.establishment)} · ${series.unit}`} />
+          <Cell icon={TrendingDown} color="text-emerald-500" label="Menor" value={brl.format(rng.lo.unitPrice)}
+            sub={shortDate(rng.lo.date)} title={`${titleCase(rng.lo.establishment)} · ${series.unit}`} />
           <Cell icon={DollarSign} color="text-luxury-gold" label="Médio" value={brl.format(series.avg)}
-            sub={`${range.n} ${range.n === 1 ? 'compra' : 'compras'}`} />
-          <Cell icon={TrendingUp} color="text-red-500" label="Teto" value={brl.format(range.hi.unitPrice)}
-            sub={shortDate(range.hi.date)} title={`${titleCase(range.hi.establishment)} · ${series.unit}`} />
+            sub={`${rng.n} ${rng.n === 1 ? 'compra' : 'compras'}`} />
+          <Cell icon={TrendingUp} color="text-red-500" label="Teto" value={brl.format(rng.hi.unitPrice)}
+            sub={shortDate(rng.hi.date)} title={`${titleCase(rng.hi.establishment)} · ${series.unit}`} />
         </div>
       )}
-      <ProductPriceChart series={series} periodTitle={`${title} · ${periodTitle}`} onUnitChange={setUnit} />
+      <ProductPriceChart series={series} onUnitChange={setUnit}
+        periodTitle={`${title} · ${clipped && range ? `${longDate(range.from)} à ${longDate(range.to)}` : periodTitle}`}
+        footer={bounds && bounds.min < bounds.max ? (
+          <DateRangeSlider min={bounds.min} max={bounds.max}
+            from={range ? range.from : bounds.min} to={range ? range.to : bounds.max}
+            onChange={(f, t) => setRange(f <= bounds.min && t >= bounds.max ? null : { from: f, to: t })}
+            testId={`${testId}-range`} />
+        ) : undefined} />
     </div>
   );
 };

@@ -110,7 +110,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
   }, [armedId]);
   useEffect(() => () => cancelPress(), []);
 
-  const filteredReceipts = useMemo(() => {
+  const baseReceipts = useMemo(() => {
     const term = normalizeText(searchTerm);
     const itemMatch = itemFilter ? makeItemMatcher(itemFilter) : null;
     
@@ -139,6 +139,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
         return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount;
     });
   }, [receipts, searchTerm, establishmentFilter, selectedCategories, sortType, sortOrder, itemFilter, nameOf, storeCheck]);
+
+  // Recorte de datas escolhido na barrinha do gráfico de preço (só vale na busca por item)
+  const [histRange, setHistRange] = useState<{ from: string; to: string } | null>(null);
+  const filteredReceipts = useMemo(() => {
+    const active = !!histRange && !!(itemFilter || textFilter(searchTerm));
+    return active && histRange ? baseReceipts.filter(r => r.date >= histRange.from && r.date <= histRange.to) : baseReceipts;
+  }, [baseReceipts, histRange, itemFilter, searchTerm]);
 
   // Agrupamento para exibição por mês (Timeline)
   const groupedReceipts = useMemo(() => {
@@ -172,6 +179,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
       return m;
   }, [filteredReceipts, searchMatcher]);
   const priceItems = useMemo(() => (searchMatcher ? toHistoryItems(filteredReceipts, searchMatcher, nameOf) : []), [filteredReceipts, searchMatcher, nameOf]);
+  // o gráfico olha o período inteiro (a barrinha é que recorta); a lista e a contagem seguem o recorte
+  const priceItemsAll = useMemo(() => (searchMatcher ? toHistoryItems(baseReceipts, searchMatcher, nameOf) : []), [baseReceipts, searchMatcher, nameOf]);
   const priceFor = (r: Receipt) => (itemFilter && rowInfo.get(r.id) ? rowInfo.get(r.id)!.subtotal : (Number(r.totalAmount) || 0));
   const itemPeriodTitle = useMemo(() => 'Todo o histórico', []);
 
@@ -285,9 +294,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
         </div>
       )}
       <div className="flex-1 overflow-visible md:overflow-y-auto ls:overflow-y-auto space-y-10 pr-2 pb-20 custom-scrollbar relative z-10">
-        {priceItems.length > 0 && (
+        {priceItemsAll.length > 0 && (
           <div data-testid="hist-price-section">
-              <ItemPriceInsight items={priceItems} title={searchTitle} periodTitle={itemPeriodTitle} testId="hist-price" />
+              <ItemPriceInsight items={priceItemsAll} title={searchTitle} periodTitle={itemPeriodTitle} testId="hist-price" onRangeChange={setHistRange} />
           </div>
         )}
         {monthGroups.length === 0 ? (
