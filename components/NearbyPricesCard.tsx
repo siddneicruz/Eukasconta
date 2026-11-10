@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Loader2, TrendingDown, BellPlus, Navigation, UserRound } from 'lucide-react';
 import type { CloudApi } from '../services/useCloud';
-import type { NearbyPrice, ResolvedItem } from '../services/cloudService';
+import type { NearbyPrice, ProduceQuality, ResolvedItem } from '../services/cloudService';
 import type { AlertDraft } from './AlertsView';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -28,6 +28,7 @@ const NearbyPricesCard: React.FC<Props> = ({ cloud, sample, onCreateAlert, onGoT
   const [radius, setRadius] = useState(10);
   const [rows, setRows] = useState<NearbyPrice[]>([]);
   const [resolved, setResolved] = useState<ResolvedItem | null>(null);
+  const [quality, setQuality] = useState<Record<string, ProduceQuality>>({});
   const [message, setMessage] = useState<string | null>(null);
 
   if (!cloud.available || !sample) return null;
@@ -36,7 +37,7 @@ const NearbyPricesCard: React.FC<Props> = ({ cloud, sample, onCreateAlert, onGoT
     setState('loading'); setMessage(null); setRadius(km);
     try {
       const res = await cloud.findNearby({ description: sample.description, cnpj: sample.cnpj, unitType: sample.unitType }, km);
-      setResolved(res.resolved); setRows(res.rows);
+      setResolved(res.resolved); setRows(res.rows); setQuality(res.quality || {});
       setState('done');
     } catch (e: any) {
       setMessage(e.message || 'Não consegui buscar agora.');
@@ -104,12 +105,18 @@ const NearbyPricesCard: React.FC<Props> = ({ cloud, sample, onCreateAlert, onGoT
           ) : (
             <div className="rounded-xl border border-white/5 overflow-hidden divide-y divide-white/5" data-testid="nearby-list">
               {sameUnit.slice(0, 6).map((r, i) => {
+                const q = quality[r.establishment_id];
                 const diff = sample.unitPrice > 0 ? ((r.unit_price - sample.unitPrice) / sample.unitPrice) * 100 : null;
                 return (
                   <div key={r.establishment_id} data-nearby={r.establishment_id} className="flex items-center gap-3 px-4 py-3 bg-black/30">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-zinc-200 truncate">{titleCase(r.establishment_name)}</p>
                       <p className="text-xs text-zinc-500 truncate mt-0.5">{String(r.distance_km).replace('.', ',')} km · visto em {dayMonth(r.observed_on)}{r.address ? ` · ${r.address}` : ''}</p>
+                      {q && (q.avg_score !== null
+                        ? <p className="text-xs mt-1 font-bold" data-testid="nearby-quality" style={{ color: q.avg_score >= 7 ? '#34d399' : q.avg_score >= 4 ? '#DDB94B' : '#f87171' }}>
+                            ★ {String(q.avg_score).replace('.', ',')} <span className="font-normal text-zinc-500">qualidade · {q.n} avaliações</span>
+                          </p>
+                        : <p className="text-xs mt-1 text-zinc-500" data-testid="nearby-quality">Qualidade: poucas avaliações ({q.n})</p>)}
                     </div>
                     <div className="text-right shrink-0">
                       <span className={`block text-sm font-mono font-bold tabular-nums ${i === 0 ? 'text-emerald-400' : 'text-white'}`}>{brl.format(r.unit_price)}</span>

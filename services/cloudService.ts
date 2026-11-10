@@ -99,6 +99,18 @@ export interface NearbyPrice {
   observed_on: string;
 }
 
+export interface ProduceQuality {
+  establishment_id: string;
+  avg_score: number | null;   // média 0 a 10 (só com 5 notas ou mais)
+  n: number;                  // quantas notas nos últimos 14 dias
+}
+
+export interface ProduceRatingInput {
+  description: string;
+  unit_type?: string;
+  score: number;              // 0 a 10
+}
+
 export interface ResolvedItem {
   input: string;
   master_product_id: string | null;
@@ -207,6 +219,15 @@ export const bestPricesNearby = async (masterId: string, at: Coords, radiusKm = 
     p_master_product_id: masterId, p_lat: at.lat, p_lng: at.lng, p_radius_km: radiusKm, p_days: days,
   });
   return (rows || []).map(r => ({ ...r, distance_km: num(r.distance_km), unit_price: num(r.unit_price) }));
+};
+
+export const rateProduce = (cnpj: string, receiptRef: string, items: ProduceRatingInput[]): Promise<number> =>
+  rpc<number>('rate_produce', { p_cnpj: cleanCNPJ(cnpj), p_receipt_ref: receiptRef, p_items: items });
+
+export const produceQuality = async (masterId: string, establishmentIds: string[], days = 14): Promise<ProduceQuality[]> => {
+  if (!establishmentIds.length) return [];
+  const rows = await rpc<any[]>('produce_quality', { p_master_product_id: masterId, p_establishment_ids: establishmentIds, p_days: days });
+  return (rows || []).map(r => ({ establishment_id: r.establishment_id, avg_score: r.avg_score === null ? null : num(r.avg_score), n: num(r.n) }));
 };
 
 export const getCurrentPosition = (): Promise<Coords> =>

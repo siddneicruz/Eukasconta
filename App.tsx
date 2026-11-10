@@ -30,6 +30,8 @@ import ManualEntryForm from './components/ManualEntryForm';
 import ImportLogViewer, { ImportLogEntry } from './components/ImportLogViewer';
 import AlertsView, { AlertDraft } from './components/AlertsView';
 import ScanSuggestionsSheet from './components/ScanSuggestionsSheet';
+import { isValidCNPJ } from './services/registryLookupService';
+import ProduceRatingSheet, { ProduceRateItem } from './components/ProduceRatingSheet';
 import { useCloud } from './services/useCloud';
 import { useCloudBackup } from './services/useCloudBackup';
 import { useRestorePoints } from './services/useRestorePoints';
@@ -842,9 +844,41 @@ const App: React.FC = () => {
       setReceipts(prev => prev.some(isDup) ? prev : [a, ...prev]);
       return true;
   };
+  // Cartão "Como estava o hortifruti?" depois de ler um cupom (só com conta; no máximo 5 itens, um cupom por vez)
+  const [rateQueue, setRateQueue] = useState<{ ref: string; cnpj: string; store: string; items: ProduceRateItem[] } | null>(null);
+  const queueProduceRating = (list: Receipt[]) => {
+      if (!cloud.user) return;
+      let done: string[] = [];
+      try { done = JSON.parse(localStorage.getItem('ek_rated_receipts') || '[]'); } catch { /* sem registro */ }
+      for (const r of list) {
+          if (!isValidCNPJ(r.cnpj) || done.includes(r.id)) continue;
+          const seen = new Set<string>();
+          const items: ProduceRateItem[] = [];
+          for (const it of r.items) {
+              if (!/^hortifruti/i.test((it.category || '').trim())) continue;
+              const key = (it.description || '').toLowerCase().replace(/\s+/g, ' ').trim();
+              if (!key || seen.has(key)) continue;
+              seen.add(key);
+              items.push({ description: it.description, unitType: it.unitType });
+              if (items.length >= 5) break;
+          }
+          if (items.length) { setRateQueue({ ref: r.id, cnpj: r.cnpj, store: r.establishmentName, items }); return; }
+      }
+  };
+  const submitProduceRatings = async (rated: { description: string; unit_type?: string; score: number }[]) => {
+      if (!rateQueue) return;
+      try {
+          const saved = await cloud.rateProduce(rateQueue.cnpj, rateQueue.ref, rated);
+          try {
+              const done: string[] = JSON.parse(localStorage.getItem('ek_rated_receipts') || '[]');
+              localStorage.setItem('ek_rated_receipts', JSON.stringify([...done, rateQueue.ref].slice(-500)));
+          } catch { /* sem registro */ }
+          showNotification(saved > 0 ? 'Obrigado! Suas notas ajudam quem compra depois.' : 'Notas recebidas. Elas aparecem quando a loja e o produto estiverem no cadastro comum.', 5000);
+      } catch (e: any) { showNotification(e?.message || 'Não consegui enviar as notas agora.', 5000); }
+  };
   const finishScan = (s: ScanSummary) => {
       const n = s.added.length;
-      if (n > 0) cloud.contribute(s.added.map(auditAndRepairReceipt));
+      if (n > 0) { cloud.contribute(s.added.map(auditAndRepairReceipt)); queueProduceRating(s.added); }
       const saved = `${n} ${n === 1 ? 'cupom salvo' : 'cupons salvos'}`;
       const dupNote = s.duplicates > 0 ? `; ${s.duplicates} já ${s.duplicates === 1 ? 'existia' : 'existiam'}` : '';
       const onScanner = viewRef.current === 'scanner';
@@ -1671,6 +1705,9 @@ const App: React.FC = () => {
         />
       )}
       {cloud.suggestions.length > 0 && <ScanSuggestionsSheet groups={cloud.suggestions} onClose={cloud.dismissSuggestions} onCreateAlert={openAlertDraft} />}
+      {rateQueue && cloud.suggestions.length === 0 && (
+        <ProduceRatingSheet store={rateQueue.store} items={rateQueue.items} onSubmit={submitProduceRatings} onClose={() => setRateQueue(null)} />
+      )}
       {notification && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] bg-zinc-900 border border-luxury-gold/30 text-white px-6 py-3 rounded-3xl w-max max-w-[90vw] text-sm animate-in slide-in-from-bottom-5 flex items-center gap-2 shadow-2xl"><CheckCircle2 className="w-5 h-5 text-luxury-gold shrink-0" /> <span>{notification}</span></div>}
       
       <ImportLogViewer 

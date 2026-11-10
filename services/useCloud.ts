@@ -289,12 +289,15 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
   const findNearby = useCallback(async (
     sample: { description: string; cnpj: string; unitType?: string },
     radiusKm = 10
-  ): Promise<{ resolved: ResolvedItem | null; rows: NearbyPrice[]; origin: cloud.Coords }> => {
+  ): Promise<{ resolved: ResolvedItem | null; rows: NearbyPrice[]; origin: cloud.Coords; quality: Record<string, cloud.ProduceQuality> }> => {
     const origin = await cloud.getCurrentPosition();
     const [resolved] = await cloud.resolveItems(sample.cnpj, [{ description: sample.description, unit_type: sample.unitType || 'UN' }]);
-    if (!resolved?.master_product_id) return { resolved: null, rows: [], origin };
+    if (!resolved?.master_product_id) return { resolved: null, rows: [], origin, quality: {} };
     const rows = await cloud.bestPricesNearby(resolved.master_product_id, origin, radiusKm, 60);
-    return { resolved, rows, origin };
+    // nota de qualidade por loja (só existe para hortifruti avaliado); se falhar, o preço aparece igual
+    const quality: Record<string, cloud.ProduceQuality> = {};
+    try { (await cloud.produceQuality(resolved.master_product_id, rows.map(r => r.establishment_id))).forEach(q => { quality[q.establishment_id] = q; }); } catch { /* sem nota */ }
+    return { resolved, rows, origin, quality };
   }, []);
 
   return {
@@ -306,6 +309,7 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
     refreshNotifications, markRead, removeNotification,
     refreshAlerts, addAlert, toggleAlert, removeAlert,
     findNearby,
+    rateProduce: cloud.rateProduce,
     searchProducts: cloud.searchProducts,
     getCurrentPosition: cloud.getCurrentPosition,
   };
