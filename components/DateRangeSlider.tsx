@@ -1,8 +1,8 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /* Barrinha de período com um puxador em cada ponta. Arrastar (dedo ou mouse) ou usar as setas do teclado
-   (1 dia; Shift = 7 dias) e, em cada ponta, duas setas que andam o puxador um mês. Mostra a data sob cada puxador e, abaixo, a legenda "15/11/2025 à 09/11/2026".
+   (1 dia; Shift = 7 dias) e, em cada ponta, duas setas empilhadas (cima abre, baixo fecha) que andam o puxador um mês. Mostra a data sob cada puxador e, abaixo, a legenda "15/11/2025 à 09/11/2026".
    As datas vão e voltam como AAAA-MM-DD; o filtro em si é de quem usa. */
 
 const DAY = 86400000;
@@ -125,12 +125,16 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
   const endBack = (() => { const t = lastOfMonth(isoB, -1); return t >= isoA && t >= min && isoB > min ? t : null; })();
   const endFwd = isoB < max ? (() => { const t = isoB < lastOfMonth(isoB, 0) ? lastOfMonth(isoB, 0) : lastOfMonth(isoB, 1); return t > max ? max : t; })() : null;
 
-  const arrow = (id: string, label: string, dir: -1 | 1, target: string | null, apply: (t: string) => void) => (
+  // seta para cima ABRE o período (puxador sai para fora); seta para baixo FECHA (puxador entra)
+  const arrow = (id: string, label: string, up: boolean, target: string | null, apply: (t: string) => void) => (
     <button type="button" disabled={target === null} onClick={() => target !== null && apply(target)}
       aria-label={label} data-testid={`${testId}-${id}`}
-      className="shrink-0 w-6 h-9 -mt-3 flex items-center justify-center rounded-full text-zinc-500 hover:text-luxury-gold active:bg-white/5 disabled:opacity-25 disabled:hover:text-zinc-500 transition-colors">
-      {dir < 0 ? <ChevronLeft className="w-[18px] h-[18px]" /> : <ChevronRight className="w-[18px] h-[18px]" />}
+      className="w-7 h-[22px] flex items-center justify-center text-zinc-500 hover:text-luxury-gold active:text-luxury-gold active:bg-white/5 disabled:opacity-25 disabled:hover:text-zinc-500 transition-colors">
+      {up ? <ChevronUp className="w-4 h-4" strokeWidth={2.25} /> : <ChevronDown className="w-4 h-4" strokeWidth={2.25} />}
     </button>
+  );
+  const stack = (top: React.ReactNode, bottom: React.ReactNode) => (
+    <div className="shrink-0 -mt-3 flex flex-col overflow-hidden rounded-full bg-white/5 border border-white/10 divide-y divide-white/5">{top}{bottom}</div>
   );
 
   const thumb = (which: 'from' | 'to', x: number, val: string) => {
@@ -158,10 +162,10 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
   return (
     <div className="select-none" data-testid={testId}>
       <div className="flex items-center gap-1">
-      <div className="flex shrink-0">
-        {arrow('start-back', 'Início: voltar um mês', -1, startBack, t => onChange(t, toIso(b)))}
-        {arrow('start-fwd', 'Início: avançar um mês', 1, startFwd, t => onChange(t, toIso(b)))}
-      </div>
+      {stack(
+        arrow('start-back', 'Início: abrir o período (voltar um mês)', true, startBack, t => onChange(t, toIso(b))),
+        arrow('start-fwd', 'Início: fechar o período (avançar um mês)', false, startFwd, t => onChange(t, toIso(b)))
+      )}
       <div className="flex-1 min-w-0">
       <div ref={trackRef} className="relative h-11 cursor-pointer" style={{ touchAction: 'none' }} onPointerDown={onTrackDown}>
         {/* trilho */}
@@ -179,10 +183,10 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
         <span className="absolute whitespace-nowrap text-center" style={{ left: lb, width: LABEL_W }}>{short(toIso(b))}</span>
       </div>
       </div>
-      <div className="flex shrink-0">
-        {arrow('end-back', 'Fim: voltar um mês', -1, endBack, t => onChange(toIso(a), t))}
-        {arrow('end-fwd', 'Fim: avançar um mês', 1, endFwd, t => onChange(toIso(a), t))}
-      </div>
+      {stack(
+        arrow('end-fwd', 'Fim: abrir o período (avançar um mês)', true, endFwd, t => onChange(toIso(a), t)),
+        arrow('end-back', 'Fim: fechar o período (voltar um mês)', false, endBack, t => onChange(toIso(a), t))
+      )}
       </div>
 
       {/* legenda do período */}
