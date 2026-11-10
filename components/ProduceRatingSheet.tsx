@@ -6,9 +6,12 @@ import { Leaf, X, Check } from 'lucide-react';
 
 export interface ProduceRateItem { description: string; unitType?: string; }
 
+// Cinco níveis na escala 0–10 (2/4/6/8/10). Notas antigas de 2, 6 e 10 continuam valendo.
 const OPTIONS = [
-  { score: 2, emoji: '😞', label: 'Ruim' },
-  { score: 6, emoji: '😐', label: 'Ok' },
+  { score: 2, emoji: '🤢', label: 'Péssimo' },
+  { score: 4, emoji: '😞', label: 'Ruim' },
+  { score: 6, emoji: '😐', label: 'Razoável' },
+  { score: 8, emoji: '🙂', label: 'Ok' },
   { score: 10, emoji: '😍', label: 'Ótimo' },
 ];
 
@@ -67,12 +70,12 @@ const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }
             <div className="rounded-xl border border-white/10 bg-black/40 p-3" data-testid="produce-all">
               <p className="text-sm text-zinc-200 mb-1">Todo o hortifruti deste cupom</p>
               <p className="text-xs text-zinc-500 mb-3 leading-relaxed">{items.map(it => titleCase(cleanName(it.description))).join(', ')}</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {OPTIONS.map(o => {
                   const on = all === o.score;
                   return (
                     <button key={o.score} type="button" aria-pressed={on} data-testid={`produce-all-${o.score}`} onClick={() => setAll(on ? null : o.score)}
-                      className={`h-12 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/60 text-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 active:bg-white/10'}`}>
+                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/60 text-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 active:bg-white/10'}`}>
                       <span className="text-lg leading-none">{o.emoji}</span>{o.label}
                     </button>
                   );
@@ -82,13 +85,13 @@ const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }
           ) : items.map((it, i) => (
             <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-3" data-testid="produce-row">
               <p className="text-sm text-zinc-200 mb-2 truncate">{titleCase(cleanName(it.description))}</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {OPTIONS.map(o => {
                   const on = scores[i] === o.score;
                   return (
                     <button key={o.score} type="button" aria-pressed={on} data-testid={`produce-${i}-${o.score}`}
                       onClick={() => setScores(p => { const n = { ...p }; if (n[i] === o.score) delete n[i]; else n[i] = o.score; return n; })}
-                      className={`h-12 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/60 text-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 active:bg-white/10'}`}>
+                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/60 text-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 active:bg-white/10'}`}>
                       <span className="text-lg leading-none">{o.emoji}</span>{o.label}
                     </button>
                   );
