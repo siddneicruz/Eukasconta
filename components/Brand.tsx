@@ -31,8 +31,11 @@ export const PDMark: React.FC<{ className?: string; title?: string }> = ({ class
   </svg>
 );
 
+const PD_LOGO_CUT = 476;
+
 export const PDLogo: React.FC<{ className?: string; title?: string }> = ({ className = '', title = 'Projeto Design' }) => (
-  <svg viewBox={`0 0 ${PD_LOGO.w} ${PD_LOGO.h}`} className={className} fill="currentColor" fillRule="evenodd" role="img" aria-label={title}>
+  // A logo original traz, abaixo do nome, a linha "Criação, Projeto, Desenhos Técnicos e Manuais"; o corte na altura 476 deixa só o hexágono e o nome.
+  <svg viewBox={`0 0 ${PD_LOGO.w} ${PD_LOGO_CUT}`} className={className} fill="currentColor" fillRule="evenodd" role="img" aria-label={title}>
     <path d={PD_LOGO.d} />
   </svg>
 );
