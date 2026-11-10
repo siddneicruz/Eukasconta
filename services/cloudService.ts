@@ -103,6 +103,8 @@ export interface ProduceQuality {
   establishment_id: string;
   avg_score: number | null;   // média 0 a 10 (só com 5 notas ou mais)
   n: number;                  // quantas notas nos últimos 14 dias
+  locked: boolean;            // tanque vazio: a nota fica trancada até a pessoa avaliar
+  tank: number;               // o que sobrou no tanque (0 a 20)
 }
 
 export interface ProduceRatingInput {
@@ -227,7 +229,7 @@ export const rateProduce = (cnpj: string, receiptRef: string, items: ProduceRati
 export const produceQuality = async (masterId: string, establishmentIds: string[], days = 14): Promise<ProduceQuality[]> => {
   if (!establishmentIds.length) return [];
   const rows = await rpc<any[]>('produce_quality', { p_master_product_id: masterId, p_establishment_ids: establishmentIds, p_days: days });
-  return (rows || []).map(r => ({ establishment_id: r.establishment_id, avg_score: r.avg_score === null ? null : num(r.avg_score), n: num(r.n) }));
+  return (rows || []).map(r => ({ establishment_id: r.establishment_id, avg_score: r.avg_score === null ? null : num(r.avg_score), n: num(r.n), locked: !!r.locked, tank: num(r.tank) }));
 };
 
 export const getCurrentPosition = (): Promise<Coords> =>

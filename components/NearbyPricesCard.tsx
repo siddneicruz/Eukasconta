@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Loader2, TrendingDown, BellPlus, Navigation, UserRound } from 'lucide-react';
+import { MapPin, Loader2, TrendingDown, BellPlus, Navigation, UserRound, Lock } from 'lucide-react';
 import type { CloudApi } from '../services/useCloud';
 import type { NearbyPrice, ProduceQuality, ResolvedItem } from '../services/cloudService';
 import type { AlertDraft } from './AlertsView';
@@ -112,11 +112,13 @@ const NearbyPricesCard: React.FC<Props> = ({ cloud, sample, onCreateAlert, onGoT
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-zinc-200 truncate">{titleCase(r.establishment_name)}</p>
                       <p className="text-xs text-zinc-500 truncate mt-0.5">{String(r.distance_km).replace('.', ',')} km · visto em {dayMonth(r.observed_on)}{r.address ? ` · ${r.address}` : ''}</p>
-                      {q && (q.avg_score !== null
-                        ? <p className="text-xs mt-1 font-bold" data-testid="nearby-quality" style={{ color: q.avg_score >= 7 ? '#34d399' : q.avg_score >= 4 ? '#DDB94B' : '#f87171' }}>
-                            ★ {String(q.avg_score).replace('.', ',')} <span className="font-normal text-zinc-500">qualidade · {q.n} avaliações</span>
-                          </p>
-                        : <p className="text-xs mt-1 text-zinc-500" data-testid="nearby-quality">Qualidade: poucas avaliações ({q.n})</p>)}
+                      {q && (q.locked
+                        ? <p className="text-xs mt-1 text-zinc-500 flex items-center gap-1" data-testid="nearby-quality-locked"><Lock className="w-3 h-3" /> Qualidade trancada: avalie itens dos seus cupons para ver</p>
+                        : q.avg_score !== null
+                          ? <p className="text-xs mt-1 font-bold" data-testid="nearby-quality" style={{ color: q.avg_score >= 7 ? '#34d399' : q.avg_score >= 4 ? '#DDB94B' : '#f87171' }}>
+                              ★ {String(q.avg_score).replace('.', ',')} <span className="font-normal text-zinc-500">qualidade · {q.n} avaliações</span>
+                            </p>
+                          : <p className="text-xs mt-1 text-zinc-500" data-testid="nearby-quality">Qualidade: poucas avaliações ({q.n})</p>)}
                     </div>
                     <div className="text-right shrink-0">
                       <span className={`block text-sm font-mono font-bold tabular-nums ${i === 0 ? 'text-emerald-400' : 'text-white'}`}>{brl.format(r.unit_price)}</span>
@@ -128,6 +130,10 @@ const NearbyPricesCard: React.FC<Props> = ({ cloud, sample, onCreateAlert, onGoT
                 );
               })}
             </div>
+          )}
+
+          {(Object.values(quality) as ProduceQuality[]).length > 0 && (
+            <p className="mt-3 text-xs text-zinc-500" data-testid="nearby-tank">Tanque de qualidade: {(Object.values(quality) as ProduceQuality[])[0].tank}/20. Cada nota que você dá enche 3.</p>
           )}
 
           {resolved?.master_product_id && (
