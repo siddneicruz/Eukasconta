@@ -25,13 +25,17 @@ interface Props {
 const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }) => {
   const [scores, setScores] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
-  const count = Object.keys(scores).length;
+  // "todos" = uma nota para tudo; "um" = nota item a item. A escolha fica lembrada neste aparelho.
+  const [mode, setMode] = useState<'todos' | 'um'>(() => { try { return localStorage.getItem('ek_rate_mode') === 'todos' ? 'todos' : 'um'; } catch { return 'um'; } });
+  const [all, setAll] = useState<number | null>(null);
+  const pickMode = (m: 'todos' | 'um') => { setMode(m); try { localStorage.setItem('ek_rate_mode', m); } catch { /* sem registro */ } };
+  const count = mode === 'todos' ? (all === null ? 0 : items.length) : Object.keys(scores).length;
 
   const send = async () => {
     if (!count) return onClose();
     setBusy(true);
     try {
-      await onSubmit(items.map((it, i) => (scores[i] === undefined ? null : { description: it.description, unit_type: it.unitType, score: scores[i] }))
+      await onSubmit(items.map((it, i) => { const sc = mode === 'todos' ? all : (scores[i] ?? null); return sc === null ? null : { description: it.description, unit_type: it.unitType, score: sc }; })
         .filter((x): x is { description: string; unit_type: string | undefined; score: number } => !!x));
     } finally { setBusy(false); onClose(); }
   };
@@ -52,7 +56,30 @@ const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }
         </div>
 
         <div className="p-5 space-y-3">
-          {items.map((it, i) => (
+          <div className="grid grid-cols-2 p-0.5 rounded-full bg-white/5 border border-white/10" role="tablist" data-testid="produce-mode">
+            {([['todos', 'Todos de uma vez'], ['um', 'Um por um']] as const).map(([m, label]) => (
+              <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => pickMode(m)} data-testid={`produce-mode-${m}`}
+                className={`h-9 rounded-full text-[11px] font-bold uppercase tracking-[0.06em] transition-colors ${mode === m ? 'bg-luxury-gold text-black' : 'text-zinc-500'}`}>{label}</button>
+            ))}
+          </div>
+
+          {mode === 'todos' ? (
+            <div className="rounded-xl border border-white/10 bg-black/40 p-3" data-testid="produce-all">
+              <p className="text-sm text-zinc-200 mb-1">Todo o hortifruti deste cupom</p>
+              <p className="text-xs text-zinc-500 mb-3 leading-relaxed">{items.map(it => titleCase(cleanName(it.description))).join(', ')}</p>
+              <div className="grid grid-cols-3 gap-2">
+                {OPTIONS.map(o => {
+                  const on = all === o.score;
+                  return (
+                    <button key={o.score} type="button" aria-pressed={on} data-testid={`produce-all-${o.score}`} onClick={() => setAll(on ? null : o.score)}
+                      className={`h-12 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/60 text-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 active:bg-white/10'}`}>
+                      <span className="text-lg leading-none">{o.emoji}</span>{o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : items.map((it, i) => (
             <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-3" data-testid="produce-row">
               <p className="text-sm text-zinc-200 mb-2 truncate">{titleCase(cleanName(it.description))}</p>
               <div className="grid grid-cols-3 gap-2">

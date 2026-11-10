@@ -844,7 +844,7 @@ const App: React.FC = () => {
       setReceipts(prev => prev.some(isDup) ? prev : [a, ...prev]);
       return true;
   };
-  // Cartão "Como estava o hortifruti?" depois de ler um cupom (só com conta; no máximo 5 itens, um cupom por vez)
+  // Cartão "Como estava o hortifruti?" depois de ler um cupom (só com conta; todos os itens de hortifruti do cupom, um cupom por vez)
   const [rateQueue, setRateQueue] = useState<{ ref: string; cnpj: string; store: string; items: ProduceRateItem[] } | null>(null);
   const queueProduceRating = (list: Receipt[]) => {
       if (!cloud.user) return;
@@ -860,7 +860,6 @@ const App: React.FC = () => {
               if (!key || seen.has(key)) continue;
               seen.add(key);
               items.push({ description: it.description, unitType: it.unitType });
-              if (items.length >= 5) break;
           }
           if (items.length) { setRateQueue({ ref: r.id, cnpj: r.cnpj, store: r.establishmentName, items }); return; }
       }
@@ -868,7 +867,8 @@ const App: React.FC = () => {
   const submitProduceRatings = async (rated: { description: string; unit_type?: string; score: number }[]) => {
       if (!rateQueue) return;
       try {
-          const saved = await cloud.rateProduce(rateQueue.cnpj, rateQueue.ref, rated);
+          let saved = 0;
+          for (let i = 0; i < rated.length; i += 10) saved += await cloud.rateProduce(rateQueue.cnpj, rateQueue.ref, rated.slice(i, i + 10));
           try {
               const done: string[] = JSON.parse(localStorage.getItem('ek_rated_receipts') || '[]');
               localStorage.setItem('ek_rated_receipts', JSON.stringify([...done, rateQueue.ref].slice(-500)));
