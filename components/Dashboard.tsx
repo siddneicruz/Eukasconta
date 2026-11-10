@@ -773,8 +773,8 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       <div className="hidden md:grid grid-cols-4 gap-4 mb-10">
           <ActionButton onClick={onScanClick} icon={ScanLine} label="Escanear" primary />
           <ActionButton onClick={onHistoryClick} icon={History} label="Histórico" />
-          <ActionButton onClick={onReportsClick} icon={BarChart3} label="Relatórios" />
-          <ActionButton onClick={onSettingsClick} icon={Settings} label="Estúdio" />
+          <ActionButton onClick={onReportsClick} icon={BarChart3} label="Análises" />
+          <ActionButton onClick={onSettingsClick} icon={Settings} label="Ajustes" />
       </div>
 
       <div className="mb-10 bg-black border border-white/10 rounded-[1.75rem] md:rounded-[2.5rem] p-4 md:p-10 shadow-2xl relative overflow-hidden group">
@@ -784,7 +784,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                   <h3 className="text-[10px] text-zinc-500 uppercase tracking-[0.1em] font-bold mb-0.5 flex items-center gap-1.5">
                       <LineChart className="w-3 h-3 text-luxury-gold" /> Evolução de Gastos
                   </h3>
-                  <span className="text-lg md:text-2xl font-serif text-white tracking-tight leading-tight">Timeline do Estúdio</span>
+                  <span className="text-lg md:text-2xl font-serif text-white tracking-tight leading-tight">Gasto dia a dia</span>
                   <span className="text-[11px] md:text-xs text-zinc-500 mt-0.5" data-testid="timeline-caption">{series.caption}</span>
               </div>
           </div>
@@ -871,7 +871,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                <div className="h-[340px] md:h-[400px] w-[calc(100%+1.5rem)] md:w-full relative mt-10 md:mt-0">
                    <InteractiveDonut
                        data={chartData}
-                       centerLabel={deptActive ? 'Total filtrado' : 'Total Investido'}
+                       centerLabel={deptActive ? 'Total filtrado' : 'Total do período'}
                        centerValue={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalSpent)}
                        onSliceClick={(entry) => onCategoryClick && onCategoryClick(String(entry.name).split(' - ')[0])}
                    />
@@ -912,7 +912,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       <div className="animate-in slide-in-from-bottom-2 duration-300">
           <div className="flex items-center gap-3 mb-8 px-1">
               <History className="w-5 h-5 text-luxury-gold" />
-              <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Relação de Aquisições por Fluxo</h3>
+              <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Compras do período</h3>
           </div>
           <div className="space-y-1">
               {shownReceipts.slice(0, 12).map((receipt) => (

@@ -22,6 +22,8 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci
+      - name: Verificar tipos
+        run: npx tsc --noEmit -p .
       - run: npm run android:sync
       - name: Compilar APK de teste
         run: |

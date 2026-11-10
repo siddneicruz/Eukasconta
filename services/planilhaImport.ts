@@ -6,7 +6,9 @@
 //     categoria ("Outros", sem categoria ou fora da lista) e código do produto.
 // Funções puras (não leem localStorage nem usam rede), para testar com a planilha de verdade.
 
-import * as XLSX from 'xlsx';
+import type * as XLSXTypes from 'xlsx';
+let XLSX: typeof XLSXTypes;
+const loadXlsx = async (): Promise<void> => { if (!XLSX) XLSX = await import('xlsx'); };   // só carrega quando alguém importa ou baixa uma planilha
 import JSZip from 'jszip';
 import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanCNPJ } from './productNormalization';
@@ -174,6 +176,7 @@ export const looksLikeXlsx = async (file: File): Promise<boolean> => {
 
 /** Lê a aba de compras da planilha. Null: o arquivo não é a planilha de compras consolidada. */
 export const readPlanilha = async (file: File): Promise<Planilha | null> => {
+  await loadXlsx();
   const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
   const names = wb.SheetNames;
   const ordered = [...names.filter(n => plain(n).includes('compras')), ...names.filter(n => !plain(n).includes('compras'))];

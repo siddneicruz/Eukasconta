@@ -1,6 +1,5 @@
 // Faz uma chamada mínima (poucos tokens) para confirmar que a chave funciona,
 // e traduz o erro para algo que o usuário consegue resolver.
-import { GoogleGenAI } from '@google/genai';
 import { AiProvider } from './keyStorageService';
 import { testOpenRouterKey } from './openrouterService';
 
@@ -27,6 +26,7 @@ export const testApiKey = async (provider: AiProvider, apiKey: string): Promise<
     }
     if (provider === 'openrouter') return await testOpenRouterKey(apiKey);
     if (provider === 'gemini') {
+      const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey });
       await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: 'ok' });
       return { ok: true, message: 'Chave do Gemini funcionando. Pronto para ler cupons.' };

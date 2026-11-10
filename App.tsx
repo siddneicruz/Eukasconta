@@ -6,7 +6,7 @@ import SideDrawer from './components/SideDrawer';
 import * as LucideIcons from 'lucide-react';
 
 import Dashboard, { getCategoryIcon } from './components/Dashboard';
-import Scanner from './components/Scanner';
+const Scanner = lazy(() => import('./components/Scanner'));
 import ScanProgressChip from './components/ScanProgressChip';
 import { buildReceiptsTxtZip } from './services/receiptText';
 import { currentYearMonth } from './services/currentMonth';
@@ -14,7 +14,7 @@ import { setScanHandlers, ScanSummary } from './services/scanQueue';
 import TransactionList from './components/TransactionList';
 import ReceiptDetail from './components/ReceiptDetail';
 import CategoryDetailView from './components/CategoryDetailView';
-import Reports from './components/Reports';
+const Reports = lazy(() => import('./components/Reports'));
 import ProductHistoryView from './components/ProductHistoryView';
 import ProductVariantDetailView from './components/ProductVariantDetailView';
 import EstablishmentDetailView from './components/EstablishmentDetailView';
@@ -24,11 +24,12 @@ import { resolveReceiptStore } from './services/storeResolver';
 import type { MasterStore } from './services/masterService';
 import { applyMergePlans, applyRedirects, loadRedirects, retargetRedirects, saveRedirects, type MergePlan } from './services/storeDedupe';
 import { rekeyStoreCodes, applyCodeEdit, CodeOp, normStoreKey, codeKind } from './services/productCodes';
-import SettingsView from './components/SettingsView';
-import DiagnosticPanel from './components/DiagnosticPanel';
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const DiagnosticPanel = lazy(() => import('./components/DiagnosticPanel'));
 import ManualEntryForm from './components/ManualEntryForm';
 import ImportLogViewer, { ImportLogEntry } from './components/ImportLogViewer';
-import AlertsView, { AlertDraft } from './components/AlertsView';
+import type { AlertDraft } from './components/AlertsView';
+const AlertsView = lazy(() => import('./components/AlertsView'));
 import ScanSuggestionsSheet from './components/ScanSuggestionsSheet';
 import { isValidCNPJ } from './services/registryLookupService';
 import ProduceRatingSheet, { ProduceRateItem } from './components/ProduceRatingSheet';
@@ -47,7 +48,7 @@ import { titleCase } from './services/textFormat';
 import { StoreNamesProvider } from './components/StoreNamesContext';
 import { buildStoreNamer } from './services/establishmentNames';
 import { applyMealCategories, applyMealsAll } from './services/readyMeals';
-import ShoppingListView from './components/ShoppingListView';
+const ShoppingListView = lazy(() => import('./components/ShoppingListView'));
 import { LayersProvider } from './components/LayersContext';
 import { MasterProvider } from './components/MasterContext';
 import { useMasterSync } from './services/useMasterSync';
@@ -72,7 +73,6 @@ import { buildAndSyncMasterProducts } from './services/productMasterService';
 import { unifyGroups, splitDesc, ProductGroup } from './services/productUnify';
 import type { UnifyPlan } from './components/ProductUnifySheet';
 
-import { GoogleGenAI } from '@google/genai';
 import JSZip from 'jszip';
 import { downloadFile } from './services/nativeFiles';
 import { markFileBackup } from './services/lastWhen';
@@ -944,7 +944,7 @@ const App: React.FC = () => {
           const zip = new ZipModule(); zip.file("studio_vault.json", JSON.stringify(vaultData, null, 2));
           const content = await zip.generateAsync({ type: "blob" });
           const outcome = await downloadFile(content, `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.zip`);
-          if (outcome === 'saved') { markFileBackup(); showNotification("Studio Vault exportado com sucesso."); }
+          if (outcome === 'saved') { markFileBackup(); showNotification("Cópia de segurança exportada com sucesso."); }
       } catch (err: any) { alert("Erro ao exportar vault: " + err.message); } finally { setGlobalLoading(false); }
   };
 
@@ -1185,7 +1185,7 @@ const App: React.FC = () => {
                       addImportLog('warning', 'Nenhum recibo encontrado no payload.');
                   }
                   
-                  showNotification(`Estúdio restaurado com integridade total.`);
+                  showNotification(`Dados restaurados com sucesso.`);
               }
               setView('dashboard');
           } else {
@@ -1396,7 +1396,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {isDiagnosticOpen && <DiagnosticPanel onClose={() => setIsDiagnosticOpen(false)} />}
+      {isDiagnosticOpen && <Suspense fallback={null}><DiagnosticPanel onClose={() => setIsDiagnosticOpen(false)} /></Suspense>}
 
       <header className="app-header fixed top-0 inset-x-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-20 flex items-center justify-between">
@@ -1446,6 +1446,7 @@ const App: React.FC = () => {
 
       <main className="app-main flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto p-4 md:p-12 w-full">
+              <Suspense fallback={<div className="flex items-center justify-center py-24 text-zinc-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
                 {/* App aberto sem nenhum cupom: se é uma reinstalação, os dados estão na conta */}
                 {view === 'dashboard' && backup.conflict && (
                     <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2.5" data-testid="conflict-banner">
@@ -1609,6 +1610,7 @@ const App: React.FC = () => {
                         onUpdateAiLearning={setAiLearning}
                     />
                 )}
+              </Suspense>
           </div>
       </main>
 
@@ -1637,7 +1639,7 @@ const App: React.FC = () => {
                   <div className="p-8 border-b border-white/5 flex flex-col md:flex-row gap-8 justify-between items-center bg-black/40">
                       <div>
                           <h3 className="text-2xl font-serif text-white uppercase tracking-tighter truncate max-w-[300px]">{selectedCategoryForIcon}</h3>
-                          <p className="text-luxury-gold text-[11px] font-bold uppercase tracking-[0.1em] mt-2">Personalização Expressa • Studio Audit</p>
+                          <p className="text-luxury-gold text-[11px] font-bold uppercase tracking-[0.1em] mt-2">Personalização rápida</p>
                       </div>
                       <div className="flex gap-4 items-center w-full md:w-auto">
                           <div className="relative flex-1 md:w-96">

@@ -1,6 +1,8 @@
 // Lê e gera planilhas de taxonomia (4 níveis: Departamento > Categoria >
 // Subcategoria > Item) direto no navegador, sem precisar de servidor.
-import * as XLSX from 'xlsx';
+import type * as XLSXTypes from 'xlsx';
+let XLSX: typeof XLSXTypes;
+const loadXlsx = async (): Promise<void> => { if (!XLSX) XLSX = await import('xlsx'); };   // só carrega quando alguém importa ou baixa uma planilha
 import { TaxonomyNode, TaxonomySource } from '../types';
 import { slugify } from './taxonomyService';
 import { generateId } from './idUtils';
@@ -30,6 +32,7 @@ export class TaxonomyImportError extends Error {}
 // com nomes parecidos) e uma linha por item — exatamente o formato do
 // modelo baixado por downloadTaxonomyTemplate().
 export const parseTaxonomyWorkbook = async (file: File): Promise<TaxonomyNode[]> => {
+  await loadXlsx();
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array' });
   const sheetName = workbook.SheetNames.find(n => normalizeHeader(n).includes('taxonomia')) || workbook.SheetNames[0];
@@ -95,7 +98,8 @@ export const parseTaxonomyWorkbook = async (file: File): Promise<TaxonomyNode[]>
 
 // Gera e baixa um modelo .xlsx com as 4 colunas esperadas e um exemplo,
 // pronto pra o usuário preencher e reimportar.
-export const downloadTaxonomyTemplate = () => {
+export const downloadTaxonomyTemplate = async () => {
+  await loadXlsx();
   const data = [
     ['Departamento', 'Categoria', 'Subcategoria', 'Item'],
     ['Açougue', 'Carne Bovina', 'Cortes Nobres', 'Picanha'],

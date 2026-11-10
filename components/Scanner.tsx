@@ -143,7 +143,7 @@ const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, kn
           reportContent += `--------------------------------------------------------------------------------\n\n`;
       });
 
-      reportContent += `Eukasconta Design Studio - Inteligência Tributária de Alta Performance.\n`;
+      reportContent += `Eu Kasconta - leitura e análise dos seus cupons fiscais.\n`;
       reportContent += `Fim do Relatório.`;
 
       const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8;' });
@@ -161,7 +161,7 @@ const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, kn
           ESCANEAR <span className="italic font-light text-luxury-gold">CUPOM</span>
         </h2>
         <p className="text-zinc-500 font-sans tracking-wide mb-12 text-sm md:text-base">
-          Extração de alta performance para o Estúdio de Design.
+          Leitura automática dos seus cupons fiscais.
         </p>
 
         <div className="relative group max-w-2xl mx-auto">

@@ -823,8 +823,8 @@ const Reports: React.FC<ReportsProps> = ({
       <div className="flex flex-col gap-3 md:gap-6 mb-4 md:mb-10 md:sticky md:top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 md:py-4 md:-mx-6 md:px-6">
         <div className="flex flex-col md:flex-row ls:flex-row md:items-center ls:items-center justify-between gap-3 md:gap-6 ls:gap-4 mb-0 md:mb-4 ls:mb-0">
             <div>
-                <h2 className="text-2xl ls:text-2xl md:text-5xl font-serif text-white mb-1 tracking-tight uppercase">Performance Matrix</h2>
-                <p className="text-zinc-400 font-sans text-sm">Auditoria de fluxo por período</p>
+                <h2 className="text-2xl ls:text-2xl md:text-5xl font-serif text-white mb-1 tracking-tight uppercase">Análises</h2>
+                <p className="text-zinc-400 font-sans text-sm">Seu gasto, mês a mês e dia a dia</p>
             </div>
             <div className="grid grid-cols-2 md:flex ls:flex items-center gap-3">
                 <button onClick={onAddManual} className="px-6 py-3 rounded-xl bg-luxury-gold text-black text-sm font-bold whitespace-nowrap justify-center hover:bg-white transition-all flex items-center gap-2 shadow-lg shadow-luxury-gold/10"><Plus className="w-4 h-4" /> Novo Lançamento</button>

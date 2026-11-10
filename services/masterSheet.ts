@@ -3,7 +3,9 @@ import { downloadFile } from './nativeFiles';
 //   Estrutura  → Departamento | Categoria | Grupo | Item   (uma linha por caminho; Grupo e Item podem ficar vazios)
 //   Produtos   → Código | Descrição | Unidade | Departamento | Categoria | Grupo | Item
 // Lê o arquivo no navegador, valida e só então o administrador publica.
-import * as XLSX from 'xlsx';
+import type * as XLSXTypes from 'xlsx';
+let XLSX: typeof XLSXTypes;
+const loadXlsx = async (): Promise<void> => { if (!XLSX) XLSX = await import('xlsx'); };   // só carrega quando alguém importa ou baixa uma planilha
 import { TaxonomyNode } from '../types';
 import { properCase } from './textFormat';
 import { cleanCode, normStoreKey } from './productCodes';
@@ -37,7 +39,7 @@ const findCol = (headers: string[], keys: string[], used: Set<number>): number =
   if (i >= 0) used.add(i);
   return i;
 };
-const sheetRows = (wb: XLSX.WorkBook, names: string[]): any[][] | null => {
+const sheetRows = (wb: XLSXTypes.WorkBook, names: string[]): any[][] | null => {
   const name = wb.SheetNames.find(n => names.includes(plain(n)));
   if (!name) return null;
   return XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: false, raw: true }) as any[][];
@@ -51,7 +53,8 @@ export interface ParsedMaster {
 }
 
 export const parseMasterWorkbook = async (file: File): Promise<ParsedMaster> => {
-  let wb: XLSX.WorkBook;
+  await loadXlsx();
+  let wb: XLSXTypes.WorkBook;
   try { wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); }
   catch { throw new MasterSheetError('Não consegui abrir esse arquivo. Use um .xlsx.'); }
   const estRaw = sheetRows(wb, ['estrutura', 'taxonomia', 'categorias']);
@@ -221,6 +224,7 @@ export const storesFromLocal = (
 };
 
 export const downloadMasterWorkbook = async (nodes: TaxonomyNode[], products: SheetProduct[], fileName = 'tabela-mae-eukasconta.xlsx', storeTypes: string[] = [], stores: { cnpj: string; name: string; type: string; address?: string; number?: string; neighborhood?: string; city?: string; state?: string; cep?: string; legalName?: string }[] = [], parts: { estrutura?: boolean; produtos?: boolean; lojas?: boolean } = {}) => {
+  await loadXlsx();
   const want = { estrutura: parts.estrutura !== false, produtos: parts.produtos !== false, lojas: parts.lojas !== false };
   const wb = XLSX.utils.book_new();
   const est = XLSX.utils.aoa_to_sheet([['Departamento', 'Categoria', 'Grupo', 'Item'], ...leafPaths(nodes).map(p => [p[0] || '', p[1] || '', p[2] || '', p[3] || ''])]);

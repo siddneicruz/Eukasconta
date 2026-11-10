@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, useRef, useDeferredValue } from 'react';
+import React, { useState, useMemo, useRef, useDeferredValue, lazy } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { 
     Plus, Trash2, X, Search, Layers, Database, AlertTriangle, Download, 
@@ -10,14 +9,14 @@ import type { StoreDraft } from '../services/establishmentEdit';
 import { Link2 } from 'lucide-react';
 import { Receipt, Establishment, TaxonomyNode, AILearningEntry, MasterProduct } from '../types';
 import { getCategoryIcon, getCategoryColor } from './Dashboard';
-import TaxonomyEditor from './TaxonomyEditor';
+const TaxonomyEditor = lazy(() => import('./TaxonomyEditor'));
 import MasterStructureView from './MasterStructureView';
-import MasterAdmin from './MasterAdmin';
+const MasterAdmin = lazy(() => import('./MasterAdmin'));
 import { useMasterInfo } from './MasterContext';
 import { useStoreNames } from './StoreNamesContext';
 import type { MergeResult } from '../services/taxonomyDedupe';
-import ProductMappingEditor from './ProductMappingEditor';
-import AILearningManager from './AILearningManager';
+const ProductMappingEditor = lazy(() => import('./ProductMappingEditor'));
+const AILearningManager = lazy(() => import('./AILearningManager'));
 import AISettingsPanel from './AISettingsPanel';
 import CloudAccountPanel from './CloudAccountPanel';
 import RestorePointsPanel from './RestorePointsPanel';
@@ -217,7 +216,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     <div className="animate-in fade-in duration-700 pb-20 max-w-5xl mx-auto md:px-4">
       <div className="mb-8 md:mb-12 text-center md:text-left flex flex-col md:flex-row md:items-end md:justify-between gap-6">
           <div>
-              <h2 className="text-3xl md:text-6xl font-serif text-white mb-2 tracking-tighter uppercase">Studio Settings</h2>
+              <h2 className="text-3xl md:text-6xl font-serif text-white mb-2 tracking-tighter uppercase">Ajustes</h2>
               <p className="text-zinc-400 font-sans text-sm">Estrutura, lojas, inteligência e backup do app</p>
           </div>
           
