@@ -908,45 +908,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
       </div>
 
-          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-1 md:gap-3 mb-8 md:mb-10">
-              <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold px-1 mb-0 md:mb-1 md:col-span-2">Departamentos</h3>
-              {chartData.map((cat, idx) => {
-                  const Icon = getCategoryIcon(cat.name);
-                  return (
-                      <div
-                        key={idx}
-                        role="button"
-                        tabIndex={0}
-                        data-testid="dept-card"
-                        data-dept={cat.name}
-                        aria-label={`Abrir ${cat.label}`}
-                        onClick={() => onCategoryClick && onCategoryClick(cat.name.split(' - ')[0])}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCategoryClick && onCategoryClick(cat.name.split(' - ')[0]); } }}
-                        className="flex items-center justify-between py-1 pl-1.5 pr-2.5 md:p-5 bg-white/[0.01] border border-white/5 rounded-xl md:rounded-2xl hover:bg-white/[0.04] hover:border-luxury-gold/20 active:bg-white/[0.06] transition-all group relative overflow-hidden cursor-pointer focus:outline-none focus-visible:border-luxury-gold/50"
-                      >
-                          <div className="flex items-center gap-2.5 md:gap-4 z-10 min-w-0">
-                              <PercentRing percent={cat.percentage} color={cat.color} size={32} strokeWidth={3}>
-                                  <div
-                                    className="w-5 h-5 rounded-md bg-black border border-white/10 flex items-center justify-center transition-all"
-                                    style={{ borderColor: `${cat.color}33` }}
-                                  >
-                                      <Icon className="w-3 h-3" style={{ color: cat.color }} />
-                                  </div>
-                              </PercentRing>
-                              <div className="flex flex-col min-w-0">
-                                  <span className="block text-[13px] leading-tight font-semibold text-zinc-100 tracking-tight truncate" title={cat.label}>{cat.label}</span>
-                                  <span className="text-xs text-zinc-400 font-medium tabular-nums leading-tight">{cat.percentage.toFixed(1).replace('.', ',')}% do total</span>
-                              </div>
-                          </div>
-                          <div className="flex items-center gap-1 z-10 shrink-0 pl-2">
-                              <span className="text-sm md:text-base font-sans font-bold text-white tracking-tight">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(cat.value)}</span>
-                              <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-luxury-gold transition-colors" aria-hidden="true" />
-                          </div>
-                      </div>
-                  );
-              })}
-          </div>
-
       {/* NOVO: RELAÇÃO DE ESTABELECIMENTOS / RECIBOS */}
       <div className="animate-in slide-in-from-bottom-2 duration-300">
           <div className="flex items-center gap-3 mb-8 px-1">
