@@ -23,17 +23,17 @@ interface DrawerItem {
 const SECTIONS: { title: string; items: DrawerItem[] }[] = [
   { title: 'Navegar', items: [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-    { id: 'scanner', label: 'Escanear Cupom', icon: ScanLine },
-    { id: 'history', label: 'Histórico', icon: History },
+    { id: 'scanner', label: 'Escanear', icon: ScanLine },
+    { id: 'history', label: 'Compras', icon: History },
   ]},
   { title: 'Analisar', items: [
-    { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+    { id: 'reports', label: 'Análises', icon: BarChart3 },
     { id: 'map', label: 'Mapa', icon: MapIcon },
     { id: 'shopping', label: 'Lista de compras', icon: ShoppingCart },
     { id: 'alerts', label: 'Avisos e alertas', icon: Bell },
   ]},
   { title: 'Configurar', items: [
-    { id: 'settings', label: 'Estúdio', icon: Settings },
+    { id: 'settings', label: 'Ajustes', icon: Settings },
   ]},
 ];
 

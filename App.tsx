@@ -1400,7 +1400,10 @@ const App: React.FC = () => {
 
       <header className="app-header fixed top-0 inset-x-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-20 flex items-center justify-between">
-            <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('dashboard')}>
+            <button onClick={() => setIsDrawerOpen(true)} className="p-2 -ml-2 min-w-[40px] min-h-[44px] flex items-center justify-center text-zinc-500 hover:text-luxury-gold active:text-luxury-gold transition-colors" aria-label="Abrir menu" data-testid="header-menu">
+                <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2.5 md:gap-4 cursor-pointer mr-auto" onClick={() => setView('dashboard')}>
                 <AppMark title="Eu Kasconta" className="h-[34px] w-[34px] md:h-11 md:w-11 shrink-0" />
                 <BrandName className="text-[15px] md:text-lg" />
             </div>
@@ -1430,6 +1433,16 @@ const App: React.FC = () => {
             </div>
         </div>
       </header>
+
+      <SideDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        view={view}
+        setView={setView}
+        onOpenDiagnostics={() => setIsDiagnosticOpen(true)}
+        isAdmin={master.isAdmin}
+        onOpenMaster={() => { setSettingsInitialTab('master'); setView('settings'); }}
+      />
 
       <main className="app-main flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto p-4 md:p-12 w-full">
