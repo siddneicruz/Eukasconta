@@ -34,6 +34,8 @@ export default {
           accent: '#F59E0B',
         },
       },
+      // Escala tipográfica única: 10 (micro) · 11 (rótulo) · 12 (legenda) · 13 (corpo) · 14 (corpo+) · 16 (destaque).
+      // Para tamanhos maiores use text-lg/xl/2xl/3xl; evite novos px avulsos.
       fontFamily: {
         serif: ['Cinzel', 'serif'],
         sans: ['Inter', 'sans-serif'],

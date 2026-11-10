@@ -58,7 +58,7 @@ const Stepper: React.FC<{ value: number; onChange: (v: number) => void; min: num
   <div className="inline-flex items-center rounded-xl bg-white/5 border border-white/10">
     <button type="button" aria-label={`Diminuir ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}
       className="w-11 h-11 flex items-center justify-center text-zinc-300 active:text-luxury-gold disabled:opacity-30"><Minus className="w-4 h-4" /></button>
-    <span data-testid={testId} className="min-w-[3.75rem] text-center text-[15px] font-semibold tabular-nums text-white">{value}{suffix}</span>
+    <span data-testid={testId} className="min-w-[3.75rem] text-center text-[14px] font-semibold tabular-nums text-white">{value}{suffix}</span>
     <button type="button" aria-label={`Aumentar ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}
       className="w-11 h-11 flex items-center justify-center text-zinc-300 active:text-luxury-gold disabled:opacity-30"><Plus className="w-4 h-4" /></button>
   </div>
@@ -344,7 +344,7 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
           const histOk = canSubmit && !(history.empty && !useBase);
           const gold = 'bg-luxury-gold text-black';
           const outline = 'border border-white/10 text-zinc-100';
-          const base = 'w-full min-h-[52px] rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 px-4 disabled:opacity-40 active:opacity-80';
+          const base = 'w-full min-h-[52px] rounded-2xl text-[14px] font-bold flex items-center justify-center gap-2 px-4 disabled:opacity-40 active:opacity-80';
           const histLabel = useBase ? (editing ? 'Gerar de novo pela lista base' : 'Gerar pela lista base') : (editing ? 'Gerar de novo pelo histórico' : 'Gerar pelo histórico');
           return (
             <>

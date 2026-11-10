@@ -220,9 +220,9 @@ const PeriodSheet: React.FC<SheetProps> = ({ start, end, onChange, onClose }) =>
             className="w-11 h-11 flex items-center justify-center rounded-xl text-zinc-300 hover:text-luxury-gold hover:bg-white/5"><ChevronLeft className="w-5 h-5" /></button>
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => setView(v => v === 'months' ? 'days' : 'months')} data-testid="period-month-btn" aria-expanded={view === 'months'}
-              className={`px-3 py-2 rounded-xl text-[15px] font-semibold hover:bg-white/5 ${view === 'months' ? 'text-luxury-gold' : 'text-zinc-100'}`}>{cap(MONTHS[cursor.m])}</button>
+              className={`px-3 py-2 rounded-xl text-[14px] font-semibold hover:bg-white/5 ${view === 'months' ? 'text-luxury-gold' : 'text-zinc-100'}`}>{cap(MONTHS[cursor.m])}</button>
             <button type="button" onClick={() => setView(v => v === 'years' ? 'days' : 'years')} data-testid="period-year-btn" aria-expanded={view === 'years'}
-              className={`px-3 py-2 rounded-xl text-[15px] font-semibold tabular-nums hover:bg-white/5 ${view === 'years' ? 'text-luxury-gold' : 'text-zinc-100'}`}>{cursor.y}</button>
+              className={`px-3 py-2 rounded-xl text-[14px] font-semibold tabular-nums hover:bg-white/5 ${view === 'years' ? 'text-luxury-gold' : 'text-zinc-100'}`}>{cursor.y}</button>
           </div>
           <button type="button" onClick={() => view === 'days' ? shiftMonth(1) : setCursor(c => ({ ...c, y: c.y + 1 }))} aria-label={view === 'days' ? 'Próximo mês' : 'Próximo ano'}
             className="w-11 h-11 flex items-center justify-center rounded-xl text-zinc-300 hover:text-luxury-gold hover:bg-white/5"><ChevronRight className="w-5 h-5" /></button>
@@ -270,7 +270,7 @@ const PeriodSheet: React.FC<SheetProps> = ({ start, end, onChange, onClose }) =>
             <div className="grid grid-cols-3 gap-2 pt-2">
               {MONTHS_ABBR.map((m, i) => (
                 <button key={m} type="button" data-testid={`period-pick-month-${i}`} onClick={() => { setCursor(c => ({ ...c, m: i })); setView('days'); }}
-                  className={`h-14 rounded-2xl text-[15px] font-semibold border transition-colors ${i === cursor.m ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-200 hover:border-luxury-gold/40'}`}>
+                  className={`h-14 rounded-2xl text-[14px] font-semibold border transition-colors ${i === cursor.m ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-200 hover:border-luxury-gold/40'}`}>
                   {cap(m)}
                 </button>
               ))}
@@ -281,7 +281,7 @@ const PeriodSheet: React.FC<SheetProps> = ({ start, end, onChange, onClose }) =>
             <div className="grid grid-cols-4 gap-2 pt-2 max-h-[300px] overflow-y-auto">
               {years.map(y => (
                 <button key={y} type="button" data-testid={`period-pick-year-${y}`} onClick={() => { setCursor(c => ({ ...c, y })); setView('months'); }}
-                  className={`h-12 rounded-2xl text-[15px] font-semibold tabular-nums border transition-colors ${y === cursor.y ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-200 hover:border-luxury-gold/40'}`}>
+                  className={`h-12 rounded-2xl text-[14px] font-semibold tabular-nums border transition-colors ${y === cursor.y ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-200 hover:border-luxury-gold/40'}`}>
                   {y}
                 </button>
               ))}

@@ -34,7 +34,7 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
           aria-label={`Tipo de estabelecimento: ${storeTypeLabel(sel)}. Alterar`}
           className="min-w-0 h-8 px-2.5 rounded-xl flex items-center gap-2 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-colors">
           <Store className="w-4 h-4 text-luxury-gold shrink-0" />
-          <span className={`truncate text-xs font-bold uppercase tracking-[0.04em] ${active ? 'text-luxury-gold' : 'text-zinc-300'}`}>{storeTypeLabel(sel)}</span>
+          <span className={`truncate text-xs font-bold uppercase tracking-[0.08em] ${active ? 'text-luxury-gold' : 'text-zinc-300'}`}>{storeTypeLabel(sel)}</span>
           <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
         </button>
         {active && (
@@ -46,7 +46,7 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
         <div className="fixed inset-0 z-[260] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={() => setOpen(false)} data-testid="store-type-sheet">
           <div className="w-full sm:max-w-md max-h-[88dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl" onClick={e => e.stopPropagation()} role="dialog" aria-label="Tipo de estabelecimento">
             <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-              <h4 className="text-[17px] font-serif text-white tracking-tight">Tipo de estabelecimento</h4>
+              <h4 className="text-[16px] font-serif text-white tracking-tight">Tipo de estabelecimento</h4>
               <button type="button" onClick={() => setSel([])} disabled={!active} className="text-xs font-semibold text-luxury-gold disabled:text-zinc-600">Todos os tipos</button>
             </div>
             <ul className="overflow-y-auto px-3 pb-2">

@@ -28,6 +28,7 @@ import CategoryCompareBox from './CategoryCompareBox';
 import { useLayers } from './LayersContext';
 import { fold } from '../services/itemSearch';
 import { buildCompareOptions, bySpend, bySpendOnly, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
+import { CHART_COLORS } from '../services/chartTheme';
 
 const { 
   XAxis, YAxis, Tooltip, ResponsiveContainer, 
@@ -49,7 +50,6 @@ interface ReportsProps {
   taxonomy?: TaxonomyNode[];
 }
 
-const CHART_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
 const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 const getEstablishmentDisplayName = (originalName: string, cnpj: string, establishments: Establishment[] = [], aliasOf?: (n: string, c?: string) => string | null) => {

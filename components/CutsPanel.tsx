@@ -95,7 +95,7 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
       <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-[15px] md:text-lg font-semibold text-zinc-100 truncate" data-testid="cut-title">{cutTitle(cut)}</h3>
+            <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100 truncate" data-testid="cut-title">{cutTitle(cut)}</h3>
             <p className="text-[11px] text-zinc-500 tabular-nums mt-0.5" data-testid="cut-sub">
               {named ? `${range} · ` : ''}{a.days} {a.days === 1 ? 'dia' : 'dias'}{running ? ` · ${a.elapsed} já passaram` : ''}
             </p>
@@ -336,7 +336,7 @@ const CutsPanel: React.FC<Props> = ({ receipts, displayName, selectedId, onSelec
       {sorted.length === 0 ? (
         <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] px-5 py-8 text-center shadow-xl" data-testid="cut-empty">
           <div className="mx-auto w-11 h-11 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center mb-3"><CalendarRange className="w-5 h-5" /></div>
-          <p className="text-[15px] font-semibold text-zinc-100">Crie um recorte do tempo</p>
+          <p className="text-[14px] font-semibold text-zinc-100">Crie um recorte do tempo</p>
           <p className="text-[13px] text-zinc-500 mt-1.5 max-w-xs mx-auto leading-snug">
             Escolha de que dia até que dia (e, se quiser, só algumas categorias). Ele fica salvo aqui como etiqueta, com a análise só desse período.
           </p>

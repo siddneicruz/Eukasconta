@@ -111,13 +111,13 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView,
         </nav>
 
         <div className="p-4 border-t border-white/5">
-          <button
+          {isAdmin && <button
             onClick={() => { onOpenDiagnostics(); onClose(); }}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-all"
           >
             <Terminal className="w-4 h-4 shrink-0" />
             <span className="text-[13px] font-bold tracking-tight">Diagnóstico</span>
-          </button>
+          </button>}
           <div className="mt-3 pt-4 border-t border-white/5 flex flex-col items-center gap-2 text-zinc-500">
             <span className="text-[11px] font-medium">Criado por</span>
             <PDLogo className="w-36 text-zinc-300" />

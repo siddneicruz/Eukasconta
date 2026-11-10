@@ -205,7 +205,7 @@ const DeptFilterSheet: React.FC<Props> = ({
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="shrink-0 w-9 h-9 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center"><Filter className="w-4 h-4" /></div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-[17px] font-serif text-white tracking-tight leading-tight">{title}</h3>
+            <h3 className="text-[16px] font-serif text-white tracking-tight leading-tight">{title}</h3>
             <p className="text-xs text-zinc-400 mt-0.5 leading-snug">{hint}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="shrink-0 w-10 h-10 -mr-2 -mt-1 flex items-center justify-center rounded-xl text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>

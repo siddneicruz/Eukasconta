@@ -90,8 +90,8 @@ const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit:
       <span className={`shrink-0 text-[14px] font-semibold tabular-nums ${e.cart ? 'text-zinc-500' : 'text-white'}`}>{e.price > 0 ? brl(entryCost(e)) : '—'}</span>
     </button>
     <span className="shrink-0 self-center inline-flex items-center rounded-full border border-white/10 bg-white/5 mr-1" data-testid="shop-row-step">
-      <button type="button" aria-label={`Diminuir ${e.name}`} onClick={() => onQty(Math.max(stepOf(e.unit), roundTo(e.qty - stepOf(e.unit), stepOf(e.unit))))} className="w-8 h-8 flex items-center justify-center text-zinc-200 text-[17px] rounded-full active:bg-white/10">−</button>
-      <button type="button" aria-label={`Aumentar ${e.name}`} onClick={() => onQty(roundTo(e.qty + stepOf(e.unit), stepOf(e.unit)))} className="w-8 h-8 flex items-center justify-center text-luxury-gold text-[17px] rounded-full active:bg-white/10">+</button>
+      <button type="button" aria-label={`Diminuir ${e.name}`} onClick={() => onQty(Math.max(stepOf(e.unit), roundTo(e.qty - stepOf(e.unit), stepOf(e.unit))))} className="w-8 h-8 flex items-center justify-center text-zinc-200 text-[16px] rounded-full active:bg-white/10">−</button>
+      <button type="button" aria-label={`Aumentar ${e.name}`} onClick={() => onQty(roundTo(e.qty + stepOf(e.unit), stepOf(e.unit)))} className="w-8 h-8 flex items-center justify-center text-luxury-gold text-[16px] rounded-full active:bg-white/10">+</button>
     </span>
   </li>
 );
@@ -122,9 +122,9 @@ const ValidationCard: React.FC<{ check: PurchaseCheck; purchase: PlanPurchase; r
     <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3" data-testid="shop-validation" data-state="conferida">
       <p className="text-[13px] font-semibold text-emerald-400 flex items-center gap-1.5"><Check className="w-4 h-4" /> Conferida com {rs.length} {rs.length === 1 ? 'cupom' : 'cupons'}</p>
       <div className="grid grid-cols-2 gap-3 mt-2 tabular-nums">
-        <div><p className="text-[10px] text-zinc-500">Previsto na lista</p><p className="text-[15px] font-serif font-bold text-white" data-testid="shop-val-planned">{brl(check.planned)}</p></div>
+        <div><p className="text-[10px] text-zinc-500">Previsto na lista</p><p className="text-[14px] font-serif font-bold text-white" data-testid="shop-val-planned">{brl(check.planned)}</p></div>
         <div><p className="text-[10px] text-zinc-500">Pago nos cupons</p>
-          <p className="text-[15px] font-serif font-bold text-white" data-testid="shop-val-paid">{brl(check.paid)} {check.planned > 0 && <span className={`text-[11px] font-sans font-semibold ${tone(dTotal)}`}>{signed(dTotal)}</span>}</p></div>
+          <p className="text-[14px] font-serif font-bold text-white" data-testid="shop-val-paid">{brl(check.paid)} {check.planned > 0 && <span className={`text-[11px] font-sans font-semibold ${tone(dTotal)}`}>{signed(dTotal)}</span>}</p></div>
       </div>
       {check.priced > 0 && check.priceEst > 0 && (
         <p className="text-[12px] mt-2 leading-snug tabular-nums" data-testid="shop-val-price">
@@ -374,7 +374,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
         {lists.length === 0 ? (
           <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 text-center shadow-xl" data-testid="shop-empty">
             <ShoppingCart className="w-9 h-9 text-luxury-gold mx-auto" />
-            <p className="text-[15px] font-semibold text-zinc-100 mt-3">Nenhuma lista ainda</p>
+            <p className="text-[14px] font-semibold text-zinc-100 mt-3">Nenhuma lista ainda</p>
             <p className="text-[12px] text-zinc-500 mt-1 leading-snug">O app descobre de quanto em quanto tempo você compra, monta a lista com os últimos preços, divide por semana, respeita um teto e confere depois com os cupons.</p>
             <button type="button" onClick={startNew} className="mt-4 h-11 px-5 rounded-xl border border-luxury-gold/40 text-luxury-gold text-[13px] font-semibold">Montar a primeira lista</button>
           </div>
@@ -388,14 +388,14 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
                   <button type="button" onClick={() => open(l.id)} className="min-w-0 flex-1 text-left p-4 flex items-center gap-3">
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5 min-w-0">
-                        <span className="block text-[15px] font-semibold text-zinc-100 truncate">{l.name}</span>
+                        <span className="block text-[14px] font-semibold text-zinc-100 truncate">{l.name}</span>
                         {l.id === baseId && <span className="shrink-0 inline-flex items-center gap-1 text-[10.5px] font-bold text-luxury-gold" data-testid="shop-base-badge"><Star className="w-3 h-3 fill-current" /> Base</span>}
                       </span>
                       <span className="block text-[11px] text-zinc-500 tabular-nums mt-0.5">
                         {l.purchases.length} {l.purchases.length === 1 ? 'compra' : 'compras'} · {items} itens · {inCart} no carrinho
                       </span>
                     </span>
-                    <span className="shrink-0 text-[15px] font-serif font-bold text-white tabular-nums">{brl(listTotal(l))}</span>
+                    <span className="shrink-0 text-[14px] font-serif font-bold text-white tabular-nums">{brl(listTotal(l))}</span>
                     <ChevronRight className="w-4 h-4 text-zinc-600 shrink-0" />
                   </button>
                   <button type="button" onClick={() => toggleBase(l.id)} aria-label={l.id === baseId ? `Tirar ${l.name} de lista base` : `Usar ${l.name} como lista base`} aria-pressed={l.id === baseId} data-testid="shop-list-base"
@@ -496,7 +496,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
           className="w-full min-h-[52px] rounded-2xl bg-luxury-gold text-black px-4 py-2 flex items-center justify-center gap-2.5 active:opacity-80 shadow-lg">
           <Save className="w-5 h-5 shrink-0" aria-hidden="true" />
           <span className="text-left leading-tight">
-            <span className="block text-[15px] font-bold">Gravar lista</span>
+            <span className="block text-[14px] font-bold">Gravar lista</span>
             <span className="block text-[11px] font-medium text-black/70">Dê um nome e guarde na sua coleção</span>
           </span>
         </button>
@@ -576,14 +576,14 @@ const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, b
       <section className="bg-[#121214] border border-white/5 rounded-2xl shadow-xl overflow-hidden" data-testid="shop-purchase" data-index={idx}>
         <div className="flex items-start justify-between gap-3 px-4 pt-3 pb-2">
           <div className="min-w-0">
-            <h3 className="text-[15px] font-semibold text-zinc-100 capitalize tabular-nums">{purchaseLabel}</h3>
+            <h3 className="text-[14px] font-semibold text-zinc-100 capitalize tabular-nums">{purchaseLabel}</h3>
             <p className="text-[11px] text-zinc-500 tabular-nums">
               cobre {purchase.days} {purchase.days === 1 ? 'dia' : 'dias'} · {purchase.entries.length} {purchase.entries.length === 1 ? 'item' : 'itens'}
               {share > 0 && <> · parte do teto {brl(share)}</>}
             </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[17px] font-serif font-bold text-white tabular-nums" data-testid="shop-purchase-total">{brl(pTotal)}</p>
+            <p className="text-[16px] font-serif font-bold text-white tabular-nums" data-testid="shop-purchase-total">{brl(pTotal)}</p>
             {share > 0 && pTotal > share + 0.005 && <p className="text-[10px] text-rose-400 tabular-nums">{brl(pTotal - share)} acima da parte</p>}
           </div>
         </div>

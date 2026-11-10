@@ -21,7 +21,7 @@ export const AppMark: React.FC<{ className?: string; title?: string; plate?: boo
 
 // Nome da marca: EU KASCONTA (Cinzel 700, espaçamento .14em) com o K em ouro.
 export const BrandName: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <span className={`font-serif font-bold tracking-[0.14em] whitespace-nowrap ${className}`}>EU <span className="text-luxury-gold">K</span>ASCONTA</span>
+  <span className={`font-serif font-bold tracking-[0.1em] whitespace-nowrap ${className}`}>EU <span className="text-luxury-gold">K</span>ASCONTA</span>
 );
 
 // Logomarca da Projeto Design (criadora do app). Usa a cor do texto (currentColor).

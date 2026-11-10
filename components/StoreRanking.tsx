@@ -68,7 +68,7 @@ const StoreRanking: React.FC<Props> = ({ rows, selectedKey, onSelect, initial = 
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-3">
                     <span className="truncate text-[14px] font-semibold text-zinc-100 tracking-tight">{r.label}</span>
-                    <span className="shrink-0 text-[15px] font-bold text-white tabular-nums">{brl0.format(r.value)}</span>
+                    <span className="shrink-0 text-[14px] font-bold text-white tabular-nums">{brl0.format(r.value)}</span>
                   </span>
                   <span className="flex items-center justify-between gap-3 mt-0.5">
                     <span className="truncate text-xs text-zinc-400">{r.type || 'Sem tipo'}</span>

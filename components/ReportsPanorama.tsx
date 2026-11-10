@@ -11,6 +11,7 @@ import { DashboardConfig, Receipt } from '../types';
 import { normalizeUnit } from '../services/productPriceStats';
 import { priceBasis } from '../services/eggs';
 import { properCase } from '../services/textFormat';
+import { CHART_COLORS } from '../services/chartTheme';
 
 /* ────────────────────────────────────────────────────────────────────────────
    PANORAMA — leitura analítica do período.
@@ -147,7 +148,7 @@ interface Dept { name: string; value: number; share: number; pct: number; prev: 
 type Tone = 'gold' | 'good' | 'bad' | 'info';
 interface Insight { icon: React.ComponentType<{ className?: string }>; tone: Tone; text: React.ReactNode; /** cupom que a leitura cita: tocar abre */ open?: string }
 
-const DEPT_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#8B5CF6', '#06B6D4'];
+const DEPT_COLORS = CHART_COLORS.slice(0, 6);
 const DEPT_REST = '#71717a';
 
 function buildSeries(rg: Ranges, cur: Receipt[], prevPlot: Receipt[]) {

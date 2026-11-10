@@ -4,6 +4,8 @@ import type { CloudApi } from '../services/useCloud';
 import type { BackupApi } from '../services/useCloudBackup';
 import ConfirmDialog from './ConfirmDialog';
 import Switch from './Switch';
+import PrivacyPolicy from './PrivacyPolicy';
+import { deleteMyAccount } from '../services/cloudService';
 import { agoText, parseWhen, useNow, whenText } from '../services/lastWhen';
 
 interface Props {
@@ -28,6 +30,9 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
@@ -248,13 +253,13 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
                   <p className="text-[11px] font-semibold text-zinc-500">Último backup</p>
                   {at ? (
                     <>
-                      <p className="mt-0.5 text-[15px] font-semibold text-white tabular-nums leading-snug" data-testid="backup-last-when">
+                      <p className="mt-0.5 text-[14px] font-semibold text-white tabular-nums leading-snug" data-testid="backup-last-when">
                         {whenText(at, now)} <span className="font-normal text-zinc-400">· {agoText(at, now)}</span>
                       </p>
                       <p className="mt-0.5 text-xs text-zinc-500 tabular-nums" data-testid="backup-last-count">{n} {n === 1 ? 'cupom guardado' : 'cupons guardados'} na conta</p>
                     </>
                   ) : (
-                    <p className="mt-0.5 text-[15px] font-semibold text-zinc-300 leading-snug" data-testid="backup-last-when">
+                    <p className="mt-0.5 text-[14px] font-semibold text-zinc-300 leading-snug" data-testid="backup-last-when">
                       {backup.status === 'checking' ? 'Conferindo a conta…' : 'Nenhum backup ainda'}
                     </p>
                   )}
@@ -340,6 +345,31 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
           icon={<CloudDownload className="w-5 h-5" />}
           onCancel={() => setConfirmRestore(false)}
           onConfirm={() => { setConfirmRestore(false); backup.restoreNow(); }}
+        />
+      )}
+
+      <div className="rounded-2xl border border-white/10 bg-zinc-900/50 overflow-hidden">
+        <button onClick={() => setPrivacyOpen(true)} data-testid="open-privacy" className="w-full min-h-[52px] flex items-center gap-3 px-4 text-left active:bg-white/5">
+          <ShieldCheck className="w-5 h-5 text-luxury-gold shrink-0" /><span className="text-sm font-medium text-zinc-200">Política de privacidade</span>
+        </button>
+        <button onClick={() => { setDeleteError(null); setConfirmDelete(true); }} data-testid="delete-account" className="w-full min-h-[52px] flex items-center gap-3 px-4 text-left border-t border-white/5 active:bg-white/5">
+          <LogOut className="w-5 h-5 text-red-400 shrink-0" /><span className="text-sm font-medium text-red-400">Excluir minha conta</span>
+        </button>
+        {deleteError && <p className="px-4 pb-3 text-xs text-red-400">{deleteError}</p>}
+      </div>
+
+      {privacyOpen && <PrivacyPolicy onClose={() => setPrivacyOpen(false)} />}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Excluir sua conta?"
+          message={<>Isso apaga <b className="text-white">definitivamente</b> sua conta e tudo que está na nuvem: backups, metas, alertas e avaliações. Os dados guardados neste aparelho continuam até você desinstalar o app. Não dá para desfazer.</>}
+          confirmLabel="Excluir conta"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={async () => {
+            setConfirmDelete(false);
+            try { await deleteMyAccount(); try { await cloud.signOut(); } catch { /* sessão já invalidada */ } }
+            catch (e: any) { setDeleteError('Não foi possível excluir agora. Tente de novo em instantes.'); }
+          }}
         />
       )}
 

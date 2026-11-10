@@ -92,7 +92,7 @@ const ShoppingCatalogSheet: React.FC<Props> = ({ group, history, mode, title, su
         <div className="relative">
           <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input data-testid="cat-search" value={q} onChange={e => setQ(e.target.value)} enterKeyHint="done" onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder={`Procurar em ${GROUP_LABEL[group].toLowerCase()}`} aria-label="Procurar no catálogo"
-            className="w-full h-11 rounded-xl bg-white/5 border border-white/10 pl-9 pr-3 text-[15px] text-white outline-none focus:border-luxury-gold/60 placeholder:text-zinc-500" />
+            className="w-full h-11 rounded-xl bg-white/5 border border-white/10 pl-9 pr-3 text-[14px] text-white outline-none focus:border-luxury-gold/60 placeholder:text-zinc-500" />
         </div>
         <div className="flex gap-1.5 mt-2 overflow-x-auto -mx-5 px-5 pb-0.5" role="group" aria-label="Filtro">
           {FILTERS.map(f => (

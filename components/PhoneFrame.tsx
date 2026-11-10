@@ -107,7 +107,7 @@ const PhoneFrame: React.FC<PhoneFrameProps> = ({ onExit }) => {
         </div>
 
         <section className="flex flex-col gap-2">
-          <h4 className="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">Aparelho</h4>
+          <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600">Aparelho</h4>
           {DEVICES.map(d => (
             <button
               key={d.id}
@@ -121,7 +121,7 @@ const PhoneFrame: React.FC<PhoneFrameProps> = ({ onExit }) => {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h4 className="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">Orientação</h4>
+          <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600">Orientação</h4>
           <button
             onClick={() => setOrientation(o => (o === 'portrait' ? 'landscape' : 'portrait'))}
             className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-[10px] font-bold uppercase tracking-widest hover:border-luxury-gold/50 transition-all"
@@ -133,7 +133,7 @@ const PhoneFrame: React.FC<PhoneFrameProps> = ({ onExit }) => {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h4 className="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">Zoom</h4>
+          <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600">Zoom</h4>
           <div className="flex items-center gap-2">
             <button onClick={() => stepZoom(-0.1)} className="p-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 hover:text-white" title="Diminuir"><Minus className="w-4 h-4" /></button>
             <div className="flex-1 text-center text-sm font-bold text-white">{Math.round(scale * 100)}%</div>

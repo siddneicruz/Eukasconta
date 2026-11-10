@@ -391,3 +391,6 @@ export const deleteCloudReceipt = async (userId: string, clientId: string): Prom
   const { error } = await supabase.from('receipts').delete().eq('user_id', userId).eq('client_id', clientId);
   if (error) throw new Error(error.message);
 };
+
+// Apaga a conta e todos os dados ligados a ela na nuvem (cupons salvos, metas, alertas, avaliações, backups, créditos).
+export const deleteMyAccount = (): Promise<void> => rpc<void>('delete_my_account', {});

@@ -44,7 +44,7 @@ export const SettingsQuick: React.FC<{
     { label: 'Lista de compras', icon: ShoppingCart, on: onList, t: 'quick-list' },
     { label: 'Avisos e alertas', icon: Bell, on: onAlerts, t: 'quick-alerts' },
     ...(isAdmin && onMaster ? [{ label: 'Tabela mãe (importar planilha)', icon: KeyRound, on: onMaster, t: 'drawer-master' }] : []),
-    { label: 'Diagnóstico', icon: Terminal, on: onDiagnostics, t: 'quick-diag' },
+    ...(isAdmin ? [{ label: 'Diagnóstico', icon: Terminal, on: onDiagnostics, t: 'quick-diag' }] : []),
   ];
   return (
     <div className="mb-6 space-y-4" data-testid="settings-quick">

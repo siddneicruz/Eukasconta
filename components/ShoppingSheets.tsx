@@ -46,7 +46,7 @@ export const Sheet: React.FC<{ title: string; subtitle?: string; onClose: () => 
         className={`w-full sm:max-w-md max-h-[88dvh] ${tall ? 'h-[88dvh]' : ''} flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]`}>
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="min-w-0 flex-1">
-            <h3 className="text-[17px] font-serif text-white tracking-tight leading-tight break-words">{title}</h3>
+            <h3 className="text-[16px] font-serif text-white tracking-tight leading-tight break-words">{title}</h3>
             {subtitle && <p className="text-xs text-zinc-400 mt-0.5 leading-snug">{subtitle}</p>}
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="shrink-0 w-10 h-10 -mr-2 -mt-1 flex items-center justify-center rounded-xl text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
@@ -84,7 +84,7 @@ export const ItemSheet: React.FC<ItemSheetProps> = ({ entry, purchaseLabel, chec
         <button type="button" aria-label="Diminuir quantidade" onClick={() => setBoth(qty - step)} className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-zinc-200 active:text-luxury-gold"><Minus className="w-5 h-5" /></button>
         <input data-testid="shop-item-qty" inputMode="decimal" value={qtyTxt} aria-label="Quantidade"
           onChange={e => { setQtyTxt(e.target.value); const n = parseMoney(e.target.value); if (n !== null) setQty(n); }}
-          className="flex-1 min-w-0 h-12 rounded-xl bg-white/5 border border-white/10 text-center text-[17px] font-semibold text-white tabular-nums outline-none focus:border-luxury-gold/60" />
+          className="flex-1 min-w-0 h-12 rounded-xl bg-white/5 border border-white/10 text-center text-[16px] font-semibold text-white tabular-nums outline-none focus:border-luxury-gold/60" />
         <button type="button" aria-label="Aumentar quantidade" onClick={() => setBoth(qty + step)} className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-zinc-200 active:text-luxury-gold"><Plus className="w-5 h-5" /></button>
       </div>
 
@@ -145,7 +145,7 @@ export const AddSheet: React.FC<AddSheetProps> = ({ history, purchaseLabel, onAd
       <div className="relative">
         <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
         <input data-testid="shop-add-input" autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Procurar no que você já comprou" aria-label="Procurar item"
-          className="w-full h-12 rounded-xl bg-white/5 border border-white/10 pl-9 pr-3 text-[15px] text-white outline-none focus:border-luxury-gold/60 placeholder:text-zinc-500" />
+          className="w-full h-12 rounded-xl bg-white/5 border border-white/10 pl-9 pr-3 text-[14px] text-white outline-none focus:border-luxury-gold/60 placeholder:text-zinc-500" />
       </div>
       <ul className="mt-2 mb-2">
         {found.map(p => {

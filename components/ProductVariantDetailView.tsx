@@ -17,6 +17,7 @@ import NearbyPricesCard, { NearbySample } from './NearbyPricesCard';
 import { priceBasis, eggNeedsCount } from '../services/eggs';
 import type { CloudApi } from '../services/useCloud';
 import type { AlertDraft } from './AlertsView';
+import { CHART_COLORS } from '../services/chartTheme';
 import {
   itemBelongsToProduct, collectPriceObservations, computePriceStats,
   isDateInPeriod, periodLabel, buildPriceSeries, computeDeltas, weightedAverage, monthNamePt, normalizeUnit, HistoryItem,
@@ -51,7 +52,6 @@ interface HistRow extends HistoryItem {
   eggPending: boolean;      // ovo sem a quantidade da bandeja: falta informar no cupom
 }
 
-const CHART_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
 const INITIAL_ROWS = 12;
 
 const CustomTooltip = ({ active, payload, label }: any) => {

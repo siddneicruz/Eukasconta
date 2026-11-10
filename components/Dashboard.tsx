@@ -49,6 +49,7 @@ import { periodLabel } from '../services/productPriceStats';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
 import { MONTHS_SHORT, shortPeriod } from '../services/periodFilter';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
+import { CHART_COLORS, CATEGORY_COLORS } from '../services/chartTheme';
 
 interface DashboardProps {
   receipts: Receipt[];
@@ -65,7 +66,6 @@ interface DashboardProps {
   masterProducts?: MasterProduct[];
 }
 
-const CHART_COLORS = ['#DDB94B', '#27A46D', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#10B981', '#EF4444', '#06B6D4', '#6366F1'];
 
 export const getCustomMeta = (category: string) => {
     try {
@@ -364,14 +364,7 @@ export const getCategoryColor = (category: string) => {
     const custom = getCustomMeta(key);
     if (custom && custom.color) return custom.color;
 
-    const COLORS: Record<string, string> = {
-        'Transporte': '#466C8C', 'Hortifruti': '#27A46D', 'Laticínios e Frios': '#17FF7C',
-        'Moda': '#E6199F', 'Carne Suína': '#9F4D19', 'Carne Bovina': '#D03F33',
-        'Adega e Bebidas': '#2AEBCE', 'Bomboniere e Snacks': '#FF69B4',
-        'Padaria e Confeitaria': '#D2691E', 'Higiene e Beleza': '#EC4899',
-        'Limpeza e Casa': '#8B5CF6', 'Despensa e Grãos': '#B9A329', 'Despensa': '#B9A329',
-        'Bazar e Outros': '#607D8B', 'Pet Shop': '#FF9800'
-    };
+    const COLORS = CATEGORY_COLORS;
     
     if (COLORS[key]) return COLORS[key];
 
@@ -416,7 +409,7 @@ const CustomTooltip = ({ active, payload }: any) => {
         return (
             <div className="bg-zinc-950 border border-white/10 px-3 py-2 rounded-xl shadow-xl backdrop-blur-md">
                 <p className="text-luxury-gold text-[11px] font-semibold leading-none">{data.label || data.name}</p>
-                <p className="text-white font-serif text-[15px] leading-none mt-1.5 tabular-nums">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
+                <p className="text-white font-serif text-[14px] leading-none mt-1.5 tabular-nums">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.value)}</p>
                 {data.percentage && <p className="text-zinc-400 text-[11px] mt-1">{data.percentage.toFixed(1).replace('.', ',')}% do total</p>}
             </div>
         );
@@ -635,7 +628,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                     aria-haspopup="dialog" aria-label={`Categorias: ${deptLabel}. Alterar`}
                     className="min-w-0 flex-1 md:flex-none md:max-w-[200px] ls:max-w-[150px] h-8 px-2 rounded-xl flex items-center gap-2 text-left hover:bg-white/5 transition-colors">
                     <Filter className="w-4 h-4 text-luxury-gold shrink-0" />
-                    <span data-testid="dept-filter-label" className={`truncate text-xs font-bold uppercase tracking-[0.04em] md:tracking-[0.08em] ls:tracking-[0.08em] ${deptActive ? 'dept-active text-luxury-gold' : 'text-zinc-300'}`}>{deptLabel}</span>
+                    <span data-testid="dept-filter-label" className={`truncate text-xs font-bold uppercase tracking-[0.08em] md:tracking-[0.08em] ls:tracking-[0.08em] ${deptActive ? 'dept-active text-luxury-gold' : 'text-zinc-300'}`}>{deptLabel}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                 </button>
                 {deptActive && (

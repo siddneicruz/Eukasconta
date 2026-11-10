@@ -7,6 +7,7 @@ import { useLayers, useTaxonomy } from './LayersContext';
 import { CompareOption, buildCompareOptions, chipLabel, matcherFor } from '../services/categoryCompare';
 import { fold } from '../services/itemSearch';
 import { AXIS_Y_WIDTH, TL_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick } from '../services/chartFormat';
+import { GOAL_PALETTE } from '../services/chartTheme';
 
 const { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ComposedChart, Area, Line, ReferenceLine } = Recharts;
 
@@ -16,7 +17,7 @@ const { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ComposedChart
 
 export const GOALS_KEY = 'eukasconta_category_goals';
 export const GOAL_COLORS_KEY = 'eukasconta_goal_colors';
-const PALETTE = ['#DDB94B', '#10B981', '#3B82F6', '#A855F7', '#EC4899', '#F97316', '#06B6D4', '#EF4444'];
+const PALETTE = GOAL_PALETTE;
 const UNDO_MS = 7000;
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -254,7 +255,7 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
         <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="goal-analysis">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="text-[15px] md:text-lg font-semibold text-zinc-100 truncate" data-testid="goal-title">{current.opt.full.split(' - ').join(' › ')}</h3>
+              <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100 truncate" data-testid="goal-title">{current.opt.full.split(' - ').join(' › ')}</h3>
               <p className="text-[11px] text-zinc-500 mt-0.5 tabular-nums">Meta de {brl(current.value)} por mês</p>
             </div>
             <div className="shrink-0 flex items-center gap-0.5 -mr-1.5 -mt-1" role="group" aria-label="Mês da meta">

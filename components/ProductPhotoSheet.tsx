@@ -57,7 +57,7 @@ const ProductPhotoSheet: React.FC<Props> = ({ initialCode = '', onClose, onSaved
     onSaved(d.barcode, full);
   };
 
-  const field = 'w-full h-11 mt-1 rounded-xl bg-white/5 border border-white/10 px-3 text-[15px] text-white outline-none focus:border-luxury-gold/60';
+  const field = 'w-full h-11 mt-1 rounded-xl bg-white/5 border border-white/10 px-3 text-[14px] text-white outline-none focus:border-luxury-gold/60';
   return (
     <Sheet title="Cadastrar por fotos" subtitle={`até ${MAX_PHOTOS} fotos`} onClose={onClose} testId="photo-sheet" tall>
       <div className="px-4 pb-4">

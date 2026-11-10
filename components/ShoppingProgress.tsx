@@ -49,7 +49,7 @@ const ShoppingProgress: React.FC<{
             <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white tabular-nums" data-testid="shop-progress-pct">{pct}%</span>
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-serif font-bold text-white leading-tight">Montando sua lista</h2>
+            <h2 className="text-[16px] font-serif font-bold text-white leading-tight">Montando sua lista</h2>
             <p className="text-[12px] text-zinc-400 mt-0.5 leading-snug" data-testid="shop-progress-now" aria-live="polite">
               {current ? current.label : 'Quase pronta'} · {secs(now - state.startedAt)} no total
             </p>

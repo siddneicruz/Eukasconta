@@ -1405,7 +1405,7 @@ const App: React.FC = () => {
             </button>
             <div className="flex items-center gap-2.5 md:gap-4 cursor-pointer mr-auto" onClick={() => setView('dashboard')}>
                 <AppMark title="Eu Kasconta" className="h-[34px] w-[34px] md:h-11 md:w-11 shrink-0" />
-                <BrandName className="text-[15px] md:text-lg" />
+                <BrandName className="text-[14px] md:text-lg" />
             </div>
             <nav className="hidden md:flex gap-2 items-center">
                 <NavItem id="dashboard" label="Início" icon={LayoutDashboard} view={view} setView={setView} />

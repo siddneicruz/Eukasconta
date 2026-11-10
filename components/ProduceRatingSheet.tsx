@@ -59,7 +59,7 @@ const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }
           <div className="grid grid-cols-2 p-0.5 rounded-full bg-white/5 border border-white/10" role="tablist" data-testid="produce-mode">
             {([['todos', 'Todos de uma vez'], ['um', 'Um por um']] as const).map(([m, label]) => (
               <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => pickMode(m)} data-testid={`produce-mode-${m}`}
-                className={`h-9 rounded-full text-[11px] font-bold uppercase tracking-[0.06em] transition-colors ${mode === m ? 'bg-luxury-gold text-black' : 'text-zinc-500'}`}>{label}</button>
+                className={`h-9 rounded-full text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${mode === m ? 'bg-luxury-gold text-black' : 'text-zinc-500'}`}>{label}</button>
             ))}
           </div>
 

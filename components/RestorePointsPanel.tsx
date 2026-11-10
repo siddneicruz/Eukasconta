@@ -121,7 +121,7 @@ const RestorePointsPanel: React.FC<Props> = ({ restore, cloudBackupOn = false })
               className="bg-black/40 border border-white/5 p-4 rounded-2xl hover:border-luxury-gold/30 transition-colors flex flex-col gap-3">
               <div className="min-w-0">
                 <span className={`inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold ${CHIP[p.kind]}`}>{KIND_LABEL[p.kind]}</span>
-                <p className="mt-1.5 text-zinc-100 font-semibold text-[15px] leading-snug break-words" data-testid="restore-point-name">{p.name}</p>
+                <p className="mt-1.5 text-zinc-100 font-semibold text-[14px] leading-snug break-words" data-testid="restore-point-name">{p.name}</p>
                 <p className="text-xs text-zinc-500 mt-1 tabular-nums">{whenText(when, now)} · {agoText(when, now)}</p>
                 <p className="text-xs text-zinc-400 mt-1 tabular-nums">{pointSummary(p)} · {fmtSize(p.bytes)}</p>
                 {p.partial && <p className="text-xs text-zinc-500 mt-1">Guarda só cupons, lojas e categorias: ao restaurar, o resto fica como está.</p>}

@@ -361,7 +361,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
                                         <span className="text-[11px] text-zinc-400 font-semibold mt-0.5 md:mt-1">{dayName}</span>
                                     </div>
                                     <div className="min-w-0">
-                                        <h4 className="text-zinc-100 font-sans font-semibold text-[15px] md:text-lg leading-snug line-clamp-2 break-words pr-1">{nameOf(receipt.establishmentName, receipt.cnpj)}</h4>
+                                        <h4 className="text-zinc-100 font-sans font-semibold text-[14px] md:text-lg leading-snug line-clamp-2 break-words pr-1">{nameOf(receipt.establishmentName, receipt.cnpj)}</h4>
                                         <div className="flex items-center gap-2 md:gap-3 text-xs text-zinc-500 mt-0.5 md:mt-1 min-w-0">
                                             <span className="flex items-center gap-1 shrink-0 tabular-nums"><Clock className="w-3 h-3" />{receipt.time || '12:00'}</span>
                                             {rowInfo.get(receipt.id) ? (

@@ -224,7 +224,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               <TabButton active={settingsTab === 'taxonomy'} onClick={() => setSettingsTab('taxonomy')} icon={Layers} label="Estrutura & Estilo" />
               <TabButton active={settingsTab === 'establishments'} onClick={() => setSettingsTab('establishments')} icon={Store} label="Lojas" />
               <TabButton active={settingsTab === 'intelligence'} onClick={() => setSettingsTab('intelligence')} icon={BrainCircuit} label="Inteligência" />
-              <TabButton active={settingsTab === 'system'} onClick={() => setSettingsTab('system')} icon={Database} label="System" />
+              <TabButton active={settingsTab === 'system'} onClick={() => setSettingsTab('system')} icon={Database} label="Backup e dados" />
               <TabButton active={settingsTab === 'ai_key'} onClick={() => setSettingsTab('ai_key')} icon={KeyRound} label="Chave IA" />
               {master.isAdmin && <TabButton active={settingsTab === 'master'} onClick={() => setSettingsTab('master')} icon={KeyRound} label={`Tabela mãe${master.pending ? ` (${master.pending})` : ''}`} />}
               {cloud && <TabButton active={settingsTab === 'account'} onClick={() => setSettingsTab('account')} icon={UserRound} label="Conta" />}
@@ -395,9 +395,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             <RestorePointsPanel restore={restore} cloudBackupOn={Boolean(backup?.signedIn)} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <ActionBlock icon={Calculator} title="Audit consistency" desc="Auditoria de portfólio" onClick={onAuditPrices} primary />
-                <ActionBlock icon={Eraser} title="Cleanup Engine" desc="Revisar cupons repetidos" onClick={onCleanupDuplicates} />
-                <ActionBlock icon={RefreshCw} title="Sinc Cloud" desc="Taxonomia & IA" onClick={onReprocessCategories} />
+                <ActionBlock icon={Calculator} title="Auditar preços" desc="Conferir consistência da carteira" onClick={onAuditPrices} primary />
+                <ActionBlock icon={Eraser} title="Limpar duplicados" desc="Revisar cupons repetidos" onClick={onCleanupDuplicates} />
+                <ActionBlock icon={RefreshCw} title="Reprocessar categorias" desc="Reaplicar taxonomia e IA" onClick={onReprocessCategories} />
             </div>
 
             <div className="pt-10 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

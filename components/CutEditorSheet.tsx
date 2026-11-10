@@ -79,7 +79,7 @@ const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose })
         className="w-full sm:max-w-md max-h-[92dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="min-w-0 flex-1">
-            <h3 className="text-[17px] font-serif text-white tracking-tight leading-tight">{title}</h3>
+            <h3 className="text-[16px] font-serif text-white tracking-tight leading-tight">{title}</h3>
             <p className="text-xs text-zinc-400 mt-0.5 leading-snug">Um pedaço do tempo, com a análise só dele. Fica salvo como etiqueta.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="shrink-0 w-10 h-10 -mr-2 -mt-1 flex items-center justify-center rounded-xl text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
