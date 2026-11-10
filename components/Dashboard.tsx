@@ -40,7 +40,8 @@ import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimeli
 import { buildEvolution } from '../services/evolutionSeries';
 import DeptFilterSheet from './DeptFilterSheet';
 import StoreTypeFilter from './StoreTypeFilter';
-import { applyStoreTypeFilter, useStoreTypeFilter } from '../services/storeTypes';
+import { applyStoreTypeFilter, useStoreTypeFilter, NO_STORE_TYPE } from '../services/storeTypes';
+import StoreRanking from './StoreRanking';
 import { useLayers } from './LayersContext';
 import { useDeptFilter, isDeptFilterActive, invertDeptFilter, deptFilterLabel, deptLabelFor, applyDeptFilter, buildDeptOptions } from '../services/deptFilter';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
@@ -560,20 +561,20 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   // Lojas: o mesmo apelido (ou o mesmo nome) vira uma barra só. `name` é a identidade usada no filtro;
   // `raw` é o nome do cupom que mais gastou, para quando a loja não tem apelido.
   const establishmentData = useMemo(() => {
-    const agg = new Map<string, { value: number; alias: string | null; raws: Map<string, number> }>();
+    const agg = new Map<string, { value: number; alias: string | null; cnpj?: string; raws: Map<string, number> }>();
     shownReceipts.forEach(r => {
         const v = r.totalAmount;
         const key = keyOf(r.establishmentName, r.cnpj);
         let g = agg.get(key);
-        if (!g) { g = { value: 0, alias: aliasOf(r.establishmentName, r.cnpj), raws: new Map() }; agg.set(key, g); }
+        if (!g) { g = { value: 0, alias: aliasOf(r.establishmentName, r.cnpj), cnpj: r.cnpj, raws: new Map() }; agg.set(key, g); }
         g.value += v;
         g.raws.set(r.establishmentName, (g.raws.get(r.establishmentName) || 0) + v);
     });
     return Array.from(agg.entries())
-        .map(([name, g]) => ({ name, alias: g.alias, raw: Array.from(g.raws.entries()).sort((a, b) => b[1] - a[1])[0][0], value: g.value }))
+        .map(([name, g]) => { const raw = Array.from(g.raws.entries()).sort((a, b) => b[1] - a[1])[0][0]; const t = typeOf(raw, g.cnpj); return { name, alias: g.alias, raw, value: g.value, type: t === NO_STORE_TYPE ? '' : t }; })
         .sort((a, b) => b.value - a.value)
         .slice(0, 15); // Top 15 para manter a estética limpa
-  }, [shownReceipts, keyOf, aliasOf]);
+  }, [shownReceipts, keyOf, aliasOf, typeOf]);
 
   // Nome para mostrar de cada loja (por identidade), também para as lojas que o filtro escondeu
   const storeLabels = useMemo(() => {
@@ -879,7 +880,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       <div className="lg:col-span-6 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(59,130,246,0.10), transparent)' }} />
           <div className="flex justify-between items-center mb-2 md:mb-6 relative z-10">
-              <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Estabelecimento</h3>
+              <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Onde você gasta</h3>
               {config.establishment && (
                   <button
                     onClick={() => onConfigChange({ ...config, establishment: null })}
@@ -890,56 +891,18 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               )}
           </div>
           
-          <div className="h-[var(--est-h)] md:h-[350px] w-full relative z-10" style={{ ['--est-h' as any]: `${Math.max(1, Math.min(8, establishmentData.length)) * 25 + 6}px` }} data-testid="est-chart">
-              <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                      data={establishmentData.slice(0, 8)}
-                      layout="vertical"
-                      margin={{ top: 0, right: 64, left: 0, bottom: 0 }}
-                      barCategoryGap={5}
-                  >
-                      <XAxis type="number" hide />
-                      <YAxis type="category" dataKey="name" hide width={0} />
-                      <Bar
-                          dataKey="value"
-                          radius={[6, 6, 6, 6]}
-                          isAnimationActive={false}
-                          barSize={20}
-                          onMouseEnter={(_, index) => setHoveredEstIdx(index)}
-                          onMouseLeave={() => setHoveredEstIdx(null)}
-                          onClick={(data: any) => data && onConfigChange({ ...config, establishment: config.establishment === data.name ? null : data.name })}
-                          className="cursor-pointer"
-                      >
-                          {establishmentData.slice(0, 8).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={!entry.alias && isUnidentifiedName(entry.raw) ? '#71717a' : CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer transition-all" style={{ filter: hoveredEstIdx === index ? 'brightness(1.15)' : undefined }} />
-                          ))}
-                          <LabelList
-                              dataKey="value"
-                              content={({ x, y, width, height, value, index }: any) => {
-                                  const name = establishmentLabels[index] ?? '';
-                                  const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value));
-                                  const bx = Number(x), bw = Number(width), cy = Number(y) + Number(height) / 2;
-                                  const fits = bw >= name.length * 7 + 22;
-                                  return (
-                                      <g className="pointer-events-none">
-                                          {fits ? (
-                                              <>
-                                                  <text x={bx + 10} y={cy} dy={4} fill="#0a0a0a" fontSize={12} fontWeight={700}>{name}</text>
-                                                  <text x={bx + bw + 8} y={cy} dy={4} style={{ fill: 'var(--est-money-in, #d4d4d8)' }} fontSize={12} fontWeight={600}>{money}</text>
-                                              </>
-                                          ) : (
-                                              <text x={bx + bw + 8} y={cy} dy={4} fontSize={12}>
-                                                  <tspan style={{ fill: 'var(--est-name, #e4e4e7)' }} fontWeight={700}>{name}</tspan>
-                                                  <tspan style={{ fill: 'var(--est-money, #a1a1aa)' }} fontWeight={600} dx={6}>{money}</tspan>
-                                              </text>
-                                          )}
-                                      </g>
-                                  );
-                              }}
-                          />
-                      </Bar>
-                  </BarChart>
-              </ResponsiveContainer>
+          <div className="relative z-10">
+              <StoreRanking
+                  rows={establishmentData.map((e, i) => ({
+                      key: e.name,
+                      label: storeLabel(e.name) || establishmentLabels[i] || e.raw,
+                      type: e.type,
+                      value: e.value,
+                      muted: !e.alias && isUnidentifiedName(e.raw),
+                  }))}
+                  selectedKey={config.establishment || null}
+                  onSelect={(key) => onConfigChange({ ...config, establishment: key })}
+              />
           </div>
           
       </div>
