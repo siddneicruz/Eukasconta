@@ -205,7 +205,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
       </div>
 
       <div className="rounded-2xl bg-[#07080a] border border-white/10 shadow-xl overflow-hidden" data-testid="quotes-list">
-        <div className={`grid grid-cols-[1fr_76px_82px] gap-2 px-3 md:px-5 py-2 text-[10px] font-bold tracking-[0.12em] text-zinc-500 bg-white/[0.04] border-b border-white/10`}>
+        <div className={`grid grid-cols-[1fr_80px_82px] gap-2 px-3 md:px-5 py-2 text-[10px] font-bold tracking-[0.12em] text-zinc-500 bg-white/[0.04] border-b border-white/10`}>
           <span>ITEM</span><span className="text-right">ÚLTIMO R$</span><span className="text-right">VAR</span>
         </div>
         {ready.length === 0 && <p className="text-sm text-zinc-500 py-8 text-center px-4">Nenhum item com {MIN_PURCHASES} compras ou mais nesse filtro.</p>}
@@ -215,7 +215,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
             return (
               <div key={x.key} data-testid="quote-row">
                 <button type="button" onClick={() => setOpen(isOpen ? null : x.key)} aria-expanded={isOpen}
-                  className="w-full grid grid-cols-[1fr_76px_82px] gap-2 items-center px-3 md:px-5 py-2.5 text-left active:bg-white/5">
+                  className="w-full grid grid-cols-[1fr_80px_82px] gap-2 items-center px-3 md:px-5 py-2.5 text-left active:bg-white/5">
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 min-w-0"><span className="text-[13px] font-bold text-zinc-100 uppercase tracking-[0.02em] truncate">{x.name}</span><span className="shrink-0 px-1.5 py-0.5 rounded bg-luxury-gold/15 border border-luxury-gold/40 text-luxury-gold text-[12px] font-bold font-mono">{unitLabel(x.unit)}</span></p>
                     <div className="flex items-center gap-2 mt-1.5">
@@ -223,7 +223,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
                       <span className={`text-[10px] text-zinc-500 ${MONO}`}>méd {num(x.mean as number)}</span>
                     </div>
                   </div>
-                  <span className={`text-right text-[15px] font-bold text-zinc-100 ${MONO}`}>{num(x.last)}<span className="block text-[9px] font-medium text-zinc-500">/{unitLabel(x.unit)}</span></span>
+                  <span className="flex justify-end"><span className={`inline-flex flex-col items-center justify-center min-w-[74px] h-10 px-2 rounded-md bg-white/[0.06] border border-white/20 text-[14px] font-bold text-zinc-100 leading-tight ${MONO}`}>{num(x.last)}<span className="text-[9px] font-medium text-zinc-500">/{unitLabel(x.unit)}</span></span></span>
                   <span className="text-right"><VarCell q={x} /></span>
                 </button>
                 {isOpen && (
