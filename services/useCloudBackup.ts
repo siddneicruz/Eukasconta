@@ -14,6 +14,7 @@ import {
   BackupMeta, applyData, applySecretsIfMissing, clearBackupSecrets, collectLocal, deleteBackup, fetchBackupData,
   fetchBackupMeta, fingerprint, localReceiptCount, mergeData, uploadBackup,
 } from './backupService';
+import { isDataKey } from './localData';
 
 export const KEYS_CHANGED_EVENT = 'eukasconta:keys-changed';
 
@@ -21,6 +22,8 @@ const AUTO_KEY = 'eukasconta_backup_auto';
 const KEYS_KEY = 'eukasconta_backup_keys';
 const HASH_KEY = (uid: string) => `eukasconta_backup_hash_${uid}`;
 const RESTORED_FLAG = 'eukasconta_backup_restored';
+// de quem são os dados guardados neste aparelho (só fica aqui; nunca vai no backup)
+const OWNER_KEY = 'eukasconta_backup_owner';
 import { APP_BUILD } from './appVersion';
 const APP_VERSION = String(APP_BUILD);
 
@@ -33,7 +36,7 @@ const writeStr = (key: string, v: string | null) => { try { if (v === null) loca
 
 export type BackupStatus = 'idle' | 'checking' | 'saving' | 'restoring' | 'error';
 
-export interface BackupConflict { remoteCount: number; localCount: number; remoteAt: string }
+export interface BackupConflict { remoteCount: number; localCount: number; remoteAt: string; /** os dados daqui são de OUTRA conta */ foreign?: boolean }
 export type ConflictChoice = 'merge' | 'account' | 'device';
 
 export interface BackupApi {
@@ -113,6 +116,7 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
     try {
       const at = await uploadBackup(uid, snap, withKeys, APP_VERSION);
       writeStr(HASH_KEY(uid), hash);
+      writeStr(OWNER_KEY, uid);
       remoteKnown.current = true;
       setRemoteMeta({ updated_at: at, receipt_count: snap.receiptCount });
       setError(null);
@@ -149,6 +153,30 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
         if (!alive) return;
         remoteKnown.current = true;
         setRemoteMeta(meta ? { updated_at: meta.updated_at, receipt_count: meta.receipt_count } : null);
+        // dono dos dados daqui: o que foi gravado, ou (aparelho antigo) a conta que já fez backup deste aparelho
+        let owner = readStr(OWNER_KEY);
+        if (!owner) {
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i) || '';
+              if (k.startsWith('eukasconta_backup_hash_')) {
+                const u = k.slice('eukasconta_backup_hash_'.length);
+                if (u === userId) { owner = u; break; }
+                owner = owner || u;
+              }
+            }
+          } catch { /* ignora */ }
+        }
+        if (owner && owner !== userId && localReceiptCount() > 0) {
+          // outra conta entrou neste aparelho: nada é enviado nem apagado até a pessoa escolher
+          setConflict({ remoteCount: meta?.receipt_count ?? 0, localCount: localReceiptCount(), remoteAt: meta?.updated_at ?? '', foreign: true });
+          if (meta) applySecretsIfMissing(meta.secrets);
+          checkedRef.current = true;
+          setChecked(true);
+          setStatus('idle');
+          return;
+        }
+        if (!owner || localReceiptCount() === 0) writeStr(OWNER_KEY, userId);
         if (meta) {
           const gotKeys = applySecretsIfMissing(meta.secrets);
           const emptyHere = localReceiptCount() === 0;
@@ -254,6 +282,7 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
       if (meta) applySecretsIfMissing(meta.secrets);
       const snap = collectLocal();
       writeStr(HASH_KEY(uid), fingerprint({ data: snap.data, secrets: keysRef.current ? snap.secrets : {} }) + (keysRef.current ? 'k' : '-'));
+      writeStr(OWNER_KEY, uid);
       toastRef.current?.('Backup restaurado. Reabrindo…');
       setTimeout(() => window.location.reload(), 900);
     } catch (e) {
@@ -267,7 +296,26 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
     if (!uid || !conflictRef.current) return;
     setError(null);
     try {
-      if (choice === 'account') { setConflict(null); await restoreNow(); return; }
+      if (choice === 'account') {
+        const c = conflictRef.current;
+        if (c.foreign && c.remoteCount === 0) {
+          // conta nova, sem backup: começa limpa (guarda um ponto de restauração antes)
+          restoring.current = true;
+          setStatus('restoring');
+          await safetyPoint('entrar em outra conta');
+          try {
+            const del: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i) || ''; if (isDataKey(k)) del.push(k); }
+            del.forEach(k => localStorage.removeItem(k));
+          } catch { /* ignora */ }
+          writeStr(OWNER_KEY, uid);
+          setConflict(null);
+          toastRef.current?.('Conta nova começa sem dados. Reabrindo…');
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+        setConflict(null); await restoreNow(); return;
+      }
       if (choice === 'merge') {
         restoring.current = true;
         setStatus('restoring');
@@ -279,12 +327,14 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
         const snap = collectLocal();
         await uploadBackup(uid, snap, keysRef.current, APP_VERSION);
         writeStr(HASH_KEY(uid), fingerprint({ data: snap.data, secrets: keysRef.current ? snap.secrets : {} }) + (keysRef.current ? 'k' : '-'));
+        writeStr(OWNER_KEY, uid);
         setConflict(null);
         toastRef.current?.(res.added > 0 ? `Juntei os dois: ${res.added} ${res.added === 1 ? 'cupom veio' : 'cupons vieram'} da conta. Reabrindo…` : 'Os cupons da conta já estavam aqui. Reabrindo…');
         setTimeout(() => window.location.reload(), 1000);
         return;
       }
       // 'device': o que está aqui passa a ser o backup da conta
+      writeStr(OWNER_KEY, uid);
       setConflict(null);
       await flush(true);
     } catch (e) {

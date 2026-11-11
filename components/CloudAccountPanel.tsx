@@ -272,16 +272,24 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
 
           {backup.conflict && (
             <div className="rounded-2xl border border-luxury-gold/40 bg-luxury-gold/10 p-4 space-y-3" data-testid="backup-conflict">
-              <p className="text-[13px] text-zinc-100 leading-relaxed">
-                A conta já tem um backup com <b>{backup.conflict.remoteCount} {backup.conflict.remoteCount === 1 ? 'cupom' : 'cupons'}</b> ({fmtWhen(backup.conflict.remoteAt)}) e este aparelho tem <b>{backup.conflict.localCount}</b>. Nada foi apagado nem enviado ainda. O que você quer fazer?
-              </p>
+              {backup.conflict.foreign ? (
+                <p className="text-[13px] text-zinc-100 leading-relaxed" data-testid="conflict-foreign">
+                  Os <b>{backup.conflict.localCount} cupons</b> deste aparelho são de <b>outra conta</b>. {backup.conflict.remoteCount > 0
+                    ? <>Esta conta tem <b>{backup.conflict.remoteCount}</b> no backup.</>
+                    : <>Esta conta ainda não tem backup.</>} Nada foi apagado nem enviado. O que você quer fazer?
+                </p>
+              ) : (
+                <p className="text-[13px] text-zinc-100 leading-relaxed">
+                  A conta já tem um backup com <b>{backup.conflict.remoteCount} {backup.conflict.remoteCount === 1 ? 'cupom' : 'cupons'}</b> ({fmtWhen(backup.conflict.remoteAt)}) e este aparelho tem <b>{backup.conflict.localCount}</b>. Nada foi apagado nem enviado ainda. O que você quer fazer?
+                </p>
+              )}
               <div className="flex flex-col gap-2">
-                <button type="button" onClick={() => backup.resolveConflict('merge')} data-testid="conflict-merge"
-                  className="w-full px-4 py-3 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all">Juntar os dois (recomendado)</button>
+                {backup.conflict.remoteCount > 0 && <button type="button" onClick={() => backup.resolveConflict('merge')} data-testid="conflict-merge"
+                  className="w-full px-4 py-3 rounded-xl bg-luxury-gold text-black text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-white transition-all">{backup.conflict.foreign ? 'Juntar os dois' : 'Juntar os dois (recomendado)'}</button>}
                 <button type="button" onClick={() => backup.resolveConflict('account')} data-testid="conflict-account"
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all">Usar o da conta (troca os daqui)</button>
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all">{backup.conflict.foreign ? (backup.conflict.remoteCount > 0 ? 'Só os dados desta conta (recomendado)' : 'Começar do zero nesta conta (recomendado)') : 'Usar o da conta (troca os daqui)'}</button>
                 <button type="button" onClick={() => setConfirmKeepDevice(true)} data-testid="conflict-device"
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-red-500/40 hover:text-red-300 transition-all">Manter o deste aparelho (troca o da conta)</button>
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-red-500/40 hover:text-red-300 transition-all">{backup.conflict.foreign ? 'Levar os dados daqui para esta conta' : 'Manter o deste aparelho (troca o da conta)'}</button>
               </div>
             </div>
           )}
