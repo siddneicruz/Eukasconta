@@ -25,6 +25,9 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
     return out.map((t, i) => ({ t, i, v: totals.get(t) || 0 })).sort((a, b) => (b.v > 0 ? 1 : 0) - (a.v > 0 ? 1 : 0) || a.i - b.i);
   }, [types, totals, sel]);
   const active = sel.length > 0;
+  const allOn = list.length > 0 && list.every(({ t }) => sel.includes(t));
+  const someOn = sel.length > 0 && !allOn;
+  const toggleAll = () => setSel(allOn ? [] : list.map(({ t }) => t));
   const toggle = (t: string) => setSel(sel.includes(t) ? sel.filter(x => x !== t) : [...sel, t]);
 
   return (
@@ -48,6 +51,15 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
             <div className="px-5 pt-4 pb-2 flex items-center justify-between">
               <h4 className="text-[16px] font-serif text-white tracking-tight">Tipo de estabelecimento</h4>
               <button type="button" onClick={() => setSel([])} disabled={!active} className="text-xs font-semibold text-luxury-gold disabled:text-zinc-600">Todos os tipos</button>
+            </div>
+            <div className="px-3 pb-1">
+              <button type="button" onClick={toggleAll} aria-pressed={allOn} data-testid="store-type-all"
+                className="w-full min-h-11 px-2 rounded-xl flex items-center gap-3 text-left active:bg-white/5 border-b border-white/5">
+                <span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${allOn || someOn ? 'bg-luxury-gold border-luxury-gold' : 'border-white/20'}`}>
+                  {allOn ? <Check className="w-3.5 h-3.5 text-black" /> : someOn ? <span className="w-2.5 h-0.5 bg-black rounded" /> : null}
+                </span>
+                <span className="flex-1 min-w-0 truncate text-sm font-semibold text-zinc-100">{allOn ? 'Desmarcar todos' : 'Selecionar todos'}</span>
+              </button>
             </div>
             <ul className="overflow-y-auto px-3 pb-2">
               {list.map(({ t, v }) => {
