@@ -1,3 +1,4 @@
+import DateRangeSlider from './DateRangeSlider';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as Recharts from 'recharts';
 import { Plus, X, Filter, Pencil, ArrowLeftRight, CalendarRange, PieChart as PieChartIcon, Store, Undo2, ChevronRight } from 'lucide-react';
@@ -68,6 +69,11 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
     else setPick({ title, subtitle, refs });
   };
 
+  // Limites da régua: do primeiro ao último dia com compra (e nunca menores que o próprio recorte)
+  const bounds = useMemo(() => {
+    const ds = receipts.map(r => r.date).filter(Boolean).sort();
+    return { min: ds[0] && ds[0] < cut.from ? ds[0] : cut.from, max: ds[ds.length - 1] && ds[ds.length - 1] > cut.to ? ds[ds.length - 1] : cut.to };
+  }, [receipts, cut.from, cut.to]);
   const a = useMemo(() => analyzeCut(receipts, cut, plotWidth), [receipts, cut, plotWidth, layers]);
   const options = useMemo(
     () => buildDeptOptions(receipts, receipts.filter(r => r.date >= cut.from && r.date <= cut.to), layers),
@@ -201,6 +207,13 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
           </>
         )}
       </div>
+
+      {bounds.min < bounds.max && (
+        <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-5 shadow-xl" data-testid="cut-ruler">
+          <DateRangeSlider min={bounds.min} max={bounds.max} from={cut.from} to={cut.to}
+            onChange={(f, t) => { if (f !== cut.from || t !== cut.to) onChangeFilter({ ...cut, from: f, to: t }); }} testId="cut-range" />
+        </div>
+      )}
 
       {!empty && a.byDept.length > 0 && (
         <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="cut-depts">

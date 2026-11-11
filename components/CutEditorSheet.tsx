@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Filter, ArrowLeftRight, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
-import DateRangeSlider from './DateRangeSlider';
 import DeptFilterSheet from './DeptFilterSheet';
 import { useLayers, useTaxonomy } from './LayersContext';
 import { Cut, cutReceipts, dayCount, newCutId } from '../services/cuts';
@@ -24,15 +23,15 @@ const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', c
 
 const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose }) => {
   const [name, setName] = useState(initial?.name || '');
-  // Limites da régua: do primeiro ao último dia com compra. Recorte novo já nasce com todo o histórico,
-  // sem obrigar a escolher período; a pessoa só ajusta a régua se quiser estreitar.
+  // Limites: do primeiro ao último dia com compra.
   const bounds = useMemo(() => {
     const ds = receipts.map(r => r.date).filter(Boolean).sort();
     const today = new Date().toISOString().slice(0, 10);
     return { min: ds[0] || today, max: ds[ds.length - 1] || today };
   }, [receipts]);
-  const [from, setFrom] = useState(initial?.from || bounds.min);
-  const [to, setTo] = useState(initial?.to || bounds.max);
+  // O período não se escolhe aqui: o recorte novo pega todo o histórico e a régua fica abaixo do painel, na tela de análise.
+  const from = initial?.from || bounds.min;
+  const to = initial?.to || bounds.max;
   const [filter, setFilter] = useState<DeptFilter>(initial?.filter || NO_DEPT_FILTER);
   const [deptOpen, setDeptOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -100,12 +99,6 @@ const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose })
               placeholder="Ex.: Viagem, Mudança, Natal"
               autoComplete="off" enterKeyHint="done"
               className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-3.5 text-[14px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-luxury-gold/40 transition-colors" />
-          </div>
-
-          <div data-testid="cut-period">
-            <span className="block text-[11px] font-semibold text-zinc-500 mb-1.5">Período (arraste as pontas)</span>
-            <DateRangeSlider min={bounds.min < from ? bounds.min : from} max={bounds.max > to ? bounds.max : to}
-              from={from} to={to} onChange={(a, b) => { setFrom(a); setTo(b); }} testId="cut-range" />
           </div>
 
           <div>
