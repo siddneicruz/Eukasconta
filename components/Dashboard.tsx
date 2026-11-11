@@ -50,7 +50,7 @@ import { isCurrentMonthPeriod } from '../services/currentMonth';
 import { MONTHS_SHORT, shortPeriod } from '../services/periodFilter';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 import { CHART_COLORS, CATEGORY_COLORS } from '../services/chartTheme';
-import { QuotesTicker } from './QuotesPanel';
+import { QuotesTicker, useQuotesTicker } from './QuotesPanel';
 
 interface DashboardProps {
   receipts: Receipt[];
@@ -427,6 +427,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   // Filtro de categorias: fica gravado no aparelho (não some ao limpar os outros filtros)
   const [deptFilter, setDeptFilter] = useDeptFilter();
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
+  const [tickerOn, setTickerOn] = useQuotesTicker();
   const [deptSheetOpen, setDeptSheetOpen] = useState(false);
   const [spendOpen, setSpendOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_spend_open') !== '0'; } catch { return true; } });
   const toggleSpend = () => setSpendOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_spend_open', n ? '1' : '0'); } catch { /* sem armazenamento */ } return n; });
@@ -622,7 +623,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
-      <div className="mb-2 md:mb-3"><QuotesTicker receipts={receipts} onOpen={onQuotesClick} /></div>
+      {tickerOn && (
+        <div className="relative mb-2 md:mb-3" data-testid="quotes-ticker-wrap">
+          <QuotesTicker receipts={receipts} onOpen={onQuotesClick} />
+          <button type="button" onClick={() => setTickerOn(false)} aria-label="Ocultar o letreiro de cotações" data-testid="quotes-ticker-hide"
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/70 border border-white/10 text-zinc-400 flex items-center justify-center text-sm leading-none">×</button>
+        </div>
+      )}
       {deptSheetOpen && <DeptFilterSheet options={deptOptions} filter={deptFilter} onChange={setDeptFilter} onClose={() => setDeptSheetOpen(false)} z="z-[250]" />}
       <div className="flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>

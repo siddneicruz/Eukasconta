@@ -1,7 +1,26 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TrendingDown, TrendingUp, Minus, Search } from 'lucide-react';
 import { Receipt } from '../types';
 import { Quote, buildQuotes, topMovers } from '../services/quotes';
+
+const TICKER_KEY = 'ek_quotes_ticker';
+const TICKER_EVT = 'ek-quotes-ticker';
+const readTicker = (): boolean => { try { return localStorage.getItem(TICKER_KEY) !== 'off'; } catch { return true; } };
+/** Mostrar ou ocultar o letreiro do Início (guardado no aparelho; vale em todas as telas que o usam). */
+export const useQuotesTicker = (): [boolean, (v: boolean) => void] => {
+  const [on, setOn] = useState<boolean>(readTicker);
+  useEffect(() => {
+    const sync = () => setOn(readTicker());
+    window.addEventListener(TICKER_EVT, sync);
+    return () => window.removeEventListener(TICKER_EVT, sync);
+  }, []);
+  const set = (v: boolean) => {
+    try { localStorage.setItem(TICKER_KEY, v ? 'on' : 'off'); } catch { /* sem armazenamento: vale só nesta sessão */ }
+    setOn(v);
+    window.dispatchEvent(new Event(TICKER_EVT));
+  };
+  return [on, set];
+};
 
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 const pctTxt = (p: number) => `${Math.abs(p) >= 10 ? Math.round(Math.abs(p)) : (Math.round(Math.abs(p) * 10) / 10).toString().replace('.', ',')}%`;

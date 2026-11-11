@@ -1473,7 +1473,7 @@ const App: React.FC = () => {
                     )
                 )}
                 {view === 'dashboard' && (
-                    <HomeShortcuts alertCount={cloud.unread} onScan={() => setView('scanner')} onManual={() => setView('manual_entry')} onList={() => setView('shopping')} onMap={() => setView('map')} onGoals={() => setView('reports')} onAlerts={() => setView('alerts')} />
+                    <HomeShortcuts alertCount={cloud.unread} onScan={() => setView('scanner')} onManual={() => setView('manual_entry')} onList={() => setView('shopping')} onMap={() => setView('map')} onGoals={() => setView('reports')} onQuotes={() => { setReportsSection('quotes'); setView('reports'); }} onAlerts={() => setView('alerts')} />
                 )}
                 {view === 'dashboard' && (
                     <Dashboard 
