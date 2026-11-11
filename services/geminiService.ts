@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Receipt } from "../types";
 import { diagnostics } from "./diagnosticService";
+import { logAiUsage } from "./cloudService";
 import { getUserApiKey, getActiveProvider } from "./keyStorageService";
 import { parseReceiptWithClaude, askClaudeForJson } from "./anthropicService";
 import { parseReceiptWithOpenRouter, askOpenRouterForJson } from "./openrouterService";
@@ -168,6 +169,7 @@ export const parseReceiptImage = async (
         temperature: 0.1, 
       }
     });
+    logAiUsage('ocr_cupom', 'gemini-3-flash-preview', response);
 
     const executionTime = performance.now() - startTime;
     diagnostics.log('API_CALL', 'Extração OCR e Categorização Inteligente', executionTime);
@@ -242,6 +244,7 @@ Retorne apenas o JSON, sem markdown.
         temperature: 0.1,
       }
     });
+    logAiUsage('auditoria_categorias', 'gemini-3-flash-preview', response);
 
     const text = response.text || "[]";
     return JSON.parse(text);
@@ -277,6 +280,7 @@ export const askAiForJson = async (prompt: string, opts: { budgetMs?: number } =
       contents: { parts: [{ text: prompt }] },
       config: { responseMimeType: 'application/json', temperature: 0.2 },
     });
+    logAiUsage('json', 'gemini-3-flash-preview', response);
     return JSON.parse(response.text || '{}');
   } catch (error: any) {
     throw classifyGeminiError(error);
@@ -298,6 +302,7 @@ export const askVisionJson = async (images: { b64: string; mime: string }[], pro
       contents: { parts: [...images.map(i => ({ inlineData: { data: i.b64, mimeType: i.mime } })), { text: prompt }] },
       config: { responseMimeType: 'application/json', temperature: 0 },
     });
+    logAiUsage('visao_json', 'gemini-3-flash-preview', r);
     return JSON.parse(r.text || '{}');
   } catch (error: any) {
     throw classifyGeminiError(error);

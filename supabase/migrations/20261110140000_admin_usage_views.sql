@@ -1,0 +1,2 @@
+-- Aplicada via Supabase (ver projeto zmsqyhevruykpmyfzkfe): tabela usage_events, função log_usage() e as
+-- visões adm_usage_overview, adm_usage_daily, adm_users e adm_credit_flow (somente leitura pelo painel do Supabase).

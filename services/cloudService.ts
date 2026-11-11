@@ -394,3 +394,16 @@ export const deleteCloudReceipt = async (userId: string, clientId: string): Prom
 
 // Apaga a conta e todos os dados ligados a ela na nuvem (cupons salvos, metas, alertas, avaliações, backups, créditos).
 export const deleteMyAccount = (): Promise<void> => rpc<void>('delete_my_account', {});
+
+// Registra uma chamada de IA para o painel de uso (adm_usage_*). Nunca atrapalha o app: erros e falta de login são ignorados.
+// Custo estimado por milhão de tokens (ajuste aqui se o preço do modelo mudar).
+const AI_RATE_USD_PER_M = { in: 0.3, out: 2.5 };
+export const logAiUsage = (kind: string, model: string, response: any, provider = 'gemini'): void => {
+  try {
+    const u = response?.usageMetadata;
+    const tin = Number(u?.promptTokenCount) || null;
+    const tout = Number(u?.candidatesTokenCount) || null;
+    const cost = tin || tout ? ((tin || 0) * AI_RATE_USD_PER_M.in + (tout || 0) * AI_RATE_USD_PER_M.out) / 1e6 : null;
+    void supabase.rpc('log_usage', { p_kind: kind, p_provider: provider, p_model: model, p_tokens_in: tin, p_tokens_out: tout, p_cost_usd: cost, p_paid_by: 'user' }).then(() => {}, () => {});
+  } catch { /* ignora */ }
+};
