@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /* Barrinha de período com um puxador em cada ponta. Arrastar (dedo ou mouse) ou usar as setas do teclado
-   (1 dia; Shift = 7 dias) e, em cada ponta, duas setas empilhadas (cima abre, baixo fecha) que andam o puxador um mês. Mostra a data sob cada puxador e, abaixo, a legenda "15/11/2025 à 09/11/2026".
+   (1 dia; Shift = 7 dias) e, em cada ponta, duas setas empilhadas (cima volta, baixo avança) que andam o puxador um mês. Mostra a data sob cada puxador e, abaixo, a legenda "15/11/2025 à 09/11/2026".
    As datas vão e voltam como AAAA-MM-DD; o filtro em si é de quem usa. */
 
 const DAY = 86400000;
@@ -125,7 +125,7 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
   const endBack = (() => { const t = lastOfMonth(isoB, -1); return t >= isoA && t >= min && isoB > min ? t : null; })();
   const endFwd = isoB < max ? (() => { const t = isoB < lastOfMonth(isoB, 0) ? lastOfMonth(isoB, 0) : lastOfMonth(isoB, 1); return t > max ? max : t; })() : null;
 
-  // seta para cima ABRE o período (puxador sai para fora); seta para baixo FECHA (puxador entra)
+  // Padrão de todas as réguas: seta de CIMA volta um mês, seta de BAIXO avança um mês (em qualquer ponta)
   const arrow = (id: string, label: string, up: boolean, target: string | null, apply: (t: string) => void) => (
     <button type="button" disabled={target === null} onClick={() => target !== null && apply(target)}
       aria-label={label} data-testid={`${testId}-${id}`}
@@ -163,8 +163,8 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
     <div className="select-none" data-testid={testId}>
       <div className="flex items-center gap-1">
       {stack(
-        arrow('start-back', 'Início: abrir o período (voltar um mês)', true, startBack, t => onChange(t, toIso(b))),
-        arrow('start-fwd', 'Início: fechar o período (avançar um mês)', false, startFwd, t => onChange(t, toIso(b)))
+        arrow('start-back', 'Início: voltar um mês', true, startBack, t => onChange(t, toIso(b))),
+        arrow('start-fwd', 'Início: avançar um mês', false, startFwd, t => onChange(t, toIso(b)))
       )}
       <div className="flex-1 min-w-0">
       <div ref={trackRef} className="relative h-11 cursor-pointer" style={{ touchAction: 'none' }} onPointerDown={onTrackDown}>
@@ -184,8 +184,8 @@ const DateRangeSlider: React.FC<Props> = ({ min, max, from, to, onChange, testId
       </div>
       </div>
       {stack(
-        arrow('end-fwd', 'Fim: abrir o período (avançar um mês)', true, endFwd, t => onChange(toIso(a), t)),
-        arrow('end-back', 'Fim: fechar o período (voltar um mês)', false, endBack, t => onChange(toIso(a), t))
+        arrow('end-back', 'Fim: voltar um mês', true, endBack, t => onChange(toIso(a), t)),
+        arrow('end-fwd', 'Fim: avançar um mês', false, endFwd, t => onChange(toIso(a), t))
       )}
       </div>
 

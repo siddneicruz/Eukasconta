@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as Recharts from 'recharts';
+import MonthSlider from './MonthSlider';
 import { ChevronLeft, ChevronRight, Goal, Plus, Save, Trash2, TrendingUp, Undo2, X, Check } from 'lucide-react';
 import { Receipt } from '../types';
 import CategoryCompareBox from './CategoryCompareBox';
@@ -114,6 +115,14 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
   const [adding, setAdding] = useState(false);
   const [newId, setNewId] = useState('');
   const [draft, setDraft] = useState('');
+  // Ao digitar o valor o teclado cobre a tela: abre espaço embaixo e rola o campo para uma parte visível.
+  const [typing, setTyping] = useState(false);
+  const keepVisible = (e: React.FocusEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    setTyping(true);
+    setTimeout(() => el.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 350);
+  };
+  const doneTyping = () => setTimeout(() => setTyping(false), 250);
   const [month, setMonth] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [mode, setMode] = useState<'acum' | 'dia'>('acum');
   const [saved, setSaved] = useState(false);
@@ -190,6 +199,13 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
     return buildGoalMonth(receipts, matcherFor(current.opt.id, layers), month.y, month.m, current.value);
   }, [current?.opt.id, current?.value, receipts, month, layers]);
 
+  // Régua de meses: do primeiro mês com compra até o mês atual
+  const monthBounds = useMemo(() => {
+    const ds = receipts.map(r => r.date).filter(Boolean).sort();
+    const cur = { y: now.getFullYear(), m: now.getMonth() };
+    const first = ds[0] ? { y: +ds[0].slice(0, 4), m: +ds[0].slice(5, 7) - 1 } : cur;
+    return { min: first.y * 12 + first.m <= cur.y * 12 + cur.m ? first : cur, max: cur };
+  }, [receipts]);
   const monthLabel = `${MONTHS[month.m]}/${String(month.y).slice(2)}`;
   const isNow = month.y === now.getFullYear() && month.m === now.getMonth();
   const shift = (d: number) => setMonth(({ y, m }) => { const t = new Date(y, m + d, 1); return { y: t.getFullYear(), m: t.getMonth() }; });
@@ -242,8 +258,9 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
           <div className="space-y-2.5">
             <CategoryCompareBox options={options} selected={newId ? [newId] : []} max={1} single onToggle={id => setNewId(prev => (prev === id ? '' : id))}
               testId="goal-search" placeholder="Escolha o que vai ter meta" valueLabel={options.find(o => o.id === newId)?.full} />
+            {parseFloat(draft) > 0 && <p className="text-[12px] text-zinc-400 tabular-nums" data-testid="goal-draft-preview">Teto: <span className="text-zinc-100 font-semibold">{brl(parseFloat(draft))}</span> por mês</p>}
             <div className="flex gap-2">
-              <input type="number" inputMode="decimal" value={draft} onChange={e => setDraft(e.target.value)} placeholder="Teto do mês, em R$" className={inputCls} data-testid="goal-value" />
+              <input type="number" inputMode="decimal" value={draft} onChange={e => setDraft(e.target.value)} onFocus={keepVisible} onBlur={doneTyping} placeholder="Teto do mês, em R$" className={inputCls} data-testid="goal-value" />
               <button type="button" onClick={createGoal} disabled={!newId || !(parseFloat(draft) > 0)} className={saveBtn} data-testid="goal-save-new"><Save className="w-4 h-4" /> Salvar</button>
             </div>
             {tags.length > 0 && <button type="button" onClick={() => setAdding(false)} className="text-[12px] text-zinc-500 underline underline-offset-2">Cancelar</button>}
@@ -313,6 +330,12 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
             </ResponsiveContainer>
           </div>
 
+          {monthBounds.min.y * 12 + monthBounds.min.m < monthBounds.max.y * 12 + monthBounds.max.m && (
+            <div className="mt-3" data-testid="goal-ruler">
+              <MonthSlider min={monthBounds.min} max={monthBounds.max} value={month} onChange={v => setMonth(v)} testId="goal-month-slider" />
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-[11px] text-zinc-500" data-testid="goal-legend">
             <span className="inline-flex items-center gap-1.5"><span className="w-4 h-[2px] rounded-full" style={{ backgroundColor: color }} /> {mode === 'acum' ? 'Acumulado' : 'No dia'}</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed" style={{ borderColor: color }} /> {mode === 'acum' ? 'Meta' : 'Meta por dia'}</span>
@@ -346,7 +369,7 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
             <div>
               <p className="text-[11px] text-zinc-500 mb-1.5">Teto do mês</p>
               <div className="flex gap-2">
-                <input type="number" inputMode="decimal" value={draft} onChange={e => setDraft(e.target.value)} className={inputCls} data-testid="goal-value" aria-label="Teto do mês" />
+                <input type="number" inputMode="decimal" value={draft} onChange={e => setDraft(e.target.value)} onFocus={keepVisible} onBlur={doneTyping} className={inputCls} data-testid="goal-value" aria-label="Teto do mês" />
                 <button type="button" onClick={saveCurrent} disabled={!(parseFloat(draft) > 0) || parseFloat(draft) === current.value} className={saveBtn} data-testid="goal-save">
                   {saved ? <><Check className="w-4 h-4" /> Salvo</> : <><Save className="w-4 h-4" /> Salvar</>}
                 </button>
@@ -364,6 +387,7 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
           </button>
         </div>
       )}
+      {typing && <div className="h-[45vh]" aria-hidden="true" />}
     </div>
   );
 };
