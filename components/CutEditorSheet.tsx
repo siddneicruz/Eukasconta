@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Filter, ArrowLeftRight, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
-import PeriodPicker from './PeriodPicker';
+import DateRangeSlider from './DateRangeSlider';
 import DeptFilterSheet from './DeptFilterSheet';
 import { useLayers, useTaxonomy } from './LayersContext';
 import { Cut, cutReceipts, dayCount, newCutId } from '../services/cuts';
@@ -24,8 +24,15 @@ const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', c
 
 const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose }) => {
   const [name, setName] = useState(initial?.name || '');
-  const [from, setFrom] = useState(initial?.from || '');
-  const [to, setTo] = useState(initial?.to || '');
+  // Limites da régua: do primeiro ao último dia com compra. Recorte novo já nasce com todo o histórico,
+  // sem obrigar a escolher período; a pessoa só ajusta a régua se quiser estreitar.
+  const bounds = useMemo(() => {
+    const ds = receipts.map(r => r.date).filter(Boolean).sort();
+    const today = new Date().toISOString().slice(0, 10);
+    return { min: ds[0] || today, max: ds[ds.length - 1] || today };
+  }, [receipts]);
+  const [from, setFrom] = useState(initial?.from || bounds.min);
+  const [to, setTo] = useState(initial?.to || bounds.max);
   const [filter, setFilter] = useState<DeptFilter>(initial?.filter || NO_DEPT_FILTER);
   const [deptOpen, setDeptOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -47,7 +54,7 @@ const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose })
   }, []);
 
   const layers = useLayers();
-  const ready = Boolean(from && to);
+  const ready = Boolean(from && to);   // sempre pronto: o período já vem preenchido
   const inRange = useMemo(() => (ready ? receipts.filter(r => r.date >= from && r.date <= to) : receipts), [receipts, from, to, ready]);
   const taxonomy = useTaxonomy();
   const options = useMemo(() => buildStructuredDeptOptions(receipts, inRange, layers, taxonomy), [receipts, inRange, layers, taxonomy]);
@@ -96,8 +103,9 @@ const CutEditorSheet: React.FC<Props> = ({ receipts, initial, onSave, onClose })
           </div>
 
           <div data-testid="cut-period">
-            <span className="block text-[11px] font-semibold text-zinc-500 mb-1.5">De que dia até que dia</span>
-            <PeriodPicker start={from} end={to} onChange={(a, b) => { setFrom(a); setTo(b); }} placeholder="Escolher período" size="field" openOnMount={!initial && !from && !to} />
+            <span className="block text-[11px] font-semibold text-zinc-500 mb-1.5">Período (arraste as pontas)</span>
+            <DateRangeSlider min={bounds.min < from ? bounds.min : from} max={bounds.max > to ? bounds.max : to}
+              from={from} to={to} onChange={(a, b) => { setFrom(a); setTo(b); }} testId="cut-range" />
           </div>
 
           <div>
