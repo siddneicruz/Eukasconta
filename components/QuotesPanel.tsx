@@ -65,7 +65,7 @@ export const QuotesTicker: React.FC<{ receipts: Receipt[]; onOpen?: () => void }
           <span key={i} className="inline-flex items-center gap-2 text-[12px] tabular-nums">
             <span className="font-bold text-zinc-200 uppercase tracking-[0.04em]">{q.name}</span>
             <span className="text-zinc-400">{brl(q.last)}</span>
-            <Badge c={q.chgPrev} />
+            <Badge c={q.chg} />
           </span>
         ))}
       </div>
@@ -94,7 +94,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let list = all.filter(x => (!dept || x.dept === dept) && (!needle || x.name.toLowerCase().includes(needle)));
-    const c = (x: Quote) => x.chgPrev ?? 0;
+    const c = (x: Quote) => x.chg ?? 0;
     if (sort === 'up') list = list.filter(x => c(x) > 0.5).sort((a, b) => c(b) - c(a));
     else if (sort === 'down') list = list.filter(x => c(x) < -0.5).sort((a, b) => c(a) - c(b));
     else if (sort === 'freq') list = [...list].sort((a, b) => b.days - a.days || a.name.localeCompare(b.name));
@@ -102,8 +102,8 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
     return list.slice(0, 80);
   }, [all, dept, sort, q]);
 
-  const ups = all.filter(x => !x.stale && (x.chgPrev ?? 0) > 0.5).length;
-  const downs = all.filter(x => !x.stale && (x.chgPrev ?? 0) < -0.5).length;
+  const ups = all.filter(x => !x.stale && (x.chg ?? 0) > 0.5).length;
+  const downs = all.filter(x => !x.stale && (x.chg ?? 0) < -0.5).length;
 
   if (!all.length) return <p className="text-sm text-zinc-500 py-10 text-center">Ainda não há compras para montar cotações.</p>;
 
@@ -115,7 +115,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100">Cotações: Açougue e Hortifruti</h3>
-            <p className="text-[11px] text-zinc-500 mt-0.5">Variação da penúltima para a última compra de cada item, por kg ou unidade. <span style={{ color: DOWN }}>Verde</span> = ficou mais barato · <span style={{ color: UP }}>vermelho</span> = ficou mais caro.</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">Última compra contra o preço típico (mediana das compras anteriores), por kg ou unidade. <span style={{ color: DOWN }}>Verde</span> = ficou mais barato · <span style={{ color: UP }}>vermelho</span> = ficou mais caro.</p>
           </div>
         </div>
         <div className="mt-3 flex gap-4 text-[12px] tabular-nums">
@@ -147,7 +147,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
       <div className="bg-[#121214] border border-white/5 rounded-2xl shadow-xl overflow-hidden divide-y divide-white/5" data-testid="quotes-list">
         {rows.length === 0 && <p className="text-sm text-zinc-500 py-8 text-center">Nenhum produto nesse filtro.</p>}
         {rows.map(x => {
-          const color = toneOf(x.chgPrev);
+          const color = toneOf(x.chg);
           const isOpen = open === x.key;
           return (
             <div key={x.key} data-testid="quote-row">
@@ -155,19 +155,23 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
                 className="w-full flex items-center gap-3 px-3 md:px-5 py-3 text-left active:bg-white/5">
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold text-zinc-100 truncate">{x.name}</p>
-                  <p className="text-[11px] text-zinc-500 truncate">{x.dept} · {x.days} {x.days === 1 ? 'compra' : 'compras'}{x.stale ? ' · sem compra há mais de 3 meses' : ''}</p>
+                  <p className="text-[11px] text-zinc-500 truncate">{x.dept} · {x.days} {x.days === 1 ? 'compra' : 'compras'}{x.stale ? ' · sem compra há mais de 3 meses' : ''}{x.odd ? ' · confira' : ''}</p>
                 </div>
                 <Spark v={x.spark} color={color} />
                 <div className="shrink-0 w-[92px] text-right">
                   <p className="text-[14px] font-bold text-zinc-100 tabular-nums">{brl(x.last)}<span className="text-[10px] font-medium text-zinc-500">/{UNIT[x.unit] || x.unit.toLowerCase()}</span></p>
-                  <Badge c={x.chgPrev} label="da penúltima para a última compra" />
+                  <Badge c={x.chg} label="da última compra contra o preço típico" />
                 </div>
               </button>
               {isOpen && (
-                <div className="px-3 md:px-5 pb-3 grid grid-cols-3 gap-2 text-[11px] tabular-nums" data-testid="quote-detail">
-                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Penúltima compra</p><p className="text-zinc-100 font-semibold mt-0.5">{x.prev !== null ? brl(x.prev) : '—'}</p><p className="text-zinc-500">{x.prevDate ? shortDate(x.prevDate) : ''}</p></div>
-                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Última compra</p><p className="text-zinc-100 font-semibold mt-0.5">{brl(x.last)}</p><p className="text-zinc-500 truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>
-                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Variação</p><p className="mt-0.5"><Badge c={x.chgPrev} /></p><p className="text-zinc-500">{x.prev !== null ? `${x.prev > x.last ? '−' : '+'}${brl(Math.abs(x.last - x.prev))}` : ''}</p></div>
+                <div className="px-3 md:px-5 pb-3 space-y-2" data-testid="quote-detail">
+                  <div className="grid grid-cols-3 gap-2 text-[11px] tabular-nums">
+                    <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Preço típico</p><p className="text-zinc-100 font-semibold mt-0.5">{x.typical !== null ? brl(x.typical) : '—'}</p><p className="text-zinc-500">{x.nBase ? `${x.nBase} ${x.nBase === 1 ? 'compra antes' : 'compras antes'}` : ''}</p></div>
+                    <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Última compra</p><p className="text-zinc-100 font-semibold mt-0.5">{brl(x.last)}</p><p className="text-zinc-500 truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>
+                    <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Variação</p><p className="mt-0.5"><Badge c={x.chg} /></p><p className="text-zinc-500">{x.typical !== null ? `${x.last < x.typical ? '−' : '+'}${brl(Math.abs(x.last - x.typical))}` : ''}</p></div>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 tabular-nums">Penúltima compra: {x.prev !== null ? `${brl(x.prev)}${x.prevDate ? ` em ${shortDate(x.prevDate)}` : ''}` : '—'}</p>
+                  {x.odd && <p className="text-[11px] text-amber-400">Salto grande: vale conferir se a última compra não foi lida com unidade ou quantidade errada.</p>}
                 </div>
               )}
             </div>

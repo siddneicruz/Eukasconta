@@ -33,7 +33,11 @@ export interface Quote {
   lastStore: string;
   prev: number | null;     // preço da penúltima compra
   prevDate: string | null;
-  chgPrev: number | null;  // variação % contra a compra anterior (precisa de 2 dias de compra)
+  chgPrev: number | null;  // variação % contra a penúltima compra (só informativa: uma compra isolada engana)
+  typical: number | null;  // preço típico: mediana das até 5 compras anteriores à última (até 180 dias antes)
+  nBase: number;           // quantas compras entraram no preço típico
+  chg: number | null;      // variação % da última compra contra o preço típico (é a que aparece e ordena)
+  odd: boolean;            // variação de 2x ou mais (ou metade): provável erro de leitura ou de unidade, vale conferir
   base: number | null;     // mediana dos 90 dias antes da última compra
   chgBase: number | null;  // variação % contra essa mediana (precisa de 3 dias de compra)
   spark: number[];         // até 12 últimos preços diários
@@ -80,12 +84,17 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     const lastD = days[days.length - 1];
     const prevD = days.length > 1 ? days[days.length - 2] : null;
     const window = days.slice(0, -1).filter(d => t(lastD.date) - t(d.date) <= 90 * DAY);
+    // preço típico: mediana das até 5 compras anteriores (dias), no máximo 180 dias antes da última; 1 compra anterior já serve
+    const baseDays = days.slice(0, -1).filter(d => t(lastD.date) - t(d.date) <= 180 * DAY).slice(-5);
+    const typical = baseDays.length ? median(baseDays.map(d => d.price)) : null;
     const base = window.length >= 2 ? median(window.map(d => d.price)) : null;
     out.push({
       key, name: titleCase(g.name), unit: g.unit, dept: g.dept,
       last: lastD.price, lastDate: lastD.date, lastStore: lastD.store,
       prev: prevD ? prevD.price : null, prevDate: prevD ? prevD.date : null, chgPrev: prevD ? pct(lastD.price, prevD.price) : null,
       base, chgBase: base ? pct(lastD.price, base) : null,
+      typical, nBase: baseDays.length, chg: typical ? pct(lastD.price, typical) : null,
+      odd: !!typical && (lastD.price / typical >= 2 || lastD.price / typical <= 0.5),
       spark: days.slice(-12).map(d => d.price), days: days.length,
       stale: (t(todayIso) - t(lastD.date)) > 90 * DAY,
     });
@@ -95,5 +104,5 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
 
 // Maiores movimentos primeiro (alta ou queda), depois os com mais compras
 export const topMovers = (qs: Quote[], n = 12): Quote[] =>
-  qs.filter(q => q.chgPrev !== null && !q.stale && Math.abs(q.chgPrev) >= 0.5)
-    .sort((a, b) => Math.abs(b.chgPrev as number) - Math.abs(a.chgPrev as number)).slice(0, n);
+  qs.filter(q => q.chg !== null && !q.stale && !q.odd && Math.abs(q.chg) >= 0.5)
+    .sort((a, b) => Math.abs(b.chg as number) - Math.abs(a.chg as number)).slice(0, n);
