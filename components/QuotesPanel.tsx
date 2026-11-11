@@ -223,7 +223,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
                       <span className={`text-[10px] text-zinc-500 ${MONO}`}>méd {num(x.mean as number)}</span>
                     </div>
                   </div>
-                  <span className="flex justify-end"><span className={`inline-flex flex-col items-center justify-center min-w-[74px] h-10 px-2 rounded-md bg-white/[0.06] border border-white/20 text-[14px] font-bold text-zinc-100 leading-tight ${MONO}`}>{num(x.last)}<span className="text-[9px] font-medium text-zinc-500">/{unitLabel(x.unit)}</span></span></span>
+                  <span className="flex justify-end"><span className={`inline-flex items-center justify-center min-w-[74px] h-8 px-2 rounded-md bg-white/[0.06] border border-white/20 text-[14px] font-bold text-zinc-100 ${MONO}`}>{num(x.last)}</span></span>
                   <span className="text-right"><VarCell q={x} /></span>
                 </button>
                 {isOpen && (

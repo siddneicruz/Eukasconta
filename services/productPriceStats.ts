@@ -53,7 +53,7 @@ const UNIT_ALIASES: Record<string, string> = {
 };
 // Nome da unidade para mostrar na tela (a chave unificada acima -> texto)
 const UNIT_NAMES: Record<string, string> = {
-  KG: 'kg', G: 'g', L: 'litro', ML: 'ml', UN: 'unid.', DZ: 'dúzia', PCT: 'pacote', CX: 'caixa',
+  KG: 'kg', G: 'g', L: 'litro', ML: 'ml', UN: 'un', DZ: 'dúzia', PCT: 'pacote', CX: 'caixa',
   PC: 'peça', PR: 'par', MT: 'metro', RL: 'rolo', FD: 'fardo', SC: 'saco', BD: 'bandeja',
 };
 export const unitLabel = (raw?: string | null): string => { const u = normalizeUnit(raw); return UNIT_NAMES[u] || u.toLowerCase(); };
