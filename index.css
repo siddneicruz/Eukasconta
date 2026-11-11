@@ -101,3 +101,8 @@ html.light-theme { --ek-bg: #F6F3EA; --ek-tab: #FFFFFF; }
 
 /* Cabeçalho de mês fixo no Histórico: o padding da área rolável já deixa o espaço do cabeçalho do app, então gruda em 0 */
 .month-sticky { top: 0; }
+
+/* Letreiro das cotações */
+@keyframes quotes-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.quotes-marquee { animation: quotes-marquee 38s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .quotes-marquee { animation: none; } }

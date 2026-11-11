@@ -29,6 +29,7 @@ import { useLayers } from './LayersContext';
 import { fold } from '../services/itemSearch';
 import { buildCompareOptions, bySpend, bySpendOnly, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
 import { CHART_COLORS } from '../services/chartTheme';
+import QuotesPanel from './QuotesPanel';
 
 const { 
   XAxis, YAxis, Tooltip, ResponsiveContainer, 
@@ -37,6 +38,7 @@ const {
 
 interface ReportsProps {
   receipts: Receipt[];
+  initialSection?: 'panorama' | 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog';
   establishments?: Establishment[];
   config: DashboardConfig;
   onConfigChange: (config: DashboardConfig) => void;
@@ -66,6 +68,7 @@ const getEstablishmentDisplayName = (originalName: string, cnpj: string, establi
 };
 
 const Reports: React.FC<ReportsProps> = ({ 
+  initialSection,
   receipts: allReceipts = [], 
   establishments = [], 
   config, 
@@ -89,7 +92,7 @@ const Reports: React.FC<ReportsProps> = ({
   const [rankingId, setRankingId] = useState<string | null>(null);
   const selInit = useRef(false);
   const [goalId, setGoalId] = useState<string>('');   // o que está sendo auditado: departamento, categoria, grupo ou item
-  const [activeSection, setActiveSection] = useState<'panorama' | 'overview' | 'cuts' | 'goals' | 'catalog'>('panorama');
+  const [activeSection, setActiveSection] = useState<'panorama' | 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog'>(initialSection || 'panorama');
   const [cutSelId, setCutSelId] = useState<string | null>(null);
   const [tempGoalValue, setTempGoalValue] = useState<string>('');
   const [goals, setGoals] = useState<Record<string, number>>(() => {
@@ -832,7 +835,7 @@ const Reports: React.FC<ReportsProps> = ({
             </div>
         </div>
 
-        {activeSection !== 'cuts' && (
+        {activeSection !== 'cuts' && activeSection !== 'quotes' && (
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-2 md:gap-4 ls:gap-2 overflow-hidden" data-testid="period-bar">
             {config.quickFilter === 'custom' ? (
                 <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-6 animate-in slide-in-from-left-2">
@@ -897,6 +900,7 @@ const Reports: React.FC<ReportsProps> = ({
       <div className="flex items-center gap-0.5 min-[380px]:gap-1 mb-4 md:mb-6 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
           {[
               { id: 'panorama' as const, label: 'Panorama', icon: Sparkles },
+              { id: 'quotes' as const, label: 'Cotações', icon: TrendingUp },
               { id: 'overview' as const, label: 'Comparativo', icon: LucideLineChart },
               { id: 'cuts' as const, label: 'Recortes', icon: CalendarRange },
               { id: 'goals' as const, label: 'Metas', icon: Goal },
@@ -993,6 +997,7 @@ const Reports: React.FC<ReportsProps> = ({
                   />
               )}
 
+              {activeSection === 'quotes' && <QuotesPanel receipts={receipts} />}
               {activeSection === 'goals' && <GoalsPanel receipts={receipts} />}
 
                 {activeSection === 'catalog' && (<>

@@ -309,6 +309,9 @@ const App: React.FC = () => {
   }, []);
 
   const [isMobilePreview, setIsMobilePreview] = useState(false);
+  const [reportsSection, setReportsSection] = useState<'quotes' | undefined>(undefined);
+  // o atalho do letreiro abre Análises direto em Cotações; ao sair de Análises volta ao normal
+  useEffect(() => { if (view !== 'reports') setReportsSection(undefined); }, [view]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
       try {
@@ -1481,6 +1484,7 @@ const App: React.FC = () => {
                       onScanClick={() => setView('scanner')} 
                       onHistoryClick={() => setView('history')} 
                       onReportsClick={() => setView('reports')} 
+                      onQuotesClick={() => { setReportsSection('quotes'); setView('reports'); }}
                       onSettingsClick={() => setView('settings')} 
                       onCategoryClick={(cat) => { setSelectedCategory(cat); setView('category_detail'); }} 
                       onEditIcon={setSelectedCategoryForIcon} 
@@ -1530,6 +1534,7 @@ const App: React.FC = () => {
                 {view === 'history' && <TransactionList storeCheck={storeCheck} onClearStoreCheck={() => setStoreCheck(null)} receipts={receipts} config={dashboardConfig} onConfigChange={setDashboardConfig} masterProducts={masterProducts} onSelectReceipt={(r) => setSelectedReceiptId(r.id)} onDeleteReceipt={requestDeleteReceipt} onAddManual={() => setView('manual_entry')} onExportTxtZip={handleExportTxtZip} duplicateCount={dupCount} onReviewDuplicates={() => setDupOpen(true)} />}
                 {view === 'reports' && (
                     <Reports 
+                        initialSection={reportsSection}
                         receipts={receipts} 
                         config={dashboardConfig} 
                         onConfigChange={setDashboardConfig} 

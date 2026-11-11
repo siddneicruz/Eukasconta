@@ -50,6 +50,7 @@ import { isCurrentMonthPeriod } from '../services/currentMonth';
 import { MONTHS_SHORT, shortPeriod } from '../services/periodFilter';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 import { CHART_COLORS, CATEGORY_COLORS } from '../services/chartTheme';
+import { QuotesTicker } from './QuotesPanel';
 
 interface DashboardProps {
   receipts: Receipt[];
@@ -60,6 +61,7 @@ interface DashboardProps {
   onScanClick: () => void;
   onHistoryClick: () => void;
   onReportsClick: () => void;
+  onQuotesClick?: () => void;
   onSettingsClick: () => void;
   onEditIcon?: (category: string) => void;
   onSelectReceipt?: (receipt: Receipt) => void;
@@ -417,7 +419,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     return null;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [] }) => {
+const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onQuotesClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [] }) => {
   const pickMonth = useMonthPick(config, onConfigChange);
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
   // No celular a barra de filtros fica numa linha só (categoria + período); toca no período para abrir o resto.
@@ -620,6 +622,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
+      <div className="mb-2 md:mb-3"><QuotesTicker receipts={receipts} onOpen={onQuotesClick} /></div>
       {deptSheetOpen && <DeptFilterSheet options={deptOptions} filter={deptFilter} onChange={setDeptFilter} onClose={() => setDeptSheetOpen(false)} z="z-[250]" />}
       <div className="flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>
