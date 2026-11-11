@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Receipt } from '../types';
 import { unitLabel } from '../services/productPriceStats';
+import { fetchEanInfo, sizeOfName, EanInfo } from '../services/shoppingScan';
 import { MIN_PURCHASES, Quote, buildQuotes, topMovers } from '../services/quotes';
 
 /* Painel de cotações no estilo de bolsa: fundo escuro fixo (em qualquer tema), números em fonte monoespaçada, uma linha
@@ -77,6 +78,54 @@ const BigSpark: React.FC<{ q: Quote }> = ({ q }) => {
       <polyline points={v.map((y, i) => `${X(i)},${Y(y)}`).join(' ')} fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={X(v.length - 1)} cy={Y(v[v.length - 1])} r="3.5" fill={c} />
     </svg>
+  );
+};
+
+
+/* Tipo de embalagem lido do nome do produto (cupom ou catálogo de EAN) */
+const PACK_RULES: [RegExp, string][] = [
+  [/\b(bandeja|bdj)\b/i, 'Bandeja'], [/\b(pacote|pct)\b/i, 'Pacote'], [/\b(caixa|cx)\b/i, 'Caixa'], [/\b(garrafa|gfa)\b/i, 'Garrafa'],
+  [/\blata\b/i, 'Lata'], [/\b(pote|pt)\b/i, 'Pote'], [/\b(saco|sc|sacola)\b/i, 'Saco'], [/\b(fardo|fd)\b/i, 'Fardo'],
+  [/\b(frasco|fr)\b/i, 'Frasco'], [/\b(sache|sachê)\b/i, 'Sachê'], [/\b(bisnaga|bis)\b/i, 'Bisnaga'], [/\bgranel\b/i, 'A granel'],
+  [/\b(vacuo|vácuo|embalado)\b/i, 'Embalado a vácuo'], [/\b(cartela|cart)\b/i, 'Cartela'], [/\b(maco|maço)\b/i, 'Maço'],
+];
+const packOf = (text: string): string => { for (const [re, label] of PACK_RULES) if (re.test(text)) return label; return ''; };
+const eanCache = new Map<string, EanInfo | null>();
+
+/** Cabeçalho do item aberto: nome completo do produto (catálogo de EAN quando há código de barras), marca, peso e embalagem */
+const ItemHeader: React.FC<{ q: Quote }> = ({ q }) => {
+  const top = q.variants[0];
+  const code = top?.code || '';
+  const [info, setInfo] = useState<EanInfo | null | undefined>(code && eanCache.has(code) ? eanCache.get(code) : undefined);
+  useEffect(() => {
+    if (!code || eanCache.has(code)) { setInfo(code ? eanCache.get(code) : null); return; }
+    let live = true;
+    fetchEanInfo(code).then(r => { eanCache.set(code, r); if (live) setInfo(r); });
+    return () => { live = false; };
+  }, [code]);
+  if (!top) return null;
+  const title = (info && info.description) || top.desc;
+  const size = (info && info.size) || sizeOfName(top.desc) || sizeOfName(title);
+  const pack = packOf(`${title} ${top.desc}`) || (q.unit === 'KG' || q.unit === 'G' ? 'Vendido por peso' : q.unit === 'DZ' ? 'Dúzia' : '');
+  const chips: [string, string][] = [];
+  if (info && info.brand) chips.push(['Marca', info.brand]);
+  if (size) chips.push(['Peso/volume', size]);
+  if (pack) chips.push(['Embalagem', pack]);
+  chips.push(['Venda', unitLabel(q.unit)]);
+  if (code) chips.push(['EAN', code]);
+  return (
+    <div className="rounded-lg border border-[color:var(--q-bd)] bg-[var(--q-fill)] p-3" data-testid="quote-header">
+      <p className="text-[13px] font-bold text-[color:var(--q-t1)] leading-snug">{title}</p>
+      {info && info.description && info.description.toUpperCase() !== top.desc && <p className="text-[11px] text-[color:var(--q-t3)] mt-0.5">No cupom: {top.desc.toLowerCase()}</p>}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {chips.map(([k, v]) => (
+          <span key={k} className="inline-flex items-baseline gap-1 px-2 py-1 rounded-md border border-[color:var(--q-bd)] text-[11px]">
+            <span className="text-[color:var(--q-t3)]">{k}</span><span className={`font-semibold text-[color:var(--q-t1)] ${k === 'EAN' ? MONO : ''}`}>{v}</span>
+          </span>
+        ))}
+      </div>
+      {q.variants.length > 1 && <p className="mt-2 text-[11px] text-[color:var(--q-t3)]">{q.variants.length} descrições diferentes juntas neste item: {q.variants.slice(0, 3).map(v => v.desc.toLowerCase()).join(' · ')}{q.variants.length > 3 ? ' …' : ''}</p>}
+    </div>
   );
 };
 
@@ -228,6 +277,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
                 </button>
                 {isOpen && (
                   <div className="px-3 md:px-5 pb-3 space-y-2" data-testid="quote-detail">
+                    <ItemHeader q={x} />
                     <BigSpark q={x} />
                     <div className={`grid grid-cols-3 gap-2 text-[11px] ${MONO}`}>
                       <div className="rounded-lg bg-[var(--q-fill)] p-2.5"><p className="text-[color:var(--q-t3)]">Último</p><p className="text-[color:var(--q-t1)] font-bold mt-0.5">{num(x.last)}</p><p className="text-[color:var(--q-t3)] truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>

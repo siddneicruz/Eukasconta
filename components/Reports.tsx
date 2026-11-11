@@ -30,6 +30,8 @@ import { fold } from '../services/itemSearch';
 import { buildCompareOptions, bySpend, bySpendOnly, matcherFor, chipLabel, CompareOption, CompareSelection, CMP_COLORS, MAX_COMPARE } from '../services/categoryCompare';
 import { CHART_COLORS } from '../services/chartTheme';
 import QuotesPanel from './QuotesPanel';
+import DeptChipsBar from './DeptChipsBar';
+import { applyDeptFilter, useDeptFilter } from '../services/deptFilter';
 
 const { 
   XAxis, YAxis, Tooltip, ResponsiveContainer, 
@@ -94,6 +96,8 @@ const Reports: React.FC<ReportsProps> = ({
   const [rankingId, setRankingId] = useState<string | null>(null);
   const selInit = useRef(false);
   const [goalId, setGoalId] = useState<string>('');   // o que está sendo auditado: departamento, categoria, grupo ou item
+  const [panoFilter, setPanoFilter] = useDeptFilter();
+  const panoReceipts = useMemo(() => applyDeptFilter(receipts, panoFilter), [receipts, panoFilter]);
   const [activeSection, setActiveSection] = useState<'panorama' | 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog'>(initialSection || 'panorama');
   const [cutSelId, setCutSelId] = useState<string | null>(null);
   const [tempGoalValue, setTempGoalValue] = useState<string>('');
@@ -937,9 +941,10 @@ const Reports: React.FC<ReportsProps> = ({
           )}
 
           <div className="space-y-6 md:space-y-8">
-              {activeSection === 'panorama' && (
+              {activeSection === 'panorama' && (<>
+                  <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
                   <ReportsPanorama
-                      receipts={receipts}
+                      receipts={panoReceipts}
                       config={config}
                       displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
                       onQuickRange={setQuickRange}
@@ -947,7 +952,7 @@ const Reports: React.FC<ReportsProps> = ({
                       onOpenReceipt={onOpenReceipt}
                       onAddManual={onAddManual}
                   />
-              )}
+              </>)}
 
               {activeSection === 'overview' && (<>
               <CompareCard options={compareOptions} chosen={chosen} onToggle={toggleCompare} max={MAX_COMPARE} receipts={filteredReceipts} config={config} />

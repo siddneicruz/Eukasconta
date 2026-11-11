@@ -25,6 +25,7 @@ const detailName = (item: { category?: string; description?: string }): string =
 
 export interface Quote {
   key: string;
+  variants: { desc: string; n: number; code: string }[];   // descrições do cupom que formam o item (mais compradas primeiro), com o código de barras quando veio
   descs: string[];         // descrições (MAIÚSCULAS) dos cupons que formam o item; levam à lista em Compras
   name: string;
   unit: string;
@@ -64,7 +65,7 @@ const pct = (a: number, b: number) => (b > 0 ? (a / b - 1) * 100 : null);
 
 export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().toISOString().slice(0, 10)): Quote[] => {
   type Obs = { date: string; price: number; store: string };
-  const groups = new Map<string, { name: string; dept: string; unit: string; obs: Obs[]; descs: Set<string> }>();
+  const groups = new Map<string, { name: string; dept: string; unit: string; obs: Obs[]; vars: Map<string, { n: number; code: string }> }>();
   receipts.forEach(r => (r.items || []).forEach(item => {
     const b = priceBasis(item);
     if (!(b.unitPrice > 0) || !r.date) return;
@@ -74,8 +75,9 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     if (!name) return;
     const key = `${name.toUpperCase()}|${unit}`;
     let g = groups.get(key);
-    if (!g) { g = { name, dept: String(item.category || '').split(' - ')[0].trim() || 'Outros', unit, obs: [], descs: new Set() }; groups.set(key, g); }
-    g.descs.add(String(item.description || '').trim().toUpperCase());
+    if (!g) { g = { name, dept: String(item.category || '').split(' - ')[0].trim() || 'Outros', unit, obs: [], vars: new Map() }; groups.set(key, g); }
+    const dk = String(item.description || '').trim().toUpperCase();
+    if (dk) { const v = g.vars.get(dk) || { n: 0, code: '' }; v.n += 1; const c = String(item.code || '').replace(/\D/g, ''); if (c.length >= 8 && !v.code) v.code = c; g.vars.set(dk, v); }
     g.obs.push({ date: r.date, price: b.unitPrice, store: r.establishmentName });
   }));
 
@@ -102,7 +104,8 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     const lo = ready && mean !== null ? mean * (1 - MARGIN) : null;
     const hi = ready && mean !== null ? mean * (1 + MARGIN) : null;
     out.push({
-      key, descs: [...g.descs].filter(Boolean), name: titleCase(g.name), unit: g.unit, dept: g.dept,
+      key, variants: [...g.vars.entries()].map(([desc, v]) => ({ desc, n: v.n, code: v.code })).sort((a, b) => b.n - a.n),
+      descs: [...g.vars.keys()], name: titleCase(g.name), unit: g.unit, dept: g.dept,
       last: lastD.price, lastDate: lastD.date, lastStore: lastD.store,
       prev: prevD ? prevD.price : null, prevDate: prevD ? prevD.date : null,
       ready, mean, lo, hi, nBase: baseDays.length,
