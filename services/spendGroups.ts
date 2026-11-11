@@ -7,14 +7,14 @@ export interface SpendGroup { id: string; name: string; color: string; depts: st
 export const SPEND_GROUPS: SpendGroup[] = [
   { id: 'mercado', name: 'Mercado e Alimentação', color: '#22c55e', depts: ['Açougue', 'Bebidas', 'Congelados', 'Frios e Laticínios', 'Hortifruti', 'Mercearia Básica', 'Mercearia Doce e Matinais', 'Mercearia Salgada e Conservas', 'Padaria e Confeitaria', 'Peixaria', 'Saudáveis e Especiais', 'Rotisseria e Comida Pronta'], kind: 'essencial' },
   { id: 'casa', name: 'Casa', color: '#38bdf8', depts: ['Limpeza', 'Bazar e Utilidades Domésticas', 'Casa e Construção'], kind: 'essencial' },
-  { id: 'saude', name: 'Saúde e Cuidados', color: '#ef4444', depts: ['Higiene e Perfumaria', 'Farmácia e Saúde'], kind: 'essencial' },
+  { id: 'saude', name: 'Saúde', color: '#ef4444', depts: ['Saúde e Farmácia', 'Farmácia e Saúde'], kind: 'essencial' },
+  { id: 'cuidados', name: 'Cuidados', color: '#f472b6', depts: ['Higiene e Perfumaria', 'Mundo Infantil'], kind: 'essencial' },
   { id: 'transporte', name: 'Transporte', color: '#eab308', depts: ['Transporte'], kind: 'essencial' },
   { id: 'vestuario', name: 'Vestuário', color: '#a855f7', depts: ['Vestuário'], kind: 'flexivel' },
   { id: 'comerfora', name: 'Comer Fora e Delivery', color: '#ec4899', depts: ['Comer Fora e Delivery'], kind: 'flexivel' },
   { id: 'lazer', name: 'Lazer e Entretenimento', color: '#f43f5e', depts: ['Lazer e Entretenimento'], kind: 'flexivel' },
   { id: 'educacao', name: 'Educação', color: '#14b8a6', depts: ['Educação'], kind: 'essencial' },
   { id: 'pets', name: 'Pets', color: '#fb923c', depts: ['Pet Shop'], kind: 'essencial' },
-  { id: 'filhos', name: 'Filhos', color: '#f472b6', depts: ['Mundo Infantil'], kind: 'essencial' },
   { id: 'tecnologia', name: 'Eletrônicos', color: '#6366f1', depts: ['Eletrônicos'], kind: 'flexivel' },
   { id: 'servicos', name: 'Serviços', color: '#94a3b8', depts: ['Serviços'], kind: 'flexivel' },
 ];
