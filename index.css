@@ -106,3 +106,13 @@ html.light-theme { --ek-bg: #F6F3EA; --ek-tab: #FFFFFF; }
 @keyframes quotes-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .quotes-marquee { animation: quotes-marquee 38s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .quotes-marquee { animation: none; } }
+
+/* Cotações: placar em tons de cinza. Escuro = bolsa de verdade; claro = cinza quente que combina com o fundo creme do tema */
+.qb{--q-bg:#07080a;--q-hd:rgba(255,255,255,.04);--q-bd:rgba(255,255,255,.1);--q-bd2:rgba(255,255,255,.2);--q-fill:rgba(255,255,255,.05);--q-fill2:rgba(255,255,255,.1);--q-bar:rgba(255,255,255,.25);--q-band:rgba(255,255,255,.08);
+  --q-t1:#f4f4f5;--q-t2:#d4d4d8;--q-t3:#a1a1aa;--q-t4:#71717a;
+  --q-up:#FF5C5C;--q-up-bg:rgba(255,92,92,.13);--q-up-bd:rgba(255,92,92,.33);--q-dn:#2FD08F;--q-dn-bg:rgba(47,208,143,.13);--q-dn-bd:rgba(47,208,143,.33);--q-flat:#9AA3B5;--q-flat-bg:rgba(154,163,181,.13);--q-flat-bd:rgba(154,163,181,.33);
+  --q-gold:#DDB94B;--q-gold-bg:rgba(221,185,75,.12);--q-gold-bd:rgba(221,185,75,.4);--q-on-gold:#000;--q-warn:#fbbf24}
+html.light-theme .qb{--q-bg:#E9E6DC;--q-hd:#DEDACD;--q-bd:#CBC6B6;--q-bd2:#B9B3A1;--q-fill:rgba(27,25,18,.05);--q-fill2:rgba(27,25,18,.1);--q-bar:rgba(27,25,18,.2);--q-band:rgba(27,25,18,.08);
+  --q-t1:#1B1912;--q-t2:#3E3A2F;--q-t3:#6B665A;--q-t4:#8A8472;
+  --q-up:#B42323;--q-up-bg:rgba(180,35,35,.1);--q-up-bd:rgba(180,35,35,.35);--q-dn:#0B7A52;--q-dn-bg:rgba(11,122,82,.1);--q-dn-bd:rgba(11,122,82,.35);--q-flat:#5E5A4F;--q-flat-bg:rgba(27,25,18,.06);--q-flat-bd:rgba(27,25,18,.2);
+  --q-gold:#8A6D10;--q-gold-bg:rgba(138,109,16,.12);--q-gold-bd:rgba(138,109,16,.4);--q-on-gold:#fff;--q-warn:#9A5B00}
