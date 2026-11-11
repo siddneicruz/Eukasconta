@@ -1948,7 +1948,7 @@ CATEGORIA MESTRE: Higiene e Perfumaria
 --- Algodão em Bola
 --- Algodão em Disco
 --- Hastes Flexíveis
-- Higiene e Perfumaria - Farmácia Básica
+- Saúde e Farmácia - Saúde
 -- Primeiros Socorros
 --- Curativo Adesivo
 --- Esparadrapo

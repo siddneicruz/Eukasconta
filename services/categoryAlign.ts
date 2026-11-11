@@ -157,10 +157,10 @@ const HINTS: Hint[] = [
   { p0: /^(higiene|cuidados? pessoais?|farmacia|saude)/, rest: /banho|sabonete|corpo/, to: ['Cuidados Pessoais - Banho', 'Higiene e Perfumaria - Cuidados com o Corpo'] },
   { p0: /^(higiene|cuidados? pessoais?|farmacia|saude)/, rest: /intima|papel|algodao|absorvente/, to: ['Higiene e Perfumaria - Higiene Íntima e Pessoal'] },
   { p0: /^(higiene|cuidados? pessoais?|farmacia|saude)/, rest: /barba|depila/, to: ['Higiene e Perfumaria - Barbear e Depilação'] },
-  { p0: /^(higiene|cuidados? pessoais?|farmacia|saude)/, rest: /saude|farmacia|remedio/, to: ['Higiene e Perfumaria - Farmácia Básica'] },
+  { p0: /^(higiene|cuidados? pessoais?|farmacia|saude)/, rest: /saude|farmacia|remedio/, to: ['Saúde e Farmácia - Saúde', 'Higiene e Perfumaria - Farmácia Básica'] },
   { p0: /^(higiene|cuidados? pessoais?|farmacia|saude)/, rest: /cosmetic|beleza|maquiag/, to: ['Cuidados Pessoais - Cosméticos', 'Higiene e Perfumaria - Cuidados com o Rosto e Maquiagem'] },
   { p0: /^(higiene|cuidados? pessoais?|farmacia|saude)/, rest: /mao|\bpes?\b|unha/, to: ['Cuidados Pessoais - Mãos e Pés'] },
-  { p0: /^farmacia/, to: ['Higiene e Perfumaria - Farmácia Básica'] },
+  { p0: /^farmacia/, to: ['Saúde e Farmácia - Saúde', 'Higiene e Perfumaria - Farmácia Básica'] },
   { p0: /^cuidados? pessoais?/, to: ['Cuidados Pessoais - Cosméticos', 'Higiene e Perfumaria - Cuidados com o Rosto e Maquiagem'] },
   // bebidas
   { p0: /^bebida/, rest: /nao alcool/, to: ['Bebidas - Águas e Sucos', 'Bebidas - Sucos e Néctares'] },
@@ -344,6 +344,26 @@ export interface AlignPlan {
 }
 
 export const ALIASES_KEY = 'eukasconta_cat_aliases';
+
+/** Categorias que mudaram de nome/departamento no cadastro mestre. Os cupons guardados no aparelho com o texto antigo
+    passam sozinhos para o novo (a nuvem já foi atualizada). Chave = catKey do texto antigo. */
+const LEGACY_CATEGORY_RENAMES: Record<string, string> = {
+  'higiene e perfumaria - farmacia basica': 'Saúde e Farmácia - Saúde',
+};
+export const renameLegacyCategories = (receipts: Receipt[]): { receipts: Receipt[]; items: number } => {
+  let items = 0;
+  const out = receipts.map(r => {
+    let touched = false;
+    const next = (r.items || []).map(i => {
+      const to = LEGACY_CATEGORY_RENAMES[catKey(i.category)];
+      if (!to || to === i.category) return i;
+      touched = true; items += 1;
+      return { ...i, category: to };
+    });
+    return touched ? { ...r, items: next } : r;
+  });
+  return { receipts: items > 0 ? out : receipts, items };
+};
 export type Aliases = Record<string, string>;
 
 export const loadAliases = (): Aliases => {

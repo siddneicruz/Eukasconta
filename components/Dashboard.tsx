@@ -137,7 +137,7 @@ export const matchIconByKeyword = (category: string): any => {
 
     if (norm.includes('higiene e perfumaria') || norm.includes('perfumaria')) return Sparkles;
     if (norm.includes('barbear') || norm.includes('depilacao')) return Scissors;
-    if (norm.includes('farmacia basica')) return Pill;
+    if (norm.includes('farmacia basica') || norm.includes('saude e farmacia') || norm === 'saude') return Pill;
     if (norm.includes('higiene intima')) return Droplets;
     if (norm.includes('rosto') || norm.includes('maquiagem')) return Sparkles;
 

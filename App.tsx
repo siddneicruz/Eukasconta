@@ -65,7 +65,7 @@ import { standardizeTaxonomy, buildCaseRemapper } from './services/taxonomyCase'
 import { loadDeptFilter, saveDeptFilter } from './services/deptFilter';
 import { looksLikeXlsx, mergePlanilha, mergeStores, readPlanilha } from './services/planilhaImport';
 import { loadCuts, saveCuts } from './services/cuts';
-import { AlignChoice, OPEN_ALIGN_EVENT, buildAlignIndex, buildAlignPlan, buildAlignRemapper, loadAliases, saveAliases, snapReceiptCategories } from './services/categoryAlign';
+import { AlignChoice, OPEN_ALIGN_EVENT, buildAlignIndex, buildAlignPlan, buildAlignRemapper, loadAliases, renameLegacyCategories, saveAliases, snapReceiptCategories } from './services/categoryAlign';
 import { LAYER_PINS_EVENT, LAYER_PINS_KEY, loadLayerPins, remapLayerPins } from './services/layerPins';
 import AlignCategoriesSheet from './components/AlignCategoriesSheet';
 import { auditCategoriesWithAI } from './services/geminiService';
@@ -347,6 +347,9 @@ const App: React.FC = () => {
           const fixed = applyRedirects(receipts, redirects);
           if (fixed.changed > 0) { setReceipts(fixed.receipts); return; }
       }
+      // Categorias que mudaram de lugar no cadastro (ex.: Farmácia Básica -> Saúde e Farmácia): o cupom antigo acompanha
+      const renamed = renameLegacyCategories(receipts);
+      if (renamed.items > 0) { setReceipts(renamed.receipts); return; }
       // Sincronizar tabela de estabelecimentos automaticamente ao adicionar novos recibos
       updateEstablishmentTableFromReceipts();
   }, [receipts]);
