@@ -80,7 +80,11 @@ const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, kn
       const out = await scanWithNativeScanner(setNativeScanBusy);
       if (out.status === 'ok') {
         diagnostics.log('SCANNER', `Scanner de documentos devolveu ${out.files.length} página(s).`);
+        if (out.rejected.length) setNativeScanNotice(`${out.rejected.length === 1 ? 'Uma página foi descartada' : `${out.rejected.length} páginas foram descartadas`} por falta de qualidade: ${out.rejected.join(' · ')}. Escaneie de novo só ela(s).`);
         processBatch(out.files);
+      } else if (out.status === 'poor') {
+        diagnostics.log('SCANNER', `Foto(s) sem qualidade: ${out.reasons.join(' | ')}`);
+        setNativeScanNotice(`Não li o cupom porque a foto não tem qualidade: ${out.reasons.join(' · ')}. Toque em Câmera e escaneie de novo.`);
       } else if (out.status === 'unavailable') {
         diagnostics.log('SCANNER', `Scanner de documentos indisponível: ${out.reason}`);
         setNativeScannerOff(true);

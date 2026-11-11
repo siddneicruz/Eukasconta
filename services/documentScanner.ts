@@ -2,13 +2,15 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem } from '@capacitor/filesystem';
 import { DocumentScanner, GoogleDocumentScannerModuleInstallState } from '@capacitor-mlkit/document-scanner';
 import { isNativeApp } from './platform';
+import { checkScanQuality } from './imageQuality';
 
 // Scanner de documentos nativo do Android (o mesmo "Digitalizar" do Google Drive): acha o cupom na foto,
 // recorta, endireita e limpa o fundo — o resultado já sai quase em preto e branco, ótimo para a IA ler.
 // Só existe no app instalado; no navegador o Scanner continua usando a câmera comum.
 
 export type NativeScanOutcome =
-  | { status: 'ok'; files: File[] }
+  | { status: 'ok'; files: File[]; rejected: string[] }
+  | { status: 'poor'; reasons: string[] }
   | { status: 'cancelled' }
   | { status: 'unavailable'; reason: string };
 
@@ -107,7 +109,14 @@ export const scanWithNativeScanner = async (onStatus?: (msg: string) => void): P
     for (let i = 0; i < uris.length; i++) {
       files.push(await uriToFile(uris[i], `cupom-${stamp}-${i + 1}.jpg`));
     }
-    return { status: 'ok', files };
+    onStatus?.('Conferindo a qualidade das fotos…');
+    const good: File[] = [], rejected: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const v = await checkScanQuality(files[i]);
+      if (v.ok) good.push(files[i]); else rejected.push(uris.length > 1 ? `Página ${i + 1}: ${v.message}` : String(v.message));
+    }
+    if (good.length === 0) return { status: 'poor', reasons: rejected };
+    return { status: 'ok', files: good, rejected };
   } catch (e) {
     return { status: 'unavailable', reason: `Não consegui ler a imagem do scanner: ${toError(e).message}` };
   }
