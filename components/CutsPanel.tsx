@@ -9,7 +9,7 @@ import { titleCase } from '../services/textFormat';
 import { useLayers } from './LayersContext';
 import { getCategoryColor } from './Dashboard';
 import {
-  Cut, CutReceiptRef, analyzeCut, cutTitle, loadCuts, rangeLabel, saveCuts,
+  Cut, CutReceiptRef, analyzeCut, cutReceipts, cutTitle, loadCuts, rangeLabel, saveCuts,
 } from '../services/cuts';
 import { buildDeptOptions, deptFilterLabel, deptLabelFor, invertDeptFilter, isDeptFilterActive } from '../services/deptFilter';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
@@ -69,20 +69,26 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
     else setPick({ title, subtitle, refs });
   };
 
-  // Limites da régua: do primeiro ao último dia com compra (e nunca menores que o próprio recorte)
+  // O período padrão é o maior possível, mas só o que tem dado: começa na primeira compra do que o recorte seleciona
+  // (nada de anos vazios antes) e termina na última. O que foi estreitado pela régua é respeitado.
   const bounds = useMemo(() => {
-    const ds = receipts.map(r => r.date).filter(Boolean).sort();
-    return { min: ds[0] && ds[0] < cut.from ? ds[0] : cut.from, max: ds[ds.length - 1] && ds[ds.length - 1] > cut.to ? ds[ds.length - 1] : cut.to };
-  }, [receipts, cut.from, cut.to]);
-  const a = useMemo(() => analyzeCut(receipts, cut, plotWidth), [receipts, cut, plotWidth, layers]);
+    const ds = cutReceipts(receipts, '0000-01-01', '9999-12-31', cut.filter).map(r => r.date).filter(Boolean).sort();
+    return ds.length ? { min: ds[0], max: ds[ds.length - 1] } : { min: cut.from, max: cut.to };
+  }, [receipts, cut.filter, cut.from, cut.to, layers]);
+  const eff = useMemo(() => {
+    const from = cut.from <= bounds.min ? bounds.min : cut.from > bounds.max ? bounds.max : cut.from;
+    const to = cut.to >= bounds.max ? bounds.max : (cut.to < from ? from : cut.to);
+    return { from, to };
+  }, [cut.from, cut.to, bounds]);
+  const a = useMemo(() => analyzeCut(receipts, { ...cut, from: eff.from, to: eff.to }, plotWidth), [receipts, cut, eff, plotWidth, layers]);
   const options = useMemo(
-    () => buildDeptOptions(receipts, receipts.filter(r => r.date >= cut.from && r.date <= cut.to), layers),
-    [receipts, cut.from, cut.to, layers],
+    () => buildDeptOptions(receipts, receipts.filter(r => r.date >= eff.from && r.date <= eff.to), layers),
+    [receipts, eff, layers],
   );
 
   const active = isDeptFilterActive(cut.filter);
   const filterText = deptFilterLabel(cut.filter, k => deptLabelFor(options, k));
-  const range = rangeLabel(cut.from, cut.to);
+  const range = rangeLabel(eff.from, eff.to);
   const named = cut.name.trim().length > 0;
   const prevLabel = rangeLabel(a.prevFrom, a.prevTo);
   const running = a.elapsed < a.days;
@@ -210,8 +216,8 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
 
       {bounds.min < bounds.max && (
         <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-5 shadow-xl" data-testid="cut-ruler">
-          <DateRangeSlider min={bounds.min} max={bounds.max} from={cut.from} to={cut.to}
-            onChange={(f, t) => { if (f !== cut.from || t !== cut.to) onChangeFilter({ ...cut, from: f, to: t }); }} testId="cut-range" />
+          <DateRangeSlider min={bounds.min} max={bounds.max} from={eff.from} to={eff.to}
+            onChange={(f, t) => { if (f !== eff.from || t !== eff.to) onChangeFilter({ ...cut, from: f, to: t }); }} testId="cut-range" />
         </div>
       )}
 
