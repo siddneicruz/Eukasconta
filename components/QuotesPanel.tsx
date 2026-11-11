@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { TrendingDown, TrendingUp, Minus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Receipt } from '../types';
-import { Quote, buildQuotes, topMovers } from '../services/quotes';
+import { MIN_PURCHASES, Quote, buildQuotes, topMovers } from '../services/quotes';
+
+/* Painel de cotações no estilo de bolsa: fundo escuro fixo (em qualquer tema), números em fonte monoespaçada, uma linha
+   por item com ÚLTIMO e VAR% numa célula colorida. Para quem COMPRA, preço subindo é ruim: vermelho = mais caro,
+   verde = mais barato, cinza = dentro da faixa normal do item. */
 
 const TICKER_KEY = 'ek_quotes_ticker';
 const TICKER_EVT = 'ek-quotes-ticker';
@@ -22,50 +26,74 @@ export const useQuotesTicker = (): [boolean, (v: boolean) => void] => {
   return [on, set];
 };
 
-const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-const pctTxt = (p: number) => `${Math.abs(p) >= 10 ? Math.round(Math.abs(p)) : (Math.round(Math.abs(p) * 10) / 10).toString().replace('.', ',')}%`;
-const UNIT: Record<string, string> = { KG: 'kg', G: 'g', L: 'L', ML: 'ml', UN: 'un', DZ: 'dúzia' };
+const UP = '#FF5C5C', DOWN = '#2FD08F', FLAT = '#9AA3B5', GOLD = '#DDB94B';
+const num = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pctTxt = (p: number) => { const a = Math.abs(p); return `${a >= 10 ? Math.round(a) : (Math.round(a * 10) / 10).toFixed(1).replace('.', ',')}%`; };
+const UNIT: Record<string, string> = { KG: 'kg', G: 'g', L: 'L', ML: 'ml', UN: 'un', DZ: 'dz' };
 const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-// Para quem compra, preço SUBINDO é ruim (vermelho) e CAINDO é bom (verde)
-const UP = '#E5675F', DOWN = '#3FB68B', FLAT = '#8E9AB8';
-const toneOf = (c: number | null) => (c === null || Math.abs(c) < 0.5 ? FLAT : c > 0 ? UP : DOWN);
+const MONO = 'font-mono tabular-nums';
 
-const Spark: React.FC<{ v: number[]; color: string }> = ({ v, color }) => {
-  if (v.length < 2) return <div className="w-[72px] h-7" aria-hidden="true" />;
-  const lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
-  const pts = v.map((y, i) => `${(i / (v.length - 1)) * 70 + 1},${26 - ((y - lo) / span) * 22 - 1}`).join(' ');
-  return (
-    <svg width="72" height="28" viewBox="0 0 72 28" aria-hidden="true" className="shrink-0">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-};
+const toneOf = (q: Quote): string => (q.zone === 'above' ? UP : q.zone === 'below' ? DOWN : FLAT);
+const arrowOf = (q: Quote): string => (q.zone === 'above' ? '▲' : q.zone === 'below' ? '▼' : '■');
+const signed = (q: Quote) => (q.chg === null ? '—' : `${q.chg > 0.05 ? '+' : q.chg < -0.05 ? '−' : ''}${pctTxt(q.chg)}`);
 
-const Badge: React.FC<{ c: number | null; label?: string }> = ({ c, label }) => {
-  if (c === null) return <span className="text-[11px] text-zinc-600">—</span>;
-  const color = toneOf(c);
-  const Icon = Math.abs(c) < 0.5 ? Minus : c > 0 ? TrendingUp : TrendingDown;
+/** Célula de variação pintada, como na bolsa */
+const VarCell: React.FC<{ q: Quote }> = ({ q }) => {
+  const c = toneOf(q);
   return (
-    <span className="inline-flex items-center gap-1 text-[12px] font-bold tabular-nums" style={{ color }} title={label}>
-      <Icon className="w-3.5 h-3.5" strokeWidth={2.5} />{Math.abs(c) < 0.5 ? '0%' : `${c > 0 ? '+' : '−'}${pctTxt(c)}`}
+    <span className={`inline-flex items-center justify-center gap-1 min-w-[74px] h-8 px-2 rounded-md text-[13px] font-bold ${MONO}`}
+      style={{ color: c, background: `${c}22`, border: `1px solid ${c}55` }} title="última compra contra o preço médio">
+      <span className="text-[9px]" aria-hidden="true">{arrowOf(q)}</span>{signed(q)}
     </span>
   );
 };
 
-/** Letreiro com os maiores movimentos de preço, no estilo painel de bolsa. Rola sozinho; parado quando o aparelho pede menos movimento. */
+/** Barra da faixa normal: faixa destacada e um ponto onde a última compra caiu */
+const RangeBar: React.FC<{ q: Quote; className?: string }> = ({ q, className = '' }) => {
+  if (q.lo === null || q.hi === null || q.mean === null) return null;
+  const min = Math.min(q.lo, q.last, q.mean) * 0.92, max = Math.max(q.hi, q.last, q.mean) * 1.08;
+  const pos = (v: number) => `${Math.min(Math.max(((v - min) / (max - min || 1)) * 100, 0), 100)}%`;
+  const c = toneOf(q);
+  return (
+    <div className={`relative h-2 rounded-full bg-white/10 ${className}`} aria-label={`Faixa normal de ${num(q.lo)} a ${num(q.hi)}, última compra ${num(q.last)}`}>
+      <div className="absolute top-0 bottom-0 rounded-full bg-white/25" style={{ left: pos(q.lo), width: `calc(${pos(q.hi)} - ${pos(q.lo)})` }} />
+      <div className="absolute top-1/2 w-3 h-3 -ml-1.5 -mt-1.5 rounded-full border-2 border-[#07080a]" style={{ left: pos(q.last), background: c }} />
+    </div>
+  );
+};
+
+/** Gráfico das últimas compras com a faixa normal sombreada e o preço médio tracejado */
+const BigSpark: React.FC<{ q: Quote }> = ({ q }) => {
+  const v = q.spark;
+  if (v.length < 2) return null;
+  const all = [...v, ...(q.lo !== null ? [q.lo] : []), ...(q.hi !== null ? [q.hi] : [])];
+  const lo = Math.min(...all), hi = Math.max(...all), span = hi - lo || 1;
+  const W = 300, H = 64, X = (i: number) => (i / (v.length - 1)) * (W - 8) + 4, Y = (y: number) => H - 6 - ((y - lo) / span) * (H - 12);
+  const c = toneOf(q);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-16" role="img" aria-label={`Últimos ${v.length} preços de ${q.name}`}>
+      {q.lo !== null && q.hi !== null && <rect x="0" width={W} y={Y(q.hi)} height={Math.max(Y(q.lo) - Y(q.hi), 1)} fill="#ffffff" opacity="0.07" />}
+      {q.mean !== null && <line x1="0" x2={W} y1={Y(q.mean)} y2={Y(q.mean)} stroke={GOLD} strokeWidth="1" strokeDasharray="4 4" opacity="0.7" />}
+      <polyline points={v.map((y, i) => `${X(i)},${Y(y)}`).join(' ')} fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={X(v.length - 1)} cy={Y(v[v.length - 1])} r="3.5" fill={c} />
+    </svg>
+  );
+};
+
+/** Letreiro com os maiores movimentos de preço, como o da bolsa. Rola sozinho; parado quando o aparelho pede menos movimento. */
 export const QuotesTicker: React.FC<{ receipts: Receipt[]; onOpen?: () => void }> = ({ receipts, onOpen }) => {
   const movers = useMemo(() => topMovers(buildQuotes(receipts), 12), [receipts]);
   if (movers.length < 2) return null;
   const items = [...movers, ...movers];
   return (
     <button type="button" onClick={onOpen} data-testid="quotes-ticker" aria-label="Abrir cotações"
-      className="block w-full overflow-hidden rounded-xl bg-black/40 border border-white/10 py-2 text-left">
-      <div className="flex w-max gap-6 px-3 whitespace-nowrap quotes-marquee">
+      className="block w-full overflow-hidden rounded-xl bg-[#07080a] border border-white/10 py-2 text-left">
+      <div className="flex w-max gap-7 px-3 whitespace-nowrap quotes-marquee">
         {items.map((q, i) => (
-          <span key={i} className="inline-flex items-center gap-2 text-[12px] tabular-nums">
+          <span key={i} className={`inline-flex items-center gap-2 text-[12px] ${MONO}`}>
             <span className="font-bold text-zinc-200 uppercase tracking-[0.04em]">{q.name}</span>
-            <span className="text-zinc-400">{brl(q.last)}</span>
-            <Badge c={q.chg} />
+            <span className="text-zinc-400">{num(q.last)}</span>
+            <span className="font-bold" style={{ color: toneOf(q) }}>{arrowOf(q)} {signed(q)}</span>
           </span>
         ))}
       </div>
@@ -84,6 +112,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
   const [sort, setSort] = useState<Sort>('mov');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
+  const [showBuilding, setShowBuilding] = useState(false);
 
   const depts = useMemo(() => {
     const m = new Map<string, number>();
@@ -91,45 +120,76 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
     return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([d]) => d);
   }, [all]);
 
-  const rows = useMemo(() => {
+  const matches = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    let list = all.filter(x => (!dept || x.dept === dept) && (!needle || x.name.toLowerCase().includes(needle)));
+    return all.filter(x => (!dept || x.dept === dept) && (!needle || x.name.toLowerCase().includes(needle)));
+  }, [all, dept, q]);
+
+  const ready = useMemo(() => {
     const c = (x: Quote) => x.chg ?? 0;
-    if (sort === 'up') list = list.filter(x => c(x) > 0.5).sort((a, b) => c(b) - c(a));
-    else if (sort === 'down') list = list.filter(x => c(x) < -0.5).sort((a, b) => c(a) - c(b));
+    let list = matches.filter(x => x.ready);
+    if (sort === 'up') list = list.filter(x => x.zone === 'above').sort((a, b) => c(b) - c(a));
+    else if (sort === 'down') list = list.filter(x => x.zone === 'below').sort((a, b) => c(a) - c(b));
     else if (sort === 'freq') list = [...list].sort((a, b) => b.days - a.days || a.name.localeCompare(b.name));
     else list = [...list].sort((a, b) => Math.abs(c(b)) - Math.abs(c(a)) || b.days - a.days);
-    return list.slice(0, 80);
-  }, [all, dept, sort, q]);
+    return list.slice(0, 100);
+  }, [matches, sort]);
+  const building = useMemo(() => matches.filter(x => !x.ready).sort((a, b) => b.days - a.days || a.name.localeCompare(b.name)), [matches]);
 
-  const ups = all.filter(x => !x.stale && (x.chg ?? 0) > 0.5).length;
-  const downs = all.filter(x => !x.stale && (x.chg ?? 0) < -0.5).length;
+  const live = all.filter(x => x.ready && !x.stale);
+  const ups = live.filter(x => x.zone === 'above').length;
+  const downs = live.filter(x => x.zone === 'below').length;
+  const topUp = [...live].filter(x => x.zone === 'above' && !x.odd).sort((a, b) => (b.chg ?? 0) - (a.chg ?? 0)).slice(0, 3);
+  const topDown = [...live].filter(x => x.zone === 'below' && !x.odd).sort((a, b) => (a.chg ?? 0) - (b.chg ?? 0)).slice(0, 3);
+  const lastDate = all.reduce((m, x) => (x.lastDate > m ? x.lastDate : m), '');
 
-  if (!all.length) return <p className="text-sm text-zinc-500 py-10 text-center">Ainda não há compras para montar cotações.</p>;
+  if (!all.length) return <p className="text-sm text-zinc-500 py-10 text-center">Ainda não há compras de Açougue ou Hortifruti para montar cotações.</p>;
+
+  const Mover: React.FC<{ x: Quote }> = ({ x }) => (
+    <div className="flex items-center justify-between gap-2 text-[12px]">
+      <span className="truncate text-zinc-200 uppercase tracking-[0.02em]">{x.name}</span>
+      <span className={`shrink-0 font-bold ${MONO}`} style={{ color: toneOf(x) }}>{arrowOf(x)} {signed(x)}</span>
+    </div>
+  );
 
   return (
-    <div className="space-y-3" data-testid="quotes-panel">
+    <div className="space-y-3 text-zinc-200" data-testid="quotes-panel">
       <QuotesTicker receipts={receipts} />
 
-      <div className="bg-[#121214] border border-white/5 rounded-2xl p-3 md:p-5 shadow-xl">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100">Cotações: Açougue e Hortifruti</h3>
-            <p className="text-[11px] text-zinc-500 mt-0.5">Última compra contra o preço típico (mediana das compras anteriores), por kg ou unidade. <span style={{ color: DOWN }}>Verde</span> = ficou mais barato · <span style={{ color: UP }}>vermelho</span> = ficou mais caro.</p>
-          </div>
+      <div className="rounded-2xl bg-[#07080a] border border-white/10 p-3 md:p-5 shadow-xl">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="text-[13px] font-bold tracking-[0.12em] text-luxury-gold uppercase">Cotações · Açougue e Hortifruti</h3>
+          {lastDate && <span className={`text-[11px] text-zinc-500 ${MONO}`}>até {shortDate(lastDate)}</span>}
         </div>
-        <div className="mt-3 flex gap-4 text-[12px] tabular-nums">
-          <span style={{ color: UP }} className="font-semibold">▲ {ups} {ups === 1 ? 'subiu' : 'subiram'}</span>
-          <span style={{ color: DOWN }} className="font-semibold">▼ {downs} {downs === 1 ? 'caiu' : 'caíram'}</span>
-          <span className="text-zinc-500">{all.length} produtos</span>
+        <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">
+          Última compra contra o seu preço médio (até {30} compras, 1 ano). Só com {MIN_PURCHASES} compras ou mais.
+          <span style={{ color: UP }}> ▲ vermelho</span> = mais caro · <span style={{ color: DOWN }}>▼ verde</span> = mais barato · <span style={{ color: FLAT }}>■ cinza</span> = normal.
+        </p>
+
+        {(topUp.length > 0 || topDown.length > 0) && (
+          <div className="mt-3 grid grid-cols-2 gap-2" data-testid="quotes-movers">
+            <div className="rounded-lg border border-white/10 p-2.5 space-y-1.5">
+              <p className="text-[10px] font-bold tracking-[0.12em]" style={{ color: UP }}>MAIORES ALTAS</p>
+              {topUp.length ? topUp.map(x => <Mover key={x.key} x={x} />) : <p className="text-[11px] text-zinc-600">nenhuma</p>}
+            </div>
+            <div className="rounded-lg border border-white/10 p-2.5 space-y-1.5">
+              <p className="text-[10px] font-bold tracking-[0.12em]" style={{ color: DOWN }}>MAIORES QUEDAS</p>
+              {topDown.length ? topDown.map(x => <Mover key={x.key} x={x} />) : <p className="text-[11px] text-zinc-600">nenhuma</p>}
+            </div>
+          </div>
+        )}
+
+        <div className={`mt-3 flex gap-4 text-[12px] ${MONO}`}>
+          <span style={{ color: UP }} className="font-bold">▲ {ups}</span>
+          <span style={{ color: DOWN }} className="font-bold">▼ {downs}</span>
+          <span className="text-zinc-500">{live.length} cotados · {all.length - all.filter(x => x.ready).length} juntando histórico</span>
         </div>
 
-        <label className="mt-3 flex items-center gap-2 h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-zinc-400">
+        <label className="mt-3 flex items-center gap-2 h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-zinc-400">
           <Search className="w-4 h-4 shrink-0" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar produto" data-testid="quotes-search"
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar item" data-testid="quotes-search"
             className="flex-1 min-w-0 bg-transparent outline-none text-[14px] text-zinc-100 placeholder:text-zinc-500" />
         </label>
-
         <div className="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" role="group" aria-label="Departamento">
           {['', ...depts].map(d => (
             <button key={d || 'todos'} type="button" onClick={() => setDept(d)} aria-pressed={dept === d} data-testid={`quotes-dept-${d || 'todos'}`}
@@ -139,46 +199,76 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
         <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" role="group" aria-label="Ordenar">
           {SORTS.map(s => (
             <button key={s.id} type="button" onClick={() => setSort(s.id)} aria-pressed={sort === s.id} data-testid={`quotes-sort-${s.id}`}
-              className={`shrink-0 h-7 px-2.5 rounded-lg text-[11px] font-semibold ${sort === s.id ? 'text-luxury-gold bg-luxury-gold/10 border border-luxury-gold/30' : 'text-zinc-500 border border-transparent'}`}>{s.label}</button>
+              className={`shrink-0 h-7 px-2.5 rounded-md text-[11px] font-semibold ${sort === s.id ? 'text-luxury-gold bg-luxury-gold/10 border border-luxury-gold/30' : 'text-zinc-500 border border-transparent'}`}>{s.label}</button>
           ))}
         </div>
       </div>
 
-      <div className="bg-[#121214] border border-white/5 rounded-2xl shadow-xl overflow-hidden divide-y divide-white/5" data-testid="quotes-list">
-        {rows.length === 0 && <p className="text-sm text-zinc-500 py-8 text-center">Nenhum produto nesse filtro.</p>}
-        {rows.map(x => {
-          const color = toneOf(x.chg);
-          const isOpen = open === x.key;
-          return (
-            <div key={x.key} data-testid="quote-row">
-              <button type="button" onClick={() => setOpen(isOpen ? null : x.key)} aria-expanded={isOpen}
-                className="w-full flex items-center gap-3 px-3 md:px-5 py-3 text-left active:bg-white/5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-zinc-100 truncate">{x.name}</p>
-                  <p className="text-[11px] text-zinc-500 truncate">{x.dept} · {x.days} {x.days === 1 ? 'compra' : 'compras'}{x.stale ? ' · sem compra há mais de 3 meses' : ''}{x.odd ? ' · confira' : ''}</p>
-                </div>
-                <Spark v={x.spark} color={color} />
-                <div className="shrink-0 w-[92px] text-right">
-                  <p className="text-[14px] font-bold text-zinc-100 tabular-nums">{brl(x.last)}<span className="text-[10px] font-medium text-zinc-500">/{UNIT[x.unit] || x.unit.toLowerCase()}</span></p>
-                  <Badge c={x.chg} label="da última compra contra o preço típico" />
-                </div>
-              </button>
-              {isOpen && (
-                <div className="px-3 md:px-5 pb-3 space-y-2" data-testid="quote-detail">
-                  <div className="grid grid-cols-3 gap-2 text-[11px] tabular-nums">
-                    <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Preço típico</p><p className="text-zinc-100 font-semibold mt-0.5">{x.typical !== null ? brl(x.typical) : '—'}</p><p className="text-zinc-500">{x.nBase ? `${x.nBase} ${x.nBase === 1 ? 'compra antes' : 'compras antes'}` : ''}</p></div>
-                    <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Última compra</p><p className="text-zinc-100 font-semibold mt-0.5">{brl(x.last)}</p><p className="text-zinc-500 truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>
-                    <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Variação</p><p className="mt-0.5"><Badge c={x.chg} /></p><p className="text-zinc-500">{x.typical !== null ? `${x.last < x.typical ? '−' : '+'}${brl(Math.abs(x.last - x.typical))}` : ''}</p></div>
+      <div className="rounded-2xl bg-[#07080a] border border-white/10 shadow-xl overflow-hidden" data-testid="quotes-list">
+        <div className={`grid grid-cols-[1fr_76px_82px] gap-2 px-3 md:px-5 py-2 text-[10px] font-bold tracking-[0.12em] text-zinc-500 bg-white/[0.04] border-b border-white/10`}>
+          <span>ITEM</span><span className="text-right">ÚLTIMO R$</span><span className="text-right">VAR</span>
+        </div>
+        {ready.length === 0 && <p className="text-sm text-zinc-500 py-8 text-center px-4">Nenhum item com {MIN_PURCHASES} compras ou mais nesse filtro.</p>}
+        <div className="divide-y divide-white/5">
+          {ready.map(x => {
+            const isOpen = open === x.key;
+            return (
+              <div key={x.key} data-testid="quote-row">
+                <button type="button" onClick={() => setOpen(isOpen ? null : x.key)} aria-expanded={isOpen}
+                  className="w-full grid grid-cols-[1fr_76px_82px] gap-2 items-center px-3 md:px-5 py-2.5 text-left active:bg-white/5">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-zinc-100 uppercase tracking-[0.02em] truncate">{x.name}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <RangeBar q={x} className="flex-1 max-w-[120px]" />
+                      <span className={`text-[10px] text-zinc-500 ${MONO}`}>méd {num(x.mean as number)}</span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-zinc-500 tabular-nums">Penúltima compra: {x.prev !== null ? `${brl(x.prev)}${x.prevDate ? ` em ${shortDate(x.prevDate)}` : ''}` : '—'}</p>
-                  {x.odd && <p className="text-[11px] text-amber-400">Salto grande: vale conferir se a última compra não foi lida com unidade ou quantidade errada.</p>}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                  <span className={`text-right text-[15px] font-bold text-zinc-100 ${MONO}`}>{num(x.last)}<span className="block text-[9px] font-medium text-zinc-500">/{UNIT[x.unit] || x.unit.toLowerCase()}</span></span>
+                  <span className="text-right"><VarCell q={x} /></span>
+                </button>
+                {isOpen && (
+                  <div className="px-3 md:px-5 pb-3 space-y-2" data-testid="quote-detail">
+                    <BigSpark q={x} />
+                    <div className={`grid grid-cols-3 gap-2 text-[11px] ${MONO}`}>
+                      <div className="rounded-lg bg-white/5 p-2.5"><p className="text-zinc-500">Último</p><p className="text-zinc-100 font-bold mt-0.5">{num(x.last)}</p><p className="text-zinc-500 truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>
+                      <div className="rounded-lg bg-white/5 p-2.5"><p className="text-zinc-500">Médio</p><p className="text-zinc-100 font-bold mt-0.5">{num(x.mean as number)}</p><p className="text-zinc-500">{x.nBase} compras</p></div>
+                      <div className="rounded-lg bg-white/5 p-2.5"><p className="text-zinc-500">Faixa normal</p><p className="text-zinc-100 font-bold mt-0.5">{num(x.lo as number)}–{num(x.hi as number)}</p><p className="text-zinc-500">{x.days} compras no total</p></div>
+                    </div>
+                    <p className="text-[11px] text-zinc-500">Dentro da faixa normal a variação não conta como alta nem queda. A linha tracejada é o preço médio.</p>
+                    {x.odd && <p className="text-[11px] text-amber-400">Salto grande: vale conferir se a última compra não foi lida com unidade ou quantidade errada.</p>}
+                    {x.stale && <p className="text-[11px] text-zinc-500">Sem compra há mais de 3 meses.</p>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <p className="px-1 text-[11px] text-zinc-600 leading-relaxed">Só o que você comprou no Açougue e no Hortifruti, item por item. Compras no mesmo dia viram a média do dia. São só os seus cupons; informação de preço, não recomendação de compra.</p>
+
+      {building.length > 0 && (
+        <div className="rounded-2xl bg-[#07080a] border border-white/10 overflow-hidden" data-testid="quotes-building">
+          <button type="button" onClick={() => setShowBuilding(v => !v)} aria-expanded={showBuilding} data-testid="quotes-building-toggle"
+            className="w-full min-h-[48px] flex items-center justify-between gap-3 px-4 text-left">
+            <span className="text-[12px] font-bold tracking-[0.1em] text-zinc-400 uppercase">Juntando histórico · {building.length}</span>
+            <span className="text-zinc-500 text-sm" aria-hidden="true">{showBuilding ? '−' : '+'}</span>
+          </button>
+          {showBuilding && (
+            <div className="divide-y divide-white/5 border-t border-white/10">
+              {building.slice(0, 120).map(x => (
+                <div key={x.key} className="flex items-center gap-3 px-4 py-2.5" data-testid="quote-building-row">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-zinc-300 uppercase truncate">{x.name}</p>
+                    <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-luxury-gold/70" style={{ width: `${Math.min(x.days / MIN_PURCHASES, 1) * 100}%` }} /></div>
+                  </div>
+                  <span className={`text-[11px] text-zinc-500 shrink-0 ${MONO}`}>{x.days}/{MIN_PURCHASES}</span>
+                  <span className={`text-[13px] text-zinc-300 shrink-0 w-[64px] text-right ${MONO}`}>{num(x.last)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <p className="px-1 text-[11px] text-zinc-600 leading-relaxed">Só os seus cupons de Açougue e Hortifruti, item por item. Compras no mesmo dia viram a média do dia. Informação de preço, não recomendação de compra.</p>
     </div>
   );
 };
