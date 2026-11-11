@@ -1,6 +1,5 @@
 import React from 'react';
-import { ScanLine, PencilLine, ShoppingCart, Map as MapIcon, Target, Bell, Terminal, KeyRound, Info } from 'lucide-react';
-import { PDLogo } from './Brand';
+import { ScanLine, PencilLine, ShoppingCart, Map as MapIcon, Target, Bell, Terminal, KeyRound } from 'lucide-react';
 
 // Redesign v2: atalhos redondos do Início e bloco "Aparência e sistema" dos Ajustes.
 // Só interface — cada botão chama uma função que já existia no app.
@@ -55,14 +54,6 @@ export const SettingsQuick: React.FC<{
             <span className="text-sm font-medium text-zinc-200">{r.label}</span>
           </button>
         ))}
-      </div>
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/50 p-4 flex items-center gap-4">
-        <Info className="w-5 h-5 text-zinc-500 shrink-0" />
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-zinc-200">Sobre o Eu Kasconta</div>
-          <div className="text-xs text-zinc-400 mt-0.5">Criado por</div>
-        </div>
-        <PDLogo className="w-28 ml-auto text-zinc-300 shrink-0" />
       </div>
     </div>
   );
