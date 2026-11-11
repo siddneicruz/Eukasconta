@@ -41,7 +41,22 @@ const UNIT_ALIASES: Record<string, string> = {
   PCT: 'PCT', PACOTE: 'PCT', PACOTES: 'PCT',
   CX: 'CX', CAIXA: 'CX', CAIXAS: 'CX',
   DZ: 'DZ', DZA: 'DZ', DUZIA: 'DZ', DUZIAS: 'DZ',
+  // vistas nos cupons e no cadastro: peça, par, metro, rolo, fardo, saco, bandeja; "GK" é o "KG" lido ao contrário
+  PC: 'PC', PCS: 'PC', PECA: 'PC', PECAS: 'PC',
+  PR: 'PR', PAR: 'PR', PARES: 'PR',
+  MT: 'MT', M: 'MT', MTS: 'MT', METRO: 'MT', METROS: 'MT',
+  RL: 'RL', ROLO: 'RL', ROLOS: 'RL',
+  FD: 'FD', FARDO: 'FD', FARDOS: 'FD',
+  SC: 'SC', SACO: 'SC', SACOS: 'SC',
+  BD: 'BD', BDJ: 'BD', BANDEJA: 'BD', BANDEJAS: 'BD',
+  GK: 'KG',
 };
+// Nome da unidade para mostrar na tela (a chave unificada acima -> texto)
+const UNIT_NAMES: Record<string, string> = {
+  KG: 'kg', G: 'g', L: 'litro', ML: 'ml', UN: 'unid.', DZ: 'dúzia', PCT: 'pacote', CX: 'caixa',
+  PC: 'peça', PR: 'par', MT: 'metro', RL: 'rolo', FD: 'fardo', SC: 'saco', BD: 'bandeja',
+};
+export const unitLabel = (raw?: string | null): string => { const u = normalizeUnit(raw); return UNIT_NAMES[u] || u.toLowerCase(); };
 export const normalizeUnit = (raw?: string | null): string => {
   const k = stripAccentsUpper(String(raw || '')).replace(/[^A-Z0-9]/g, '');
   if (!k) return 'UN';

@@ -25,6 +25,7 @@ const detailName = (item: { category?: string; description?: string }): string =
 
 export interface Quote {
   key: string;
+  descs: string[];         // descrições (MAIÚSCULAS) dos cupons que formam o item; levam à lista em Compras
   name: string;
   unit: string;
   dept: string;
@@ -35,7 +36,7 @@ export interface Quote {
   prevDate: string | null;
   ready: boolean;          // já tem compras suficientes (MIN_PURCHASES) para uma cotação confiável
   mean: number | null;     // preço médio: média aparada das até BASE_MAX compras anteriores à última (até 1 ano antes)
-  lo: number | null;       // faixa normal: do 10º ao 90º percentil dessas compras (80% delas caem aqui)
+  lo: number | null;       // margem normal: preço médio ±10%
   hi: number | null;
   nBase: number;           // quantas compras entraram no preço médio
   chg: number | null;      // variação % da última compra contra o preço médio (só quando ready)
@@ -47,6 +48,7 @@ export interface Quote {
 }
 
 // Regra: cotação só com histórico. Abaixo disso o preço de uma compra isolada engana (promoção, erro de leitura).
+export const MARGIN = 0.1;        // margem fixa: até ±10% sobre o preço médio é "normal" (cinza)
 export const MIN_PURCHASES = 10;   // dias de compra do item (a última incluída) para a cotação aparecer
 const BASE_MAX = 30;               // quantas compras anteriores entram no preço médio (as mais recentes)
 const BASE_DAYS = 365;             // e no máximo 1 ano para trás, para a inflação não contaminar a média
@@ -62,7 +64,7 @@ const pct = (a: number, b: number) => (b > 0 ? (a / b - 1) * 100 : null);
 
 export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().toISOString().slice(0, 10)): Quote[] => {
   type Obs = { date: string; price: number; store: string };
-  const groups = new Map<string, { name: string; dept: string; unit: string; obs: Obs[] }>();
+  const groups = new Map<string, { name: string; dept: string; unit: string; obs: Obs[]; descs: Set<string> }>();
   receipts.forEach(r => (r.items || []).forEach(item => {
     const b = priceBasis(item);
     if (!(b.unitPrice > 0) || !r.date) return;
@@ -72,7 +74,8 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     if (!name) return;
     const key = `${name.toUpperCase()}|${unit}`;
     let g = groups.get(key);
-    if (!g) { g = { name, dept: String(item.category || '').split(' - ')[0].trim() || 'Outros', unit, obs: [] }; groups.set(key, g); }
+    if (!g) { g = { name, dept: String(item.category || '').split(' - ')[0].trim() || 'Outros', unit, obs: [], descs: new Set() }; groups.set(key, g); }
+    g.descs.add(String(item.description || '').trim().toUpperCase());
     g.obs.push({ date: r.date, price: b.unitPrice, store: r.establishmentName });
   }));
 
@@ -96,10 +99,10 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     const ready = days.length >= MIN_PURCHASES && baseDays.length >= MIN_PURCHASES - 1;
     const prices = baseDays.map(d => d.price);
     const mean = ready ? trimmedMean(prices) : null;
-    const lo = ready ? quantile(prices, 0.1) : null;
-    const hi = ready ? quantile(prices, 0.9) : null;
+    const lo = ready && mean !== null ? mean * (1 - MARGIN) : null;
+    const hi = ready && mean !== null ? mean * (1 + MARGIN) : null;
     out.push({
-      key, name: titleCase(g.name), unit: g.unit, dept: g.dept,
+      key, descs: [...g.descs].filter(Boolean), name: titleCase(g.name), unit: g.unit, dept: g.dept,
       last: lastD.price, lastDate: lastD.date, lastStore: lastD.store,
       prev: prevD ? prevD.price : null, prevDate: prevD ? prevD.date : null,
       ready, mean, lo, hi, nBase: baseDays.length,

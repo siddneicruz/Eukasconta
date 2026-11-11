@@ -45,6 +45,7 @@ interface ReportsProps {
   onBack: () => void;
   onAddManual?: () => void;
   onSelectEstablishment?: (name: string) => void;
+  onOpenItemPurchases?: (f: { label: string; descs: string[] }) => void;
   /** abre o cupom (a mesma tela do Histórico) */
   onOpenReceipt?: (id: string) => void;
   masterProducts?: MasterProduct[];
@@ -76,6 +77,7 @@ const Reports: React.FC<ReportsProps> = ({
   onBack, 
   onAddManual, 
   onSelectEstablishment,
+  onOpenItemPurchases,
   onOpenReceipt,
   masterProducts = [],
   onUpdateMasterProducts,
@@ -997,7 +999,7 @@ const Reports: React.FC<ReportsProps> = ({
                   />
               )}
 
-              {activeSection === 'quotes' && <QuotesPanel receipts={receipts} />}
+              {activeSection === 'quotes' && <QuotesPanel receipts={receipts} onOpenPurchases={onOpenItemPurchases} />}
               {activeSection === 'goals' && <GoalsPanel receipts={receipts} />}
 
                 {activeSection === 'catalog' && (<>

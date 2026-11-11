@@ -1535,6 +1535,7 @@ const App: React.FC = () => {
                 {view === 'reports' && (
                     <Reports 
                         initialSection={reportsSection}
+                        onOpenItemPurchases={(f) => { setDashboardConfig({ ...dashboardConfig, item: f }); setView('history'); }}
                         receipts={receipts} 
                         config={dashboardConfig} 
                         onConfigChange={setDashboardConfig} 

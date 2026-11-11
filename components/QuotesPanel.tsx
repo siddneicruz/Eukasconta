@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Receipt } from '../types';
+import { unitLabel } from '../services/productPriceStats';
 import { MIN_PURCHASES, Quote, buildQuotes, topMovers } from '../services/quotes';
 
 /* Painel de cotações no estilo de bolsa: fundo escuro fixo (em qualquer tema), números em fonte monoespaçada, uma linha
@@ -29,7 +30,6 @@ export const useQuotesTicker = (): [boolean, (v: boolean) => void] => {
 const UP = '#FF5C5C', DOWN = '#2FD08F', FLAT = '#9AA3B5', GOLD = '#DDB94B';
 const num = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pctTxt = (p: number) => { const a = Math.abs(p); return `${a >= 10 ? Math.round(a) : (Math.round(a * 10) / 10).toFixed(1).replace('.', ',')}%`; };
-const UNIT: Record<string, string> = { KG: 'kg', G: 'g', L: 'L', ML: 'ml', UN: 'un', DZ: 'dz' };
 const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const MONO = 'font-mono tabular-nums';
 
@@ -55,7 +55,7 @@ const RangeBar: React.FC<{ q: Quote; className?: string }> = ({ q, className = '
   const pos = (v: number) => `${Math.min(Math.max(((v - min) / (max - min || 1)) * 100, 0), 100)}%`;
   const c = toneOf(q);
   return (
-    <div className={`relative h-2 rounded-full bg-white/10 ${className}`} aria-label={`Faixa normal de ${num(q.lo)} a ${num(q.hi)}, última compra ${num(q.last)}`}>
+    <div className={`relative h-2 rounded-full bg-white/10 ${className}`} aria-label={`Margem normal de ${num(q.lo)} a ${num(q.hi)}, última compra ${num(q.last)}`}>
       <div className="absolute top-0 bottom-0 rounded-full bg-white/25" style={{ left: pos(q.lo), width: `calc(${pos(q.hi)} - ${pos(q.lo)})` }} />
       <div className="absolute top-1/2 w-3 h-3 -ml-1.5 -mt-1.5 rounded-full border-2 border-[#07080a]" style={{ left: pos(q.last), background: c }} />
     </div>
@@ -106,7 +106,7 @@ const SORTS: { id: Sort; label: string }[] = [
   { id: 'mov', label: 'Maiores variações' }, { id: 'up', label: 'Altas' }, { id: 'down', label: 'Quedas' }, { id: 'freq', label: 'Mais comprados' },
 ];
 
-const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
+const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label: string; descs: string[] }) => void }> = ({ receipts, onOpenPurchases }) => {
   const all = useMemo(() => buildQuotes(receipts), [receipts]);
   const [dept, setDept] = useState('');
   const [sort, setSort] = useState<Sort>('mov');
@@ -217,13 +217,13 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
                 <button type="button" onClick={() => setOpen(isOpen ? null : x.key)} aria-expanded={isOpen}
                   className="w-full grid grid-cols-[1fr_76px_82px] gap-2 items-center px-3 md:px-5 py-2.5 text-left active:bg-white/5">
                   <div className="min-w-0">
-                    <p className="text-[13px] font-bold text-zinc-100 uppercase tracking-[0.02em] truncate">{x.name}</p>
+                    <p className="flex items-center gap-2 min-w-0"><span className="text-[13px] font-bold text-zinc-100 uppercase tracking-[0.02em] truncate">{x.name}</span><span className="shrink-0 px-1.5 py-0.5 rounded bg-luxury-gold/15 border border-luxury-gold/40 text-luxury-gold text-[12px] font-bold font-mono">{unitLabel(x.unit)}</span></p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <RangeBar q={x} className="flex-1 max-w-[120px]" />
                       <span className={`text-[10px] text-zinc-500 ${MONO}`}>méd {num(x.mean as number)}</span>
                     </div>
                   </div>
-                  <span className={`text-right text-[15px] font-bold text-zinc-100 ${MONO}`}>{num(x.last)}<span className="block text-[9px] font-medium text-zinc-500">/{UNIT[x.unit] || x.unit.toLowerCase()}</span></span>
+                  <span className={`text-right text-[15px] font-bold text-zinc-100 ${MONO}`}>{num(x.last)}<span className="block text-[9px] font-medium text-zinc-500">/{unitLabel(x.unit)}</span></span>
                   <span className="text-right"><VarCell q={x} /></span>
                 </button>
                 {isOpen && (
@@ -232,9 +232,13 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
                     <div className={`grid grid-cols-3 gap-2 text-[11px] ${MONO}`}>
                       <div className="rounded-lg bg-white/5 p-2.5"><p className="text-zinc-500">Último</p><p className="text-zinc-100 font-bold mt-0.5">{num(x.last)}</p><p className="text-zinc-500 truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>
                       <div className="rounded-lg bg-white/5 p-2.5"><p className="text-zinc-500">Médio</p><p className="text-zinc-100 font-bold mt-0.5">{num(x.mean as number)}</p><p className="text-zinc-500">{x.nBase} compras</p></div>
-                      <div className="rounded-lg bg-white/5 p-2.5"><p className="text-zinc-500">Faixa normal</p><p className="text-zinc-100 font-bold mt-0.5">{num(x.lo as number)}–{num(x.hi as number)}</p><p className="text-zinc-500">{x.days} compras no total</p></div>
+                      <div className="rounded-lg bg-white/5 p-2.5"><p className="text-zinc-500">Margem ±10%</p><p className="text-zinc-100 font-bold mt-0.5">{num(x.lo as number)}–{num(x.hi as number)}</p><p className="text-zinc-500">{x.days} compras no total</p></div>
                     </div>
-                    <p className="text-[11px] text-zinc-500">Dentro da faixa normal a variação não conta como alta nem queda. A linha tracejada é o preço médio.</p>
+                    {onOpenPurchases && x.descs.length > 0 && (
+                      <button type="button" data-testid="quote-open-purchases" onClick={() => onOpenPurchases({ label: x.name, descs: x.descs })}
+                        className="w-full h-11 rounded-lg border border-luxury-gold/40 bg-luxury-gold/10 text-luxury-gold text-[13px] font-bold">Ver as {x.days} compras em Compras →</button>
+                    )}
+                    <p className="text-[11px] text-zinc-500">Até ±10% do preço médio a variação não conta como alta nem queda. A linha tracejada é o preço médio.</p>
                     {x.odd && <p className="text-[11px] text-amber-400">Salto grande: vale conferir se a última compra não foi lida com unidade ou quantidade errada.</p>}
                     {x.stale && <p className="text-[11px] text-zinc-500">Sem compra há mais de 3 meses.</p>}
                   </div>
