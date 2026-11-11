@@ -95,8 +95,8 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
       <div className="bg-[#121214] border border-white/5 rounded-2xl p-3 md:p-5 shadow-xl">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100">Cotações do que você compra</h3>
-            <p className="text-[11px] text-zinc-500 mt-0.5">Preço por kg, litro ou unidade. <span style={{ color: DOWN }}>Verde</span> = ficou mais barato · <span style={{ color: UP }}>vermelho</span> = ficou mais caro.</p>
+            <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100">Cotações: Açougue e Hortifruti</h3>
+            <p className="text-[11px] text-zinc-500 mt-0.5">Variação da penúltima para a última compra de cada item, por kg ou unidade. <span style={{ color: DOWN }}>Verde</span> = ficou mais barato · <span style={{ color: UP }}>vermelho</span> = ficou mais caro.</p>
           </div>
         </div>
         <div className="mt-3 flex gap-4 text-[12px] tabular-nums">
@@ -141,21 +141,21 @@ const QuotesPanel: React.FC<{ receipts: Receipt[] }> = ({ receipts }) => {
                 <Spark v={x.spark} color={color} />
                 <div className="shrink-0 w-[92px] text-right">
                   <p className="text-[14px] font-bold text-zinc-100 tabular-nums">{brl(x.last)}<span className="text-[10px] font-medium text-zinc-500">/{UNIT[x.unit] || x.unit.toLowerCase()}</span></p>
-                  <Badge c={x.chgPrev} label="contra a compra anterior" />
+                  <Badge c={x.chgPrev} label="da penúltima para a última compra" />
                 </div>
               </button>
               {isOpen && (
                 <div className="px-3 md:px-5 pb-3 grid grid-cols-3 gap-2 text-[11px] tabular-nums" data-testid="quote-detail">
-                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Última compra</p><p className="text-zinc-100 font-semibold mt-0.5">{shortDate(x.lastDate)}</p><p className="text-zinc-500 truncate">{x.lastStore}</p></div>
-                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Compra anterior</p><p className="text-zinc-100 font-semibold mt-0.5">{x.prev !== null ? brl(x.prev) : '—'}</p><Badge c={x.chgPrev} /></div>
-                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Mediana 90 dias</p><p className="text-zinc-100 font-semibold mt-0.5">{x.base !== null ? brl(x.base) : 'poucos dados'}</p><Badge c={x.chgBase} /></div>
+                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Penúltima compra</p><p className="text-zinc-100 font-semibold mt-0.5">{x.prev !== null ? brl(x.prev) : '—'}</p><p className="text-zinc-500">{x.prevDate ? shortDate(x.prevDate) : ''}</p></div>
+                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Última compra</p><p className="text-zinc-100 font-semibold mt-0.5">{brl(x.last)}</p><p className="text-zinc-500 truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>
+                  <div className="rounded-xl bg-white/5 p-2.5"><p className="text-zinc-500">Variação</p><p className="mt-0.5"><Badge c={x.chgPrev} /></p><p className="text-zinc-500">{x.prev !== null ? `${x.prev > x.last ? '−' : '+'}${brl(Math.abs(x.last - x.prev))}` : ''}</p></div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
-      <p className="px-1 text-[11px] text-zinc-600 leading-relaxed">Variação contra a compra anterior do mesmo produto. Várias compras no mesmo dia viram a média do dia. São só os seus cupons; informação de preço, não recomendação de compra.</p>
+      <p className="px-1 text-[11px] text-zinc-600 leading-relaxed">Só o que você comprou no Açougue e no Hortifruti, item por item. Compras no mesmo dia viram a média do dia. São só os seus cupons; informação de preço, não recomendação de compra.</p>
     </div>
   );
 };

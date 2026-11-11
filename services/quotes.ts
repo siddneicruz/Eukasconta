@@ -1,6 +1,23 @@
 import { Receipt } from '../types';
-import { normalizeUnit, productKeyOf } from './productPriceStats';
+import { normalizeUnit } from './productPriceStats';
 import { priceBasis } from './eggs';
+import { getActiveLayers, leafFor } from './categoryLayers';
+import { cleanDescriptionForMatching } from './descriptionClean';
+
+// Escopo: só alimentos frescos do Açougue e do Hortifruti. Roupa, utensílio e industrializado têm marcas, modelos e
+// embalagens demais para uma cotação honesta. O item é o mais detalhado possível (Tomate Salada, Batata Monalisa).
+const FRESH_DEPTS = new Set(['ACOUGUE', 'HORTIFRUTI']);
+const deptOf = (category?: string) => String(category || '').split(' - ')[0].trim();
+const deptSlug = (d: string) => d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+const titleCase0 = (s: string) => s.toLowerCase().replace(/(^|\s)(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
+
+// Nome do item: o do cadastro quando a compra caiu num item específico; senão a descrição limpa do cupom, com até 4 palavras.
+const detailName = (item: { category?: string; description?: string }): string => {
+  const leaf = leafFor(getActiveLayers(), item.category, item.description);
+  if (leaf && leaf.leaf && !leaf.rest && leaf.level === 4 && leaf.label) return leaf.label;
+  const clean = cleanDescriptionForMatching(item.description || '').split(' ').filter(w => w.length > 1).slice(0, 4).join(' ');
+  return clean ? titleCase0(clean) : '';
+};
 
 // Cotações: como o preço de cada produto que a pessoa compra anda. Só usa os cupons dela (etapa 1).
 // O preço é sempre por unidade de medida (kg, litro, unidade, dúzia de ovos) e a conta é por DIA: várias compras no
@@ -14,7 +31,8 @@ export interface Quote {
   last: number;            // preço mais recente
   lastDate: string;
   lastStore: string;
-  prev: number | null;     // preço da compra anterior
+  prev: number | null;     // preço da penúltima compra
+  prevDate: string | null;
   chgPrev: number | null;  // variação % contra a compra anterior (precisa de 2 dias de compra)
   base: number | null;     // mediana dos 90 dias antes da última compra
   chgBase: number | null;  // variação % contra essa mediana (precisa de 3 dias de compra)
@@ -36,7 +54,8 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     const b = priceBasis(item);
     if (!(b.unitPrice > 0) || !r.date) return;
     const unit = normalizeUnit(b.unitType);
-    const name = productKeyOf(item);
+    if (!FRESH_DEPTS.has(deptSlug(deptOf(item.category)))) return;
+    const name = detailName(item);
     if (!name) return;
     const key = `${name.toUpperCase()}|${unit}`;
     let g = groups.get(key);
@@ -65,7 +84,7 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     out.push({
       key, name: titleCase(g.name), unit: g.unit, dept: g.dept,
       last: lastD.price, lastDate: lastD.date, lastStore: lastD.store,
-      prev: prevD ? prevD.price : null, chgPrev: prevD ? pct(lastD.price, prevD.price) : null,
+      prev: prevD ? prevD.price : null, prevDate: prevD ? prevD.date : null, chgPrev: prevD ? pct(lastD.price, prevD.price) : null,
       base, chgBase: base ? pct(lastD.price, base) : null,
       spark: days.slice(-12).map(d => d.price), days: days.length,
       stale: (t(todayIso) - t(lastD.date)) > 90 * DAY,
