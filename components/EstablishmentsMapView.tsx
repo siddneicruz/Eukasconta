@@ -441,7 +441,24 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
   const saveMove = () => {
     const st = moving && stores.find(s => s.id === moving.id);
     if (st && moving) placeStore(st, Number(moving.lat.toFixed(6)), Number(moving.lng.toFixed(6)), `Posição de “${st.name}” atualizada.`);
+    else if (moving) {
+      // loja que ainda não tinha posição: o pino vira a posição dela
+      const est = establishments.find(x => `${x.cnpj}|${x.originalName}` === moving.id);
+      if (est) {
+        onPatchEstablishment(est, { latitude: Number(moving.lat.toFixed(6)), longitude: Number(moving.lng.toFixed(6)), geocodeStatus: 'found', geocodedAt: Date.now(), geocodeApprox: undefined, geocodeManual: true });
+        setNotice(`Posição de “${est.aliasName || est.originalName}” salva.`);
+      }
+    }
     setMoving(null);
+  };
+  // "Dar posição": põe um pino solto (onde você está, ou no centro do mapa) para arrastar até a loja
+  const startPlace = (id: string) => {
+    const b = view?.bbox;
+    const start = me ?? (b ? { lat: (b[1] + b[3]) / 2, lng: (b[0] + b[2]) / 2 } : stores[0] ? { lat: stores[0].lat, lng: stores[0].lng } : null);
+    if (!start) { setNotice('Libere sua localização ou aproxime o mapa para posicionar a loja.'); return; }
+    setSelectedPoi(null);
+    setMoving({ id, lat: start.lat, lng: start.lng });
+    mapBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   const movedBy = moving ? (() => { const st = stores.find(s => s.id === moving.id); return st ? distanceM(st.lat, st.lng, moving.lat, moving.lng) : 0; })() : 0;
   const dismissSuggestion = () => {
@@ -678,7 +695,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
         <MapStoreSearch
           stores={searchItems} pois={searchPoisPool} selectedId={selectedId} isMine={p => !!mineAt(p)}
           onPickStore={searchPickStore} onPickPoi={searchPickPoi}
-          onEditStore={onEditEstablishment ? (id => { const e = establishments.find(x => `${x.cnpj}|${x.originalName}` === id); if (e) onEditEstablishment(e); }) : undefined}
+          onEditStore={startPlace}
           showingPois={showPois}
         />
       )}
