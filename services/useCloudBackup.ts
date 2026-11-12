@@ -75,6 +75,8 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
   const [remote, setRemote] = useState<BackupMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
+  const retries = useRef(0);
   const [conflict, setConflictState] = useState<BackupConflict | null>(null);
   const conflictRef = useRef<BackupConflict | null>(null);
   const setConflict = (c: BackupConflict | null) => { conflictRef.current = c; setConflictState(c); };
@@ -146,6 +148,7 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
     setError(null);
     if (!userId) { setStatus('idle'); return; }
     let alive = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     (async () => {
       setStatus('checking');
       try {
@@ -203,18 +206,22 @@ export const useCloudBackup = ({ userId, trigger, onToast }: Options): BackupApi
           }
         }
         checkedRef.current = true;
+        retries.current = 0;
+        setError(null);
         setChecked(true);
         setStatus('idle');
       } catch (e) {
         if (!alive) return;
+        // falha de rede costuma ser passageira (app acabou de abrir, wifi trocando): tenta de novo sozinho
+        if (retries.current < 6) { retries.current += 1; retryTimer = setTimeout(() => setRetryTick(t => t + 1), 8000); }
         setError(errMsg(e));
         setStatus('error');
         checkedRef.current = true;   // sem rede: o app segue; o envio só vale com a nuvem consultada (ver flush)
         setChecked(true);
       }
     })();
-    return () => { alive = false; };
-  }, [userId]);
+    return () => { alive = false; if (retryTimer) clearTimeout(retryTimer); };
+  }, [userId, retryTick]);
 
   /* ── envio automático depois de cada mudança nos dados ── */
   useEffect(() => {
