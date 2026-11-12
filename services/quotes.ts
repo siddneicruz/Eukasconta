@@ -71,9 +71,17 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     if (!(b.unitPrice > 0) || !r.date) return;
     const unit = normalizeUnit(b.unitType);
     if (!FRESH_DEPTS.has(deptSlug(deptOf(item.category)))) return;
-    const name = detailName(item);
+    let name = detailName(item);
     if (!name) return;
-    const key = `${name.toUpperCase()}|${unit}`;
+    // Açougue vendido por unidade (hambúrguer, linguiça embalada…): 150 g e 90 g têm preço por "un" que não se comparam,
+    // então cada produto (EAN ou descrição) é o seu próprio item, em vez de tudo no cadastro "Hambúrguer".
+    let idPart = name.toUpperCase();
+    if (unit !== 'KG' && deptSlug(deptOf(item.category)) === 'ACOUGUE') {
+      const code = String(item.code || '').replace(/\D/g, '');
+      const own = cleanDescriptionForMatching(item.description || '').split(' ').filter(w => w.length > 0).slice(0, 6).join(' ');
+      if (own) { name = titleCase0(own); idPart = code.length >= 8 ? `EAN${code}` : own.toUpperCase(); }
+    }
+    const key = `${idPart}|${unit}`;
     let g = groups.get(key);
     if (!g) { g = { name, dept: String(item.category || '').split(' - ')[0].trim() || 'Outros', unit, obs: [], vars: new Map() }; groups.set(key, g); }
     const dk = String(item.description || '').trim().toUpperCase();
