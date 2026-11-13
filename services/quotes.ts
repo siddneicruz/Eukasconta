@@ -11,6 +11,27 @@ const deptOf = (category?: string) => String(category || '').split(' - ')[0].tri
 const deptSlug = (d: string) => d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
 const titleCase0 = (s: string) => s.toLowerCase().replace(/(^|\s)(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
 
+// Variedades que o dono do app trata como o mesmo item (ou como itens diferentes), independente de como o mercado escreve.
+// Tomate: comum = salada = longa vida; saladete = italiano; cereja, grape, caqui, holandês e débora são cada um o seu.
+const plainUp = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+const TOMATO_RULES: Array<[RegExp, string]> = [
+  [/CEREJA|CHERRY/, 'Tomate Cereja'],
+  [/GRAPE|UVA/, 'Tomate Grape'],
+  [/ITALIANO|SALADETE|PERA\b|ROMA\b/, 'Tomate Italiano'],
+  [/CAQUI/, 'Tomate Caqui'],
+  [/HOLANDES|CACHO|VINE/, 'Tomate Holandês'],
+  [/DEBORA/, 'Tomate Débora'],
+  [/SALADA|LONGA VIDA|COMUM|SALAD/, 'Tomate Salada'],
+];
+const varietyOf = (description?: string, fallback?: string): string | null => {
+  const d = plainUp(description || '');
+  if (!/\bTOMATE/.test(d) || /EXTRATO|MOLHO|SECO|POLPA|PASSATA|KETCHUP|CATCHUP|PURE|PIZZA|SUCO/.test(d)) return null;
+  for (const [re, label] of TOMATO_RULES) if (re.test(d)) return label;
+  const f = plainUp(fallback || '');
+  for (const [re, label] of TOMATO_RULES) if (re.test(f)) return label;
+  return 'Tomate Salada';
+};
+
 // Nome do item: o do cadastro quando a compra caiu num item específico; senão a descrição limpa do cupom, com até 4 palavras.
 const detailName = (item: { category?: string; description?: string }): string => {
   const leaf = leafFor(getActiveLayers(), item.category, item.description);
@@ -76,6 +97,10 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     // Açougue vendido por unidade (hambúrguer, linguiça embalada…): 150 g e 90 g têm preço por "un" que não se comparam,
     // então cada produto (EAN ou descrição) é o seu próprio item, em vez de tudo no cadastro "Hambúrguer".
     let idPart = name.toUpperCase();
+    if (deptSlug(deptOf(item.category)) === 'HORTIFRUTI') {
+      const v = varietyOf(item.description, name);
+      if (v) { name = v; idPart = v.toUpperCase(); }
+    }
     if (unit !== 'KG' && deptSlug(deptOf(item.category)) === 'ACOUGUE') {
       const code = String(item.code || '').replace(/\D/g, '');
       const own = cleanDescriptionForMatching(item.description || '').split(' ').filter(w => w.length > 0).slice(0, 6).join(' ');
