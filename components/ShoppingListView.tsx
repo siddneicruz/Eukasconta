@@ -17,6 +17,7 @@ import { loadBaseId, loadLists, loadSetup, saveBaseId, saveLists, saveSetup } fr
 import { getActiveProvider, getActiveProviderLabel, getOpenRouterModel, hasAnyUserApiKey, setOpenRouterModel } from '../services/keyStorageService';
 import ShoppingSetup, { GenOptions } from './ShoppingSetup';
 import ShoppingProgress from './ShoppingProgress';
+import { shareText, shoppingListToWhatsApp } from '../services/shareText';
 import { AddSheet, ConfirmSheet, ItemSheet, ListMenuSheet, RenameSheet, brl } from './ShoppingSheets';
 import ShoppingCatalogSheet from './ShoppingCatalogSheet';
 import ShoppingScanSheet from './ShoppingScanSheet';
@@ -227,6 +228,19 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
     if (activeId === id) setActiveId(null);
     if (baseId === id) setBaseId(null);
     setSheet(null);
+  };
+  const shareList = () => {
+    if (!list) return;
+    const groups = list.purchases.map(p => ({
+      label: `${shortDate(p.date)}${p.days ? ` (cobre ${p.days} dias)` : ''}`,
+      total: purchaseTotal(p),
+      sections: sectionsOf(p.entries).map(sec => ({
+        title: sec.title,
+        items: sec.entries.map(e => ({ name: e.name, qty: fmtQty(e.qty, e.unit), price: e.price, cost: entryCost(e), cart: e.cart })),
+      })),
+    }));
+    shareText(shoppingListToWhatsApp(list.name, groups, listTotal(list)), list.name)
+      .catch(() => say('Não foi possível abrir o compartilhamento.'));
   };
   const copyList = (id: string) => {
     const l = lists.find(x => x.id === id);
@@ -676,6 +690,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
 
       {sheet?.kind === 'menu' && (
         <ListMenuSheet name={list.name} isBase={baseId === list.id} onClose={() => setSheet(null)}
+          onShare={() => { setSheet(null); shareList(); }}
           onRename={() => setSheet({ kind: 'rename', id: list.id })} onDuplicate={() => copyList(list.id)}
           onToggleBase={() => { toggleBase(list.id); setSheet(null); }} onDelete={() => setSheet({ kind: 'delete', id: list.id })} />
       )}

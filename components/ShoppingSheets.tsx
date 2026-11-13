@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Minus, Plus, Search, Check, Trash2, Pencil, Copy, Star } from 'lucide-react';
+import { X, Minus, Plus, Search, Check, Trash2, Pencil, Copy, Star, MessageCircle } from 'lucide-react';
 import { Entry, Group, History, LineCheck, Product, findProducts, fmtQty, round3, roundTo, stepOf, unitLabel } from '../services/shoppingList';
 import { searchCatalog } from '../services/shoppingCatalog';
 
@@ -237,11 +237,12 @@ export const ListMenuSheet: React.FC<{
   name: string;
   isBase: boolean;
   onRename: () => void;
+  onShare?: () => void;
   onDuplicate: () => void;
   onToggleBase: () => void;
   onDelete: () => void;
   onClose: () => void;
-}> = ({ name, isBase, onRename, onDuplicate, onToggleBase, onDelete, onClose }) => {
+}> = ({ name, isBase, onRename, onShare, onDuplicate, onToggleBase, onDelete, onClose }) => {
   const Row: React.FC<{ icon: React.ReactNode; label: string; sub?: string; onClick: () => void; testId: string; danger?: boolean }> = ({ icon, label, sub, onClick, testId, danger }) => (
     <button type="button" onClick={onClick} data-testid={testId}
       className={`w-full flex items-center gap-3 min-h-[56px] px-2 rounded-xl text-left active:bg-white/5 ${danger ? 'text-rose-400' : 'text-zinc-100'}`}>
@@ -255,6 +256,7 @@ export const ListMenuSheet: React.FC<{
   return (
     <Sheet title={name} onClose={onClose} testId="shop-menu-sheet">
       <div className="space-y-0.5 mb-2">
+        {onShare && <Row icon={<MessageCircle className="w-4 h-4" />} label="Enviar por WhatsApp" sub="A lista em texto, com ⬜ para comprar e ✅ no carrinho." onClick={onShare} testId="shop-menu-whatsapp" />}
         <Row icon={<Pencil className="w-4 h-4" />} label="Renomear" onClick={onRename} testId="shop-menu-rename" />
         <Row icon={<Copy className="w-4 h-4" />} label="Duplicar" sub="Uma cópia com o carrinho vazio." onClick={onDuplicate} testId="shop-menu-duplicate" />
         <Row icon={<Star className={`w-4 h-4 ${isBase ? 'fill-current' : ''}`} />} label={isBase ? 'Tirar de lista base' : 'Usar como lista base'}

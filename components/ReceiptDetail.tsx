@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { Receipt, ReceiptItem, Establishment } from '../types';
-import { X, Calendar, MapPin, Hash, ChevronDown, ChevronUp, PieChart, Edit2, Check, ChevronLeft, ChevronRight, Fuel, Utensils, ShoppingCart, Home, AlertCircle, Heart, Droplets, Smile, Shirt, Zap, Briefcase, PawPrint, FileText, Scroll, MessageSquare, Send, Croissant, Download, Folder, FileType, Save, Trash2, Plus, Clock, Globe } from 'lucide-react';
+import { MessageCircle, X, Calendar, MapPin, Hash, ChevronDown, ChevronUp, PieChart, Edit2, Check, ChevronLeft, ChevronRight, Fuel, Utensils, ShoppingCart, Home, AlertCircle, Heart, Droplets, Smile, Shirt, Zap, Briefcase, PawPrint, FileText, Scroll, MessageSquare, Send, Croissant, Download, Folder, FileType, Save, Trash2, Plus, Clock, Globe } from 'lucide-react';
 import { getCategoryIcon } from './Dashboard';
 import { formatCNPJ } from '../services/productNormalization';
 import JSZip from 'jszip';
 import { downloadFile } from '../services/nativeFiles';
+import { shareText, receiptToWhatsApp } from '../services/shareText';
 import { titleCase } from '../services/textFormat';
 import { useStoreNames } from './StoreNamesContext';
 import { generateReceiptText } from '../services/receiptText';
@@ -103,6 +104,8 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt; highlight?: ItemFilter | 
         downloadFile(blob, fileName).catch(() => alert("Não foi possível salvar o arquivo."));
     };
 
+    const handleWhatsApp = () => { shareText(receiptToWhatsApp(receipt), receipt.establishmentName).catch(() => alert('Não foi possível abrir o compartilhamento.')); };
+
     const handleExportZip = async () => {
         setIsGenerating(true);
         try {
@@ -145,9 +148,12 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt; highlight?: ItemFilter | 
             <div className="flex justify-between items-center bg-black border border-white/10 rounded-xl p-4 animate-in slide-in-from-bottom-2 gap-4">
                 <div className="flex flex-col flex-1">
                      <h3 className="text-xs uppercase tracking-[0.08em] text-zinc-200 font-bold mb-1">Exportar Dados</h3>
-                     <p className="text-xs text-zinc-500 line-clamp-1">Baixe o arquivo original.</p>
+                     <p className="text-xs text-zinc-500 line-clamp-1">Baixe o arquivo ou mande por WhatsApp.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button onClick={handleWhatsApp} data-testid="receipt-whatsapp" className="flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 px-3 py-2.5 rounded-lg text-xs font-bold transition-all" aria-label="Enviar por WhatsApp">
+                        <MessageCircle className="w-4 h-4" />
+                    </button>
                     <button onClick={handleExportTxt} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-[0.08em] transition-all">
                         <FileText className="w-4 h-4" /> .TXT
                     </button>
