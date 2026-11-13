@@ -1,3 +1,5 @@
+import { useStoreNames } from './StoreNamesContext';
+import { NO_STORE_TYPE } from '../services/storeTypes';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ShoppingCart, ScanBarcode, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil, Save, Apple, Carrot, Beef,
@@ -166,7 +168,13 @@ const ValidationCard: React.FC<{ check: PurchaseCheck; purchase: PlanPurchase; r
   );
 };
 
-const ShoppingListView: React.FC<Props> = ({ receipts, masters, onOpenReceipt, backRef }) => {
+// Lista de compras de supermercado: só entram as compras de loja de comida (mercado, padaria, açougue, hortifruti).
+// Posto, calçados, ferramentas, estacionamento etc. não contam nas idas ao mercado, na média nem no teto sugerido.
+const GROCERY_TYPES = new Set(['Mercado', 'Padaria', 'Açougue e Peixaria', 'Hortifruti', NO_STORE_TYPE]);   // sem tipo definido segue valendo, como antes
+
+const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onOpenReceipt, backRef }) => {
+  const { typeOf } = useStoreNames();
+  const receipts = useMemo(() => allReceipts.filter(r => GROCERY_TYPES.has(typeOf(r.establishmentName, r.cnpj))), [allReceipts, typeOf]);
   const today = localTodayIso();
   const [lists, setLists] = useState<ShoppingList[]>(() => loadLists());
   const [activeId, setActiveId] = useState<string | null>(null);
