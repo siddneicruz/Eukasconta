@@ -59,6 +59,13 @@ const storeRel = (a: Receipt, b: Receipt): StoreRel => {
   if (na && nb && na === nb) return 'same';
   // um nome é o começo do outro ("Cooperativa Regional Auriverde" e "Cooperativa Regional Auriverde - Super Auriverde"): é a mesma loja
   if (na.length >= 8 && nb.length >= 8 && (na.startsWith(nb + ' ') || nb.startsWith(na + ' '))) return 'same';
+  // o nome de uma é parte do nome da outra ("Atacadista" e "Fort Atacadista - São Cristóvão"): mesma loja lida de jeitos diferentes
+  const GENERIC = new Set(['ltda', 'epp', 'eireli', 'comercio', 'supermercado', 'supermercados', 'mercado', 'loja', 'lojas', 'filial', 'de', 'do', 'da', 'e']);
+  const ta = na.split(' ').filter(w => w && !GENERIC.has(w)), tb = nb.split(' ').filter(w => w && !GENERIC.has(w));
+  if (ta.length && tb.length) {
+    const [small, big] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+    if (small.some(w => w.length >= 6) && small.every(w => big.includes(w))) return 'same';
+  }
   const ka = normStoreKey(a.establishmentName), kb = normStoreKey(b.establishmentName);
   if (!ka || !kb) return 'maybe';                       // loja sem nome: não dá para negar
   const wa = na.split(' ').slice(0, 2).join(' '), wb = nb.split(' ').slice(0, 2).join(' ');
@@ -72,6 +79,9 @@ export const isSameCupom = (a: Receipt, b: Receipt): boolean => {
   const ta = cents(a.totalAmount), tb = cents(b.totalAmount);
   const sameTotal = ta === tb && ta > 0;
   if (!sameTotal) {
+    // Mesma hora (conhecida) e total a até 5 centavos um do outro (arredondamento ou leitura): é o mesmo cupom lido duas vezes
+    const kA = knownTime(a.time), kB = knownTime(b.time);
+    if (kA && kA === kB && ta > 0 && tb > 0 && Math.abs(ta - tb) <= 5 && storeRel(a, b) !== 'other') return true;
     // Total diferente: a mesma foto lida de novo pode errar o total ou o preço de alguns itens. Vale como o mesmo cupom
     // quando a hora é a mesma, a loja é a mesma e os itens (pelo nome) são os mesmos.
     const tA = knownTime(a.time), tB = knownTime(b.time);
