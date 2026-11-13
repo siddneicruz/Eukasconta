@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, Link2, Check } from 'lucide-react';
+import { X, Link2, Check, Search, ChevronDown } from 'lucide-react';
 import { Establishment, Receipt } from '../types';
 import type { MasterStore } from '../services/masterService';
 import { memberStats, storeKey, MergePlan } from '../services/storeDedupe';
@@ -26,6 +26,59 @@ const suggest = (e: Establishment, masters: MasterStore[]): { cnpj: string; why:
   const best = list[0];
   if (!best || (list[1] && best.score - list[1].score < 0.15)) return { cnpj: '', why: '' };
   return { cnpj: best.master.cnpj, why: best.reasons.join(' · ') };
+};
+
+const plain = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+// Busca de loja da tabela mãe no tema do app (no lugar da lista nativa do Android).
+const StorePicker: React.FC<{ value: string; options: { cnpj: string; label: string }[]; onChange: (cnpj: string) => void }> = ({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const current = options.find(o => o.cnpj === value);
+  const shown = useMemo(() => {
+    const t = plain(q.trim());
+    const d = q.replace(/\D/g, '');
+    const list = !t ? options : options.filter(o => plain(o.label).includes(t) || (d.length >= 3 && digits(o.cnpj).includes(d)));
+    return list.slice(0, 80);
+  }, [q, options]);
+  const pick = (c: string) => { onChange(c); setOpen(false); setQ(''); };
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} data-testid="store-picker"
+        className={`w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm active:scale-[0.99] transition-transform ${current ? 'border-luxury-gold/50 bg-luxury-gold/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300'}`}>
+        <span className="min-w-0 break-words">{current ? current.label : 'Manter como está'}</span>
+        <ChevronDown className="w-4 h-4 shrink-0 text-zinc-500" />
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setOpen(false)}>
+          <div className="w-full sm:max-w-lg max-h-[85vh] flex flex-col bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-white/10 flex items-center gap-2">
+              <div className="flex-1 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+                <Search className="w-4 h-4 text-luxury-gold shrink-0" />
+                <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar loja ou CNPJ" data-testid="store-picker-search"
+                  className="flex-1 min-w-0 bg-transparent outline-none text-sm text-white placeholder:text-zinc-500" />
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="p-2 text-zinc-500 hover:text-white" aria-label="Fechar"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+              <button type="button" onClick={() => pick('')} className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left text-sm text-zinc-300 active:bg-white/5">
+                Manter como está {!value && <Check className="w-4 h-4 text-luxury-gold" />}
+              </button>
+              {shown.map(o => (
+                <button key={o.cnpj} type="button" onClick={() => pick(o.cnpj)} data-testid="store-picker-option"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left text-sm text-zinc-100 active:bg-white/5">
+                  <span className="min-w-0 break-words">{o.label}</span>
+                  {o.cnpj === value && <Check className="w-4 h-4 shrink-0 text-luxury-gold" />}
+                </button>
+              ))}
+              {shown.length === 0 && <p className="p-8 text-center text-sm text-zinc-500">Nenhuma loja encontrada.</p>}
+              {!q && options.length > 80 && <p className="px-4 py-3 text-[11px] text-zinc-500">Mostrando as 80 primeiras. Digite para buscar entre as {options.length}.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 const MasterReconcileSheet: React.FC<Props> = ({ establishments, receipts, masterStores, onMerge, onSave, onClose }) => {
@@ -77,10 +130,7 @@ const MasterReconcileSheet: React.FC<Props> = ({ establishments, receipts, maste
                 <p className="text-[11px] text-zinc-500 font-mono">{formatCNPJ(r.e.cnpj) || 'Sem CNPJ'}{r.e.city ? ` · ${titleCase(r.e.city)}` : ''} · {r.n} {r.n === 1 ? 'cupom' : 'cupons'}</p>
                 {r.sug.why && <p className="text-[11px] text-luxury-gold/80 mt-0.5">Sugestão: {r.sug.why}</p>}
               </div>
-              <select value={choice[r.key] || ''} onChange={e => setChoice(c => ({ ...c, [r.key]: e.target.value }))} className="w-full bg-black border border-white/10 rounded-lg px-2 py-2 text-sm text-zinc-200 focus:border-luxury-gold outline-none">
-                <option value="">Manter como está</option>
-                {options.map(o => <option key={o.cnpj} value={o.cnpj}>{o.label}</option>)}
-              </select>
+              <StorePicker value={choice[r.key] || ''} options={options} onChange={c => setChoice(x => ({ ...x, [r.key]: c }))} />
             </div>
           ))}
         </div>
