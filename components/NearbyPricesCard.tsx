@@ -116,9 +116,9 @@ const NearbyPricesCard: React.FC<Props> = ({ cloud, sample, onCreateAlert, onGoT
                         ? <p className="text-xs mt-1 text-zinc-500 flex items-center gap-1" data-testid="nearby-quality-locked"><Lock className="w-3 h-3" /> Qualidade trancada: avalie itens dos seus cupons para ver</p>
                         : q.avg_score !== null
                           ? <p className="text-xs mt-1 font-bold" data-testid="nearby-quality" style={{ color: q.avg_score >= 7 ? '#34d399' : q.avg_score >= 4 ? '#DDB94B' : '#f87171' }}>
-                              ★ {String(q.avg_score).replace('.', ',')} <span className="font-normal text-zinc-500">qualidade · {q.n} avaliações</span>
+                              ★ {String(q.avg_score).replace('.', ',')} <span className="font-normal text-zinc-500">qualidade · {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.last_rated_at ? ` · última em ${dayMonth(q.last_rated_at.slice(0, 10))}` : ''}</span>
                             </p>
-                          : <p className="text-xs mt-1 text-zinc-500" data-testid="nearby-quality">Qualidade: poucas avaliações ({q.n})</p>)}
+                          : <p className="text-xs mt-1 text-zinc-500" data-testid="nearby-quality">Qualidade: poucos votos ({q.n}){q.last_rated_at ? ` · última avaliação em ${dayMonth(q.last_rated_at.slice(0, 10))}` : ''}</p>)}
                     </div>
                     <div className="text-right shrink-0">
                       <span className={`block text-sm font-mono font-bold tabular-nums ${i === 0 ? 'text-emerald-400' : 'text-white'}`}>{brl.format(r.unit_price)}</span>

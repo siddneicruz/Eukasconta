@@ -105,6 +105,7 @@ export interface ProduceQuality {
   n: number;                  // quantas notas nos últimos 14 dias
   locked: boolean;            // tanque vazio: a nota fica trancada até a pessoa avaliar
   tank: number;               // o que sobrou no tanque (0 a 20)
+  last_rated_at: string | null; // quando o item foi avaliado pela última vez nessa loja
 }
 
 export interface ProduceRatingInput {
@@ -229,16 +230,16 @@ export const rateProduce = (cnpj: string, receiptRef: string, items: ProduceRati
 export const produceQuality = async (masterId: string, establishmentIds: string[], days = 14): Promise<ProduceQuality[]> => {
   if (!establishmentIds.length) return [];
   const rows = await rpc<any[]>('produce_quality', { p_master_product_id: masterId, p_establishment_ids: establishmentIds, p_days: days });
-  return (rows || []).map(r => ({ establishment_id: r.establishment_id, avg_score: r.avg_score === null ? null : num(r.avg_score), n: num(r.n), locked: !!r.locked, tank: num(r.tank) }));
+  return (rows || []).map(r => ({ establishment_id: r.establishment_id, avg_score: r.avg_score === null ? null : num(r.avg_score), n: num(r.n), locked: !!r.locked, tank: num(r.tank), last_rated_at: r.last_rated_at ?? null }));
 };
 
-/* Qualidade sem tanque e sem mínimo de notas: só o administrador (o banco recusa os demais). */
-export interface AdminQualityByProduct { establishment_id: string; cnpj: string; store_name: string; avg_score: number; n: number; last_rated_at: string }
+/* Qualidade por produto (todas as lojas com nota) e por loja (só administrador). Votos e última avaliação sempre vêm. */
+export interface QualityByProduct { establishment_id: string; cnpj: string; store_name: string; avg_score: number | null; n: number; last_rated_at: string | null; locked: boolean; tank: number }
 export interface AdminQualityByStore { master_product_id: string; description: string; unit_type: string; avg_score: number; n: number; last_rated_at: string }
 
-export const produceQualityAdminByProduct = async (masterId: string, days = 90): Promise<AdminQualityByProduct[]> => {
-  const rows = await rpc<any[]>('produce_quality_admin_by_product', { p_master_product_id: masterId, p_days: days });
-  return (rows || []).map(r => ({ ...r, avg_score: num(r.avg_score), n: num(r.n) }));
+export const produceQualityByProduct = async (masterId: string, days = 90): Promise<QualityByProduct[]> => {
+  const rows = await rpc<any[]>('produce_quality_by_product', { p_master_product_id: masterId, p_days: days });
+  return (rows || []).map(r => ({ ...r, avg_score: r.avg_score === null ? null : num(r.avg_score), n: num(r.n), locked: !!r.locked, tank: num(r.tank), last_rated_at: r.last_rated_at ?? null }));
 };
 
 export const produceQualityAdminByStore = async (cnpj: string, days = 90): Promise<AdminQualityByStore[]> => {
