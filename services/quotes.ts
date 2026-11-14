@@ -175,3 +175,20 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
 export const topMovers = (qs: Quote[], n = 12): Quote[] =>
   qs.filter(q => q.ready && q.chg !== null && !q.stale && !q.odd && q.zone !== 'normal' && Math.abs(q.chg) >= 0.5)
     .sort((a, b) => Math.abs(b.chg as number) - Math.abs(a.chg as number)).slice(0, n);
+
+/** Cada compra de hortifruti como uma observação (item, unidade, dia, preço por unidade de medida, loja). Usa os mesmos nomes de item da Cotações. */
+export interface ProduceObs { item: string; unit: string; date: string; price: number; store: string; cnpj: string }
+export const produceObservations = (receipts: Receipt[]): ProduceObs[] => {
+  const out: ProduceObs[] = [];
+  receipts.forEach(r => (r.items || []).forEach(item => {
+    if (deptSlug(deptOf(item.category)) !== 'HORTIFRUTI') return;
+    const b = priceBasis(item);
+    if (!(b.unitPrice > 0) || !r.date) return;
+    let name = detailName(item);
+    if (!name) return;
+    const v = varietyOf(item.description, name);
+    if (v) name = v;
+    out.push({ item: titleCase(name), unit: normalizeUnit(b.unitType), date: r.date, price: b.unitPrice, store: r.establishmentName, cnpj: String(r.cnpj || '').replace(/\D/g, '') });
+  }));
+  return out;
+};

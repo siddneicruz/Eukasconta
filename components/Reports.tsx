@@ -31,6 +31,7 @@ import { buildCompareOptions, bySpend, bySpendOnly, matcherFor, chipLabel, Compa
 import { CHART_COLORS } from '../services/chartTheme';
 import QuotesPanel from './QuotesPanel';
 import DeptChipsBar from './DeptChipsBar';
+import ProduceCompareCard from './ProduceCompareCard';
 import { applyDeptFilter, useDeptFilter } from '../services/deptFilter';
 
 const { 
@@ -943,6 +944,9 @@ const Reports: React.FC<ReportsProps> = ({
           <div className="space-y-6 md:space-y-8">
               {activeSection === 'panorama' && (<>
                   <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
+                  {panoFilter.mode === 'only' && panoFilter.keys.length > 0 && panoFilter.keys.every(k => /hortifruti/.test(k)) && (
+                      <ProduceCompareCard receipts={receipts} nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)} />
+                  )}
                   <ReportsPanorama
                       receipts={panoReceipts}
                       config={config}
