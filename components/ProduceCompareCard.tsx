@@ -4,7 +4,7 @@ import * as cloud from '../services/cloudService';
 import { useMasterInfo } from './MasterContext';
 import { buildProduceCompare, mergeObs, rankItem, WD, MIN_ITEMS_RANK, MIN_DAY_OBS, MAX_STORES_PER_ITEM } from '../services/produceCompare';
 import { unitLabel } from '../services/productPriceStats';
-import { faceOf } from './ProduceRatingSheet';
+import { QualityFace } from './QualityFace';
 import { deptObservations, sharedObservations } from '../services/quotes';
 import { GROCERY_STORE_TYPES } from '../services/storeTypes';
 
@@ -161,7 +161,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
           {dept === 'HORTIFRUTI' && <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5">
             <p className="text-[10px] tracking-[0.1em] text-zinc-500 font-bold">MELHOR NOTA</p>
             <p className="text-sm font-bold text-white truncate">{bestScore ? bestScore.name : '—'}</p>
-            <p className="text-[11px] font-mono text-zinc-500">{bestScore ? `${faceOf(quality[bestScore.id].score as number)} ${(quality[bestScore.id].score as number).toFixed(1).replace('.', ',')} · ${quality[bestScore.id].n} ${quality[bestScore.id].n === 1 ? 'voto' : 'votos'}` : isAdmin ? 'precisa de 5 votos' : 'em breve'}</p>
+            <p className="text-[11px] font-mono text-zinc-500">{bestScore ? <><QualityFace score={quality[bestScore.id].score as number} size={14} /> {(quality[bestScore.id].score as number).toFixed(1).replace('.', ',')} · {quality[bestScore.id].n} {quality[bestScore.id].n === 1 ? 'voto' : 'votos'}</> : isAdmin ? 'precisa de 5 votos' : 'em breve'}</p>
           </div>}
         </div>
       )}
@@ -192,7 +192,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                       ? <span className="block text-sm font-bold font-mono" style={{ color: idxColor(s.index) }}>{pctTxt(s.index)}</span>
                       : <span className="block text-[11px] text-zinc-500">poucos itens p/ comparar</span>}
                     {q && q.n > 0 && (q.score !== null
-                      ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}>{faceOf(q.score)} {q.score.toFixed(1).replace('.', ',')} <span className="text-zinc-500">· {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.n < 5 ? ' (poucos)' : ''}{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
+                      ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}><QualityFace score={q.score} size={14} /> {q.score.toFixed(1).replace('.', ',')} <span className="text-zinc-500">· {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.n < 5 ? ' (poucos)' : ''}{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
                       : <span className="block text-[10px] font-mono text-zinc-500">{q.n} {q.n === 1 ? 'voto' : 'votos'} (poucos)</span>)}
                   </div>
                 </div>
@@ -271,7 +271,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                                   {loadingQ ? <span className="text-[11px] text-zinc-600">…</span>
                                     : qd && qd.score !== null ? (
                                       <>
-                                        <p className="whitespace-nowrap"><span className="text-[17px] leading-none align-middle">{faceOf(qd.score)}</span> <span className="text-[12px] font-bold tabular-nums align-middle" style={{ color: scoreColor(qd.score) }}>{qd.score.toFixed(1).replace('.', ',')}</span></p>
+                                        <p className="whitespace-nowrap"><QualityFace score={qd.score} size={18} /> <span className="text-[12px] font-bold tabular-nums align-middle" style={{ color: scoreColor(qd.score) }}>{qd.score.toFixed(1).replace('.', ',')}</span></p>
                                         <p className="text-[9px] text-zinc-500 whitespace-nowrap">{qd.n} {qd.n === 1 ? 'voto' : 'votos'}{qd.n < 5 ? ' · poucos' : ''}{qd.last ? ` · ${short(qd.last.slice(0, 10))}` : ''}</p>
                                       </>
                                     ) : null}

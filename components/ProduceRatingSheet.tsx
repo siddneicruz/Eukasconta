@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { QualityFace } from './QualityFace';
 import { Leaf, X, Check } from 'lucide-react';
 
 /* Depois de ler um cupom com hortifruti: "Como estava?". Um toque por item (Ruim / Ok / Ótimo), pode pular.
@@ -79,7 +80,7 @@ const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }
                   return (
                     <button key={o.score} type="button" aria-pressed={on} data-testid={`produce-all-${o.score}`} onClick={() => setAll(on ? null : o.score)}
                       className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/60 text-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 active:bg-white/10'}`}>
-                      <span className="text-lg leading-none">{o.emoji}</span>{o.label}
+                      <QualityFace score={o.score} size={22} />{o.label}
                     </button>
                   );
                 })}
@@ -95,7 +96,7 @@ const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }
                     <button key={o.score} type="button" aria-pressed={on} data-testid={`produce-${i}-${o.score}`}
                       onClick={() => setScores(p => { const n = { ...p }; if (n[i] === o.score) delete n[i]; else n[i] = o.score; return n; })}
                       className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/60 text-luxury-gold' : 'bg-white/5 border-white/10 text-zinc-400 active:bg-white/10'}`}>
-                      <span className="text-lg leading-none">{o.emoji}</span>{o.label}
+                      <QualityFace score={o.score} size={22} />{o.label}
                     </button>
                   );
                 })}
