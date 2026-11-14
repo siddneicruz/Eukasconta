@@ -100,7 +100,6 @@ const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit:
 );
 
 const ValidationCard: React.FC<{ check: PurchaseCheck; purchase: PlanPurchase; receipts: Receipt[]; onOpenReceipt?: (id: string) => void }> = ({ check, purchase, receipts, onOpenReceipt }) => {
-  const [more, setMore] = useState(false);
   if (check.state === 'futuro') {
     return (
       <p className="flex items-start gap-2 text-[11px] text-zinc-500 leading-snug px-1" data-testid="shop-validation" data-state="futuro">
@@ -140,20 +139,6 @@ const ValidationCard: React.FC<{ check: PurchaseCheck; purchase: PlanPurchase; r
         {counts.comprado} {counts.comprado === 1 ? 'comprado' : 'comprados'} · {counts.parcial} {counts.parcial === 1 ? 'parcial' : 'parciais'} · {counts.faltou} {counts.faltou === 1 ? 'não veio' : 'não vieram'}
         {check.extraCost > 0 && <> · fora da lista: <span className="text-zinc-200 font-semibold">{brl(check.extraCost)}</span></>}
       </p>
-      {check.extras.length > 0 && (
-        <div className="mt-1.5">
-          <button type="button" onClick={() => setMore(v => !v)} className="text-[11px] text-luxury-gold flex items-center gap-1 min-h-[32px]" aria-expanded={more} data-testid="shop-val-extras-toggle">
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${more ? 'rotate-180' : ''}`} /> {check.extras.length} {check.extras.length === 1 ? 'item fora da lista' : 'itens fora da lista'}
-          </button>
-          {more && (
-            <ul className="mt-1 space-y-0.5" data-testid="shop-val-extras">
-              {check.extras.slice(0, 12).map(x => (
-                <li key={x.pid} className="flex justify-between gap-3 text-[11px] text-zinc-400 tabular-nums"><span className="truncate">{x.name} · {fmtQty(x.qty, x.unit)}</span><span className="shrink-0">{brl(x.cost)}</span></li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
       {onOpenReceipt && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {rs.map(r => (
