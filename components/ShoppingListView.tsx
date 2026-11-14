@@ -2,7 +2,7 @@ import { useStoreNames } from './StoreNamesContext';
 import { NO_STORE_TYPE } from '../services/storeTypes';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ShoppingCart, ScanBarcode, Plus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil, Save, Apple, Carrot, Beef,
+  ShoppingCart, ScanBarcode, Plus, Minus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil, Save, Apple, Carrot, Beef,
 } from 'lucide-react';
 import { Receipt, MasterProduct } from '../types';
 import {
@@ -100,6 +100,7 @@ const Row: React.FC<{ e: Entry; check?: LineCheck; onToggle: () => void; onEdit:
 );
 
 const ValidationCard: React.FC<{ check: PurchaseCheck; purchase: PlanPurchase; receipts: Receipt[]; onOpenReceipt?: (id: string) => void }> = ({ check, purchase, receipts, onOpenReceipt }) => {
+  const [showRs, setShowRs] = useState(false);
   if (check.state === 'futuro') {
     return (
       <p className="flex items-start gap-2 text-[11px] text-zinc-500 leading-snug px-1" data-testid="shop-validation" data-state="futuro">
@@ -139,14 +140,23 @@ const ValidationCard: React.FC<{ check: PurchaseCheck; purchase: PlanPurchase; r
         {counts.comprado} {counts.comprado === 1 ? 'comprado' : 'comprados'} · {counts.parcial} {counts.parcial === 1 ? 'parcial' : 'parciais'} · {counts.faltou} {counts.faltou === 1 ? 'não veio' : 'não vieram'}
         {check.extraCost > 0 && <> · fora da lista: <span className="text-zinc-200 font-semibold">{brl(check.extraCost)}</span></>}
       </p>
-      {onOpenReceipt && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {rs.map(r => (
-            <button key={r.id} type="button" onClick={() => onOpenReceipt(r.id)} data-testid="shop-open-receipt"
-              className="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-lg border border-white/10 text-[12px] font-semibold text-zinc-200 hover:border-luxury-gold/40">
-              <ReceiptIcon className="w-3.5 h-3.5 text-luxury-gold" /> Cupom {brDate(r.date)} · {brl(Number(r.totalAmount) || 0)} <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
-            </button>
-          ))}
+      {onOpenReceipt && rs.length > 0 && (
+        <div className="mt-2">
+          <button type="button" onClick={() => setShowRs(v => !v)} aria-expanded={showRs} data-testid="shop-val-receipts-toggle"
+            className="inline-flex items-center gap-2 min-h-[36px] text-[12px] font-semibold text-luxury-gold">
+            <span className="w-6 h-6 rounded-full border border-luxury-gold/40 flex items-center justify-center">{showRs ? <Minus className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}</span>
+            {showRs ? 'Esconder' : 'Ver'} {rs.length} {rs.length === 1 ? 'cupom' : 'cupons'}
+          </button>
+          {showRs && (
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {rs.map(r => (
+                <button key={r.id} type="button" onClick={() => onOpenReceipt(r.id)} data-testid="shop-open-receipt"
+                  className="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-lg border border-white/10 text-[12px] font-semibold text-zinc-200 hover:border-luxury-gold/40">
+                  <ReceiptIcon className="w-3.5 h-3.5 text-luxury-gold" /> Cupom {brDate(r.date)} · {brl(Number(r.totalAmount) || 0)} <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <p className="sr-only">{purchase.date}</p>
