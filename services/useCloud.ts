@@ -225,12 +225,12 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
   const blockedHistory = useCallback((): Receipt[] => recentUnsent().filter(r => !sendable(r)), []);
 
   const shareHistory = useCallback(async (onProgress?: (done: number, total: number) => void) => {
-    const todo = pendingHistory().slice(0, 75); // a conta aceita até 80 cupons por dia
+    const todo = pendingHistory().slice(0, 75);
     return contribute(todo, { silent: true, onProgress });
   }, [contribute, pendingHistory]);
 
   /* ── envio automático de TODAS as compras ao cadastro comum (preços anônimos) ──
-     Sem botão nem chave: o app envia sozinho o que ainda não foi, em lotes (a conta aceita 80 por dia), e retoma no dia seguinte. */
+     Sem botão nem chave: o app envia sozinho o que ainda não foi, em lotes (sem limite diário), e retoma na próxima abertura se algo falhar. */
   const autoBusy = useRef(false);
   useEffect(() => {
     if (!uid || !profile || receipts.length === 0) return;
@@ -239,12 +239,12 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
       if (autoBusy.current) return;
       autoBusy.current = true;
       try {
-        for (let round = 0; round < 8 && !cancelled; round++) {
+        for (let round = 0; round < 80 && !cancelled; round++) {
           const sent = new Set<string>(readJson<string[]>(SENT_KEY(uid), []));
-          const todo = receiptsRef.current.filter(r => !sent.has(r.id) && sendable(r)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 75);
+          const todo = receiptsRef.current.filter(r => !sent.has(r.id) && sendable(r)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 50);
           if (todo.length === 0) break;
           const res = await contribute(todo, { silent: true });
-          if (res.limited || res.sent === 0) break;   // limite do dia ou nada saiu: tenta de novo na próxima abertura
+          if (res.limited || res.sent === 0) break;   // nada saiu (falha ou teto de segurança): tenta de novo na próxima abertura
         }
       } catch { /* tenta de novo depois */ } finally { autoBusy.current = false; }
     }, 8000);

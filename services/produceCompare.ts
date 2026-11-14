@@ -13,7 +13,7 @@ export interface StoreScore { id: string; cnpj: string; name: string; index: num
 export const MAX_STORES_PER_ITEM = 5;
 /** Preço de um item numa loja: o último preço lido (e quando) e a média de todo o histórico. */
 export interface ItemCell { id: string; name: string; last: number; date: string; mean: number; n: number }
-export interface ItemRow { cells: ItemCell[]; item: string; label: string; ean: string; unit: string; all: { id: string; name: string; price: number; n: number }[]; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
+export interface ItemRow { mids: string[]; cells: ItemCell[]; item: string; label: string; ean: string; unit: string; all: { id: string; name: string; price: number; n: number }[]; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
 export interface WeekdayCell { wd: number; index: number; n: number }
 export interface StoreWeekdays { id: string; name: string; cells: WeekdayCell[]; best: WeekdayCell | null; worst: WeekdayCell | null; obs: number }
 export interface ProduceCompare {
@@ -31,6 +31,8 @@ export const buildProduceCompare = (receipts: Parameters<typeof deptObservations
   
   // nome mostrado de cada item: a descrição mais frequente (o mesmo EAN pode vir escrito diferente em cada loja)
   const labelCount = new Map<string, Map<string, number>>(); const eanOfItem = new Map<string, string>();
+  const midsOf = new Map<string, Set<string>>();
+  obs.forEach(o => { if (o.mid) (midsOf.get(o.item) || midsOf.set(o.item, new Set()).get(o.item)!).add(o.mid); });
   obs.forEach(o => { const m = labelCount.get(o.item) || new Map(); m.set(o.label, (m.get(o.label) || 0) + 1); labelCount.set(o.item, m); if (o.ean) eanOfItem.set(o.item, o.ean); });
   const labelOf = (item: string) => [...(labelCount.get(item) || new Map([[item, 1]])).entries()].sort((a, b) => b[1] - a[1])[0][0];
   // um item = nome (ou EAN); fica a unidade com mais compras (kg e un não se misturam)
@@ -69,7 +71,7 @@ export const buildProduceCompare = (receipts: Parameters<typeof deptObservations
     const ref = mean(avgs.map(a => a.price));
     avgs.forEach(a => { const l = idx.get(a.id) || []; l.push(a.price / ref - 1); idx.set(a.id, l); });
     const lo = avgs[0], hi = avgs[avgs.length - 1];
-    items.push({ cells: avgs.map(a => ({ id: a.id, name: a.name, mean: a.price, n: a.n, last: lastBy.get(`${item}|${a.id}`)!.price, date: lastBy.get(`${item}|${a.id}`)!.date })), item, label: labelOf(item), ean: eanOfItem.get(item) || '', unit: unitOf.get(item) || '', all: avgs.slice(0, MAX_STORES_PER_ITEM).map(a => ({ id: a.id, name: a.name, price: a.price, n: a.n })), cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
+    items.push({ mids: [...(midsOf.get(item) || [])], cells: avgs.map(a => ({ id: a.id, name: a.name, mean: a.price, n: a.n, last: lastBy.get(`${item}|${a.id}`)!.price, date: lastBy.get(`${item}|${a.id}`)!.date })), item, label: labelOf(item), ean: eanOfItem.get(item) || '', unit: unitOf.get(item) || '', all: avgs.slice(0, MAX_STORES_PER_ITEM).map(a => ({ id: a.id, name: a.name, price: a.price, n: a.n })), cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
   });
   items.sort((a, b) => b.n - a.n || b.spread - a.spread);
 

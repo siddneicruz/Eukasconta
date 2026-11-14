@@ -82,6 +82,12 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   // só valem para comparar as leituras recentes: o preço de uma loja lido há muito tempo sai da disputa (promoção antiga, preço mudou)
   const [win, setWin] = useState<number>(() => { try { const v = Number(localStorage.getItem('eukasconta_compare_window')); return [7, 15, 30, 90, 9999].includes(v) ? v : 30; } catch { return 30; } });
   const pickWin = (v: number) => { setWin(v); try { localStorage.setItem('eukasconta_compare_window', String(v)); } catch { /* sem armazenamento: vale só nesta tela */ } };
+  // Qualidade por loja em cada item (só Hortifruti). Administrador vê sempre; os demais ligam no botão, porque cada consulta gasta o "tanque".
+  const hf = dept === 'HORTIFRUTI';
+  const [showQ, setShowQ] = useState<boolean | null>(() => { try { const v = localStorage.getItem('eukasconta_compare_quality'); return v === null ? null : v === '1'; } catch { return null; } });
+  const qOn = hf && (showQ === null ? isAdmin : showQ);
+  const pickQ = (v: boolean) => { setShowQ(v); try { localStorage.setItem('eukasconta_compare_quality', v ? '1' : '0'); } catch { /* vale só nesta tela */ } };
+  const [itemQ, setItemQ] = useState<Record<string, Record<string, Q>>>({});
   const todayIso = useMemo(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }, []);
   const ranked = useMemo(() => data.items.map(r => ({ r, ...rankItem(r, win, todayIso) })), [data.items, win, todayIso]);
   // nada some: itens com preço recente em 2+ lojas vêm primeiro (comparáveis); os outros ficam depois, apagados, só com os preços e a idade
@@ -90,8 +96,35 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
     const rest = ranked.filter(x => x.fresh.length < 2).sort((a, b) => b.r.n - a.r.n);
     return [...ok, ...rest];
   }, [ranked, itemBy]);
+  const cnpjOf = useMemo(() => new Map(data.stores.map(st => [st.id, String(st.cnpj || '').replace(/\D/g, '')] as const)), [data.stores]);
   const comparable = useMemo(() => ranked.filter(x => x.fresh.length >= 2).length, [ranked]);
   const [limit, setLimit] = useState(30);
+  useEffect(() => {
+    if (!qOn || tab !== 'items' || !cloud.cloudAvailable()) return;
+    let alive = true;
+    const todo = items.slice(0, limit).map(x => x.r).filter(r => r.mids.length > 0 && !itemQ[r.item]);
+    let i = 0;
+    const worker = async () => {
+      while (alive && i < todo.length) {
+        const r = todo[i++];
+        try {
+          const parts = await Promise.all(r.mids.slice(0, 6).map(m => cloud.produceQualityByProduct(m)));
+          const byStore: Record<string, { n: number; sum: number; w: number; last: string | null; locked: boolean }> = {};
+          parts.flat().forEach(q => {
+            const k = String(q.cnpj || '').replace(/\D/g, '');
+            const c = byStore[k] || (byStore[k] = { n: 0, sum: 0, w: 0, last: null, locked: false });
+            c.n += q.n; if (q.avg_score !== null) { c.sum += q.avg_score * q.n; c.w += q.n; } else if (q.locked) c.locked = true;
+            if (q.last_rated_at && (!c.last || q.last_rated_at > c.last)) c.last = q.last_rated_at;
+          });
+          const out: Record<string, Q> = {};
+          Object.entries(byStore).forEach(([k, c]) => { out[k] = { score: c.w ? Math.round((c.sum / c.w) * 10) / 10 : null, n: c.n, last: c.last }; });
+          if (alive) setItemQ(prev => ({ ...prev, [r.item]: out }));
+        } catch { if (alive) setItemQ(prev => ({ ...prev, [r.item]: {} })); }
+      }
+    };
+    void Promise.all([worker(), worker(), worker()]);
+    return () => { alive = false; };
+  }, [qOn, tab, items, limit]);
   const ageTxt = (d: number) => (d === 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`);
 
   if (data.nObs === 0) return null;
@@ -181,6 +214,13 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                 className={`h-7 px-2.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${win === v ? 'bg-luxury-gold/15 border-luxury-gold/40 text-luxury-gold' : 'border-white/10 text-zinc-500'}`}>{l}</button>
             ))}
           </div>
+          {hf && !isAdmin && (
+            <div className="flex items-center gap-1.5 mb-1">
+              <button type="button" onClick={() => pickQ(!qOn)} aria-pressed={qOn} data-testid="pc-quality-toggle"
+                className={`h-7 px-2.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${qOn ? 'bg-luxury-gold/15 border-luxury-gold/40 text-luxury-gold' : 'border-white/10 text-zinc-500'}`}>★ Qualidade por loja</button>
+              {qOn && <span className="text-[10px] text-zinc-500">cada consulta usa o seu tanque</span>}
+            </div>
+          )}
           {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">{dept === 'HORTIFRUTI' || dept === 'TRANSPORTE' ? 'Ainda não há item comprado em duas lojas diferentes.' : 'Ainda não há produto com código de barras (EAN) comprado em duas lojas diferentes.'}</p> : (
             <div className="divide-y divide-white/5">
               {items.slice(0, limit).map(({ r, fresh, stale, spread }) => {
@@ -197,11 +237,22 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                     <div className="mt-1 space-y-0.5">
                       {lines.map((m, i) => {
                         const last = cmp && i === fresh.length - 1;
+                        const qd = qOn ? itemQ[r.item]?.[(cnpjOf.get(m.id) || '')] : undefined;
                         return (
-                          <p key={m.id} className="text-[11px] font-mono flex justify-between gap-2" style={{ color: cmp && i === 0 ? '#34d399' : last ? '#f87171' : undefined }}>
-                            <span className={`truncate ${cmp && (i === 0 || last) ? '' : 'text-zinc-400'}`}>{cmp ? `${i + 1}º ` : ''}{m.name}</span>
-                            <span className="whitespace-nowrap">R$ {money(m.last)}<span className="text-zinc-500">/{unitLabel(r.unit)} · {ageTxt(m.age)}</span></span>
-                          </p>
+                          <div key={m.id}>
+                            <p className="text-[11px] font-mono flex justify-between gap-2" style={{ color: cmp && i === 0 ? '#34d399' : last ? '#f87171' : undefined }}>
+                              <span className={`truncate ${cmp && (i === 0 || last) ? '' : 'text-zinc-400'}`}>{cmp ? `${i + 1}º ` : ''}{m.name}</span>
+                              <span className="whitespace-nowrap">R$ {money(m.last)}<span className="text-zinc-500">/{unitLabel(r.unit)} · {ageTxt(m.age)}</span></span>
+                            </p>
+                            {qOn && r.mids.length > 0 && (
+                              <p className="text-[10px] font-mono text-right" data-testid="pc-item-quality">
+                                {!itemQ[r.item] ? <span className="text-zinc-500">…</span>
+                                  : qd && qd.score !== null && qd.n >= 5 ? <span style={{ color: scoreColor(qd.score) }}>★ {String(qd.score).replace('.', ',')} <span className="text-zinc-500">· {qd.n} votos{qd.last ? ` · última ${short(qd.last.slice(0, 10))}` : ''}</span></span>
+                                  : qd && qd.n > 0 ? <span className="text-zinc-500">{qd.n} {qd.n === 1 ? 'voto' : 'votos'} (poucos){qd.last ? ` · última ${short(qd.last.slice(0, 10))}` : ''}</span>
+                                  : <span className="text-zinc-500">sem nota</span>}
+                              </p>
+                            )}
+                          </div>
                         );
                       })}
                       {cut && <p className="text-[10px] text-zinc-500">+ {fresh.length - lines.length} {fresh.length - lines.length === 1 ? 'loja' : 'lojas'} mais caras (a mais cara: <span style={{ color: '#f87171' }}>{fresh[fresh.length - 1].name} R$ {money(fresh[fresh.length - 1].last)}</span>)</p>}

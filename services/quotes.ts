@@ -180,7 +180,7 @@ export const topMovers = (qs: Quote[], n = 12): Quote[] =>
     Hortifruti e Açougue por kg usam os mesmos nomes de item da Cotações. Todo o resto (inclusive Açougue vendido por unidade,
     como hambúrguer) só entra com o código de barras (EAN) exato: sem EAN o item não é comparado, porque marca e embalagem mudam o preço.
     Transporte: só o combustível dispensa EAN (nome do combustível, sempre por litro); os outros itens de Transporte também pedem EAN. */
-export interface ProduceObs { item: string; label: string; ean: string; unit: string; date: string; price: number; store: string; cnpj: string }
+export interface ProduceObs { mid?: string; item: string; label: string; ean: string; unit: string; date: string; price: number; store: string; cnpj: string }
 const eanOf = (code?: string): string => { const c = String(code || '').trim(); return /^\d+$/.test(c) && [8, 12, 13, 14].includes(c.length) ? c : ''; };
 const isFuel = (category?: string, description?: string): boolean =>
   /COMBUSTIV/.test(plainUp(String(category || ''))) || /^(GC\s*-\s*)?(GASOLINA|ETANOL|ALCOOL|DIESEL|GNV)\b/.test(plainUp(String(description || '')).trim());
@@ -231,7 +231,7 @@ export const produceObservations = (receipts: Receipt[]): ProduceObs[] => deptOb
 
 /** Leituras da base compartilhada (todos os usuários) no mesmo formato das compras locais, com as mesmas regras de item:
     Hortifruti, Açougue por kg e combustível por nome; o resto só com EAN. Lojas que não são de comida só entram com itens de Transporte. */
-export interface SharedLike { description: string; category: string; unit_type: string; ean: string | null; cnpj: string; store_name: string; store_type: string | null; unit_price: number; observed_on: string }
+export interface SharedLike { master_product_id?: string; description: string; category: string; unit_type: string; ean: string | null; cnpj: string; store_name: string; store_type: string | null; unit_price: number; observed_on: string }
 export const sharedObservations = (rows: SharedLike[], dept: string, foodType: (t: string) => boolean): ProduceObs[] => {
   const all = dept === 'ALL';
   const out: ProduceObs[] = [];
@@ -248,7 +248,7 @@ export const sharedObservations = (rows: SharedLike[], dept: string, foodType: (
       const ean = eanOf(r.ean || '');
       if (!ean) return;
       const label = cleanDescriptionForMatching(r.description || '').split(' ').filter(w => w.length > 0).slice(0, 6).join(' ');
-      out.push({ ...base, item: `EAN${ean}`, label: titleCase(label || ean), ean });
+      out.push({ ...base, mid: r.master_product_id, item: `EAN${ean}`, label: titleCase(label || ean), ean });
       return;
     }
     let name: string;
@@ -258,7 +258,7 @@ export const sharedObservations = (rows: SharedLike[], dept: string, foodType: (
       if (!name) return;
       if (want === 'HORTIFRUTI') { const v = varietyOf(r.description, name); if (v) name = v; }
     } else return;
-    out.push({ ...base, item: titleCase(name), label: titleCase(name), ean: '' });
+    out.push({ ...base, mid: r.master_product_id, item: titleCase(name), label: titleCase(name), ean: '' });
   });
   return out;
 };
