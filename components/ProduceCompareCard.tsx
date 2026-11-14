@@ -56,7 +56,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const data = useMemo(() => buildProduceCompare(receipts, nameOf, dept, minItems, obs), [receipts, nameOf, dept, minItems, obs]);
   const [tab, setTab] = useState<Tab>('items');
   const [storeBy, setStoreBy] = useState<'price' | 'score'>('price');
-  const [itemBy, setItemBy] = useState<'n' | 'spread'>('n');
+  const [itemBy, setItemBy] = useState<'n' | 'spread' | 'recent'>('n');
   const [quality, setQuality] = useState<Record<string, Q>>({});
 
   // nota de qualidade por mercado: média das notas dos itens, ponderada pelos votos (administrador)
@@ -93,6 +93,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const ranked = useMemo(() => data.items.map(r => ({ r, ...rankItem(r, win, todayIso) })), [data.items, win, todayIso]);
   // nada some: itens com preço recente em 2+ lojas vêm primeiro (comparáveis); os outros ficam depois, apagados, só com os preços e a idade
   const items = useMemo(() => {
+    if (itemBy === 'recent') return [...ranked].sort((a, b) => b.r.lastDate.localeCompare(a.r.lastDate) || b.r.n - a.r.n);   // o que você leu por último, comparável ou não
     const ok = ranked.filter(x => x.fresh.length >= 2).sort(itemBy === 'n' ? (a, b) => b.r.n - a.r.n || b.spread - a.spread : (a, b) => b.spread - a.spread || b.r.n - a.r.n);
     const rest = ranked.filter(x => x.fresh.length < 2).sort((a, b) => b.r.n - a.r.n);
     return [...ok, ...rest];
@@ -207,6 +208,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
           <div className="flex gap-1.5 mb-1">
             <Pill on={itemBy === 'n'} onClick={() => { setItemBy('n'); setLimit(30); }}>Mais comprados</Pill>
             <Pill on={itemBy === 'spread'} onClick={() => { setItemBy('spread'); setLimit(30); }}>Maior diferença</Pill>
+            <Pill on={itemBy === 'recent'} onClick={() => { setItemBy('recent'); setLimit(30); }} tid="pc-sort-recent">Recentes</Pill>
           </div>
           <div className="flex items-center gap-1.5 mb-1 overflow-x-auto no-scrollbar" role="group" aria-label="Preços lidos até">
             <span className="text-[11px] text-zinc-500 whitespace-nowrap">Preço lido até</span>
@@ -242,7 +244,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                       </div>
                       {cmp
                         ? <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-white/10 text-zinc-400 tabular-nums">dif. {pctTxt(spread)}</span>
-                        : <span className="shrink-0 text-[10px] text-zinc-500">sem comparação atual</span>}
+                        : <span className="shrink-0 text-[10px] text-zinc-500">{r.cells.length === 1 ? 'só 1 loja' : 'sem comparação atual'}</span>}
                     </div>
                     <div className="mt-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-2.5">
                       <div className="grid gap-x-3 pt-1.5 pb-0.5 text-[9px] font-bold tracking-[0.1em] text-zinc-500" style={{ gridTemplateColumns: cols }}>
@@ -293,7 +295,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
             </div>
           )}
           {items.length > limit && <button type="button" onClick={() => setLimit(l => l + 30)} className="mt-2 w-full h-9 rounded-lg border border-white/10 text-xs font-semibold text-zinc-400" data-testid="pc-more">Mostrar mais ({items.length - limit})</button>}
-          {items.length > 0 && <p className="text-[10px] text-zinc-500 mt-2">{comparable} {comparable === 1 ? 'item comparável' : 'itens comparáveis'} (preço lido nos últimos {win >= 9999 ? 'tempo todo' : `${win} dias`} em 2+ lojas). Os demais aparecem apagados, ao final, para você ver onde já comprou.</p>}
+          {items.length > 0 && <p className="text-[10px] text-zinc-500 mt-2">{comparable} {comparable === 1 ? 'item comparável' : 'itens comparáveis'} (preço lido nos últimos {win >= 9999 ? 'tempo todo' : `${win} dias`} em 2+ lojas). Os demais (uma loja só ou sem leitura recente) aparecem apagados, ao final; em “Recentes” vêm na ordem em que você leu.</p>}
           <p className="text-[10px] text-zinc-500 mt-2">O preço de cada loja é o último que você pagou, com a idade da leitura. Lojas lidas antes do prazo escolhido saem da disputa (não são o 1º nem o último) e aparecem apagadas.</p>
         </div>
       )}

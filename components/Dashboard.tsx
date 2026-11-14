@@ -43,7 +43,7 @@ import StoreTypeFilter from './StoreTypeFilter';
 import { applyStoreTypeFilter, useStoreTypeFilter, NO_STORE_TYPE } from '../services/storeTypes';
 import StoreRanking from './StoreRanking';
 import { useLayers } from './LayersContext';
-import { useDeptFilter, isDeptFilterActive, invertDeptFilter, deptFilterLabel, deptLabelFor, applyDeptFilter, buildDeptOptions } from '../services/deptFilter';
+import { useDeptFilter, isDeptFilterActive, invertDeptFilter, NO_DEPT_FILTER, deptFilterLabel, deptLabelFor, applyDeptFilter, buildDeptOptions } from '../services/deptFilter';
 import { projectReceipts, makeItemMatcher, toHistoryItems, itemFilterTitle } from '../services/itemSearch';
 import { periodLabel } from '../services/productPriceStats';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
@@ -647,6 +647,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                         aria-label="Inverter o filtro de categorias"
                         className="filter-chip shrink-0 w-8 h-8 flex items-center justify-center rounded-xl border bg-luxury-gold/10 text-luxury-gold border-luxury-gold/25 active:bg-luxury-gold/20">
                         <ArrowLeftRight className="w-3.5 h-3.5" />
+                    </button>
+                )}
+                {deptActive && (
+                    <button type="button" onClick={() => setDeptFilter(NO_DEPT_FILTER)} data-testid="dept-clear"
+                        title="Limpar: mostrar todas as categorias" aria-label="Limpar o filtro e mostrar todas as categorias"
+                        className="filter-chip shrink-0 w-8 h-8 flex items-center justify-center rounded-xl border bg-luxury-gold/10 text-luxury-gold border-luxury-gold/25 active:bg-luxury-gold/20">
+                        <RotateCcw className="w-3.5 h-3.5" />
                     </button>
                 )}
             </div>

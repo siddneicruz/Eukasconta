@@ -13,7 +13,7 @@ export interface StoreScore { id: string; cnpj: string; name: string; index: num
 export const MAX_STORES_PER_ITEM = 5;
 /** Preço de um item numa loja: o último preço lido (e quando) e a média de todo o histórico. */
 export interface ItemCell { id: string; name: string; last: number; date: string; mean: number; n: number }
-export interface ItemRow { mids: string[]; cells: ItemCell[]; item: string; label: string; ean: string; unit: string; all: { id: string; name: string; price: number; n: number }[]; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
+export interface ItemRow { lastDate: string; mids: string[]; cells: ItemCell[]; item: string; label: string; ean: string; unit: string; all: { id: string; name: string; price: number; n: number }[]; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
 export interface WeekdayCell { wd: number; index: number; n: number }
 export interface StoreWeekdays { id: string; name: string; cells: WeekdayCell[]; best: WeekdayCell | null; worst: WeekdayCell | null; obs: number }
 export interface ProduceCompare {
@@ -67,11 +67,10 @@ export const buildProduceCompare = (receipts: Parameters<typeof deptObservations
   const idx = new Map<string, number[]>();   // loja -> índices dos itens em comum
   byItemStore.forEach((m, item) => {
     const avgs = [...m.entries()].map(([id, ps]) => ({ id, name: names.get(id) || id, price: mean(ps), n: ps.length })).sort((a, b) => a.price - b.price);
-    if (avgs.length < 2) return;
     const ref = mean(avgs.map(a => a.price));
-    avgs.forEach(a => { const l = idx.get(a.id) || []; l.push(a.price / ref - 1); idx.set(a.id, l); });
+    if (avgs.length >= 2) avgs.forEach(a => { const l = idx.get(a.id) || []; l.push(a.price / ref - 1); idx.set(a.id, l); });   // item de uma loja só aparece na lista, mas não entra na conta do índice
     const lo = avgs[0], hi = avgs[avgs.length - 1];
-    items.push({ mids: [...(midsOf.get(item) || [])], cells: avgs.map(a => ({ id: a.id, name: a.name, mean: a.price, n: a.n, last: lastBy.get(`${item}|${a.id}`)!.price, date: lastBy.get(`${item}|${a.id}`)!.date })), item, label: labelOf(item), ean: eanOfItem.get(item) || '', unit: unitOf.get(item) || '', all: avgs.slice(0, MAX_STORES_PER_ITEM).map(a => ({ id: a.id, name: a.name, price: a.price, n: a.n })), cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
+    items.push({ lastDate: avgs.map(a => lastBy.get(`${item}|${a.id}`)!.date).sort().pop() || '', mids: [...(midsOf.get(item) || [])], cells: avgs.map(a => ({ id: a.id, name: a.name, mean: a.price, n: a.n, last: lastBy.get(`${item}|${a.id}`)!.price, date: lastBy.get(`${item}|${a.id}`)!.date })), item, label: labelOf(item), ean: eanOfItem.get(item) || '', unit: unitOf.get(item) || '', all: avgs.slice(0, MAX_STORES_PER_ITEM).map(a => ({ id: a.id, name: a.name, price: a.price, n: a.n })), cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
   });
   items.sort((a, b) => b.n - a.n || b.spread - a.spread);
 
