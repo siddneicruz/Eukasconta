@@ -24,8 +24,8 @@ export interface ProduceCompare {
 const wdOf = (iso: string) => new Date(`${iso}T12:00:00`).getDay();
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-export const buildProduceCompare = (receipts: Parameters<typeof deptObservations>[0], nameOf: (name: string, cnpj: string) => string, dept = 'HORTIFRUTI', minItems = MIN_ITEMS_RANK): ProduceCompare => {
-  const obs = deptObservations(receipts, dept);
+export const buildProduceCompare = (receipts: Parameters<typeof deptObservations>[0], nameOf: (name: string, cnpj: string) => string, dept = 'HORTIFRUTI', minItems = MIN_ITEMS_RANK, obsOverride?: ProduceObs[]): ProduceCompare => {
+  const obs = obsOverride ?? deptObservations(receipts, dept);
   const sid = (o: ProduceObs) => o.cnpj || o.store;
   const names = new Map<string, string>(); const cnpjs = new Map<string, string>();
   
@@ -114,4 +114,11 @@ export const rankItem = (r: ItemRow, windowDays: number, todayIso: string) => {
   const stale = cells.filter(c => c.age > windowDays).sort((a, b) => a.age - b.age);
   const spread = fresh.length >= 2 ? fresh[fresh.length - 1].last / fresh[0].last - 1 : 0;
   return { fresh, stale, spread };
+};
+
+/** Junta a base compartilhada com as compras locais sem contar a mesma leitura duas vezes (mesma loja, dia e preço). */
+export const mergeObs = (shared: ProduceObs[], local: ProduceObs[]): ProduceObs[] => {
+  const key = (o: ProduceObs) => `${o.cnpj || o.store}|${o.date}|${o.price.toFixed(2)}`;
+  const seen = new Set(shared.map(key));
+  return [...shared, ...local.filter(o => !seen.has(key(o)))];
 };

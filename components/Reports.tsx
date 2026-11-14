@@ -100,6 +100,17 @@ const Reports: React.FC<ReportsProps> = ({
   const [goalId, setGoalId] = useState<string>('');   // o que está sendo auditado: departamento, categoria, grupo ou item
   const [panoFilter, setPanoFilter] = useDeptFilter();
   const panoReceipts = useMemo(() => applyDeptFilter(receipts, panoFilter), [receipts, panoFilter]);
+  // centro do comparativo quando o aparelho não dá a posição: a loja mais frequentada que tem coordenadas
+  const homeCenter = useMemo(() => {
+    const cnt = new Map<string, number>();
+    receipts.forEach(r => { const k = String(r.cnpj || '').replace(/\D/g, ''); if (k) cnt.set(k, (cnt.get(k) || 0) + 1); });
+    let best: { lat: number; lng: number } | null = null; let bestN = 0;
+    establishments.forEach(e => {
+      const n = cnt.get(String(e.cnpj || '').replace(/\D/g, '')) || 0;
+      if (n > bestN && typeof e.latitude === 'number' && typeof e.longitude === 'number') { bestN = n; best = { lat: e.latitude, lng: e.longitude }; }
+    });
+    return best;
+  }, [receipts, establishments]);
   // "só <um departamento>" no filtro do Panorama: liga o comparativo entre lojas daquele departamento
   const compareDept = useMemo(() => {
     if (panoFilter.mode !== 'only' || panoFilter.keys.length === 0) return null;
@@ -967,7 +978,7 @@ const Reports: React.FC<ReportsProps> = ({
                       return (
                           <ProduceCompareCard key={slug} receipts={base}
                               nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
-                              dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} />
+                              dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} center={homeCenter} />
                       );
                   })()}
                   <ReportsPanorama

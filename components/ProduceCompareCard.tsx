@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Receipt } from '../types';
 import * as cloud from '../services/cloudService';
 import { useMasterInfo } from './MasterContext';
-import { buildProduceCompare, rankItem, WD, MIN_ITEMS_RANK, MIN_DAY_OBS, MAX_STORES_PER_ITEM } from '../services/produceCompare';
+import { buildProduceCompare, mergeObs, rankItem, WD, MIN_ITEMS_RANK, MIN_DAY_OBS, MAX_STORES_PER_ITEM } from '../services/produceCompare';
 import { unitLabel } from '../services/productPriceStats';
+import { deptObservations, sharedObservations } from '../services/quotes';
+import { GROCERY_STORE_TYPES } from '../services/storeTypes';
 
 /* Hortifruti em Análises › Panorama: compara os mercados onde a pessoa compra (preço, nota de qualidade, dia da semana).
    Preço e dia da semana saem dos cupons dela (todo o histórico). A nota de qualidade vem do banco e, por ora, só para o administrador. */
@@ -14,13 +16,43 @@ const idxColor = (v: number) => (v <= -0.02 ? '#34d399' : v >= 0.02 ? '#f87171' 
 const scoreColor = (s: number) => (s >= 7 ? '#34d399' : s >= 4 ? '#DDB94B' : '#f87171');
 const short = (iso: string) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 
+let sharedCache: { key: string; at: number; rows: cloud.SharedRow[] } | null = null;
 type Tab = 'stores' | 'items' | 'days';
 type Q = { score: number | null; n: number; last: string | null };
 
-const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string, cnpj: string) => string; dept?: string; label?: string; minItems?: number }> = ({ receipts, nameOf, dept = 'HORTIFRUTI', label = 'Hortifruti', minItems = MIN_ITEMS_RANK }) => {
+const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string, cnpj: string) => string; dept?: string; label?: string; minItems?: number; center?: { lat: number; lng: number } | null }> = ({ receipts, nameOf, dept = 'HORTIFRUTI', label = 'Hortifruti', minItems = MIN_ITEMS_RANK, center = null }) => {
   const { isAdmin: admin } = useMasterInfo();
   const isAdmin = admin && dept === 'HORTIFRUTI';   // a nota de qualidade só existe para hortifruti
-  const data = useMemo(() => buildProduceCompare(receipts, nameOf, dept, minItems), [receipts, nameOf, dept, minItems]);
+  // Fonte: leituras de TODOS os usuários num raio (anônimas), somadas às suas compras. Sem login, sem conexão ou sem posição: só as suas.
+  const [km, setKm] = useState<number>(() => { try { const v = Number(localStorage.getItem('eukasconta_compare_km')); return [10, 30, 60].includes(v) ? v : 30; } catch { return 30; } });
+  const pickKm = (v: number) => { setKm(v); try { localStorage.setItem('eukasconta_compare_km', String(v)); } catch { /* vale só nesta tela */ } };
+  const [shared, setShared] = useState<cloud.SharedRow[] | null>(null);
+  const [src, setSrc] = useState<'loading' | 'shared' | 'local'>('loading');
+  const cKey = center ? `${center.lat.toFixed(3)},${center.lng.toFixed(3)}` : '';
+  useEffect(() => {
+    if (!cloud.cloudAvailable()) { setSrc('local'); return; }
+    let alive = true;
+    (async () => {
+      setSrc('loading');
+      let c = center;
+      try {   // se o app já tem permissão de localização, usa a posição atual; senão, o centro das lojas que você mais frequenta
+        const perm = await (navigator as any).permissions?.query({ name: 'geolocation' });
+        if (perm?.state === 'granted') c = await cloud.getCurrentPosition();
+      } catch { /* fica com o centro das lojas */ }
+      if (!c) { if (alive) setSrc('local'); return; }
+      const key = `${km}|${c.lat.toFixed(2)},${c.lng.toFixed(2)}`;
+      if (sharedCache && sharedCache.key === key && Date.now() - sharedCache.at < 5 * 60000) { if (alive) { setShared(sharedCache.rows); setSrc('shared'); } return; }
+      const rows = await cloud.sharedObservations(c, km, 400);
+      sharedCache = { key, at: Date.now(), rows };
+      if (alive) { setShared(rows); setSrc('shared'); }
+    })().catch(() => { if (alive) setSrc('local'); });
+    return () => { alive = false; };
+  }, [km, cKey]);
+  const obs = useMemo(() => {
+    if (src !== 'shared' || !shared) return undefined;
+    return mergeObs(sharedObservations(shared, dept, t => !t || GROCERY_STORE_TYPES.has(t)), deptObservations(receipts, dept));
+  }, [src, shared, receipts, dept]);
+  const data = useMemo(() => buildProduceCompare(receipts, nameOf, dept, minItems, obs), [receipts, nameOf, dept, minItems, obs]);
   const [tab, setTab] = useState<Tab>('items');
   const [storeBy, setStoreBy] = useState<'price' | 'score'>('price');
   const [itemBy, setItemBy] = useState<'n' | 'spread'>('n');
@@ -75,7 +107,14 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   return (
     <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="produce-compare">
       <h3 className="text-[12px] font-semibold text-zinc-300 px-0.5">{label} · comparativo entre lojas</h3>
-      <p className="text-[11px] text-zinc-500 px-0.5 mt-0.5">{data.nItems} itens · {data.stores.length} lojas · compras de {short(data.firstDate)} a {short(data.lastDate)} (todo o histórico)</p>
+      <p className="text-[11px] text-zinc-500 px-0.5 mt-0.5">{data.nItems} itens · {data.stores.length} lojas · leituras de {short(data.firstDate)} a {short(data.lastDate)}</p>
+      <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto no-scrollbar" data-testid="pc-source">
+        <span className="text-[11px] text-zinc-500 whitespace-nowrap">{src === 'shared' ? 'Todos os usuários · raio' : src === 'loading' ? 'Buscando dados de todos os usuários…' : 'Só as suas compras (sem conexão, login ou posição)'}</span>
+        {src === 'shared' && [10, 30, 60].map(v => (
+          <button key={v} type="button" onClick={() => pickKm(v)} aria-pressed={km === v} data-testid={`pc-km-${v}`}
+            className={`h-7 px-2.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${km === v ? 'bg-luxury-gold/15 border-luxury-gold/40 text-luxury-gold' : 'border-white/10 text-zinc-500'}`}>{v} km</button>
+        ))}
+      </div>
 
       {(bestPrice || bestScore) && (
         <div className={`grid ${dept === 'HORTIFRUTI' ? 'grid-cols-2' : 'grid-cols-1'} gap-2 mt-3`}>

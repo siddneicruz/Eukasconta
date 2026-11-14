@@ -143,7 +143,7 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
     const u = userRef.current;
     const p = profileRef.current;
     const stats: { sent: number; skipped: number; limited: boolean; invalid: number; failed: number; error?: string } = { sent: 0, skipped: 0, limited: false, invalid: 0, failed: 0 };
-    if (!u || !p || !p.share_prices) return stats;
+    if (!u || !p) return stats;   // o envio de preços é automático: não há mais chave para desligar
 
     // Cada cupom é enviado uma vez só, mesmo se a tela avisar duas vezes (React em modo de desenvolvimento faz isso).
     const sentIds = new Set<string>(readJson<string[]>(SENT_KEY(u.id), []));
@@ -228,6 +228,28 @@ export const useCloud = ({ receipts, establishments, onGeocoded, onToast }: UseC
     const todo = pendingHistory().slice(0, 75); // a conta aceita até 80 cupons por dia
     return contribute(todo, { silent: true, onProgress });
   }, [contribute, pendingHistory]);
+
+  /* ── envio automático de TODAS as compras ao cadastro comum (preços anônimos) ──
+     Sem botão nem chave: o app envia sozinho o que ainda não foi, em lotes (a conta aceita 80 por dia), e retoma no dia seguinte. */
+  const autoBusy = useRef(false);
+  useEffect(() => {
+    if (!uid || !profile || receipts.length === 0) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (autoBusy.current) return;
+      autoBusy.current = true;
+      try {
+        for (let round = 0; round < 8 && !cancelled; round++) {
+          const sent = new Set<string>(readJson<string[]>(SENT_KEY(uid), []));
+          const todo = receiptsRef.current.filter(r => !sent.has(r.id) && sendable(r)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 75);
+          if (todo.length === 0) break;
+          const res = await contribute(todo, { silent: true });
+          if (res.limited || res.sent === 0) break;   // limite do dia ou nada saiu: tenta de novo na próxima abertura
+        }
+      } catch { /* tenta de novo depois */ } finally { autoBusy.current = false; }
+    }, 8000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [uid, profile?.id, receipts.length, contribute]);
 
   /* ── envio dos cupons recentes (base do aviso "mais barato perto de você") ── */
   useEffect(() => {

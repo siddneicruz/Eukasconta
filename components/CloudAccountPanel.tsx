@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserRound, LogOut, Loader2, ShieldCheck, Share2, BellRing, Send, Bell, Info, MailCheck, CloudOff, DatabaseBackup, KeyRound, CloudDownload, CloudUpload, Clock } from 'lucide-react';
+import { UserRound, LogOut, Loader2, ShieldCheck, Share2, BellRing, Bell, Info, MailCheck, CloudOff, DatabaseBackup, KeyRound, CloudDownload, CloudUpload, Clock } from 'lucide-react';
 import type { CloudApi } from '../services/useCloud';
 import type { BackupApi } from '../services/useCloudBackup';
 import ConfirmDialog from './ConfirmDialog';
@@ -34,8 +34,6 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [confirmKeepDevice, setConfirmKeepDevice] = useState(false);
@@ -84,20 +82,7 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
     try { await cloud.updatePrivacy(patch); } catch (err: any) { setSaveErr(err.message); }
   };
 
-  const pending = cloud.user ? cloud.pendingHistory().length : 0;
   const blocked = cloud.user ? cloud.blockedHistory() : [];
-  const [shareBad, setShareBad] = useState(false);
-  const runShare = async () => {
-    setShareMsg(null); setProgress({ done: 0, total: Math.min(pending, 75) });
-    const res = await cloud.shareHistory((done, total) => setProgress({ done, total }));
-    setProgress(null);
-    const parts: string[] = [`Enviados ${res.sent} cupons.`];
-    if (res.limited) parts.push('Chegou ao limite de 80 por dia: o resto segue amanhã.');
-    if (res.invalid) parts.push(`${res.invalid} com CNPJ ou data inválidos (corrija no cupom).`);
-    if (res.failed) parts.push(`${res.failed} não foram por erro${res.error ? `: ${res.error}` : ''}. Tente de novo.`);
-    setShareMsg(parts.join(' '));
-    setShareBad(!!(res.failed || (res.sent === 0 && (res.invalid || res.limited))));
-  };
 
   if (!cloud.ready) {
     return <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 text-luxury-gold animate-spin" /></div>;
@@ -184,12 +169,9 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
       </div>
 
       <div className="p-5 md:p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] md:rounded-[2.5rem] space-y-8">
-        <div className="flex items-start justify-between gap-5">
-          <div>
-            <div className="text-sm text-white font-bold flex items-center gap-2"><Share2 className="w-4 h-4 text-luxury-gold" /> Compartilhar preços</div>
-            <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Ao escanear um cupom, loja, produto, preço, unidade e dia entram no cadastro comum. Sem seu nome, sem o total da compra e sem o cupom em si. Desligado: você também deixa de ver sugestões de preço menor.</p>
-          </div>
-          <Switch on={!!p?.share_prices} onChange={v => change({ share_prices: v })} label="Compartilhar preços" disabled={!p} />
+        <div>
+          <div className="text-sm text-white font-bold flex items-center gap-2"><Share2 className="w-4 h-4 text-luxury-gold" /> Preços compartilhados</div>
+          <p className="text-xs text-zinc-500 mt-2 leading-relaxed" data-testid="share-info">Cada compra que você registra envia sozinha, de forma anônima, loja, produto, preço, unidade e dia para o cadastro comum, e é assim que todos veem onde está mais barato. Sem seu nome, sem o total da compra e sem o cupom em si.</p>
         </div>
 
         <div className="flex items-start justify-between gap-5 pt-8 border-t border-white/5">
@@ -213,27 +195,10 @@ const CloudAccountPanel: React.FC<Props> = ({ cloud, backup, onOpenAlerts }) => 
 
         {saveErr && <div className="px-5 py-4 rounded-xl bg-red-950/20 border border-red-900/30 text-red-300 text-xs">{saveErr}</div>}
 
-        {p?.share_prices && (
-          <div className="pt-8 border-t border-white/5">
-            <div className="text-sm text-white font-bold flex items-center gap-2"><Send className="w-4 h-4 text-luxury-gold" /> Compras recentes</div>
-            <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
-              {pending > 0
-                ? `${pending} cupom${pending > 1 ? 's' : ''} dos últimos 90 dias ainda não ${pending > 1 ? 'foram enviados' : 'foi enviado'} ao cadastro comum.`
-                : (blocked.length ? 'Tudo o que pode ser enviado já foi enviado.' : 'Tudo o que você escaneou nos últimos 90 dias já foi enviado.')}
-            </p>
-            {pending > 0 && (
-              <button onClick={runShare} disabled={!!progress}
-                className="mt-4 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.08em] hover:border-luxury-gold/40 transition-all disabled:opacity-60">
-                {progress ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando {progress.done}/{progress.total}</> : <><Send className="w-4 h-4 text-luxury-gold" /> Enviar agora</>}
-              </button>
-            )}
-            {blocked.length > 0 && (
-              <p className="text-xs text-amber-500 mt-3 leading-relaxed" data-testid="share-blocked">
-                {blocked.length} cupom{blocked.length > 1 ? 's' : ''} {blocked.length > 1 ? 'têm' : 'tem'} CNPJ ou data inválidos e não {blocked.length > 1 ? 'podem' : 'pode'} ser enviado{blocked.length > 1 ? 's' : ''}. Abra o cupom, corrija o CNPJ e ele entra na fila.
-              </p>
-            )}
-            {shareMsg && <p className={`text-xs mt-3 leading-relaxed ${shareBad ? 'text-amber-500' : 'text-emerald-500'}`}>{shareMsg}</p>}
-          </div>
+        {blocked.length > 0 && (
+          <p className="text-xs text-amber-500 pt-2 leading-relaxed" data-testid="share-blocked">
+            {blocked.length} cupom{blocked.length > 1 ? 's' : ''} {blocked.length > 1 ? 'têm' : 'tem'} CNPJ ou data inválidos e não {blocked.length > 1 ? 'entram' : 'entra'} nos preços compartilhados. Abra o cupom e corrija o CNPJ.
+          </p>
         )}
       </div>
 

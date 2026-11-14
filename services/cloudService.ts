@@ -247,6 +247,13 @@ export const produceQualityAdminByStore = async (cnpj: string, days = 90): Promi
   return (rows || []).map(r => ({ ...r, avg_score: num(r.avg_score), n: num(r.n) }));
 };
 
+/* Leituras de preço de todos os usuários num raio (anônimas: loja, produto, preço, unidade, dia). Base do comparativo entre lojas. */
+export interface SharedRow { master_product_id: string; description: string; category: string; unit_type: string; ean: string | null; establishment_id: string; cnpj: string; store_name: string; store_type: string | null; distance_km: number; unit_price: number; observed_on: string }
+export const sharedObservations = async (c: Coords, radiusKm = 30, days = 400): Promise<SharedRow[]> => {
+  const rows = await rpc<any[]>('shared_price_observations', { p_lat: c.lat, p_lng: c.lng, p_radius_km: radiusKm, p_days: days, p_limit: 20000 });
+  return (rows || []).map(r => ({ ...r, unit_price: num(r.unit_price), distance_km: num(r.distance_km), ean: r.ean || null }));
+};
+
 export const getCurrentPosition = (): Promise<Coords> =>
   new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
