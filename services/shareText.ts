@@ -21,6 +21,8 @@ export const shareText = async (text: string, title = 'Eu Kasconta'): Promise<'s
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 const num = (v: number) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 const br = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '');
+/** "MELHORADOR PAO MACIO" → "Melhorador pao macio" (minúsculas, só a primeira letra maiúscula). */
+export const sentenceCase = (t: string): string => { const l = String(t || '').trim().replace(/\s+/g, ' ').toLowerCase(); return l.charAt(0).toUpperCase() + l.slice(1); };
 const qtyTxt = (q: number) => String(Math.round(q * 1000) / 1000).replace('.', ',');
 
 /** Cupom em texto para o WhatsApp (negrito com *…*). */
@@ -29,7 +31,7 @@ export const receiptToWhatsApp = (r: Receipt): string => {
   (r.items || []).forEach(i => {
     const q = Number(i.quantity) || 1;
     const u = String(i.unitType || 'un').toLowerCase();
-    lines.push(`• ${i.description} — ${qtyTxt(q)} ${u} × ${num(Number(i.unitPrice) || 0)} = ${num(Number(i.totalPrice) || 0)}`);
+    lines.push(`${sentenceCase(i.description)} — ${qtyTxt(q)} ${u} × ${num(Number(i.unitPrice) || 0)} = ${num(Number(i.totalPrice) || 0)}`);
   });
   lines.push('', `*Total ${brl(Number(r.totalAmount) || 0)}*`);
   return lines.join('\n');
@@ -37,7 +39,7 @@ export const receiptToWhatsApp = (r: Receipt): string => {
 
 export interface ShareSection { title: string; items: { name: string; qty: string; price: number; cost: number; cart: boolean }[] }
 
-/** Lista de compras em texto: ⬜ para comprar, ✅ já no carrinho (o WhatsApp não tem caixinha de marcar, então vai o emoji). */
+/** Lista de compras em texto, uma linha por item (sem caixinha: o WhatsApp não marca). */
 export const shoppingListToWhatsApp = (name: string, groups: { label: string; total: number; sections: ShareSection[] }[], total: number): string => {
   const out: string[] = [`🛒 *${name}*`];
   if (total > 0) out.push(`Total estimado: *${brl(total)}*`);
@@ -45,7 +47,7 @@ export const shoppingListToWhatsApp = (name: string, groups: { label: string; to
     out.push('', `*${g.label}*${g.total > 0 ? ` · ${brl(g.total)}` : ''}`);
     g.sections.forEach(s => {
       out.push(`_${s.title}_`);
-      s.items.forEach(it => out.push(`${it.cart ? '✅' : '⬜'} ${it.name} — ${it.qty}${it.price > 0 ? ` · ${brl(it.cost)}` : ''}`));
+      s.items.forEach(it => out.push(`${sentenceCase(it.name)} — ${it.qty}${it.price > 0 ? ` · ${brl(it.cost)}` : ''}`));
     });
   });
   return out.join('\n');
