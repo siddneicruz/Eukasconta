@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { Receipt } from '../types';
 import {
-  DeptFilter, NO_DEPT_FILTER, buildDeptOptions, deptState, includedLeaves, indexOptions, isDeptFilterActive, toggleNodeSel,
+  DeptFilter, NO_DEPT_FILTER, buildDeptOptions, deptState, includedLeaves, indexOptions, isDeptFilterActive,
 } from '../services/deptFilter';
 
-/* Retângulos de departamento logo abaixo do período: um toque mostra só aquele departamento (vários podem ficar ligados).
+/* Retângulos de departamento logo abaixo do período: um toque mostra só aquele departamento; ligar outro desliga o anterior.
    É o mesmo filtro de categorias do Início, então o que se escolhe aqui vale lá e vice-versa. "Todos" limpa. */
 
 const DeptChipsBar: React.FC<{ receipts: Receipt[]; filter: DeptFilter; onChange: (f: DeptFilter) => void }> = ({ receipts, filter, onChange }) => {
@@ -16,9 +16,9 @@ const DeptChipsBar: React.FC<{ receipts: Receipt[]; filter: DeptFilter; onChange
   if (depts.length < 2) return null;
 
   const tap = (key: string) => {
-    if (!active) onChange({ mode: 'only', keys: [key] });
-    else if (filter.mode === 'only' && filter.keys.length === 1 && filter.keys[0] === key) onChange(NO_DEPT_FILTER); // desligou o último: volta para "Todos"
-    else onChange(toggleNodeSel(filter, idx, key));
+    // um de cada vez: tocar num departamento desliga o outro; tocar de novo no ligado volta para "Todos"
+    if (active && filter.mode === 'only' && filter.keys.length === 1 && filter.keys[0] === key) onChange(NO_DEPT_FILTER);
+    else onChange({ mode: 'only', keys: [key] });
   };
   const base = 'shrink-0 h-8 px-3 rounded-lg border text-[12px] font-semibold whitespace-nowrap transition-colors';
   return (
