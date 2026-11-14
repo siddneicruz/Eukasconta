@@ -11,7 +11,9 @@ export const MIN_DAY_OBS = 3;      // compras (item+dia) numa mesma semana-dia p
 
 export interface StoreScore { id: string; cnpj: string; name: string; index: number | null; items: number; days: number }
 export const MAX_STORES_PER_ITEM = 5;
-export interface ItemRow { item: string; label: string; ean: string; unit: string; all: { id: string; name: string; price: number; n: number }[]; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
+/** Preço de um item numa loja: o último preço lido (e quando) e a média de todo o histórico. */
+export interface ItemCell { id: string; name: string; last: number; date: string; mean: number; n: number }
+export interface ItemRow { cells: ItemCell[]; item: string; label: string; ean: string; unit: string; all: { id: string; name: string; price: number; n: number }[]; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
 export interface WeekdayCell { wd: number; index: number; n: number }
 export interface StoreWeekdays { id: string; name: string; cells: WeekdayCell[]; best: WeekdayCell | null; worst: WeekdayCell | null; obs: number }
 export interface ProduceCompare {
@@ -55,6 +57,9 @@ export const buildProduceCompare = (receipts: Parameters<typeof deptObservations
     const a = m.get(d.store) || []; a.push(d.price); m.set(d.store, a); byItemStore.set(d.item, m);
   });
 
+  // último preço lido de cada item em cada loja (a média do dia mais recente)
+  const lastBy = new Map<string, { date: string; price: number }>();
+  days.forEach(d => { const k = `${d.item}|${d.store}`; const c = lastBy.get(k); if (!c || d.date > c.date) lastBy.set(k, { date: d.date, price: d.price }); });
   // por item: mais barato x mais caro entre mercados
   const items: ItemRow[] = [];
   const idx = new Map<string, number[]>();   // loja -> índices dos itens em comum
@@ -64,7 +69,7 @@ export const buildProduceCompare = (receipts: Parameters<typeof deptObservations
     const ref = mean(avgs.map(a => a.price));
     avgs.forEach(a => { const l = idx.get(a.id) || []; l.push(a.price / ref - 1); idx.set(a.id, l); });
     const lo = avgs[0], hi = avgs[avgs.length - 1];
-    items.push({ item, label: labelOf(item), ean: eanOfItem.get(item) || '', unit: unitOf.get(item) || '', all: avgs.slice(0, MAX_STORES_PER_ITEM).map(a => ({ id: a.id, name: a.name, price: a.price, n: a.n })), cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
+    items.push({ cells: avgs.map(a => ({ id: a.id, name: a.name, mean: a.price, n: a.n, last: lastBy.get(`${item}|${a.id}`)!.price, date: lastBy.get(`${item}|${a.id}`)!.date })), item, label: labelOf(item), ean: eanOfItem.get(item) || '', unit: unitOf.get(item) || '', all: avgs.slice(0, MAX_STORES_PER_ITEM).map(a => ({ id: a.id, name: a.name, price: a.price, n: a.n })), cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
   });
   items.sort((a, b) => b.n - a.n || b.spread - a.spread);
 
@@ -95,4 +100,18 @@ export const buildProduceCompare = (receipts: Parameters<typeof deptObservations
 
   const dates = days.map(d => d.date).sort();
   return { stores, items, weekdays, overall: cellsOf(allAcc), nObs: days.length, nItems: byItemStore.size, firstDate: dates[0] || '', lastDate: dates[dates.length - 1] || '' };
+};
+
+const dayNum = (iso: string) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400000);
+export const ageDays = (iso: string, todayIso: string) => Math.max(0, dayNum(todayIso) - dayNum(iso));
+export interface RankedCell extends ItemCell { age: number }
+/** Ordena as lojas de um item pelo ÚLTIMO preço lido, só entre as que foram lidas dentro da janela (dias).
+    As mais antigas saem da disputa (não são "melhor" nem "pior") e aparecem à parte, com a idade da leitura.
+    Assim uma promoção de meses atrás não segura o 1º lugar. */
+export const rankItem = (r: ItemRow, windowDays: number, todayIso: string) => {
+  const cells: RankedCell[] = r.cells.map(c => ({ ...c, age: ageDays(c.date, todayIso) }));
+  const fresh = cells.filter(c => c.age <= windowDays).sort((a, b) => a.last - b.last);
+  const stale = cells.filter(c => c.age > windowDays).sort((a, b) => a.age - b.age);
+  const spread = fresh.length >= 2 ? fresh[fresh.length - 1].last / fresh[0].last - 1 : 0;
+  return { fresh, stale, spread };
 };

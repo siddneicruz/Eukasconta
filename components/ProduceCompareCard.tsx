@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Receipt } from '../types';
 import * as cloud from '../services/cloudService';
 import { useMasterInfo } from './MasterContext';
-import { buildProduceCompare, WD, MIN_ITEMS_RANK, MIN_DAY_OBS } from '../services/produceCompare';
+import { buildProduceCompare, rankItem, WD, MIN_ITEMS_RANK, MIN_DAY_OBS, MAX_STORES_PER_ITEM } from '../services/produceCompare';
 import { unitLabel } from '../services/productPriceStats';
 
 /* Hortifruti em Análises › Panorama: compara os mercados onde a pessoa compra (preço, nota de qualidade, dia da semana).
@@ -47,11 +47,18 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
     if (storeBy === 'score') l.sort((a, b) => (quality[b.id]?.score ?? -1) - (quality[a.id]?.score ?? -1) || (quality[b.id]?.n ?? 0) - (quality[a.id]?.n ?? 0));
     return l;
   }, [data.stores, storeBy, quality]);
-  const items = useMemo(() => [...data.items].sort(itemBy === 'n' ? (a, b) => b.n - a.n || b.spread - a.spread : (a, b) => b.spread - a.spread || b.n - a.n), [data.items, itemBy]);
+  // só valem para comparar as leituras recentes: o preço de uma loja lido há muito tempo sai da disputa (promoção antiga, preço mudou)
+  const [win, setWin] = useState<number>(() => { try { const v = Number(localStorage.getItem('eukasconta_compare_window')); return [7, 15, 30, 90, 9999].includes(v) ? v : 30; } catch { return 30; } });
+  const pickWin = (v: number) => { setWin(v); try { localStorage.setItem('eukasconta_compare_window', String(v)); } catch { /* sem armazenamento: vale só nesta tela */ } };
+  const todayIso = useMemo(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }, []);
+  const ranked = useMemo(() => data.items.map(r => ({ r, ...rankItem(r, win, todayIso) })), [data.items, win, todayIso]);
+  const items = useMemo(() => ranked.filter(x => x.fresh.length >= 2).sort(itemBy === 'n' ? (a, b) => b.r.n - a.r.n || b.spread - a.spread : (a, b) => b.spread - a.spread || b.r.n - a.r.n), [ranked, itemBy]);
+  const hidden = ranked.length - items.length;
+  const ageTxt = (d: number) => (d === 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`);
 
   if (data.nObs === 0) return null;
-  const ranked = data.stores.filter(s => s.index !== null);
-  const bestPrice = ranked[0];
+  const rankedStores = data.stores.filter(s => s.index !== null);
+  const bestPrice = rankedStores[0];
   const scored = (Object.entries(quality) as [string, Q][]).filter(([, q]) => q.score !== null && q.n >= 5).sort((a, b) => (b[1].score as number) - (a[1].score as number));
   const bestScore = scored[0] ? data.stores.find(s => s.id === scored[0][0]) : undefined;
   const Pill: React.FC<{ on: boolean; onClick: () => void; children: React.ReactNode; tid?: string }> = ({ on, onClick, children, tid }) => (
@@ -122,28 +129,50 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
             <Pill on={itemBy === 'n'} onClick={() => setItemBy('n')}>Mais comprados</Pill>
             <Pill on={itemBy === 'spread'} onClick={() => setItemBy('spread')}>Maior diferença</Pill>
           </div>
-          {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">{dept === 'HORTIFRUTI' || dept === 'TRANSPORTE' ? 'Ainda não há item comprado em duas lojas diferentes.' : 'Ainda não há produto com código de barras (EAN) comprado em duas lojas diferentes.'}</p> : (
+          <div className="flex items-center gap-1.5 mb-1 overflow-x-auto no-scrollbar" role="group" aria-label="Preços lidos até">
+            <span className="text-[11px] text-zinc-500 whitespace-nowrap">Preço lido até</span>
+            {([[7, '7 dias'], [15, '15 dias'], [30, '30 dias'], [90, '90 dias'], [9999, 'Tudo']] as const).map(([v, l]) => (
+              <button key={v} type="button" onClick={() => pickWin(v)} aria-pressed={win === v} data-testid={`pc-win-${v}`}
+                className={`h-7 px-2.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${win === v ? 'bg-luxury-gold/15 border-luxury-gold/40 text-luxury-gold' : 'border-white/10 text-zinc-500'}`}>{l}</button>
+            ))}
+          </div>
+          {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">{win < 9999 ? `Nenhum item com preço lido em duas lojas nos últimos ${win} dias. Aumente o prazo acima.` : dept === 'HORTIFRUTI' || dept === 'TRANSPORTE' ? 'Ainda não há item comprado em duas lojas diferentes.' : 'Ainda não há produto com código de barras (EAN) comprado em duas lojas diferentes.'}</p> : (
             <div className="divide-y divide-white/5">
-              {items.map(r => (
-                <div key={r.item} className="py-2.5" data-testid="pc-item-row">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-200 truncate">{r.label}</p>
-                    <span className="text-[11px] font-mono text-zinc-500 whitespace-nowrap">diferença {pctTxt(r.spread)}</span>
+              {items.map(({ r, fresh, stale, spread }) => {
+                const shown = fresh.slice(0, MAX_STORES_PER_ITEM);
+                const cut = fresh.length > shown.length;
+                return (
+                  <div key={r.item} className="py-2.5" data-testid="pc-item-row">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-zinc-200 truncate">{r.label}</p>
+                      <span className="text-[11px] font-mono text-zinc-500 whitespace-nowrap">diferença {pctTxt(spread)}</span>
+                    </div>
+                    {r.ean && <p className="text-[10px] font-mono text-zinc-500">EAN {r.ean}</p>}
+                    <div className="mt-1 space-y-0.5">
+                      {shown.map((m, i) => {
+                        const last = i === fresh.length - 1;
+                        return (
+                          <p key={m.id} className="text-[11px] font-mono flex justify-between gap-2" style={{ color: i === 0 ? '#34d399' : last ? '#f87171' : undefined }}>
+                            <span className={`truncate ${i === 0 || last ? '' : 'text-zinc-400'}`}>{i + 1}º {m.name}</span>
+                            <span className="whitespace-nowrap">R$ {money(m.last)}<span className="text-zinc-500">/{unitLabel(r.unit)} · {ageTxt(m.age)}</span></span>
+                          </p>
+                        );
+                      })}
+                      {cut && <p className="text-[10px] text-zinc-500">+ {fresh.length - shown.length} {fresh.length - shown.length === 1 ? 'loja' : 'lojas'} mais caras (a mais cara: <span style={{ color: '#f87171' }}>{fresh[fresh.length - 1].name} R$ {money(fresh[fresh.length - 1].last)}</span>)</p>}
+                      {stale.slice(0, 2).map(m => (
+                        <p key={m.id} className="text-[10px] font-mono flex justify-between gap-2 text-zinc-500 opacity-60">
+                          <span className="truncate">fora do prazo · {m.name}</span>
+                          <span className="whitespace-nowrap">R$ {money(m.last)} · {ageTxt(m.age)}</span>
+                        </p>
+                      ))}
+                    </div>
                   </div>
-                  {r.ean && <p className="text-[10px] font-mono text-zinc-500">EAN {r.ean}</p>}
-                  <div className="mt-1 space-y-0.5">
-                    {r.all.map((m, i) => (
-                      <p key={m.id} className="text-[11px] font-mono flex justify-between gap-2" style={{ color: i === 0 ? '#34d399' : i === r.all.length - 1 && r.all.length === r.stores ? '#f87171' : undefined }}>
-                        <span className={`truncate ${i === 0 || (i === r.all.length - 1 && r.all.length === r.stores) ? '' : 'text-zinc-400'}`}>{i + 1}º {m.name}</span>
-                        <span className="whitespace-nowrap">R$ {money(m.price)}<span className="text-zinc-500">/{unitLabel(r.unit)}</span></span>
-                      </p>
-                    ))}
-                    {r.stores > r.all.length && <p className="text-[10px] text-zinc-500">+ {r.stores - r.all.length} {r.stores - r.all.length === 1 ? 'mercado' : 'mercados'} mais caros (o mais caro: <span style={{ color: '#f87171' }}>{r.dear.name} R$ {money(r.dear.price)}</span>)</p>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
+          {hidden > 0 && win < 9999 && items.length > 0 && <p className="text-[10px] text-zinc-500 mt-2">{hidden} {hidden === 1 ? 'item ficou' : 'itens ficaram'} de fora por não ter preço lido em duas lojas nos últimos {win} dias.</p>}
+          <p className="text-[10px] text-zinc-500 mt-2">O preço de cada loja é o último que você pagou, com a idade da leitura. Lojas lidas antes do prazo escolhido saem da disputa (não são o 1º nem o último) e aparecem apagadas.</p>
         </div>
       )}
 
