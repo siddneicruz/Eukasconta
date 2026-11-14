@@ -4,6 +4,7 @@ import { Receipt } from '../types';
 import { unitLabel } from '../services/productPriceStats';
 import { fetchEanInfo, sizeOfName, EanInfo } from '../services/shoppingScan';
 import { MIN_PURCHASES, Quote, buildQuotes, topMovers } from '../services/quotes';
+import { WhereToBuy } from './ProduceQualityBlocks';
 
 /* Painel de cotações no estilo de bolsa: fundo escuro fixo (em qualquer tema), números em fonte monoespaçada, uma linha
    por item com ÚLTIMO e VAR% numa célula colorida. Para quem COMPRA, preço subindo é ruim: vermelho = mais caro,
@@ -299,6 +300,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
                   <div className="px-3 md:px-5 pb-3 space-y-2" data-testid="quote-detail">
                     <ItemHeader q={x} />
                     <BigSpark q={x} />
+                    <WhereToBuy q={x} />
                     <div className={`grid grid-cols-3 gap-2 text-[11px] ${MONO}`}>
                       <div className="rounded-lg bg-[var(--q-fill)] p-2.5"><p className="text-[color:var(--q-t3)]">Último</p><p className="text-[color:var(--q-t1)] font-bold mt-0.5">{num(x.last)}</p><p className="text-[color:var(--q-t3)] truncate">{shortDate(x.lastDate)} · {x.lastStore}</p></div>
                       <div className="rounded-lg bg-[var(--q-fill)] p-2.5"><p className="text-[color:var(--q-t3)]">Médio</p><p className="text-[color:var(--q-t1)] font-bold mt-0.5">{num(x.mean as number)}</p><p className="text-[color:var(--q-t3)]">{x.nBase} compras</p></div>

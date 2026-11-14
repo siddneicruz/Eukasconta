@@ -67,7 +67,11 @@ export interface Quote {
   spark: number[];         // até 12 últimos preços diários
   days: number;            // quantos dias distintos de compra
   stale: boolean;          // última compra há mais de 90 dias
+  lastCnpj: string;        // CNPJ da loja da última compra (resolve o produto na nuvem)
+  stores: QuoteStore[];    // onde a pessoa comprou: último preço por loja (mais barato primeiro)
 }
+
+export interface QuoteStore { cnpj: string; name: string; last: number; lastDate: string; n: number }
 
 // Regra: cotação só com histórico. Abaixo disso o preço de uma compra isolada engana (promoção, erro de leitura).
 export const MARGIN = 0.1;        // margem fixa: até ±10% sobre o preço médio é "normal" (cinza)
@@ -85,7 +89,7 @@ const trimmedMean = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b);
 const pct = (a: number, b: number) => (b > 0 ? (a / b - 1) * 100 : null);
 
 export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().toISOString().slice(0, 10)): Quote[] => {
-  type Obs = { date: string; price: number; store: string };
+  type Obs = { date: string; price: number; store: string; cnpj: string };
   const groups = new Map<string, { name: string; dept: string; unit: string; obs: Obs[]; vars: Map<string, { n: number; code: string }> }>();
   receipts.forEach(r => (r.items || []).forEach(item => {
     const b = priceBasis(item);
@@ -111,7 +115,7 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     if (!g) { g = { name, dept: String(item.category || '').split(' - ')[0].trim() || 'Outros', unit, obs: [], vars: new Map() }; groups.set(key, g); }
     const dk = String(item.description || '').trim().toUpperCase();
     if (dk) { const v = g.vars.get(dk) || { n: 0, code: '' }; v.n += 1; const c = String(item.code || '').replace(/\D/g, ''); if (c.length >= 8 && !v.code) v.code = c; g.vars.set(dk, v); }
-    g.obs.push({ date: r.date, price: b.unitPrice, store: r.establishmentName });
+    g.obs.push({ date: r.date, price: b.unitPrice, store: r.establishmentName, cnpj: String(r.cnpj || '').replace(/\D/g, '') });
   }));
 
   // um mesmo produto vendido em unidades diferentes (kg e un): fica a unidade com mais compras
@@ -129,6 +133,20 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
     g.obs.forEach(o => { const d = byDay.get(o.date) || { sum: 0, n: 0, store: o.store }; d.sum += o.price; d.n += 1; d.store = o.store; byDay.set(o.date, d); });
     const days = [...byDay.entries()].map(([date, v]) => ({ date, price: v.sum / v.n, store: v.store })).sort((a, b) => a.date.localeCompare(b.date));
     const lastD = days[days.length - 1];
+    const lastObs = [...g.obs].sort((a, b) => a.date.localeCompare(b.date)).filter(o => o.date === lastD.date).pop();
+    // último preço por loja (média do dia mais recente em que a loja aparece)
+    const byStore = new Map<string, { name: string; cnpj: string; date: string; sum: number; k: number; n: number }>();
+    g.obs.forEach(o => {
+      const id = o.cnpj || o.store;
+      const c = byStore.get(id);
+      if (!c) byStore.set(id, { name: o.store, cnpj: o.cnpj, date: o.date, sum: o.price, k: 1, n: 1 });
+      else {
+        c.n += 1;
+        if (o.date > c.date) { c.date = o.date; c.sum = o.price; c.k = 1; c.name = o.store; }
+        else if (o.date === c.date) { c.sum += o.price; c.k += 1; }
+      }
+    });
+    const stores: QuoteStore[] = [...byStore.values()].map(c => ({ cnpj: c.cnpj, name: c.name, last: c.sum / c.k, lastDate: c.date, n: c.n })).sort((a, b) => a.last - b.last);
     const prevD = days.length > 1 ? days[days.length - 2] : null;
     const baseDays = days.slice(0, -1).filter(d => t(lastD.date) - t(d.date) <= BASE_DAYS * DAY).slice(-BASE_MAX);
     const ready = days.length >= MIN_PURCHASES && baseDays.length >= MIN_PURCHASES - 1;
@@ -147,6 +165,7 @@ export const buildQuotes = (receipts: Receipt[], todayIso: string = new Date().t
       odd: !!mean && (lastD.price / mean >= 2 || lastD.price / mean <= 0.5),
       spark: days.slice(-12).map(d => d.price), days: days.length,
       stale: (t(todayIso) - t(lastD.date)) > 90 * DAY,
+      lastCnpj: lastObs?.cnpj || '', stores,
     });
   });
   return out;

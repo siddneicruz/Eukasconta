@@ -7,6 +7,7 @@ import { getCategoryColor } from './Dashboard';
 import { deptKey, sameDept, masterOf, properCase } from '../services/textFormat';
 import { priceBasis } from '../services/eggs';
 import { useStoreNames } from './StoreNamesContext';
+import { StoreProduceQuality } from './ProduceQualityBlocks';
 
 interface EstablishmentDetailViewProps {
   establishmentName: string; // 'TODOS' ou Nome Específico
@@ -191,6 +192,8 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
                  </ResponsiveContainer>
              </div>
       </div>
+
+      {!isGlobalView && relevantReceipts.find(r => r.cnpj)?.cnpj && <StoreProduceQuality cnpj={relevantReceipts.find(r => r.cnpj)!.cnpj} />}
 
       <div className="mb-12">
         <div className="flex items-center justify-between mb-6 px-1">

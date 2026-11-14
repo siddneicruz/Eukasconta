@@ -232,6 +232,20 @@ export const produceQuality = async (masterId: string, establishmentIds: string[
   return (rows || []).map(r => ({ establishment_id: r.establishment_id, avg_score: r.avg_score === null ? null : num(r.avg_score), n: num(r.n), locked: !!r.locked, tank: num(r.tank) }));
 };
 
+/* Qualidade sem tanque e sem mínimo de notas: só o administrador (o banco recusa os demais). */
+export interface AdminQualityByProduct { establishment_id: string; cnpj: string; store_name: string; avg_score: number; n: number; last_rated_at: string }
+export interface AdminQualityByStore { master_product_id: string; description: string; unit_type: string; avg_score: number; n: number; last_rated_at: string }
+
+export const produceQualityAdminByProduct = async (masterId: string, days = 90): Promise<AdminQualityByProduct[]> => {
+  const rows = await rpc<any[]>('produce_quality_admin_by_product', { p_master_product_id: masterId, p_days: days });
+  return (rows || []).map(r => ({ ...r, avg_score: num(r.avg_score), n: num(r.n) }));
+};
+
+export const produceQualityAdminByStore = async (cnpj: string, days = 90): Promise<AdminQualityByStore[]> => {
+  const rows = await rpc<any[]>('produce_quality_admin_by_store', { p_cnpj: cleanCNPJ(cnpj), p_days: days });
+  return (rows || []).map(r => ({ ...r, avg_score: num(r.avg_score), n: num(r.n) }));
+};
+
 export const getCurrentPosition = (): Promise<Coords> =>
   new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
