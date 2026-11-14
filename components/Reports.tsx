@@ -956,12 +956,20 @@ const Reports: React.FC<ReportsProps> = ({
           <div className="space-y-6 md:space-y-8">
               {activeSection === 'panorama' && (<>
                   <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
-                  {compareDept && (
-                      <ProduceCompareCard key={compareDept.slug}
-                          receipts={compareDept.slug === 'TRANSPORTE' ? receipts : receipts.filter(r => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj)))}
-                          nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
-                          dept={compareDept.slug} label={compareDept.label} minItems={compareDept.slug === 'TRANSPORTE' ? 1 : 3} />
-                  )}
+                  {(compareDept || panoFilter.keys.length === 0) && (() => {
+                      const slug = compareDept ? compareDept.slug : 'ALL';
+                      const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
+                      const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+                      // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
+                      const base = slug === 'TRANSPORTE' ? receipts
+                          : slug === 'ALL' ? receipts.map(r => (isFood(r) ? r : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
+                          : receipts.filter(isFood);
+                      return (
+                          <ProduceCompareCard key={slug} receipts={base}
+                              nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
+                              dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} />
+                      );
+                  })()}
                   <ReportsPanorama
                       receipts={panoReceipts}
                       config={config}

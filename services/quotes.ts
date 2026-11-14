@@ -194,9 +194,10 @@ const fuelName = (description?: string): string => {
   return 'Gasolina Comum';
 };
 export const deptObservations = (receipts: Receipt[], dept: string): ProduceObs[] => {
-  const want = deptSlug(dept);
+  const all = dept === 'ALL';   // "Todos": cada item segue a regra do seu próprio departamento
   const out: ProduceObs[] = [];
   receipts.forEach(r => (r.items || []).forEach(item => {
+    const want = all ? deptSlug(deptOf(item.category)) : deptSlug(dept);
     if (deptSlug(deptOf(item.category)) !== want) return;
     const b = priceBasis(item);
     if (!(b.unitPrice > 0) || !r.date) return;
