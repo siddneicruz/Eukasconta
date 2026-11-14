@@ -100,6 +100,17 @@ const Reports: React.FC<ReportsProps> = ({
   const [goalId, setGoalId] = useState<string>('');   // o que está sendo auditado: departamento, categoria, grupo ou item
   const [panoFilter, setPanoFilter] = useDeptFilter();
   const panoReceipts = useMemo(() => applyDeptFilter(receipts, panoFilter), [receipts, panoFilter]);
+  // "só <um departamento>" no filtro do Panorama: liga o comparativo entre lojas daquele departamento
+  const compareDept = useMemo(() => {
+    if (panoFilter.mode !== 'only' || panoFilter.keys.length === 0) return null;
+    if (panoFilter.keys.some(k => /^[gio]:/.test(k))) return null;
+    const names = Array.from(new Set(panoFilter.keys.map(k => k.replace(/^c:/, '').split(' - ')[0].trim())));
+    if (names.length !== 1) return null;
+    const plain = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const hit = receipts.flatMap(r => r.items || []).find(i => plain(String(i.category || '').split(' - ')[0]) === plain(names[0]));
+    const label = hit ? String(hit.category).split(' - ')[0].trim() : names[0];
+    return { slug: plain(names[0]), label: label.charAt(0).toUpperCase() + label.slice(1) };
+  }, [panoFilter, receipts]);
   const [activeSection, setActiveSection] = useState<'panorama' | 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog'>(initialSection || 'panorama');
   const [cutSelId, setCutSelId] = useState<string | null>(null);
   const [tempGoalValue, setTempGoalValue] = useState<string>('');
@@ -945,8 +956,11 @@ const Reports: React.FC<ReportsProps> = ({
           <div className="space-y-6 md:space-y-8">
               {activeSection === 'panorama' && (<>
                   <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
-                  {panoFilter.mode === 'only' && panoFilter.keys.length > 0 && panoFilter.keys.every(k => /hortifruti/.test(k)) && (
-                      <ProduceCompareCard receipts={receipts.filter(r => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj)))} nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)} />
+                  {compareDept && (
+                      <ProduceCompareCard key={compareDept.slug}
+                          receipts={compareDept.slug === 'TRANSPORTE' ? receipts : receipts.filter(r => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj)))}
+                          nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
+                          dept={compareDept.slug} label={compareDept.label} minItems={compareDept.slug === 'TRANSPORTE' ? 1 : 3} />
                   )}
                   <ReportsPanorama
                       receipts={panoReceipts}

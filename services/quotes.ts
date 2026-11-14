@@ -176,19 +176,28 @@ export const topMovers = (qs: Quote[], n = 12): Quote[] =>
   qs.filter(q => q.ready && q.chg !== null && !q.stale && !q.odd && q.zone !== 'normal' && Math.abs(q.chg) >= 0.5)
     .sort((a, b) => Math.abs(b.chg as number) - Math.abs(a.chg as number)).slice(0, n);
 
-/** Cada compra de hortifruti como uma observação (item, unidade, dia, preço por unidade de medida, loja). Usa os mesmos nomes de item da Cotações. */
+/** Cada compra de um departamento como uma observação (item, unidade, dia, preço por unidade de medida, loja).
+    Hortifruti e Açougue usam os mesmos nomes de item da Cotações; os demais departamentos usam o código de barras (ou a descrição do cupom). */
 export interface ProduceObs { item: string; unit: string; date: string; price: number; store: string; cnpj: string }
-export const produceObservations = (receipts: Receipt[]): ProduceObs[] => {
+export const deptObservations = (receipts: Receipt[], dept: string): ProduceObs[] => {
+  const want = deptSlug(dept);
   const out: ProduceObs[] = [];
   receipts.forEach(r => (r.items || []).forEach(item => {
-    if (deptSlug(deptOf(item.category)) !== 'HORTIFRUTI') return;
+    if (deptSlug(deptOf(item.category)) !== want) return;
     const b = priceBasis(item);
     if (!(b.unitPrice > 0) || !r.date) return;
-    let name = detailName(item);
-    if (!name) return;
-    const v = varietyOf(item.description, name);
-    if (v) name = v;
+    let name: string;
+    if (FRESH_DEPTS.has(want)) {
+      name = detailName(item);
+      if (!name) return;
+      if (want === 'HORTIFRUTI') { const v = varietyOf(item.description, name); if (v) name = v; }
+    } else {
+      const own = cleanDescriptionForMatching(item.description || '').split(' ').filter(w => w.length > 0).slice(0, 6).join(' ');
+      if (!own) return;
+      name = own;
+    }
     out.push({ item: titleCase(name), unit: normalizeUnit(b.unitType), date: r.date, price: b.unitPrice, store: r.establishmentName, cnpj: String(r.cnpj || '').replace(/\D/g, '') });
   }));
   return out;
 };
+export const produceObservations = (receipts: Receipt[]): ProduceObs[] => deptObservations(receipts, 'HORTIFRUTI');

@@ -17,9 +17,10 @@ const short = (iso: string) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}/$
 type Tab = 'stores' | 'items' | 'days';
 type Q = { score: number | null; n: number; last: string | null };
 
-const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string, cnpj: string) => string }> = ({ receipts, nameOf }) => {
-  const { isAdmin } = useMasterInfo();
-  const data = useMemo(() => buildProduceCompare(receipts, nameOf), [receipts, nameOf]);
+const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string, cnpj: string) => string; dept?: string; label?: string; minItems?: number }> = ({ receipts, nameOf, dept = 'HORTIFRUTI', label = 'Hortifruti', minItems = MIN_ITEMS_RANK }) => {
+  const { isAdmin: admin } = useMasterInfo();
+  const isAdmin = admin && dept === 'HORTIFRUTI';   // a nota de qualidade só existe para hortifruti
+  const data = useMemo(() => buildProduceCompare(receipts, nameOf, dept, minItems), [receipts, nameOf, dept, minItems]);
   const [tab, setTab] = useState<Tab>('stores');
   const [storeBy, setStoreBy] = useState<'price' | 'score'>('price');
   const [itemBy, setItemBy] = useState<'n' | 'spread'>('n');
@@ -60,26 +61,26 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
 
   return (
     <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="produce-compare">
-      <h3 className="text-[12px] font-semibold text-zinc-300 px-0.5">Hortifruti · comparativo entre mercados</h3>
-      <p className="text-[11px] text-zinc-500 px-0.5 mt-0.5">{data.nItems} itens · {data.stores.length} mercados · compras de {short(data.firstDate)} a {short(data.lastDate)} (todo o histórico)</p>
+      <h3 className="text-[12px] font-semibold text-zinc-300 px-0.5">{label} · comparativo entre lojas</h3>
+      <p className="text-[11px] text-zinc-500 px-0.5 mt-0.5">{data.nItems} itens · {data.stores.length} lojas · compras de {short(data.firstDate)} a {short(data.lastDate)} (todo o histórico)</p>
 
       {(bestPrice || bestScore) && (
-        <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className={`grid ${dept === 'HORTIFRUTI' ? 'grid-cols-2' : 'grid-cols-1'} gap-2 mt-3`}>
           <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5">
             <p className="text-[10px] tracking-[0.1em] text-zinc-500 font-bold">MELHOR PREÇO</p>
             <p className="text-sm font-bold text-white truncate">{bestPrice ? bestPrice.name : '—'}</p>
             {bestPrice && <p className="text-[11px] font-mono" style={{ color: idxColor(bestPrice.index as number) }}>{pctTxt(bestPrice.index as number)} da média</p>}
           </div>
-          <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5">
+          {dept === 'HORTIFRUTI' && <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5">
             <p className="text-[10px] tracking-[0.1em] text-zinc-500 font-bold">MELHOR NOTA</p>
             <p className="text-sm font-bold text-white truncate">{bestScore ? bestScore.name : '—'}</p>
             <p className="text-[11px] font-mono text-zinc-500">{bestScore ? `★ ${String(quality[bestScore.id].score).replace('.', ',')} · ${quality[bestScore.id].n} votos` : isAdmin ? 'precisa de 5 votos' : 'em breve'}</p>
-          </div>
+          </div>}
         </div>
       )}
 
       <div className="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar">
-        <Pill on={tab === 'stores'} onClick={() => setTab('stores')} tid="pc-tab-stores">Mercados</Pill>
+        <Pill on={tab === 'stores'} onClick={() => setTab('stores')} tid="pc-tab-stores">Lojas</Pill>
         <Pill on={tab === 'items'} onClick={() => setTab('items')} tid="pc-tab-items">Item a item</Pill>
         <Pill on={tab === 'days'} onClick={() => setTab('days')} tid="pc-tab-days">Dia da semana</Pill>
       </div>
@@ -111,7 +112,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
               );
             })}
           </div>
-          <p className="text-[10px] text-zinc-500 mt-2">Preço = quanto o mercado fica acima (+) ou abaixo (−) da média dos mercados nos itens que você comprou em mais de um (mínimo {MIN_ITEMS_RANK} itens).{!isAdmin && ' Nota de qualidade por mercado: em breve para todos.'}</p>
+          <p className="text-[10px] text-zinc-500 mt-2">Preço = quanto a loja fica acima (+) ou abaixo (−) da média das lojas nos itens que você comprou em mais de uma (mínimo {minItems} {minItems === 1 ? 'item' : 'itens'}).{dept === 'HORTIFRUTI' && !isAdmin && ' Nota de qualidade por mercado: em breve para todos.'}</p>
         </div>
       )}
 
@@ -121,7 +122,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
             <Pill on={itemBy === 'n'} onClick={() => setItemBy('n')}>Mais comprados</Pill>
             <Pill on={itemBy === 'spread'} onClick={() => setItemBy('spread')}>Maior diferença</Pill>
           </div>
-          {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">Ainda não há item comprado em dois mercados diferentes.</p> : (
+          {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">Ainda não há item comprado em duas lojas diferentes.</p> : (
             <div className="divide-y divide-white/5">
               {items.map(r => (
                 <div key={r.item} className="py-2.5" data-testid="pc-item-row">
@@ -147,7 +148,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
 
       {tab === 'days' && (
         <div className="mt-3 space-y-3">
-          {[{ id: 'all', name: 'Todos os mercados', cells: data.overall, best: null as any, worst: null as any, obs: 0 }, ...data.weekdays].map(w => {
+          {[{ id: 'all', name: 'Todas as lojas', cells: data.overall, best: null as any, worst: null as any, obs: 0 }, ...data.weekdays].map(w => {
             const ok = w.cells.filter(c => c.n >= MIN_DAY_OBS);
             const sorted = [...ok].sort((a, b) => a.index - b.index);
             const best = sorted.length >= 2 ? sorted[0] : null; const worst = sorted.length >= 2 ? sorted[sorted.length - 1] : null;

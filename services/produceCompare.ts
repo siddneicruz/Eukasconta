@@ -1,4 +1,4 @@
-import { produceObservations, ProduceObs } from './quotes';
+import { deptObservations, ProduceObs } from './quotes';
 
 /* Comparativo de mercados no Hortifruti, feito só com os cupons da pessoa (todo o histórico, não só o período da tela).
    Para comparar mercados sem favorecer quem vende só o item caro, cada preço vira um ÍNDICE: o preço do mercado dividido
@@ -22,8 +22,8 @@ export interface ProduceCompare {
 const wdOf = (iso: string) => new Date(`${iso}T12:00:00`).getDay();
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-export const buildProduceCompare = (receipts: Parameters<typeof produceObservations>[0], nameOf: (name: string, cnpj: string) => string): ProduceCompare => {
-  const obs = produceObservations(receipts);
+export const buildProduceCompare = (receipts: Parameters<typeof deptObservations>[0], nameOf: (name: string, cnpj: string) => string, dept = 'HORTIFRUTI', minItems = MIN_ITEMS_RANK): ProduceCompare => {
+  const obs = deptObservations(receipts, dept);
   const sid = (o: ProduceObs) => o.cnpj || o.store;
   const names = new Map<string, string>(); const cnpjs = new Map<string, string>();
   
@@ -68,7 +68,7 @@ export const buildProduceCompare = (receipts: Parameters<typeof produceObservati
   days.forEach(d => { (dayCount.get(d.store) || dayCount.set(d.store, new Set()).get(d.store)!).add(d.date); (itemCount.get(d.store) || itemCount.set(d.store, new Set()).get(d.store)!).add(d.item); });
   const stores: StoreScore[] = [...names.keys()].map(id => {
     const l = idx.get(id) || [];
-    return { id, cnpj: cnpjs.get(id) || '', name: names.get(id) || id, index: l.length >= MIN_ITEMS_RANK ? mean(l) : null, items: l.length, days: dayCount.get(id)?.size || 0 };
+    return { id, cnpj: cnpjs.get(id) || '', name: names.get(id) || id, index: l.length >= minItems ? mean(l) : null, items: l.length, days: dayCount.get(id)?.size || 0 };
   }).sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity) || b.days - a.days);
 
   // dia da semana: preço do dia dividido pela média do mesmo item na mesma loja (tira o efeito de "loja cara" e de "item caro")
