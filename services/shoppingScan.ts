@@ -51,6 +51,25 @@ export const fetchEanInfo = async (code: string): Promise<EanInfo | null> => {
 const stripKey = (c: string) => String(c || '').replace(/\D/g, '');
 const same = (a: string, b: string) => { const x = stripKey(a), y = stripKey(b); return !!x && !!y && (x === y || x.replace(/^0+/, '') === y.replace(/^0+/, '')); };
 
+const normTok = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z]+/).filter(w => w.length >= 3 && !['com', 'cob', 'cobertura', 'sem', 'para', 'tipo'].includes(w));
+
+/** Item sem categoria (veio do catálogo de EAN): herda o departamento do produto mais parecido que você já comprou
+ *  (precisa dividir pelo menos 2 palavras do nome, ex.: "pão de mel Bauducco" ↔ "PAO MEL BAUDUCCO 180G"). */
+const inheritDept = (name: string, prods: Iterable<Product>): { dept: string; category: string } | null => {
+  const a = new Set(normTok(name));
+  if (a.size < 2) return null;
+  let best: { dept: string; category: string } | null = null, bestScore = 0;
+  for (const p of prods) {
+    if (!p.dept || p.dept === 'Outros') continue;
+    const b = new Set(normTok(p.name));
+    let shared = 0; a.forEach(w => { if (b.has(w)) shared++; });
+    if (shared < 2) continue;
+    const score = shared / (a.size + b.size - shared);
+    if (score > bestScore) { bestScore = score; best = { dept: p.dept, category: p.category }; }
+  }
+  return bestScore >= 0.3 ? best : null;
+};
+
 export const resolveBarcode = (code: string, ctx: { masters: MasterProduct[]; master: MasterData | null; receipts: Receipt[]; history: History }): ScanHit[] => {
   const out: ScanHit[] = [];
   const keyer = makeKeyer(ctx.masters);
@@ -73,8 +92,13 @@ export const resolveBarcode = (code: string, ctx: { masters: MasterProduct[]; ma
     const extra = { brand: brandOf.get(c.code) || '', size: sizeOfName(p?.name || c.desc) };
     return p ? { ...fromProduct(p, 'tabela'), ...extra } : { ...extra, code, pid: `M:${c.code}`, name: c.desc, unit: c.unit, dept: (c.category || '').split(' - ')[0] || 'Outros', category: c.category, price: 0, priceDate: '', store: '', source: 'tabela' };
   };
-  if (!learnedName && list.length > 1) { out.push(...list.map(toHit)); return out; }
-  if (!learnedName && list.length === 1) return [toHit(list[0])];
+  const withDept = (h: ScanHit): ScanHit => {
+    if (h.dept && h.dept !== 'Outros') return h;
+    const g = inheritDept(h.name, prods.values());
+    return g ? { ...h, dept: g.dept, category: h.category || g.category } : h;
+  };
+  if (!learnedName && list.length > 1) { out.push(...list.map(toHit).map(withDept)); return out; }
+  if (!learnedName && list.length === 1) return [withDept(toHit(list[0]))];
   // 2. cupom que trouxe esse código (XML ou cupom impresso)
   for (const r of ctx.receipts) {
     for (const it of r.items || []) {
@@ -91,7 +115,7 @@ export const resolveBarcode = (code: string, ctx: { masters: MasterProduct[]; ma
     const k = keyer(nm);
     const p = k ? prods.get(k.pid) : undefined;
     if (p) return [fromProduct(p, 'aprendido')];
-    return [{ code, pid: `U:${nm.toUpperCase()}`, name: nm, unit: 'UN', dept: 'Outros', category: '', price: 0, priceDate: '', store: '', source: 'aprendido' }];
+    return [withDept({ code, pid: `U:${nm.toUpperCase()}`, name: nm, unit: 'UN', dept: 'Outros', category: '', price: 0, priceDate: '', store: '', source: 'aprendido' })];
   }
   return [];
 };

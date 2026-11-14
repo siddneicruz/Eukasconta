@@ -49,5 +49,6 @@ export const shoppingListToWhatsApp = (name: string, groups: { label: string; to
       blocks.push([`_${s.title}_`, ...s.items.map(it => `${sentenceCase(it.name)} — ${it.qty}`)].join('\n'));
     });
   });
-  return blocks.join('\n\n');
+  // Apps de notas descartam linha vazia: o separador leva um caractere invisível (braille em branco) para a linha existir.
+  return blocks.join('\n\u2800\n');
 };
