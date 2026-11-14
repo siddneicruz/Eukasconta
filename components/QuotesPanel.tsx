@@ -151,6 +151,7 @@ export const QuotesTicker: React.FC<{ receipts: Receipt[]; onOpen?: () => void }
 };
 
 type Sort = 'mov' | 'up' | 'down' | 'freq';
+type ColKey = 'name' | 'last' | 'chg';
 const SORTS: { id: Sort; label: string }[] = [
   { id: 'mov', label: 'Maiores variações' }, { id: 'up', label: 'Altas' }, { id: 'down', label: 'Quedas' }, { id: 'freq', label: 'Mais comprados' },
 ];
@@ -159,6 +160,9 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
   const all = useMemo(() => buildQuotes(receipts), [receipts]);
   const [dept, setDept] = useState('');
   const [sort, setSort] = useState<Sort>('mov');
+  // Ordenação por coluna (toca no cabeçalho): nome, valor (último R$) ou percentual (VAR). Toque repetido inverte.
+  const [col, setCol] = useState<{ key: ColKey; dir: 'asc' | 'desc' } | null>(null);
+  const toggleCol = (key: ColKey) => setCol(cur => cur?.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'name' ? 'asc' : 'desc' });
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const [showBuilding, setShowBuilding] = useState(false);
@@ -177,12 +181,19 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
   const ready = useMemo(() => {
     const c = (x: Quote) => x.chg ?? 0;
     let list = matches.filter(x => x.ready);
-    if (sort === 'up') list = list.filter(x => x.zone === 'above').sort((a, b) => c(b) - c(a));
+    if (col) {
+      const f = col.dir === 'asc' ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        const d = col.key === 'name' ? a.name.localeCompare(b.name, 'pt-BR') : col.key === 'last' ? a.last - b.last : c(a) - c(b);
+        return f * d || a.name.localeCompare(b.name, 'pt-BR');
+      });
+    }
+    else if (sort === 'up') list = list.filter(x => x.zone === 'above').sort((a, b) => c(b) - c(a));
     else if (sort === 'down') list = list.filter(x => x.zone === 'below').sort((a, b) => c(a) - c(b));
     else if (sort === 'freq') list = [...list].sort((a, b) => b.days - a.days || a.name.localeCompare(b.name));
     else list = [...list].sort((a, b) => Math.abs(c(b)) - Math.abs(c(a)) || b.days - a.days);
     return list.slice(0, 100);
-  }, [matches, sort]);
+  }, [matches, sort, col]);
   const building = useMemo(() => matches.filter(x => !x.ready).sort((a, b) => b.days - a.days || a.name.localeCompare(b.name)), [matches]);
 
   const live = all.filter(x => x.ready && !x.stale);
@@ -247,15 +258,24 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
         </div>
         <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" role="group" aria-label="Ordenar">
           {SORTS.map(s => (
-            <button key={s.id} type="button" onClick={() => setSort(s.id)} aria-pressed={sort === s.id} data-testid={`quotes-sort-${s.id}`}
-              className={`shrink-0 h-7 px-2.5 rounded-md text-[11px] font-semibold ${sort === s.id ? 'text-[color:var(--q-gold)] bg-[var(--q-gold-bg)] border border-[color:var(--q-gold-bd)]' : 'text-[color:var(--q-t3)] border border-transparent'}`}>{s.label}</button>
+            <button key={s.id} type="button" onClick={() => { setSort(s.id); setCol(null); }} aria-pressed={!col && sort === s.id} data-testid={`quotes-sort-${s.id}`}
+              className={`shrink-0 h-7 px-2.5 rounded-md text-[11px] font-semibold ${!col && sort === s.id ? 'text-[color:var(--q-gold)] bg-[var(--q-gold-bg)] border border-[color:var(--q-gold-bd)]' : 'text-[color:var(--q-t3)] border border-transparent'}`}>{s.label}</button>
           ))}
         </div>
       </div>
 
       <div className="rounded-2xl bg-[var(--q-bg)] border border-[color:var(--q-bd)] shadow-xl overflow-hidden" data-testid="quotes-list">
         <div className={`grid grid-cols-[1fr_80px_82px] gap-2 px-3 md:px-5 py-2 text-[10px] font-bold tracking-[0.12em] text-[color:var(--q-t3)] bg-[var(--q-hd)] border-b border-[color:var(--q-bd)]`}>
-          <span>ITEM</span><span className="text-right">ÚLTIMO R$</span><span className="text-right">VAR</span>
+          {([['name', 'ITEM', 'text-left'], ['last', 'ÚLTIMO R$', 'text-right'], ['chg', 'VAR', 'text-right']] as [ColKey, string, string][]).map(([k, label, al]) => {
+            const on = col?.key === k;
+            return (
+              <button key={k} type="button" onClick={() => toggleCol(k)} data-testid={`quotes-col-${k}`}
+                aria-label={`Ordenar por ${label}`} aria-sort={on ? (col!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                className={`${al} tracking-[0.12em] font-bold ${on ? 'text-[color:var(--q-gold)]' : ''}`}>
+                {label}{on ? (col!.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+              </button>
+            );
+          })}
         </div>
         {ready.length === 0 && <p className="text-sm text-[color:var(--q-t3)] py-8 text-center px-4">Nenhum item com {MIN_PURCHASES} compras ou mais nesse filtro.</p>}
         <div className="divide-y divide-[color:var(--q-bd)]">
