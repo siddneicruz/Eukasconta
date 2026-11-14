@@ -130,7 +130,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   if (data.nObs === 0) return null;
   const rankedStores = data.stores.filter(s => s.index !== null);
   const bestPrice = rankedStores[0];
-  const scored = (Object.entries(quality) as [string, Q][]).filter(([, q]) => q.score !== null && q.n >= 5).sort((a, b) => (b[1].score as number) - (a[1].score as number));
+  const scored = (Object.entries(quality) as [string, Q][]).filter(([, q]) => q.score !== null && q.n >= 1).sort((a, b) => (b[1].score as number) - (a[1].score as number));
   const bestScore = scored[0] ? data.stores.find(s => s.id === scored[0][0]) : undefined;
   const Pill: React.FC<{ on: boolean; onClick: () => void; children: React.ReactNode; tid?: string }> = ({ on, onClick, children, tid }) => (
     <button type="button" onClick={onClick} aria-pressed={on} data-testid={tid}
@@ -189,8 +189,8 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                     {s.index !== null
                       ? <span className="block text-sm font-bold font-mono" style={{ color: idxColor(s.index) }}>{pctTxt(s.index)}</span>
                       : <span className="block text-[11px] text-zinc-500">poucos itens p/ comparar</span>}
-                    {q && q.n > 0 && (q.score !== null && q.n >= 5
-                      ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}>★ {String(q.score).replace('.', ',')} <span className="text-zinc-500">· {q.n} votos{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
+                    {q && q.n > 0 && (q.score !== null
+                      ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}>★ {String(q.score).replace('.', ',')} <span className="text-zinc-500">· {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.n < 5 ? ' (poucos)' : ''}{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
                       : <span className="block text-[10px] font-mono text-zinc-500">{q.n} {q.n === 1 ? 'voto' : 'votos'} (poucos)</span>)}
                   </div>
                 </div>
@@ -247,7 +247,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                             {qOn && r.mids.length > 0 && (
                               <p className="text-[10px] font-mono text-right" data-testid="pc-item-quality">
                                 {!itemQ[r.item] ? <span className="text-zinc-500">…</span>
-                                  : qd && qd.score !== null && qd.n >= 5 ? <span style={{ color: scoreColor(qd.score) }}>★ {String(qd.score).replace('.', ',')} <span className="text-zinc-500">· {qd.n} votos{qd.last ? ` · última ${short(qd.last.slice(0, 10))}` : ''}</span></span>
+                                  : qd && qd.score !== null ? <span style={{ color: scoreColor(qd.score) }}>★ {String(qd.score).replace('.', ',')} <span className="text-zinc-500">· {qd.n} {qd.n === 1 ? 'voto' : 'votos'}{qd.n < 5 ? ' (poucos)' : ''}{qd.last ? ` · última ${short(qd.last.slice(0, 10))}` : ''}</span></span>
                                   : qd && qd.n > 0 ? <span className="text-zinc-500">{qd.n} {qd.n === 1 ? 'voto' : 'votos'} (poucos){qd.last ? ` · última ${short(qd.last.slice(0, 10))}` : ''}</span>
                                   : <span className="text-zinc-500">sem nota</span>}
                               </p>
