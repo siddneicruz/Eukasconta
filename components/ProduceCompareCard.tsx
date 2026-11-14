@@ -4,6 +4,7 @@ import * as cloud from '../services/cloudService';
 import { useMasterInfo } from './MasterContext';
 import { buildProduceCompare, mergeObs, rankItem, WD, MIN_ITEMS_RANK, MIN_DAY_OBS, MAX_STORES_PER_ITEM } from '../services/produceCompare';
 import { unitLabel } from '../services/productPriceStats';
+import { faceOf } from './ProduceRatingSheet';
 import { deptObservations, sharedObservations } from '../services/quotes';
 import { GROCERY_STORE_TYPES } from '../services/storeTypes';
 
@@ -159,7 +160,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
           {dept === 'HORTIFRUTI' && <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5">
             <p className="text-[10px] tracking-[0.1em] text-zinc-500 font-bold">MELHOR NOTA</p>
             <p className="text-sm font-bold text-white truncate">{bestScore ? bestScore.name : '—'}</p>
-            <p className="text-[11px] font-mono text-zinc-500">{bestScore ? `★ ${String(quality[bestScore.id].score).replace('.', ',')} · ${quality[bestScore.id].n} votos` : isAdmin ? 'precisa de 5 votos' : 'em breve'}</p>
+            <p className="text-[11px] font-mono text-zinc-500">{bestScore ? `${faceOf(quality[bestScore.id].score as number)} ${(quality[bestScore.id].score as number).toFixed(1).replace('.', ',')} · ${quality[bestScore.id].n} ${quality[bestScore.id].n === 1 ? 'voto' : 'votos'}` : isAdmin ? 'precisa de 5 votos' : 'em breve'}</p>
           </div>}
         </div>
       )}
@@ -190,7 +191,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                       ? <span className="block text-sm font-bold font-mono" style={{ color: idxColor(s.index) }}>{pctTxt(s.index)}</span>
                       : <span className="block text-[11px] text-zinc-500">poucos itens p/ comparar</span>}
                     {q && q.n > 0 && (q.score !== null
-                      ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}>★ {String(q.score).replace('.', ',')} <span className="text-zinc-500">· {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.n < 5 ? ' (poucos)' : ''}{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
+                      ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}>{faceOf(q.score)} {q.score.toFixed(1).replace('.', ',')} <span className="text-zinc-500">· {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.n < 5 ? ' (poucos)' : ''}{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
                       : <span className="block text-[10px] font-mono text-zinc-500">{q.n} {q.n === 1 ? 'voto' : 'votos'} (poucos)</span>)}
                   </div>
                 </div>
@@ -222,44 +223,67 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
             </div>
           )}
           {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">{dept === 'HORTIFRUTI' || dept === 'TRANSPORTE' ? 'Ainda não há item comprado em duas lojas diferentes.' : 'Ainda não há produto com código de barras (EAN) comprado em duas lojas diferentes.'}</p> : (
-            <div className="divide-y divide-white/5">
+            <div className="space-y-4 mt-2">
               {items.slice(0, limit).map(({ r, fresh, stale, spread }) => {
                 const cmp = fresh.length >= 2;
                 const lines = cmp ? fresh.slice(0, MAX_STORES_PER_ITEM) : [...fresh, ...stale].sort((a, b) => a.age - b.age).slice(0, MAX_STORES_PER_ITEM);
                 const cut = cmp && fresh.length > lines.length;
+                const qMap = qOn && r.mids.length > 0 ? itemQ[r.item] : undefined;
+                const loadingQ = qOn && r.mids.length > 0 && !itemQ[r.item];
+                const hasQ = !!qMap && lines.some(m => { const q = qMap[cnpjOf.get(m.id) || '']; return q && q.score !== null; });
+                const showQ = hasQ || loadingQ;   // sem nenhuma nota no item, a coluna nem aparece
+                const cols = showQ ? 'minmax(0,1fr) auto 92px' : 'minmax(0,1fr) auto';
                 return (
-                  <div key={r.item} className={`py-2.5 ${cmp ? '' : 'opacity-60'}`} data-testid="pc-item-row">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-zinc-200 truncate">{r.label}</p>
-                      <span className="text-[11px] font-mono text-zinc-500 whitespace-nowrap">{cmp ? `diferença ${pctTxt(spread)}` : 'sem comparação atual'}</span>
+                  <div key={r.item} className={cmp ? '' : 'opacity-60'} data-testid="pc-item-row">
+                    <div className="flex items-baseline justify-between gap-2 px-0.5">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-zinc-100 truncate">{r.label}</p>
+                        {r.ean && <p className="text-[10px] font-mono text-zinc-500">EAN {r.ean}</p>}
+                      </div>
+                      {cmp
+                        ? <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-white/10 text-zinc-400 tabular-nums">dif. {pctTxt(spread)}</span>
+                        : <span className="shrink-0 text-[10px] text-zinc-500">sem comparação atual</span>}
                     </div>
-                    {r.ean && <p className="text-[10px] font-mono text-zinc-500">EAN {r.ean}</p>}
-                    <div className="mt-1 space-y-0.5">
-                      {lines.map((m, i) => {
-                        const last = cmp && i === fresh.length - 1;
-                        const qd = qOn ? itemQ[r.item]?.[(cnpjOf.get(m.id) || '')] : undefined;
-                        return (
-                          <div key={m.id}>
-                            <p className="text-[11px] font-mono flex justify-between gap-2" style={{ color: cmp && i === 0 ? '#34d399' : last ? '#f87171' : undefined }}>
-                              <span className={`truncate ${cmp && (i === 0 || last) ? '' : 'text-zinc-400'}`}>{cmp ? `${i + 1}º ` : ''}{m.name}</span>
-                              <span className="whitespace-nowrap">R$ {money(m.last)}<span className="text-zinc-500">/{unitLabel(r.unit)} · {ageTxt(m.age)}</span></span>
-                            </p>
-                            {qOn && r.mids.length > 0 && (
-                              <p className="text-[10px] font-mono text-right" data-testid="pc-item-quality">
-                                {!itemQ[r.item] ? <span className="text-zinc-500">…</span>
-                                  : qd && qd.score !== null ? <span style={{ color: scoreColor(qd.score) }}>★ {String(qd.score).replace('.', ',')} <span className="text-zinc-500">· {qd.n} {qd.n === 1 ? 'voto' : 'votos'}{qd.n < 5 ? ' (poucos)' : ''}{qd.last ? ` · última ${short(qd.last.slice(0, 10))}` : ''}</span></span>
-                                  : qd && qd.n > 0 ? <span className="text-zinc-500">{qd.n} {qd.n === 1 ? 'voto' : 'votos'} (poucos){qd.last ? ` · última ${short(qd.last.slice(0, 10))}` : ''}</span>
-                                  : <span className="text-zinc-500">sem nota</span>}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {cut && <p className="text-[10px] text-zinc-500">+ {fresh.length - lines.length} {fresh.length - lines.length === 1 ? 'loja' : 'lojas'} mais caras (a mais cara: <span style={{ color: '#f87171' }}>{fresh[fresh.length - 1].name} R$ {money(fresh[fresh.length - 1].last)}</span>)</p>}
+                    <div className="mt-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-2.5">
+                      <div className="grid gap-x-3 pt-1.5 pb-0.5 text-[9px] font-bold tracking-[0.1em] text-zinc-500" style={{ gridTemplateColumns: cols }}>
+                        <span>LOJA</span><span className="text-right">PREÇO / {unitLabel(r.unit).toUpperCase()}</span>{showQ && <span className="text-right">QUALIDADE</span>}
+                      </div>
+                      <div className="divide-y divide-white/5">
+                        {lines.map((m, i) => {
+                          const first = cmp && i === 0;
+                          const lastRow = cmp && i === fresh.length - 1;
+                          const qd = qMap ? qMap[cnpjOf.get(m.id) || ''] : undefined;
+                          const priceColor = first ? '#34d399' : lastRow ? '#f87171' : undefined;
+                          return (
+                            <div key={m.id} className="grid items-center gap-x-3 py-1.5" style={{ gridTemplateColumns: cols }}>
+                              <div className="min-w-0">
+                                <p className="text-[12px] font-semibold text-zinc-200 truncate">{cmp ? `${i + 1}º ` : ''}{m.name}</p>
+                                <p className="text-[10px] text-zinc-500">{ageTxt(m.age)}</p>
+                              </div>
+                              <div className="text-right leading-tight">
+                                <p className="text-[13px] font-bold tabular-nums whitespace-nowrap" style={{ color: priceColor }}>R$ {money(m.last)}</p>
+                                {(first || lastRow) && <p className="text-[9px] font-semibold" style={{ color: priceColor }}>{first ? 'mais barato' : 'mais caro'}</p>}
+                              </div>
+                              {showQ && (
+                                <div className="text-right leading-tight" data-testid="pc-item-quality">
+                                  {loadingQ ? <span className="text-[11px] text-zinc-600">…</span>
+                                    : qd && qd.score !== null ? (
+                                      <>
+                                        <p className="whitespace-nowrap"><span className="text-[17px] leading-none align-middle">{faceOf(qd.score)}</span> <span className="text-[12px] font-bold tabular-nums align-middle" style={{ color: scoreColor(qd.score) }}>{qd.score.toFixed(1).replace('.', ',')}</span></p>
+                                        <p className="text-[9px] text-zinc-500 whitespace-nowrap">{qd.n} {qd.n === 1 ? 'voto' : 'votos'}{qd.n < 5 ? ' · poucos' : ''}{qd.last ? ` · ${short(qd.last.slice(0, 10))}` : ''}</p>
+                                      </>
+                                    ) : null}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {cut && <p className="text-[10px] text-zinc-500 py-1.5 border-t border-white/5">+ {fresh.length - lines.length} {fresh.length - lines.length === 1 ? 'loja' : 'lojas'} mais caras (a mais cara: <span style={{ color: '#f87171' }}>{fresh[fresh.length - 1].name} R$ {money(fresh[fresh.length - 1].last)}</span>)</p>}
                       {cmp && stale.slice(0, 2).map(m => (
-                        <p key={m.id} className="text-[10px] font-mono flex justify-between gap-2 text-zinc-500 opacity-60">
+                        <p key={m.id} className="text-[10px] flex justify-between gap-2 text-zinc-500 opacity-60 py-1 border-t border-white/5">
                           <span className="truncate">fora do prazo · {m.name}</span>
-                          <span className="whitespace-nowrap">R$ {money(m.last)} · {ageTxt(m.age)}</span>
+                          <span className="whitespace-nowrap tabular-nums">R$ {money(m.last)} · {ageTxt(m.age)}</span>
                         </p>
                       ))}
                     </div>

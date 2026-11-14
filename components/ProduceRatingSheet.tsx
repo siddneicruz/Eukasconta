@@ -7,13 +7,16 @@ import { Leaf, X, Check } from 'lucide-react';
 export interface ProduceRateItem { description: string; unitType?: string; }
 
 // Cinco níveis na escala 0–10 (2/4/6/8/10). Notas antigas de 2, 6 e 10 continuam valendo.
-const OPTIONS = [
+export const OPTIONS = [
   { score: 2, emoji: '🤢', label: 'Péssimo' },
   { score: 4, emoji: '😞', label: 'Ruim' },
   { score: 6, emoji: '😐', label: 'Razoável' },
   { score: 8, emoji: '🙂', label: 'Ok' },
   { score: 10, emoji: '😍', label: 'Ótimo' },
 ];
+
+/** A carinha do nível mais próximo da média (2, 4, 6, 8 ou 10). */
+export const faceOf = (score: number): string => OPTIONS.reduce((b, o) => (Math.abs(o.score - score) < Math.abs(b.score - score) ? o : b), OPTIONS[2]).emoji;
 
 const titleCase = (s: string) => s.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
 const cleanName = (s: string) => s.replace(/^\d{3,14}\s+/, '');
