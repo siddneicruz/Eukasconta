@@ -6,7 +6,7 @@ import type { Receipt } from '../types';
 export const shareText = async (text: string, title = 'Eu Kasconta'): Promise<'sent' | 'cancelled'> => {
   try {
     if (isNativeApp()) {
-      await Share.share({ title, text, dialogTitle: 'Enviar por WhatsApp ou outro app' });
+      await Share.share({ title, text, dialogTitle: 'Enviar para WhatsApp, Notas ou outro app' });
       return 'sent';
     }
     if (typeof navigator !== 'undefined' && (navigator as any).share) { await (navigator as any).share({ title, text }); return 'sent'; }
@@ -40,15 +40,14 @@ export const receiptToWhatsApp = (r: Receipt): string => {
 export interface ShareSection { title: string; items: { name: string; qty: string; price: number; cost: number; cart: boolean }[] }
 
 /** Lista de compras em texto, uma linha por item (sem caixinha: o WhatsApp não marca). */
-export const shoppingListToWhatsApp = (name: string, groups: { label: string; total: number; sections: ShareSection[] }[], total: number): string => {
-  const out: string[] = [`🛒 *${name}*`];
-  if (total > 0) out.push(`Total estimado: *${brl(total)}*`);
+export const shoppingListToWhatsApp = (name: string, groups: { label: string; total: number; sections: ShareSection[] }[], _total?: number): string => {
+  // sem valores: é uma lista para levar ao mercado. Uma linha em branco separa cada categoria.
+  const blocks: string[] = [`🛒 *${name}*`];
   groups.forEach(g => {
-    out.push('', `*${g.label}*${g.total > 0 ? ` · ${brl(g.total)}` : ''}`);
+    if (groups.length > 1) blocks.push(`*${g.label}*`);
     g.sections.forEach(s => {
-      out.push(`_${s.title}_`);
-      s.items.forEach(it => out.push(`${sentenceCase(it.name)} — ${it.qty}${it.price > 0 ? ` · ${brl(it.cost)}` : ''}`));
+      blocks.push([`_${s.title}_`, ...s.items.map(it => `${sentenceCase(it.name)} — ${it.qty}`)].join('\n'));
     });
   });
-  return out.join('\n');
+  return blocks.join('\n\n');
 };

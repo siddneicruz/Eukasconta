@@ -256,7 +256,7 @@ export const ListMenuSheet: React.FC<{
   return (
     <Sheet title={name} onClose={onClose} testId="shop-menu-sheet">
       <div className="space-y-0.5 mb-2">
-        {onShare && <Row icon={<MessageCircle className="w-4 h-4" />} label="Enviar por WhatsApp" sub="A lista em texto, uma linha por item." onClick={onShare} testId="shop-menu-whatsapp" />}
+        {onShare && <Row icon={<MessageCircle className="w-4 h-4" />} label="Enviar a lista (WhatsApp, Notas…)" sub="Texto sem valores, uma linha por item." onClick={onShare} testId="shop-menu-whatsapp" />}
         <Row icon={<Pencil className="w-4 h-4" />} label="Renomear" onClick={onRename} testId="shop-menu-rename" />
         <Row icon={<Copy className="w-4 h-4" />} label="Duplicar" sub="Uma cópia com o carrinho vazio." onClick={onDuplicate} testId="shop-menu-duplicate" />
         <Row icon={<Star className={`w-4 h-4 ${isBase ? 'fill-current' : ''}`} />} label={isBase ? 'Tirar de lista base' : 'Usar como lista base'}
