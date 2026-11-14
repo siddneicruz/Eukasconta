@@ -129,8 +129,15 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                     <p className="text-sm font-semibold text-zinc-200 truncate">{r.item}</p>
                     <span className="text-[11px] font-mono text-zinc-500 whitespace-nowrap">diferença {pctTxt(r.spread)}</span>
                   </div>
-                  <p className="text-[11px] font-mono mt-0.5"><span style={{ color: '#34d399' }}>↓ {r.cheap.name} R$ {money(r.cheap.price)}</span> <span className="text-zinc-500">/{unitLabel(r.unit)}</span></p>
-                  <p className="text-[11px] font-mono"><span style={{ color: '#f87171' }}>↑ {r.dear.name} R$ {money(r.dear.price)}</span></p>
+                  <div className="mt-1 space-y-0.5">
+                    {r.all.map((m, i) => (
+                      <p key={m.id} className="text-[11px] font-mono flex justify-between gap-2" style={{ color: i === 0 ? '#34d399' : i === r.all.length - 1 && r.all.length === r.stores ? '#f87171' : undefined }}>
+                        <span className={`truncate ${i === 0 || (i === r.all.length - 1 && r.all.length === r.stores) ? '' : 'text-zinc-400'}`}>{i + 1}º {m.name}</span>
+                        <span className="whitespace-nowrap">R$ {money(m.price)}<span className="text-zinc-500">/{unitLabel(r.unit)}</span></span>
+                      </p>
+                    ))}
+                    {r.stores > r.all.length && <p className="text-[10px] text-zinc-500">+ {r.stores - r.all.length} {r.stores - r.all.length === 1 ? 'mercado' : 'mercados'} mais caros (o mais caro: <span style={{ color: '#f87171' }}>{r.dear.name} R$ {money(r.dear.price)}</span>)</p>}
+                  </div>
                 </div>
               ))}
             </div>

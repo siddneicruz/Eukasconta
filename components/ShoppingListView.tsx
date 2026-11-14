@@ -1,5 +1,5 @@
 import { useStoreNames } from './StoreNamesContext';
-import { NO_STORE_TYPE } from '../services/storeTypes';
+import { NO_STORE_TYPE, GROCERY_STORE_TYPES } from '../services/storeTypes';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ShoppingCart, ScanBarcode, Plus, Minus, Check, Trash2, SlidersHorizontal, Sparkles, Info, AlertTriangle, Undo2, ChevronLeft, ChevronRight, ChevronDown, Receipt as ReceiptIcon, MoreHorizontal, Star, Pencil, Save, Apple, Carrot, Beef,
@@ -166,7 +166,7 @@ const ValidationCard: React.FC<{ check: PurchaseCheck; purchase: PlanPurchase; r
 
 // Lista de compras de supermercado: só entram as compras de loja de comida (mercado, padaria, açougue, hortifruti).
 // Posto, calçados, ferramentas, estacionamento etc. não contam nas idas ao mercado, na média nem no teto sugerido.
-const GROCERY_TYPES = new Set(['Mercado', 'Padaria', 'Açougue e Peixaria', 'Hortifruti', NO_STORE_TYPE]);   // sem tipo definido segue valendo, como antes
+const GROCERY_TYPES = GROCERY_STORE_TYPES;
 
 const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onOpenReceipt, backRef }) => {
   const { typeOf } = useStoreNames();

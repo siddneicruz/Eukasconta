@@ -10,7 +10,8 @@ export const MIN_ITEMS_RANK = 3;   // itens em comum para o mercado entrar no ra
 export const MIN_DAY_OBS = 3;      // compras (item+dia) numa mesma semana-dia para apontar o dia mais barato
 
 export interface StoreScore { id: string; cnpj: string; name: string; index: number | null; items: number; days: number }
-export interface ItemRow { item: string; unit: string; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
+export const MAX_STORES_PER_ITEM = 5;
+export interface ItemRow { item: string; unit: string; all: { id: string; name: string; price: number; n: number }[]; cheap: { id: string; name: string; price: number }; dear: { id: string; name: string; price: number }; spread: number; stores: number; n: number }
 export interface WeekdayCell { wd: number; index: number; n: number }
 export interface StoreWeekdays { id: string; name: string; cells: WeekdayCell[]; best: WeekdayCell | null; worst: WeekdayCell | null; obs: number }
 export interface ProduceCompare {
@@ -25,14 +26,14 @@ export const buildProduceCompare = (receipts: Parameters<typeof produceObservati
   const obs = produceObservations(receipts);
   const sid = (o: ProduceObs) => o.cnpj || o.store;
   const names = new Map<string, string>(); const cnpjs = new Map<string, string>();
-  obs.forEach(o => { names.set(sid(o), nameOf(o.store, o.cnpj)); cnpjs.set(sid(o), o.cnpj); });
-
+  
   // um item = nome; fica a unidade com mais compras (kg e un não se misturam)
   const unitCount = new Map<string, Map<string, number>>();
   obs.forEach(o => { const m = unitCount.get(o.item) || new Map(); m.set(o.unit, (m.get(o.unit) || 0) + 1); unitCount.set(o.item, m); });
   const unitOf = new Map<string, string>();
   unitCount.forEach((m, item) => unitOf.set(item, [...m.entries()].sort((a, b) => b[1] - a[1])[0][0]));
   const use = obs.filter(o => unitOf.get(o.item) === o.unit);
+  use.forEach(o => { names.set(sid(o), nameOf(o.store, o.cnpj)); cnpjs.set(sid(o), o.cnpj); });   // só mercado com compra usada na conta
 
   // média do dia por (item, loja, dia)
   const dayMap = new Map<string, { item: string; store: string; date: string; sum: number; k: number }>();
@@ -59,7 +60,7 @@ export const buildProduceCompare = (receipts: Parameters<typeof produceObservati
     const ref = mean(avgs.map(a => a.price));
     avgs.forEach(a => { const l = idx.get(a.id) || []; l.push(a.price / ref - 1); idx.set(a.id, l); });
     const lo = avgs[0], hi = avgs[avgs.length - 1];
-    items.push({ item, unit: unitOf.get(item) || '', cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
+    items.push({ item, unit: unitOf.get(item) || '', all: avgs.slice(0, MAX_STORES_PER_ITEM).map(a => ({ id: a.id, name: a.name, price: a.price, n: a.n })), cheap: { id: lo.id, name: lo.name, price: lo.price }, dear: { id: hi.id, name: hi.name, price: hi.price }, spread: hi.price / lo.price - 1, stores: avgs.length, n: avgs.reduce((s, a) => s + a.n, 0) });
   });
   items.sort((a, b) => b.n - a.n || b.spread - a.spread);
 

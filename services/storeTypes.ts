@@ -80,3 +80,6 @@ export const storeTypeTotals = (receipts: Receipt[], typeOf: (name: string, cnpj
   receipts.forEach(r => { const t = typeOf(r.establishmentName, r.cnpj); m.set(t, (m.get(t) || 0) + (Number(r.totalAmount) || 0)); });
   return m;
 };
+
+/** Tipos de loja que contam como compra de comida (posto, roupa, ferramenta etc. ficam de fora). Sem tipo definido vale. */
+export const GROCERY_STORE_TYPES = new Set(['Mercado', 'Padaria', 'Açougue e Peixaria', 'Hortifruti', NO_STORE_TYPE]);

@@ -32,6 +32,7 @@ import { CHART_COLORS } from '../services/chartTheme';
 import QuotesPanel from './QuotesPanel';
 import DeptChipsBar from './DeptChipsBar';
 import ProduceCompareCard from './ProduceCompareCard';
+import { GROCERY_STORE_TYPES } from '../services/storeTypes';
 import { applyDeptFilter, useDeptFilter } from '../services/deptFilter';
 
 const { 
@@ -945,7 +946,7 @@ const Reports: React.FC<ReportsProps> = ({
               {activeSection === 'panorama' && (<>
                   <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
                   {panoFilter.mode === 'only' && panoFilter.keys.length > 0 && panoFilter.keys.every(k => /hortifruti/.test(k)) && (
-                      <ProduceCompareCard receipts={receipts} nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)} />
+                      <ProduceCompareCard receipts={receipts.filter(r => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj)))} nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)} />
                   )}
                   <ReportsPanorama
                       receipts={panoReceipts}
