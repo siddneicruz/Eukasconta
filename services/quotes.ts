@@ -179,9 +179,20 @@ export const topMovers = (qs: Quote[], n = 12): Quote[] =>
 /** Cada compra de um departamento como uma observação (item, unidade, dia, preço por unidade de medida, loja).
     Hortifruti e Açougue por kg usam os mesmos nomes de item da Cotações. Todo o resto (inclusive Açougue vendido por unidade,
     como hambúrguer) só entra com o código de barras (EAN) exato: sem EAN o item não é comparado, porque marca e embalagem mudam o preço.
-    Transporte (combustível) não tem EAN e usa o nome do produto. */
+    Transporte: só o combustível dispensa EAN (nome do combustível, sempre por litro); os outros itens de Transporte também pedem EAN. */
 export interface ProduceObs { item: string; label: string; ean: string; unit: string; date: string; price: number; store: string; cnpj: string }
 const eanOf = (code?: string): string => { const c = String(code || '').trim(); return /^\d+$/.test(c) && [8, 12, 13, 14].includes(c.length) ? c : ''; };
+const isFuel = (category?: string, description?: string): boolean =>
+  /COMBUSTIV/.test(plainUp(String(category || ''))) || /^(GC\s*-\s*)?(GASOLINA|ETANOL|ALCOOL|DIESEL|GNV)\b/.test(plainUp(String(description || '')).trim());
+const fuelName = (description?: string): string => {
+  const d = plainUp(description || '');
+  if (/ADITIV/.test(d)) return 'Gasolina Aditivada';
+  if (/ETANOL|ALCOOL/.test(d)) return 'Etanol';
+  if (/DIESEL/.test(d)) return /S[\s-]?10\b/.test(d) ? 'Diesel S10' : /S[\s-]?500\b/.test(d) ? 'Diesel S500' : 'Diesel';
+  if (/GNV/.test(d)) return 'GNV';
+  if (/ORIGINAL/.test(d)) return 'Gasolina Original';
+  return 'Gasolina Comum';
+};
 export const deptObservations = (receipts: Receipt[], dept: string): ProduceObs[] => {
   const want = deptSlug(dept);
   const out: ProduceObs[] = [];
@@ -189,9 +200,10 @@ export const deptObservations = (receipts: Receipt[], dept: string): ProduceObs[
     if (deptSlug(deptOf(item.category)) !== want) return;
     const b = priceBasis(item);
     if (!(b.unitPrice > 0) || !r.date) return;
-    const unit = normalizeUnit(b.unitType);
+    const fuel = want === 'TRANSPORTE' && isFuel(item.category, item.description);
+    const unit = fuel ? 'L' : normalizeUnit(b.unitType);   // combustível: o preço é sempre por litro, venha a linha como UN, LT ou L
     const base = { unit, date: r.date, price: b.unitPrice, store: r.establishmentName, cnpj: String(r.cnpj || '').replace(/\D/g, '') };
-    const needsEan = want !== 'HORTIFRUTI' && want !== 'TRANSPORTE' && !(want === 'ACOUGUE' && unit === 'KG');
+    const needsEan = want !== 'HORTIFRUTI' && !fuel && !(want === 'ACOUGUE' && unit === 'KG');
     if (needsEan) {
       const ean = eanOf(item.code);
       if (!ean) return;
@@ -200,7 +212,9 @@ export const deptObservations = (receipts: Receipt[], dept: string): ProduceObs[
       return;
     }
     let name: string;
-    if (FRESH_DEPTS.has(want)) {
+    if (fuel) {
+      name = fuelName(item.description);
+    } else if (FRESH_DEPTS.has(want)) {
       name = detailName(item);
       if (!name) return;
       if (want === 'HORTIFRUTI') { const v = varietyOf(item.description, name); if (v) name = v; }
