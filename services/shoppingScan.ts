@@ -37,14 +37,14 @@ const SIZE_RE = /(\d+(?:[.,]\d+)?)\s?(kg|g|gr|ml|l|lt|un|und)\b/i;
 export const sizeOfName = (name: string): string => { const m = SIZE_RE.exec(name || ''); return m ? m[0].replace(/\s+/g, ' ') : ''; };
 
 /** O que o catálogo de EAN diz sobre o código lido (nome, marca, peso/embalagem). */
-export interface EanInfo { description: string; brand: string; size: string }
+export interface EanInfo { description: string; brand: string; size: string; taxDept?: string; taxSub?: string }
 export const fetchEanInfo = async (code: string): Promise<EanInfo | null> => {
   try {
     const c = stripKey(code);
-    const { data } = await supabase.from('ean_catalog').select('description,brand,size_text,size_value,size_unit').in('ean', [c, c.padStart(13, '0')]).limit(1).maybeSingle();
+    const { data } = await supabase.from('ean_catalog').select('description,brand,size_text,size_value,size_unit,tax_dept,tax_sub').in('ean', [c, c.padStart(13, '0')]).limit(1).maybeSingle();
     if (!data) return null;
     const size = data.size_text || (data.size_value ? `${data.size_value} ${data.size_unit || ''}`.trim() : '') || sizeOfName(data.description || '');
-    return { description: data.description || '', brand: data.brand || '', size };
+    return { description: data.description || '', brand: data.brand || '', size, taxDept: data.tax_dept || '', taxSub: data.tax_sub || '' };
   } catch { return null; }
 };
 

@@ -79,12 +79,18 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
   const unit = cur?.unit || 'UN';
   const step = stepOf(unit);
   const price = parseMoney(priceTxt) ?? 0;
-  const confirm = () => {
+  const confirm = async () => {
     const base: ScanHit | null = cur || (unknown && name.trim().length >= 2
       ? { code: unknown, pid: `U:${name.trim().toUpperCase()}`, name: name.trim(), unit: 'UN', dept: 'Outros', category: '', price: 0, priceDate: '', store: '', source: 'aprendido' } : null);
     if (!base) return;
     if (!cur && unknown) learnCode(unknown, name.trim());
-    onAdd(base, qty, price);
+    let item = base;
+    if (!item.dept || item.dept === 'Outros') {
+      // sem setor: usa a classificação do catálogo de códigos de barras (Supabase), se houver
+      const info = eanInfo || await fetchEanInfo(item.code);
+      if (info?.taxDept) item = { ...item, dept: info.taxDept, category: item.category || (info.taxSub ? `${info.taxDept} - ${info.taxSub}` : info.taxDept) };
+    }
+    onAdd(item, qty, price);
     setLast(`${base.name} no carrinho${price > 0 ? ` · ${brl(price * qty)}` : ' · sem preço'}`);
     setCur(null); setUnknown(null);
   };
