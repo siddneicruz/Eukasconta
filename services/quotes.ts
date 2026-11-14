@@ -177,8 +177,11 @@ export const topMovers = (qs: Quote[], n = 12): Quote[] =>
     .sort((a, b) => Math.abs(b.chg as number) - Math.abs(a.chg as number)).slice(0, n);
 
 /** Cada compra de um departamento como uma observação (item, unidade, dia, preço por unidade de medida, loja).
-    Hortifruti e Açougue usam os mesmos nomes de item da Cotações; os demais departamentos usam o código de barras (ou a descrição do cupom). */
-export interface ProduceObs { item: string; unit: string; date: string; price: number; store: string; cnpj: string }
+    Hortifruti e Açougue por kg usam os mesmos nomes de item da Cotações. Todo o resto (inclusive Açougue vendido por unidade,
+    como hambúrguer) só entra com o código de barras (EAN) exato: sem EAN o item não é comparado, porque marca e embalagem mudam o preço.
+    Transporte (combustível) não tem EAN e usa o nome do produto. */
+export interface ProduceObs { item: string; label: string; ean: string; unit: string; date: string; price: number; store: string; cnpj: string }
+const eanOf = (code?: string): string => { const c = String(code || '').trim(); return /^\d+$/.test(c) && [8, 12, 13, 14].includes(c.length) ? c : ''; };
 export const deptObservations = (receipts: Receipt[], dept: string): ProduceObs[] => {
   const want = deptSlug(dept);
   const out: ProduceObs[] = [];
@@ -186,17 +189,26 @@ export const deptObservations = (receipts: Receipt[], dept: string): ProduceObs[
     if (deptSlug(deptOf(item.category)) !== want) return;
     const b = priceBasis(item);
     if (!(b.unitPrice > 0) || !r.date) return;
+    const unit = normalizeUnit(b.unitType);
+    const base = { unit, date: r.date, price: b.unitPrice, store: r.establishmentName, cnpj: String(r.cnpj || '').replace(/\D/g, '') };
+    const needsEan = want !== 'HORTIFRUTI' && want !== 'TRANSPORTE' && !(want === 'ACOUGUE' && unit === 'KG');
+    if (needsEan) {
+      const ean = eanOf(item.code);
+      if (!ean) return;
+      const label = cleanDescriptionForMatching(item.description || '').split(' ').filter(w => w.length > 0).slice(0, 6).join(' ');
+      out.push({ ...base, item: `EAN${ean}`, label: titleCase(label || ean), ean });
+      return;
+    }
     let name: string;
     if (FRESH_DEPTS.has(want)) {
       name = detailName(item);
       if (!name) return;
       if (want === 'HORTIFRUTI') { const v = varietyOf(item.description, name); if (v) name = v; }
     } else {
-      const own = cleanDescriptionForMatching(item.description || '').split(' ').filter(w => w.length > 0).slice(0, 6).join(' ');
-      if (!own) return;
-      name = own;
+      name = cleanDescriptionForMatching(item.description || '').split(' ').filter(w => w.length > 0).slice(0, 6).join(' ');
+      if (!name) return;
     }
-    out.push({ item: titleCase(name), unit: normalizeUnit(b.unitType), date: r.date, price: b.unitPrice, store: r.establishmentName, cnpj: String(r.cnpj || '').replace(/\D/g, '') });
+    out.push({ ...base, item: titleCase(name), label: titleCase(name), ean: '' });
   }));
   return out;
 };

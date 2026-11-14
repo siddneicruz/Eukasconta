@@ -21,7 +21,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const { isAdmin: admin } = useMasterInfo();
   const isAdmin = admin && dept === 'HORTIFRUTI';   // a nota de qualidade só existe para hortifruti
   const data = useMemo(() => buildProduceCompare(receipts, nameOf, dept, minItems), [receipts, nameOf, dept, minItems]);
-  const [tab, setTab] = useState<Tab>('stores');
+  const [tab, setTab] = useState<Tab>('items');
   const [storeBy, setStoreBy] = useState<'price' | 'score'>('price');
   const [itemBy, setItemBy] = useState<'n' | 'spread'>('n');
   const [quality, setQuality] = useState<Record<string, Q>>({});
@@ -80,8 +80,8 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
       )}
 
       <div className="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar">
-        <Pill on={tab === 'stores'} onClick={() => setTab('stores')} tid="pc-tab-stores">Lojas</Pill>
         <Pill on={tab === 'items'} onClick={() => setTab('items')} tid="pc-tab-items">Item a item</Pill>
+        <Pill on={tab === 'stores'} onClick={() => setTab('stores')} tid="pc-tab-stores">Lojas</Pill>
         <Pill on={tab === 'days'} onClick={() => setTab('days')} tid="pc-tab-days">Dia da semana</Pill>
       </div>
 
@@ -122,14 +122,15 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
             <Pill on={itemBy === 'n'} onClick={() => setItemBy('n')}>Mais comprados</Pill>
             <Pill on={itemBy === 'spread'} onClick={() => setItemBy('spread')}>Maior diferença</Pill>
           </div>
-          {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">Ainda não há item comprado em duas lojas diferentes.</p> : (
+          {items.length === 0 ? <p className="py-6 text-center text-[13px] text-zinc-500">{dept === 'HORTIFRUTI' || dept === 'TRANSPORTE' ? 'Ainda não há item comprado em duas lojas diferentes.' : 'Ainda não há produto com código de barras (EAN) comprado em duas lojas diferentes.'}</p> : (
             <div className="divide-y divide-white/5">
               {items.map(r => (
                 <div key={r.item} className="py-2.5" data-testid="pc-item-row">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-200 truncate">{r.item}</p>
+                    <p className="text-sm font-semibold text-zinc-200 truncate">{r.label}</p>
                     <span className="text-[11px] font-mono text-zinc-500 whitespace-nowrap">diferença {pctTxt(r.spread)}</span>
                   </div>
+                  {r.ean && <p className="text-[10px] font-mono text-zinc-500">EAN {r.ean}</p>}
                   <div className="mt-1 space-y-0.5">
                     {r.all.map((m, i) => (
                       <p key={m.id} className="text-[11px] font-mono flex justify-between gap-2" style={{ color: i === 0 ? '#34d399' : i === r.all.length - 1 && r.all.length === r.stores ? '#f87171' : undefined }}>
