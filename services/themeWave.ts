@@ -1,9 +1,9 @@
 import { flushSync } from 'react-dom';
 
-/** Troca de tema: o tema novo é revelado de baixo para cima (≈1,3 s) com uma linha dourada na frente.
+/** Troca de tema: o tema novo é revelado de baixo para cima (≈0,85 s) com uma linha dourada na frente.
  *  Usa um único recorte circular, que são baratos. Em aparelho fraco vira um fade curto. */
-export const DURATION_MS = 1300;
-const EASE = 'cubic-bezier(0.45, 0, 0.2, 1)';
+export const DURATION_MS = 850;
+const EASE = 'cubic-bezier(0.3, 0, 0.15, 1)';
 
 const weak = (): boolean => {
   try {
