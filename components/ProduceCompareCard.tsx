@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Sprout } from 'lucide-react';
 import { Receipt } from '../types';
@@ -331,8 +332,8 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                 );
               })}
             </div>
-            {bubble && (
-              <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none w-24 h-24 rounded-[2rem] flex items-center justify-center text-5xl font-bold text-luxury-gold border border-luxury-gold/40 shadow-2xl" style={{ background: 'var(--ek-tab)' }} data-testid="pc-letter-bubble">{bubble}</div>
+            {bubble && createPortal(
+              <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none w-24 h-24 rounded-[2rem] flex items-center justify-center text-5xl font-bold text-luxury-gold border border-luxury-gold/40 shadow-2xl" style={{ background: 'var(--ek-tab)' }} data-testid="pc-letter-bubble">{bubble}</div>, document.body
             )}
             {letters.length > 1 && (
               <div className="shrink-0 sticky top-[190px] self-start flex flex-col items-center rounded-full border border-white/10 bg-white/[0.03] py-1 select-none" style={{ touchAction: 'none' }} data-testid="pc-letters" aria-label="Ir para a letra"
