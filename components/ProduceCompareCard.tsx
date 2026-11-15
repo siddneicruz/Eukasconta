@@ -58,10 +58,12 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const [storeBy, setStoreBy] = useState<'price' | 'score'>('price');
   const [itemBy, setItemBy] = useState<'n' | 'spread' | 'recent'>('n');
   const [quality, setQuality] = useState<Record<string, Q>>({});
+  const [qErr, setQErr] = useState<string>('');   // por que a nota não carregou (aparece na tela em vez de sumir em silêncio)
 
   // nota de qualidade por mercado: média das notas dos itens, ponderada pelos votos (administrador)
   useEffect(() => {
-    if (!isAdmin || !cloud.cloudAvailable()) return;
+    if (!isAdmin) return;
+    if (!cloud.cloudAvailable()) { setQErr('sem conexão com a nuvem — entre na conta (Ajustes › Conta)'); return; }
     let alive = true;
     data.stores.filter(s => s.cnpj).forEach(s => {
       cloud.produceQualityAdminByStore(s.cnpj).then(rows => {
@@ -70,7 +72,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
         const score = n ? Math.round((rows.reduce((a, r) => a + r.avg_score * r.n, 0) / n) * 10) / 10 : null;
         const last = rows.map(r => r.last_rated_at).sort().pop() || null;
         setQuality(q => ({ ...q, [s.id]: { score, n, last } }));
-      }).catch(() => { /* sem nota: o preço aparece igual */ });
+      }).catch((e: any) => { if (alive) setQErr(String(e?.message || e || 'erro')); });
     });
     return () => { alive = false; };
   }, [isAdmin, data.stores.map(s => s.cnpj).join(',')]);
@@ -102,7 +104,8 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const comparable = useMemo(() => ranked.filter(x => x.fresh.length >= 2).length, [ranked]);
   const [limit, setLimit] = useState(30);
   useEffect(() => {
-    if (!qOn || tab !== 'items' || !cloud.cloudAvailable()) return;
+    if (!qOn || tab !== 'items') return;
+    if (!cloud.cloudAvailable()) { setQErr('sem conexão com a nuvem — entre na conta (Ajustes › Conta)'); return; }
     let alive = true;
     const todo = items.slice(0, limit).map(x => x.r).filter(r => r.mids.length > 0 && !itemQ[r.item]);
     let i = 0;
@@ -121,7 +124,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
           const out: Record<string, Q> = {};
           Object.entries(byStore).forEach(([k, c]) => { out[k] = { score: c.w ? Math.round((c.sum / c.w) * 10) / 10 : null, n: c.n, last: c.last }; });
           if (alive) setItemQ(prev => ({ ...prev, [r.item]: out }));
-        } catch { if (alive) setItemQ(prev => ({ ...prev, [r.item]: {} })); }
+        } catch (e: any) { if (alive) { setQErr(String(e?.message || e || 'erro')); setItemQ(prev => ({ ...prev, [r.item]: {} })); } }
       }
     };
     void Promise.all([worker(), worker(), worker()]);
@@ -150,6 +153,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
             className={`h-7 px-2.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${km === v ? 'bg-luxury-gold/15 border-luxury-gold/40 text-luxury-gold' : 'border-white/10 text-zinc-500'}`}>{v} km</button>
         ))}
       </div>
+      {hf && qErr && <p className="text-[10px] text-red-400 px-0.5 mt-1" data-testid="pc-qerr">Notas não carregaram: {qErr}</p>}
 
       {(bestPrice || bestScore) && (
         <div className={`grid ${dept === 'HORTIFRUTI' ? 'grid-cols-2' : 'grid-cols-1'} gap-2 mt-3`}>
