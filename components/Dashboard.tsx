@@ -16,6 +16,8 @@ import MarketTickerCard from './MarketTickerCard';
 import ProduceCompareCard from './ProduceCompareCard';
 import LazyMount from './LazyMount';
 import ReportsPanorama from './ReportsPanorama';
+import DeptChipsBar from './DeptChipsBar';
+import { GROCERY_STORE_TYPES } from '../services/storeTypes';
 import { homeCenterOf } from '../services/sharedLoader';
 import { 
     Calendar, Fuel, Home, Shirt, ShoppingCart, ScanLine, History, 
@@ -438,6 +440,20 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       else if (range === 'thisMonth') onConfigChange({ ...config, month: today.getMonth(), year: today.getFullYear(), quickFilter: null });
       else onConfigChange({ ...config, month: null, year: today.getFullYear(), quickFilter: null });
   };
+  // filtro por departamento do Panorama (os chips Todos · Transporte · Hortifruti · Açougue…): também liga a cotação entre lojas por EAN daquele departamento
+  // (é o mesmo filtro "Todas categorias" do topo: os chips abaixo do Hortifruti são só outro jeito de mexer nele)
+  const [panoFilter, setPanoFilter] = useDeptFilter();
+  const panoReceipts = useMemo(() => applyDeptFilter(receipts, panoFilter), [receipts, panoFilter]);
+  const compareDept = useMemo(() => {
+    if (panoFilter.mode !== 'only' || panoFilter.keys.length === 0) return null;
+    if (panoFilter.keys.some(k => /^[gio]:/.test(k))) return null;
+    const names = Array.from(new Set(panoFilter.keys.map(k => k.replace(/^c:/, '').split(' - ')[0].trim())));
+    if (names.length !== 1) return null;
+    const plain = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const hit = receipts.flatMap(r => r.items || []).find(i => plain(String(i.category || '').split(' - ')[0]) === plain(names[0]));
+    const label = hit ? String(hit.category).split(' - ')[0].trim() : names[0];
+    return { slug: plain(names[0]), label: label.charAt(0).toUpperCase() + label.slice(1) };
+  }, [panoFilter, receipts]);
   const [whereOpen, setWhereOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_home_where_open') !== '0'; } catch { return true; } });
   const toggleWhere = () => setWhereOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_home_where_open', n ? '1' : '0'); } catch { /* vale só nesta tela */ } return n; });
   const pickMonth = useMonthPick(config, onConfigChange);
@@ -946,9 +962,25 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
       {/* Panorama (antes em Análises): leitura do período, com os mesmos filtros do Início */}
       <div className="mt-6 md:mt-10" data-testid="home-panorama">
+          <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
+          {(compareDept || panoFilter.keys.length === 0) && (() => {
+              const slug = compareDept ? compareDept.slug : 'ALL';
+              const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
+              const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+              // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
+              const base = slug === 'TRANSPORTE' ? receipts
+                  : slug === 'ALL' ? receipts.map(r => (isFood(r) ? r : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
+                  : receipts.filter(isFood);
+              return (
+                  <div className="mt-4" data-testid="home-dept-compare">
+                      <ProduceCompareCard key={slug} receipts={base} nameOf={(n, c) => nameOf(n, c)}
+                          dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} center={homeCenterOf(receipts, establishments || [])} />
+                  </div>
+              );
+          })()}
           <LazyMount minHeight={400}>
               <ReportsPanorama
-                  receipts={receipts}
+                  receipts={panoReceipts}
                   config={config}
                   displayName={(n, c) => nameOf(n, c)}
                   onQuickRange={setQuickRange}
