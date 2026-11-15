@@ -192,6 +192,7 @@
       html.light-theme .thermal-fx { display: none; }
       /* Mapa: as imagens do OpenStreetMap são claras; no tema escuro o painel de imagens é invertido para combinar com o app */
       .map-dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.75); }
+    html.theme-switching *, html.theme-switching *::before, html.theme-switching *::after { transition: none !important; animation-play-state: paused !important; }
     ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
     ::view-transition-old(root) { z-index: 1; }
     ::view-transition-new(root) { z-index: 2; }
