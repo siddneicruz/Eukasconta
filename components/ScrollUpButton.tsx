@@ -56,8 +56,8 @@ export default function ScrollUpButton({ resetKey }: { resetKey?: string }) {
       onClick={go}
       aria-label="Subir"
       data-testid="scroll-up"
-      className="fixed left-1/2 -translate-x-1/2 z-[45] w-11 h-11 rounded-full flex items-center justify-center text-zinc-200 border border-white/15 shadow-lg active:scale-95 transition-transform"
-      style={{ background: 'var(--ek-tab)', bottom: 'calc(var(--safe-bottom) + 84px)' }}
+      className="fixed -translate-x-1/2 z-[45] w-11 h-11 rounded-full flex items-center justify-center text-zinc-200 border border-white/10 active:scale-95 transition-transform"
+      style={{ background: 'rgba(16,16,19,.5)', left: '43.3%', bottom: 'calc(var(--safe-bottom) + 84px)' }}   /* 43,3% = centro do botão Escanear no rodapé */
     >
       <ChevronUp className="w-6 h-6" strokeWidth={1.5} />
     </button>
