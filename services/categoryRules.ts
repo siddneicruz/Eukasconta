@@ -14,6 +14,7 @@ export interface CategoryRule {
   pattern: RegExp;                        // sobre a descrição sem acento e em minúsculas
   exclude?: RegExp;                       // o mesmo, para tirar falsos positivos
   pickTarget: (categories: string[]) => string | null;
+  fromOk?: (category: string | undefined | null) => boolean;   // de onde a regra pode tirar o item (padrão: categorias de carne in natura)
 }
 
 // categoria de embutidos frescos (linguiças, hambúrgueres…) dentro das categorias da pessoa
@@ -21,6 +22,20 @@ const embutidos = (categories: string[]): string | null =>
   categories.find(c => fold(c).includes('linguica') && fold(c).includes('embutido'))
   || categories.find(c => fold(c).includes('linguica'))
   || null;
+
+// categoria de roupas dentro das categorias da pessoa
+const roupas = (categories: string[]): string | null =>
+  categories.find(c => fold(c).includes('roupas masculinas'))
+  || categories.find(c => fold(c).includes('roupa'))
+  || categories.find(c => fold(c).includes('vestuario'))
+  || null;
+
+// onde a fruta "manga" costuma ser posta por engano (alimentos / sem categoria)
+function isFoodCategory(category: string | undefined | null): boolean {
+  const f = fold(category);
+  if (!f || f === 'outros') return true;
+  return /hortifruti|fruta|verdura|legume|mercearia|alimenta/.test(f);
+}
 
 export const CATEGORY_RULES: CategoryRule[] = [
   {
@@ -40,6 +55,15 @@ export const CATEGORY_RULES: CategoryRule[] = [
     pattern: /\b(bacon|baco[mn]|toucinho)\b/,
     exclude: /sabor|batata|salgadinho|snack|pizza|\bpao\b|maionese|hamburg|burger|queijo|molho|biscoito|pastel|ovo|tempero/,
     pickTarget: embutidos,
+  },
+  {
+    id: 'roupa-manga',
+    title: 'Roupas com "manga"',
+    short: 'roupa de manga longa/curta',
+    note: '"Manga longa/curta" em blusa, camisa ou vestido é roupa, não a fruta.',
+    pattern: /\b(blusa|blusinha|camisa|camiseta|vestido|casaco|jaqueta|body|cropped|polo|moletom|malha|tricot)\b.*\bmanga\b|\bmanga (longa|curta|comprida|3\/4|bufante|raglan)\b/,
+    pickTarget: roupas,
+    fromOk: isFoodCategory,
   },
 ];
 
@@ -61,7 +85,7 @@ export const matchRule = (description: string): CategoryRule | null => {
 /* Categoria certa para um item que a IA acabou de ler, ou null para deixar como está. */
 export const ruleCategoryFor = (description: string, currentCategory: string, categories: string[]): string | null => {
   const rule = matchRule(description);
-  if (!rule || !isFreshMeatCategory(currentCategory)) return null;
+  if (!rule || !(rule.fromOk || isFreshMeatCategory)(currentCategory)) return null;
   const target = rule.pickTarget(categories);
   return target && target !== currentCategory ? target : null;
 };
@@ -95,7 +119,7 @@ export const suggestCategoryFixes = (receipts: Receipt[], categories: string[]):
     const rule = matchRule(desc);
     if (!rule) return;
     const current = item.category || '';
-    if (!isFreshMeatCategory(current)) return;
+    if (!(rule.fromOk || isFreshMeatCategory)(current)) return;
     const target = rule.pickTarget(categories);
     if (!target || target === current) return;
 
