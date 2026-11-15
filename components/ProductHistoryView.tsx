@@ -150,12 +150,8 @@ const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({ subCategoryName
               {productsData.map((prod, idx) => (
                   <div key={idx} onClick={() => onSelectVariant(prod.name)} className="flex items-center justify-between p-3 md:p-6 bg-black/60 border border-white/10 rounded-2xl hover:bg-white/[0.04] hover:border-luxury-gold/20 transition-all cursor-pointer group">
                       <div className="flex items-center gap-3 md:gap-6 min-w-0">
-                          <div 
-                            className="w-9 h-9 md:w-12 md:h-12 shrink-0 rounded-xl bg-black border border-white/10 flex items-center justify-center transition-all group-hover:scale-110"
-                            style={{ color: prod.color }}
-                          >
-                              {React.createElement(prod.icon, { className: "w-4 h-4 md:w-6 md:h-6" })}
-                          </div>
+                          {/* bolinha na cor do produto (a mesma da fatia do gráfico) no lugar do ícone */}
+                          <span className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0 rounded-full" style={{ backgroundColor: prod.color }} aria-hidden="true" />
                           <div className="flex flex-col">
                               <span className="block text-sm font-semibold text-zinc-100">{titleCase(prod.name)}</span>
                               <span className="text-xs text-zinc-400 font-medium tabular-nums mt-0.5">{prod.itemsCount} {prod.itemsCount === 1 ? 'compra' : 'compras'}</span>
