@@ -6,6 +6,7 @@ import { buildProduceCompare, mergeObs, rankItem, WD, MIN_ITEMS_RANK, MIN_DAY_OB
 import { unitLabel } from '../services/productPriceStats';
 import { QualityFace } from './QualityFace';
 import { loadShared } from '../services/sharedLoader';
+import { fetchEanSizes, sizeFromText } from '../services/eanSizes';
 import { deptObservations, sharedObservations } from '../services/quotes';
 import { GROCERY_STORE_TYPES } from '../services/storeTypes';
 
@@ -78,6 +79,8 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const qOn = hf && (showQ === null ? isAdmin : showQ);
   const pickQ = (v: boolean) => { setShowQ(v); try { localStorage.setItem('eukasconta_compare_quality', v ? '1' : '0'); } catch { /* vale só nesta tela */ } };
   const [itemQ, setItemQ] = useState<Record<string, Record<string, Q>>>({});
+  // tamanho/peso de cada produto com EAN (catálogo); o que o catálogo não tem, lê da descrição
+  const [eanSize, setEanSize] = useState<Record<string, string>>({});
   const todayIso = useMemo(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }, []);
   const ranked = useMemo(() => data.items.map(r => ({ r, ...rankItem(r, win, todayIso) })), [data.items, win, todayIso]);
   // nada some: itens com preço recente em 2+ lojas vêm primeiro (comparáveis); os outros ficam depois, apagados, só com os preços e a idade
@@ -117,6 +120,14 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
     void Promise.all([worker(), worker(), worker()]);
     return () => { alive = false; };
   }, [qOn, tab, items, limit]);
+  useEffect(() => {
+    if (tab !== 'items' || !cloud.cloudAvailable()) return;
+    const eans = items.slice(0, limit).map(x => x.r.ean).filter(e => e && eanSize[e] === undefined);
+    if (!eans.length) return;
+    let alive = true;
+    fetchEanSizes(eans).then(m => { if (alive) setEanSize(p => ({ ...p, ...m })); }).catch(() => { /* fica só com a descrição */ });
+    return () => { alive = false; };
+  }, [tab, items, limit]);
   const ageTxt = (d: number) => (d === 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`);
 
   if (data.nObs === 0) return null;
@@ -226,11 +237,12 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                 const hasQ = !!qMap && lines.some(m => { const q = qMap[cnpjOf.get(m.id) || '']; return q && q.score !== null; });
                 const showQ = hasQ || loadingQ;   // sem nenhuma nota no item, a coluna nem aparece
                 const cols = showQ ? 'minmax(0,1fr) auto 92px' : 'minmax(0,1fr) auto';
+                const sizeTxt = (r.ean && eanSize[r.ean]) || sizeFromText(r.label);
                 return (
                   <div key={r.item} className={cmp ? '' : 'opacity-60'} data-testid="pc-item-row">
                     <div className="flex items-baseline justify-between gap-2 px-0.5">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-zinc-100 truncate">{r.label}</p>
+                        <p className="text-sm font-semibold text-zinc-100 truncate">{r.label}{sizeTxt && !r.label.toLowerCase().includes(sizeTxt.toLowerCase()) && <span className="text-luxury-gold"> · {sizeTxt}</span>}</p>
                         {r.ean && <p className="text-[10px] font-mono text-zinc-500">EAN {r.ean}</p>}
                       </div>
                       {cmp
