@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Store, ChevronDown, Check, X } from 'lucide-react';
+import { Store, ChevronDown, Check, RotateCcw } from 'lucide-react';
 import { Receipt } from '../types';
 import { useStoreNames } from './StoreNamesContext';
 import { useMasterInfo } from './MasterContext';
@@ -42,7 +42,7 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
         </button>
         {active && (
           <button type="button" onClick={() => setSel([])} aria-label="Limpar o filtro de tipo" data-testid="store-type-clear"
-            className="w-8 h-8 flex items-center justify-center rounded-xl border border-white/5 text-zinc-500 active:text-luxury-gold"><X className="w-3.5 h-3.5" /></button>
+            className="w-8 h-8 flex items-center justify-center rounded-xl border border-white/5 text-zinc-500 active:text-luxury-gold"><RotateCcw className="w-3.5 h-3.5" /></button>
         )}
       </div>
       {open && createPortal(
