@@ -24,16 +24,18 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
       flushSync(() => apply(next));
       document.documentElement.classList.toggle('light-theme', next === 'light');
     });
-    const done = () => document.documentElement.classList.remove('theme-switching');
+    let anim: Animation | null = null;
+    // sem cancelar, cada animação com fill:'forwards' fica viva para sempre no <html> e as trocas seguintes acumulam peso
+    const done = () => { document.documentElement.classList.remove('theme-switching'); try { anim?.cancel(); } catch { /* já terminou */ } };
     vt.finished.then(done, done);
     vt.ready.then(() => {
       const root = document.documentElement;
       if (weak()) {
-        root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out', pseudoElement: '::view-transition-new(root)' } as any);
+        anim = root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out', pseudoElement: '::view-transition-new(root)' } as any);
         return;
       }
       const w = window.innerWidth, hh = window.innerHeight, R = Math.ceil(Math.hypot(w / 2, hh)) + 4;
-      root.animate([{ clipPath: `circle(0px at 50% 100%)` }, { clipPath: `circle(${R}px at 50% 100%)` }], { duration: DURATION_MS, easing: EASE, fill: 'forwards', pseudoElement: '::view-transition-new(root)' } as any);
+      anim = root.animate([{ clipPath: `circle(0px at 50% 100%)` }, { clipPath: `circle(${R}px at 50% 100%)` }], { duration: DURATION_MS, easing: EASE, fill: 'forwards', pseudoElement: '::view-transition-new(root)' } as any);
     }).catch(() => { /* sem animação: o tema já foi trocado */ });
   } catch { apply(next); }
 };
