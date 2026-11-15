@@ -13,6 +13,8 @@ import ItemSearchBox from './ItemSearchBox';
 import ItemPriceInsight from './ItemPriceInsight';
 import { useStoreNames } from './StoreNamesContext';
 import MarketTickerCard from './MarketTickerCard';
+import ProduceCompareCard from './ProduceCompareCard';
+import LazyMount from './LazyMount';
 import { homeCenterOf } from '../services/sharedLoader';
 import { 
     Calendar, Fuel, Home, Shirt, ShoppingCart, ScanLine, History, 
@@ -931,8 +933,16 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
       </div>
 
+      {/* Hortifruti completo, já aberto: preço por item e loja, qualidade, dia da semana (mesmo cartão de Análises) */}
+      <div className="mt-6 md:mt-10" data-testid="home-hortifruti">
+          <LazyMount minHeight={320}>
+              <ProduceCompareCard receipts={receipts} nameOf={(n, c) => nameOf(n, c)} dept="HORTIFRUTI" label="Hortifruti" center={homeCenterOf(receipts, establishments || [])} />
+          </LazyMount>
+      </div>
       <div className="mt-6 md:mt-10">
-          <MarketTickerCard receipts={receipts} center={homeCenterOf(receipts, establishments || [])} onOpen={onReportsClick} />
+          <LazyMount minHeight={200}>
+              <MarketTickerCard receipts={receipts} center={homeCenterOf(receipts, establishments || [])} onOpen={onReportsClick} />
+          </LazyMount>
       </div>
 
     </div>
