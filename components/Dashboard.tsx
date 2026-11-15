@@ -12,11 +12,13 @@ import ReceiptRow from './ReceiptRow';
 import ItemSearchBox from './ItemSearchBox';
 import ItemPriceInsight from './ItemPriceInsight';
 import { useStoreNames } from './StoreNamesContext';
+import MarketTickerCard from './MarketTickerCard';
+import { homeCenterOf } from '../services/sharedLoader';
 import { 
     Calendar, Fuel, Home, Shirt, ShoppingCart, ScanLine, History, 
     BarChart3, Settings, Filter, CalendarDays, RotateCcw, 
     Beef, Bird, Fish, PiggyBank, Brush, Milk, Waves, Baby, Smartphone, MoveHorizontal, Carrot,
-    Gem, ChevronDown, Coffee, Wine, Pizza, Candy, IceCream, Utensils, Laptop, PenTool, Wrench,
+    Gem, ChevronDown, ChevronUp, Coffee, Wine, Pizza, Candy, IceCream, Utensils, Laptop, PenTool, Wrench,
     TrendingUp, LineChart, Croissant, CakeSlice, Cookie, Wheat, ChefHat, Palette, Store, Clock, ChevronRight,
     Egg, Apple, Cherry, Salad, Beer, CupSoda, Eraser, Zap, PawPrint, ShoppingBag,
     Banana, Grape, Citrus, LeafyGreen,
@@ -66,6 +68,7 @@ interface DashboardProps {
   onEditIcon?: (category: string) => void;
   onSelectReceipt?: (receipt: Receipt) => void;
   masterProducts?: MasterProduct[];
+  establishments?: { cnpj?: string; latitude?: number; longitude?: number }[];
 }
 
 
@@ -419,7 +422,9 @@ const CustomTooltip = ({ active, payload }: any) => {
     return null;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onQuotesClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [] }) => {
+const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onQuotesClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [], establishments = [] }) => {
+  const [whereOpen, setWhereOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_home_where_open') !== '0'; } catch { return true; } });
+  const toggleWhere = () => setWhereOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_home_where_open', n ? '1' : '0'); } catch { /* vale só nesta tela */ } return n; });
   const pickMonth = useMonthPick(config, onConfigChange);
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
   // No celular a barra de filtros fica numa linha só (categoria + período); toca no período para abrir o resto.
@@ -890,7 +895,10 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       <div className="lg:col-span-6 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(59,130,246,0.10), transparent)' }} />
           <div className="flex justify-between items-center mb-2 md:mb-6 relative z-10">
-              <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Onde você gasta</h3>
+              <button type="button" onClick={toggleWhere} aria-expanded={whereOpen} data-testid="where-toggle" className="flex items-center gap-2 text-left">
+                  <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Onde você gasta</h3>
+                  {whereOpen ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
+              </button>
               {config.establishment && (
                   <button
                     onClick={() => onConfigChange({ ...config, establishment: null })}
@@ -901,7 +909,12 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               )}
           </div>
           
-          <div className="relative z-10">
+          {!whereOpen && (
+              <p className="relative z-10 text-[11px] text-zinc-500 truncate" data-testid="where-summary">
+                  {establishmentData.slice(0, 3).map((e, i) => `${clip(storeLabel(e.name) || establishmentLabels[i] || e.raw, 16)} ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(e.value)}`).join(' · ')}
+              </p>
+          )}
+          <div className={`relative z-10 ${whereOpen ? '' : 'hidden'}`}>
               <StoreRanking
                   rows={establishmentData.map((e, i) => ({
                       key: e.name,
@@ -918,23 +931,10 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
       </div>
 
-      {/* NOVO: RELAÇÃO DE ESTABELECIMENTOS / RECIBOS */}
-      <div className="animate-in slide-in-from-bottom-2 duration-300">
-          <div className="flex items-center gap-3 mb-8 px-1">
-              <History className="w-5 h-5 text-luxury-gold" />
-              <h3 className="text-zinc-300 text-xs uppercase tracking-[0.08em] font-bold">Compras do período</h3>
-          </div>
-          <div className="space-y-1">
-              {shownReceipts.slice(0, 12).map((receipt) => (
-                  <ReceiptRow key={receipt.id} receipt={receipt} onClick={openOriginal} />
-              ))}
-          </div>
-          {shownReceipts.length > 12 && (
-              <button onClick={onHistoryClick} className="w-full mt-8 py-4 border border-dashed border-white/10 rounded-2xl text-[11px] font-bold text-zinc-500 uppercase tracking-[0.1em] hover:text-luxury-gold hover:border-luxury-gold/30 transition-all">
-                  Ver todo o histórico auditado ({shownReceipts.length} registros)
-              </button>
-          )}
+      <div className="mt-6 md:mt-10">
+          <MarketTickerCard receipts={receipts} center={homeCenterOf(receipts, establishments || [])} onOpen={onReportsClick} />
       </div>
+
     </div>
   );
 };

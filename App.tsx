@@ -1494,6 +1494,7 @@ const App: React.FC = () => {
                       onEditIcon={setSelectedCategoryForIcon} 
                       onSelectReceipt={(r) => setSelectedReceiptId(r.id)}
                       masterProducts={masterProducts}
+                      establishments={establishments}
                     />
                 )}
                 {view === 'category_detail' && selectedCategory && (

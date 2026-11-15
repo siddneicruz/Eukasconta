@@ -5,6 +5,7 @@ import { useMasterInfo } from './MasterContext';
 import { buildProduceCompare, mergeObs, rankItem, WD, MIN_ITEMS_RANK, MIN_DAY_OBS, MAX_STORES_PER_ITEM } from '../services/produceCompare';
 import { unitLabel } from '../services/productPriceStats';
 import { QualityFace } from './QualityFace';
+import { loadShared } from '../services/sharedLoader';
 import { deptObservations, sharedObservations } from '../services/quotes';
 import { GROCERY_STORE_TYPES } from '../services/storeTypes';
 
@@ -17,7 +18,6 @@ const idxColor = (v: number) => (v <= -0.02 ? '#34d399' : v >= 0.02 ? '#f87171' 
 const scoreColor = (s: number) => (s >= 7 ? '#34d399' : s >= 4 ? '#DDB94B' : '#f87171');
 const short = (iso: string) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 
-let sharedCache: { key: string; at: number; rows: cloud.SharedRow[] } | null = null;
 type Tab = 'stores' | 'items' | 'days';
 type Q = { score: number | null; n: number; last: string | null };
 
@@ -31,22 +31,9 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const [src, setSrc] = useState<'loading' | 'shared' | 'local'>('loading');
   const cKey = center ? `${center.lat.toFixed(3)},${center.lng.toFixed(3)}` : '';
   useEffect(() => {
-    if (!cloud.cloudAvailable()) { setSrc('local'); return; }
     let alive = true;
-    (async () => {
-      setSrc('loading');
-      let c = center;
-      try {   // se o app já tem permissão de localização, usa a posição atual; senão, o centro das lojas que você mais frequenta
-        const perm = await (navigator as any).permissions?.query({ name: 'geolocation' });
-        if (perm?.state === 'granted') c = await cloud.getCurrentPosition();
-      } catch { /* fica com o centro das lojas */ }
-      if (!c) { if (alive) setSrc('local'); return; }
-      const key = `${km}|${c.lat.toFixed(2)},${c.lng.toFixed(2)}`;
-      if (sharedCache && sharedCache.key === key && Date.now() - sharedCache.at < 5 * 60000) { if (alive) { setShared(sharedCache.rows); setSrc('shared'); } return; }
-      const rows = await cloud.sharedObservations(c, km, 400);
-      sharedCache = { key, at: Date.now(), rows };
-      if (alive) { setShared(rows); setSrc('shared'); }
-    })().catch(() => { if (alive) setSrc('local'); });
+    setSrc('loading');
+    loadShared(center, km).then(rows => { if (!alive) return; if (rows) { setShared(rows); setSrc('shared'); } else setSrc('local'); }).catch(() => { if (alive) setSrc('local'); });
     return () => { alive = false; };
   }, [km, cKey]);
   const obs = useMemo(() => {
