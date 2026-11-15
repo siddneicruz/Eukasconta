@@ -32,7 +32,7 @@ const Shell: React.FC<{ title: string; hint?: string; onClose: () => void; testI
   return createPortal(
     <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose} data-testid={testId}>
       <div role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}
-        className="w-full sm:max-w-lg max-h-[90dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        className="w-full sm:max-w-lg max-h-[90dvh] flex flex-col bg-ek-card2 border border-white/10 rounded-t-[1.75rem] sm:rounded-[2rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="shrink-0 w-9 h-9 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center"><ListChecks className="w-4 h-4" /></div>
           <div className="min-w-0 flex-1">
@@ -136,7 +136,7 @@ const AlignCategoriesSheet: React.FC<Props> = ({ taxonomy, receipts, masters = [
               <button type="button" data-testid="align-pick-option" data-path={p} aria-pressed={cur === p}
                 onClick={() => { setOver(o => ({ ...o, [pickRow.key]: p })); setSel(s => ({ ...s, [pickRow.key]: true })); setPickFor(null); setQuery(''); }}
                 className="w-full text-left py-2.5 min-h-[48px] flex items-center gap-3">
-                <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-zinc-100 leading-tight break-words">{crumbs(p)}</span>
+                <span className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-100 leading-tight break-words">{crumbs(p)}</span>
                 {cur === p && <span className="shrink-0 text-[11px] font-bold text-luxury-gold">Escolhida</span>}
               </button>
             </li>
@@ -175,7 +175,7 @@ const AlignCategoriesSheet: React.FC<Props> = ({ taxonomy, receipts, masters = [
             <span className="font-semibold">{pending.length + spelling.length} {pending.length + spelling.length === 1 ? 'nome' : 'nomes'} de categoria</span> nos seus cupons {pending.length + spelling.length === 1 ? 'não está' : 'não estão'} escritos como na Estrutura.
           </p>
         )}
-        <p className="text-[11.5px] text-zinc-500 mt-1 leading-snug">{plan.itemsSame} de {plan.items} itens já estão em categorias da Estrutura.</p>
+        <p className="text-[12px] text-zinc-500 mt-1 leading-snug">{plan.itemsSame} de {plan.items} itens já estão em categorias da Estrutura.</p>
       </div>
 
       {pending.length === 0 && spelling.length === 0 && (
@@ -187,7 +187,7 @@ const AlignCategoriesSheet: React.FC<Props> = ({ taxonomy, receipts, masters = [
       {groups.map(g => (
         <section key={g.id} className="mb-4" data-testid="align-section" data-section={g.id}>
           <h4 className="text-[13px] font-semibold text-zinc-100">{g.title} <span className="text-zinc-500 font-normal tabular-nums">· {g.rows.length}</span></h4>
-          <p className="text-[11.5px] text-zinc-500 mt-0.5 mb-2 leading-snug">{g.hint}</p>
+          <p className="text-[12px] text-zinc-500 mt-0.5 mb-2 leading-snug">{g.hint}</p>
           <ul className="space-y-2">
             {g.rows.map(r => {
               const to = targetOf(r);
@@ -202,7 +202,7 @@ const AlignCategoriesSheet: React.FC<Props> = ({ taxonomy, receipts, masters = [
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] text-zinc-400 leading-tight break-words" data-testid="align-from">{crumbs(titleCase(r.from))}</p>
                       <p className="text-[11px] text-zinc-500 mt-0.5 tabular-nums">{r.items} {r.items === 1 ? 'item' : 'itens'}{r.total > 0 ? ` · ${brl(r.total)}` : ''}</p>
-                      <p className="mt-1.5 flex items-start gap-1.5 text-[13.5px] font-semibold leading-tight break-words" data-testid="align-to">
+                      <p className="mt-1.5 flex items-start gap-1.5 text-[14px] font-semibold leading-tight break-words" data-testid="align-to">
                         <ArrowRight className="w-3.5 h-3.5 mt-0.5 shrink-0 text-zinc-500" />
                         <span className={to ? 'text-zinc-100' : 'text-zinc-500 font-normal'}>{to ? crumbs(to) : 'Sem categoria na Estrutura'}</span>
                       </p>
@@ -220,7 +220,7 @@ const AlignCategoriesSheet: React.FC<Props> = ({ taxonomy, receipts, masters = [
       ))}
 
       {spelling.length > 0 && (
-        <p className="text-[11.5px] text-zinc-500 leading-snug" data-testid="align-spelling">
+        <p className="text-[12px] text-zinc-500 leading-snug" data-testid="align-spelling">
           Mais {spelling.length} {spelling.length === 1 ? 'nome só muda' : 'nomes só mudam'} maiúsculas, acentos ou plural (como “HORTIFRUTI - Frutas”); {spelling.length === 1 ? 'é acertado' : 'são acertados'} junto.
         </p>
       )}

@@ -233,8 +233,8 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
         >
           {outsideCount > 0 && (
             <div className="mx-1 mb-1 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2" data-testid={`${testId}-outside`}>
-              <p className="min-w-0 flex-1 text-[11.5px] leading-snug text-zinc-400">{outsideCount} {outsideCount === 1 ? 'categoria está' : 'categorias estão'} fora da Estrutura de Taxonomia (no fim da lista).</p>
-              <button type="button" onClick={openAlignSheet} data-testid={`${testId}-align`} className="shrink-0 h-8 px-3 rounded-lg border border-luxury-gold/50 text-[11.5px] font-bold text-zinc-100">Alinhar</button>
+              <p className="min-w-0 flex-1 text-[12px] leading-snug text-zinc-400">{outsideCount} {outsideCount === 1 ? 'categoria está' : 'categorias estão'} fora da Estrutura de Taxonomia (no fim da lista).</p>
+              <button type="button" onClick={openAlignSheet} data-testid={`${testId}-align`} className="shrink-0 h-8 px-3 rounded-lg border border-luxury-gold/50 text-[12px] font-bold text-zinc-100">Alinhar</button>
             </div>
           )}
           {full && (
@@ -252,7 +252,7 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
             const lockedFlat = r.flat && locked(r);
             const dis = blocked(r.opt.id) || lockedFlat;
             const k = r.opt.kind;
-            const titleCls = k === 'dept' ? 'text-[14px] font-semibold text-zinc-100' : k === 'cat' ? 'text-[13px] font-medium text-zinc-200' : k === 'item' ? 'text-[12.5px] font-normal text-zinc-300' : 'text-[13px] font-medium text-zinc-300';
+            const titleCls = k === 'dept' ? 'text-[14px] font-semibold text-zinc-100' : k === 'cat' ? 'text-[13px] font-medium text-zinc-200' : k === 'item' ? 'text-[13px] font-normal text-zinc-300' : 'text-[13px] font-medium text-zinc-300';
             const caption = lockedFlat ? 'Escolha uma categoria dentro dele' : k === 'dept' ? 'Departamento inteiro' : k === 'cat' ? r.opt.dept : r.crumb;
             return (
               <div key={r.opt.id} style={r.depth ? { marginLeft: r.depth * 16 } : undefined}
@@ -280,7 +280,7 @@ const CategoryCompareBox: React.FC<Props> = ({ options, selected, max, onToggle,
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate ${titleCls} ${sel || onPath ? 'text-luxury-gold' : ''}`}>{r.opt.label}</span>
                     {r.flat && <span className="block text-[11px] text-zinc-500 leading-snug truncate">{caption}</span>}
-                    {r.opt.outside && (k === 'dept' || k === 'cat') && <span className="block text-[10.5px] text-zinc-500 leading-snug" data-testid="compare-outside-tag">fora da Estrutura</span>}
+                    {r.opt.outside && (k === 'dept' || k === 'cat') && <span className="block text-[11px] text-zinc-500 leading-snug" data-testid="compare-outside-tag">fora da Estrutura</span>}
                   </span>
                   <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums">{r.opt.total > 0 ? brlAxis(r.opt.total) : ''}</span>
                 </button>

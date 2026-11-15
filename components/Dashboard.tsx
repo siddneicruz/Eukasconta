@@ -38,7 +38,7 @@ import {
     GraduationCap, Library, Notebook, Box, Package, Archive, Soup,
     Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake, ArrowLeftRight
 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { getIconByName } from '../services/allIcons';
 import { Plus as PlusIcon, Minus as MinusIcon } from 'lucide-react';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
@@ -54,7 +54,6 @@ import { isCurrentMonthPeriod } from '../services/currentMonth';
 import { MONTHS_SHORT, shortPeriod } from '../services/periodFilter';
 import { titleCase, properCase, shortLabels, isUnidentifiedName, UNIDENTIFIED_LABEL, deptKey, sameDept } from '../services/textFormat';
 import { CHART_COLORS, CATEGORY_COLORS } from '../services/chartTheme';
-import { QuotesTicker, useQuotesTicker } from './QuotesPanel';
 
 interface DashboardProps {
   receipts: Receipt[];
@@ -265,8 +264,7 @@ export const getCategoryIcon = (category: string) => {
         if (custom.icon.startsWith('data:image/')) {
             return (props: any) => <img src={custom.icon} className={props.className} style={{ width: '1em', height: '1em', objectFit: 'contain', mixBlendMode: 'screen', ...props.style }} alt={category} />;
         }
-        // @ts-ignore
-        const IconComp = LucideIcons[custom.icon];
+        const IconComp = getIconByName(custom.icon);
         if (IconComp) return IconComp;
     }
     return matchIconByKeyword(category) || ShoppingBag;
@@ -437,7 +435,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   // Filtro de categorias: fica gravado no aparelho (não some ao limpar os outros filtros)
   const [deptFilter, setDeptFilter] = useDeptFilter();
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
-  const [tickerOn, setTickerOn] = useQuotesTicker();
   const [deptSheetOpen, setDeptSheetOpen] = useState(false);
   const [spendOpen, setSpendOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_spend_open') !== '0'; } catch { return true; } });
   const toggleSpend = () => setSpendOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_spend_open', n ? '1' : '0'); } catch { /* sem armazenamento */ } return n; });
@@ -633,13 +630,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
-      {tickerOn && (
-        <div className="relative mb-2 md:mb-3" data-testid="quotes-ticker-wrap">
-          <QuotesTicker receipts={receipts} onOpen={onQuotesClick} />
-          <button type="button" onClick={() => setTickerOn(false)} aria-label="Ocultar o letreiro de cotações" data-testid="quotes-ticker-hide"
-            className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/70 border border-white/10 text-zinc-400 flex items-center justify-center text-sm leading-none">×</button>
-        </div>
-      )}
       {deptSheetOpen && <DeptFilterSheet options={deptOptions} filter={deptFilter} onChange={setDeptFilter} onClose={() => setDeptSheetOpen(false)} z="z-[250]" />}
       <div className="flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>
@@ -797,7 +787,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           <ActionButton onClick={onSettingsClick} icon={Settings} label="Ajustes" />
       </div>
 
-      <div className="mb-10 bg-black border border-white/10 rounded-[1.75rem] md:rounded-[2.5rem] p-4 md:p-10 shadow-2xl relative overflow-hidden group">
+      <div className="mb-10 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-10 shadow-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(212,175,55,0.10), transparent)' }} />
           <div className="flex justify-between items-center mb-2 md:mb-8 relative z-10 px-1 md:px-0">
               <div className="flex flex-col">
@@ -837,7 +827,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           const k = kindSplit(groupRows);
           const sel = groupRows.find(g => g.id === groupSel) || null;
           return (
-          <div className="mb-5 bg-zinc-950 border border-white/5 rounded-[1.75rem] md:rounded-[2.5rem] px-4 py-3.5 md:p-8 shadow-2xl" data-testid="spend-groups" data-open={spendOpen ? 'true' : 'false'}>
+          <div className="mb-5 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] px-4 py-3.5 md:p-8 shadow-2xl" data-testid="spend-groups" data-open={spendOpen ? 'true' : 'false'}>
               <div className="flex items-center justify-between gap-2 mb-2">
                   <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Tipo de gasto</h3>
                   <div className="flex items-center gap-2">

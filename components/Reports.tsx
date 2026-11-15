@@ -1006,7 +1006,7 @@ const Reports: React.FC<ReportsProps> = ({
               <CompareCard options={compareOptions} chosen={chosen} onToggle={toggleCompare} max={MAX_COMPARE} receipts={filteredReceipts} config={config} />
 
               {/* TOP 5 ESTABELECIMENTOS: onde mais se gastou com a categoria escolhida na aba */}
-              <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="top-stores-card">
+              <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="top-stores-card">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-3 px-0.5">
                       <h3 className="text-[12px] font-semibold text-zinc-300 flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-emerald-500" /> Top 5 estabelecimentos</h3>
                       <div className="flex gap-1.5 overflow-x-auto no-scrollbar max-w-full -mx-0.5 px-0.5">
@@ -1057,7 +1057,7 @@ const Reports: React.FC<ReportsProps> = ({
 
                 {activeSection === 'catalog' && (<>
                 {/* CATÁLOGO DE PRODUTOS */}
-                <div className="bg-[#121214] border border-white/5 rounded-[2rem] p-6 md:p-8 shadow-2xl overflow-hidden relative group">
+                <div className="bg-ek-card border border-white/5 rounded-[2rem] p-6 md:p-8 shadow-2xl overflow-hidden relative group">
                     <div className="absolute top-0 right-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(139,92,246,0.10), transparent)' }} />
                     
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-5 relative z-10">
@@ -1353,7 +1353,7 @@ const Reports: React.FC<ReportsProps> = ({
             {/* MODAL DE GERENCIAMENTO DE VÍNCULO DO ITEM ORIGINAL */}
             {editingRawProduct && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-                    <div className="w-full max-w-2xl bg-[#0c0c0e] border border-luxury-gold/20 rounded-[3rem] overflow-hidden shadow-3xl shadow-luxury-gold/5">
+                    <div className="w-full max-w-2xl bg-ek-card2 border border-luxury-gold/20 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-luxury-gold/5">
                         <div className="p-5 sm:p-8 border-b border-white/5 bg-luxury-gold/5 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-luxury-gold text-black rounded-2xl"><Tag className="w-6 h-6" /></div>
@@ -1466,7 +1466,7 @@ const Reports: React.FC<ReportsProps> = ({
             {/* MODAL DE UNIFICAÇÃO MANUAL */}
             {mergeSource && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-                    <div className="w-full max-w-md bg-[#0c0c0e] border border-blue-500/20 rounded-[3rem] overflow-hidden shadow-3xl shadow-blue-500/5">
+                    <div className="w-full max-w-md bg-ek-card2 border border-blue-500/20 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-500/5">
                         <div className="p-5 sm:p-8 border-b border-white/5 bg-blue-500/5 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-blue-500 text-black rounded-2xl"><GitMerge className="w-6 h-6" /></div>
@@ -1516,7 +1516,7 @@ const Reports: React.FC<ReportsProps> = ({
             {/* MODAL DE CONFIRMAÇÃO PERSONALIZADO */}
             {confirmModal && (
                 <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="w-full max-w-md bg-[#0c0c0e] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="w-full max-w-md bg-ek-card2 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
                         <div className="p-6 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
                             <HelpCircle className="w-5 h-5 text-luxury-gold" />
                             <h3 className="text-sm font-sans text-white uppercase tracking-wider">{confirmModal.title}</h3>

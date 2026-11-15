@@ -252,7 +252,7 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
       </div>
 
       {showNew && (
-        <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="goal-new-card">
+        <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="goal-new-card">
           <h3 className="text-[12px] font-semibold text-zinc-300 flex items-center gap-1.5 mb-1"><Goal className="w-3.5 h-3.5 text-blue-400" /> Nova meta do mês</h3>
           <p className="text-[12px] text-zinc-500 mb-3 leading-snug">Escolha o departamento, a categoria, o grupo ou o item e o teto de gasto por mês. Ela fica aqui como etiqueta.</p>
           <div className="space-y-2.5">
@@ -269,7 +269,7 @@ const GoalsPanel: React.FC<Props> = ({ receipts }) => {
       )}
 
       {!showNew && current && a && (
-        <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="goal-analysis">
+        <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="goal-analysis">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100 truncate" data-testid="goal-title">{current.opt.full.split(' - ').join(' › ')}</h3>

@@ -43,7 +43,7 @@ export const Sheet: React.FC<{ title: string; subtitle?: string; onClose: () => 
       onPointerDown={e => { downOnBackdrop.current = e.target === e.currentTarget; }}
       onClick={e => { if (e.target === e.currentTarget && downOnBackdrop.current) onClose(); }} data-testid={testId}>
       <div ref={panelRef} role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}
-        className={`w-full sm:max-w-md max-h-[88dvh] ${tall ? 'h-[88dvh]' : ''} flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]`}>
+        className={`w-full sm:max-w-md max-h-[88dvh] ${tall ? 'h-[88dvh]' : ''} flex flex-col bg-ek-card2 border border-white/10 rounded-t-[1.75rem] sm:rounded-[2rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]`}>
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="min-w-0 flex-1">
             <h3 className="text-[16px] font-serif text-white tracking-tight leading-tight break-words">{title}</h3>
@@ -125,7 +125,7 @@ const Stepper: React.FC<{ qty: number; unit: string; onChange: (q: number) => vo
   return (
     <span className="shrink-0 inline-flex items-center rounded-full border border-white/10 bg-white/5" data-testid={testId}>
       <button type="button" aria-label="Diminuir" onMouseDown={e => e.preventDefault()} onClick={() => onChange(Math.max(st, roundTo(qty - st, st)))} className="w-9 h-9 flex items-center justify-center text-zinc-200 text-[18px] active:bg-white/10 rounded-full">−</button>
-      <span className="min-w-[44px] text-center text-[12.5px] font-semibold tabular-nums text-white">{fmtQty(qty, unit)}</span>
+      <span className="min-w-[44px] text-center text-[13px] font-semibold tabular-nums text-white">{fmtQty(qty, unit)}</span>
       <button type="button" aria-label="Aumentar" onMouseDown={e => e.preventDefault()} onClick={() => onChange(roundTo(qty + st, st))} className="w-9 h-9 flex items-center justify-center text-luxury-gold text-[18px] active:bg-white/10 rounded-full">+</button>
     </span>
   );
@@ -249,7 +249,7 @@ export const ListMenuSheet: React.FC<{
       <span className={`shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center ${danger ? 'border-rose-500/30' : 'border-white/10 text-luxury-gold'}`}>{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-[14px] font-semibold leading-tight">{label}</span>
-        {sub && <span className="block text-[11.5px] text-zinc-500 leading-snug mt-0.5">{sub}</span>}
+        {sub && <span className="block text-[12px] text-zinc-500 leading-snug mt-0.5">{sub}</span>}
       </span>
     </button>
   );

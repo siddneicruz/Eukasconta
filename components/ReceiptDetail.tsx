@@ -4,7 +4,6 @@ import { Receipt, ReceiptItem, Establishment } from '../types';
 import { MessageCircle, X, Calendar, MapPin, Hash, ChevronDown, ChevronUp, PieChart, Edit2, Check, ChevronLeft, ChevronRight, Fuel, Utensils, ShoppingCart, Home, AlertCircle, Heart, Droplets, Smile, Shirt, Zap, Briefcase, PawPrint, FileText, Scroll, MessageSquare, Send, Croissant, Download, Folder, FileType, Save, Trash2, Plus, Clock, Globe } from 'lucide-react';
 import { getCategoryIcon } from './Dashboard';
 import { formatCNPJ } from '../services/productNormalization';
-import JSZip from 'jszip';
 import { downloadFile } from '../services/nativeFiles';
 import { shareText, receiptToWhatsApp } from '../services/shareText';
 import { titleCase } from '../services/textFormat';
@@ -109,7 +108,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt; highlight?: ItemFilter | 
     const handleExportZip = async () => {
         setIsGenerating(true);
         try {
-            const ZipClass = (JSZip as any).default || JSZip;
+            const JSZip = (await import('jszip')).default; const ZipClass = (JSZip as any).default || JSZip;
             const zip = new ZipClass();
             const folder = zip.folder(establishmentSlug);
             if (folder) {
@@ -157,7 +156,7 @@ const ThermalReceiptView: React.FC<{ receipt: Receipt; highlight?: ItemFilter | 
                     <button onClick={handleExportTxt} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-[0.08em] transition-all">
                         <FileText className="w-4 h-4" /> .TXT
                     </button>
-                    <button onClick={handleExportZip} disabled={isGenerating} className="flex items-center gap-2 bg-luxury-gold hover:bg-[#B5952F] text-black px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-[0.08em] transition-all">
+                    <button onClick={handleExportZip} disabled={isGenerating} className="flex items-center gap-2 bg-luxury-gold hover:bg-luxury-goldHover text-black px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-[0.08em] transition-all">
                         {isGenerating ? '...' : <><Download className="w-4 h-4" /> .ZIP</>}
                     </button>
                 </div>
@@ -254,7 +253,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
             <span className="text-[11px] text-luxury-gold bg-luxury-gold/10 border border-luxury-gold/20 px-2 py-0.5 rounded uppercase tracking-[0.08em] font-bold flex items-center gap-1"><Edit2 className="w-3 h-3" /> Modo Edição</span>
             <div className="flex gap-2">
               <button onClick={() => setIsEditing(false)} aria-label="Cancelar edição" className="p-2 rounded-full hover:bg-red-900/30 text-zinc-500 hover:text-red-500 transition-colors bg-black/20"><X className="w-5 h-5" /></button>
-              <button onClick={handleSaveEdit} aria-label="Salvar edição" className="p-2 rounded-full bg-luxury-gold hover:bg-[#B5952F] text-black shadow-lg shadow-luxury-gold/20 transition-colors"><Save className="w-5 h-5" /></button>
+              <button onClick={handleSaveEdit} aria-label="Salvar edição" className="p-2 rounded-full bg-luxury-gold hover:bg-luxury-goldHover text-black shadow-lg shadow-luxury-gold/20 transition-colors"><Save className="w-5 h-5" /></button>
             </div>
           </div>
         ) : (
@@ -305,7 +304,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
             </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto ${isEditing ? 'p-3 md:p-6' : 'p-4 md:p-6'} bg-[#09090b] custom-scrollbar`}>
+        <div className={`flex-1 overflow-y-auto ${isEditing ? 'p-3 md:p-6' : 'p-4 md:p-6'} bg-ek-page custom-scrollbar`}>
           {isEditing ? (
               <div className="space-y-3">
                   {/* dados do cupom em grade de 12 colunas: 3 linhas no celular, na largura toda; rolam junto com os itens */}

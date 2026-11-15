@@ -152,7 +152,7 @@ export const StorePickerSheet: React.FC<{ poi: Poi; stores: PickableStore[]; onP
   return createPortal(
     <div className="fixed inset-0 z-[210] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose} data-testid="map-picker">
       <div role="dialog" aria-modal="true" aria-label="Escolher a loja" onClick={e => e.stopPropagation()}
-        className="w-full sm:max-w-lg max-h-[88dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        className="w-full sm:max-w-lg max-h-[88dvh] flex flex-col bg-ek-card2 border border-white/10 rounded-t-[1.75rem] sm:rounded-[2rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="shrink-0 w-9 h-9 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center"><Store className="w-4 h-4" /></div>
           <div className="min-w-0 flex-1">

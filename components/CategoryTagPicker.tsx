@@ -135,7 +135,7 @@ const CategoryTagPicker: React.FC<Props> = ({ options, selectedId, onChoose, onC
               className="w-full flex items-center gap-2.5 px-3 min-h-[40px] text-left bg-white/[0.02] active:bg-white/5">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${LEVEL_DOT[d]}`} />
               <span className="w-[84px] shrink-0 text-[11px] text-zinc-500">{CAPTION[d]}</span>
-              <span className={`min-w-0 flex-1 truncate text-[12.5px] ${chosen ? 'font-semibold text-luxury-gold' : 'text-zinc-500'}`}>{chosen ? chosen.label : 'Escolher'}</span>
+              <span className={`min-w-0 flex-1 truncate text-[13px] ${chosen ? 'font-semibold text-luxury-gold' : 'text-zinc-500'}`}>{chosen ? chosen.label : 'Escolher'}</span>
               <span className="shrink-0 text-[11px] text-zinc-400 underline underline-offset-2">trocar</span>
             </button>
           );
@@ -173,7 +173,7 @@ const CategoryTagPicker: React.FC<Props> = ({ options, selectedId, onChoose, onC
                     placeholder={d === 2 ? `Novo grupo em ${parentLabel}` : `Novo item em ${parentLabel}`} maxLength={60}
                     className="min-w-0 flex-1 h-10 rounded-full bg-white/5 border border-luxury-gold/40 px-4 text-[13px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none" />
                   <button type="submit" disabled={!name.trim() || busy} data-testid={`${testId}-new-save`}
-                    className="shrink-0 h-10 px-4 rounded-full bg-luxury-gold text-black text-[12.5px] font-bold disabled:opacity-40 active:opacity-80">{busy ? '…' : createLabel === 'Nova etiqueta' ? 'Criar' : 'Enviar'}</button>
+                    className="shrink-0 h-10 px-4 rounded-full bg-luxury-gold text-black text-[13px] font-bold disabled:opacity-40 active:opacity-80">{busy ? '…' : createLabel === 'Nova etiqueta' ? 'Criar' : 'Enviar'}</button>
                   <button type="button" onClick={closeAdd} aria-label="Cancelar" data-testid={`${testId}-new-cancel`}
                     className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full border border-white/10 text-zinc-400"><X className="w-4 h-4" /></button>
                 </form>
@@ -186,7 +186,7 @@ const CategoryTagPicker: React.FC<Props> = ({ options, selectedId, onChoose, onC
         <p className={`text-[12px] leading-snug rounded-xl px-3 py-2 border ${msg.bad ? 'text-red-300 border-red-500/30 bg-red-500/5' : 'text-zinc-200 border-luxury-gold/30 bg-luxury-gold/[0.06]'}`} data-testid={`${testId}-msg`} role="status">{msg.text}</p>
       )}
       {needMore && last && (
-        <p className="text-[11.5px] text-zinc-500 leading-snug" data-testid={`${testId}-more`}>Escolha uma categoria de {last.label} para aplicar.</p>
+        <p className="text-[12px] text-zinc-500 leading-snug" data-testid={`${testId}-more`}>Escolha uma categoria de {last.label} para aplicar.</p>
       )}
     </div>
   );

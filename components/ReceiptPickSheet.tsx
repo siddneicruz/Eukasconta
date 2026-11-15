@@ -37,7 +37,7 @@ const ReceiptPickSheet: React.FC<Props> = ({ title, subtitle, refs, onPick, onCl
   return createPortal(
     <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose} data-testid="receipt-pick">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}
-        className="w-full sm:max-w-md max-h-[80dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        className="w-full sm:max-w-md max-h-[80dvh] flex flex-col bg-ek-card2 border border-white/10 rounded-t-[1.75rem] sm:rounded-[2rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="min-w-0 flex-1">
             <h3 className="text-[16px] font-serif text-white tracking-tight leading-tight break-words" data-testid="receipt-pick-title">{title}</h3>

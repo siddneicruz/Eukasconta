@@ -6,7 +6,7 @@ import { formatCNPJ } from '../services/productNormalization';
 /* Fila única do administrador: só você decide unificar lojas, corrigir e aprovar cadastros.
    A auditoria do banco (todo dia) e a IA só sugerem; nada é juntado sem o seu toque. */
 
-const btn = 'inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[12.5px] font-bold active:opacity-80 disabled:opacity-40';
+const btn = 'inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold active:opacity-80 disabled:opacity-40';
 
 const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) => {
   const [q, setQ] = useState<Queue | null>(null);
@@ -64,7 +64,7 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
             {q.findings.map(f => (
               <li key={f.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3.5" data-testid="admin-finding">
                 <p className="text-[11px] font-bold text-luxury-gold">{f.kind === 'store_dup' ? (f.strength === 'alta' ? 'Possível loja repetida · certeza alta' : 'Possível loja repetida · conferir') : 'CNPJ com dígito errado'}</p>
-                <p className="mt-1 text-[12.5px] text-zinc-200 break-words">{f.reason}</p>
+                <p className="mt-1 text-[13px] text-zinc-200 break-words">{f.reason}</p>
                 <p className="mt-1.5 text-[12px] text-zinc-400 break-words tabular-nums">
                   {f.details?.a_name || f.details?.name || ''} · {cn(f.subject_a)}
                   {f.subject_b && <><br />{f.details?.b_name || ''} · {cn(f.subject_b)}</>}
@@ -87,7 +87,7 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
               <li key={c.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3" data-testid="admin-company">
                 <p className="text-[13px] text-zinc-100 break-words">{c.name} <span className="text-[11px] text-zinc-500">· {c.kind} · {c.n_eans.toLocaleString('pt-BR')} EANs</span></p>
                 {c.conferir && <p className="text-[11px] font-bold text-amber-500">Conferir: nome estranho</p>}
-                {c.example && <p className="mt-0.5 text-[11.5px] text-zinc-500 break-words">Ex.: {c.example}</p>}
+                {c.example && <p className="mt-0.5 text-[12px] text-zinc-500 break-words">Ex.: {c.example}</p>}
                 <div className="mt-2 flex gap-2">
                   <button type="button" disabled={working === `c${c.id}`} onClick={() => doCompany(c, true)} className={`${btn} flex-1 bg-luxury-gold text-black`}><Check className="w-4 h-4" /> Aprovar</button>
                   <button type="button" disabled={working === `c${c.id}`} onClick={() => doCompany(c, false)} className={`${btn} flex-1 bg-white/5 border border-white/10 text-zinc-300`}>Ignorar</button>
@@ -95,7 +95,7 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
               </li>
             ))}
           </ul>
-          {q.companies.length > 30 && <p className="mt-2 text-[11.5px] text-zinc-500">Mostrando 30 de {q.companies.length}; as outras aparecem quando você decidir essas.</p>}
+          {q.companies.length > 30 && <p className="mt-2 text-[12px] text-zinc-500">Mostrando 30 de {q.companies.length}; as outras aparecem quando você decidir essas.</p>}
         </div>
       )}
 
@@ -105,9 +105,9 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
           <ul className="mt-2 space-y-2">
             {addr.slice(0, 30).map(a => (
               <li key={a.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3" data-testid="admin-address">
-                <p className="text-[12.5px] text-zinc-100 break-words">{a.store_name || cn(a.cnpj)} <span className="text-[11px] text-zinc-500">· {({ address: 'Rua', neighborhood: 'Bairro', cep: 'CEP', city: 'Cidade', state: 'UF', legal_name: 'Razão social', situacao: 'Situação' } as Record<string, string>)[a.field] || a.field}</span></p>
+                <p className="text-[13px] text-zinc-100 break-words">{a.store_name || cn(a.cnpj)} <span className="text-[11px] text-zinc-500">· {({ address: 'Rua', neighborhood: 'Bairro', cep: 'CEP', city: 'Cidade', state: 'UF', legal_name: 'Razão social', situacao: 'Situação' } as Record<string, string>)[a.field] || a.field}</span></p>
                 {a.kind === 'divergente' && <p className="text-[11px] font-bold text-amber-500">Diferente do que está salvo</p>}
-                {a.current_value && <p className="text-[11.5px] text-zinc-500 break-words">Hoje: {a.current_value}</p>}
+                {a.current_value && <p className="text-[12px] text-zinc-500 break-words">Hoje: {a.current_value}</p>}
                 <p className="text-[12px] text-zinc-300 break-words">Sugerido: {a.suggested_value}</p>
                 <div className="mt-2 flex gap-2">
                   {a.field !== 'situacao' && <button type="button" disabled={working === `a${a.id}`} onClick={() => doAddr(a, true)} className={`${btn} flex-1 bg-luxury-gold text-black`}><Check className="w-4 h-4" /> Aprovar</button>}
@@ -116,7 +116,7 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
               </li>
             ))}
           </ul>
-          {addr.length > 30 && <p className="mt-2 text-[11.5px] text-zinc-500">Mostrando 30 de {addr.length}.</p>}
+          {addr.length > 30 && <p className="mt-2 text-[12px] text-zinc-500">Mostrando 30 de {addr.length}.</p>}
         </div>
       )}
 
@@ -126,9 +126,9 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
           <ul className="mt-2 space-y-2">
             {cands.slice(0, 30).map(c => (
               <li key={c.cnpj} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3" data-testid="admin-candidate">
-                <p className="text-[12.5px] text-zinc-100 break-words">{c.name || c.legal_name} <span className="text-[11px] text-zinc-500">· {c.grupo}</span></p>
-                <p className="text-[11.5px] text-zinc-500 break-words tabular-nums">{cn(c.cnpj)} · {c.legal_name}</p>
-                <p className="text-[11.5px] text-zinc-400 break-words">{[c.address, c.neighborhood, c.cep, c.city + '/' + c.state].filter(Boolean).join(' · ')}</p>
+                <p className="text-[13px] text-zinc-100 break-words">{c.name || c.legal_name} <span className="text-[11px] text-zinc-500">· {c.grupo}</span></p>
+                <p className="text-[12px] text-zinc-500 break-words tabular-nums">{cn(c.cnpj)} · {c.legal_name}</p>
+                <p className="text-[12px] text-zinc-400 break-words">{[c.address, c.neighborhood, c.cep, c.city + '/' + c.state].filter(Boolean).join(' · ')}</p>
                 <div className="mt-2 flex gap-2">
                   <button type="button" disabled={working === `n${c.cnpj}`} onClick={() => doCand(c, true)} className={`${btn} flex-1 bg-luxury-gold text-black`}><Check className="w-4 h-4" /> Cadastrar</button>
                   <button type="button" disabled={working === `n${c.cnpj}`} onClick={() => doCand(c, false)} className={`${btn} flex-1 bg-white/5 border border-white/10 text-zinc-300`}>Ignorar</button>
@@ -136,7 +136,7 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
               </li>
             ))}
           </ul>
-          {cands.length > 30 && <p className="mt-2 text-[11.5px] text-zinc-500">Mostrando 30 de {cands.length}.</p>}
+          {cands.length > 30 && <p className="mt-2 text-[12px] text-zinc-500">Mostrando 30 de {cands.length}.</p>}
         </div>
       )}
 
@@ -146,8 +146,8 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
           <ul className="mt-2 space-y-2.5">
             {q.submissions.map(s => (
               <li key={s.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3.5" data-testid="admin-submission">
-                <p className="text-[12.5px] text-zinc-200 break-words">{[s.brand, s.name, s.variant].filter(Boolean).join(' · ') || 'Sem nome'}</p>
-                <p className="mt-1 text-[11.5px] text-zinc-500 tabular-nums break-words">EAN {s.ean || '—'}{s.size_value ? ` · ${s.size_value} ${s.size_unit || ''}` : ''}{s.packaging ? ` · ${s.packaging}` : ''}{s.units ? ` · ${s.units} un` : ''}</p>
+                <p className="text-[13px] text-zinc-200 break-words">{[s.brand, s.name, s.variant].filter(Boolean).join(' · ') || 'Sem nome'}</p>
+                <p className="mt-1 text-[12px] text-zinc-500 tabular-nums break-words">EAN {s.ean || '—'}{s.size_value ? ` · ${s.size_value} ${s.size_unit || ''}` : ''}{s.packaging ? ` · ${s.packaging}` : ''}{s.units ? ` · ${s.units} un` : ''}</p>
                 <div className="mt-2.5 flex gap-2">
                   <button type="button" disabled={working === `s${s.id}`} onClick={() => doSub(s, true)} className={`${btn} flex-1 bg-luxury-gold text-black`}>{working === `s${s.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Aprovar</button>
                   <button type="button" disabled={working === `s${s.id}`} onClick={() => doSub(s, false)} className={`${btn} flex-1 bg-white/5 border border-white/10 text-zinc-300`}>Recusar</button>
@@ -158,7 +158,7 @@ const AdminQueue: React.FC<{ onToast?: (m: string) => void }> = ({ onToast }) =>
         </div>
       )}
       {q && q.corrections.length > 0 && (
-        <p className="mt-4 text-[11.5px] text-zinc-500">{q.corrections.length} sugestão(ões) de correção de produto esperando; a tela para decidir vem na próxima versão.</p>
+        <p className="mt-4 text-[12px] text-zinc-500">{q.corrections.length} sugestão(ões) de correção de produto esperando; a tela para decidir vem na próxima versão.</p>
       )}
     </div>
   );

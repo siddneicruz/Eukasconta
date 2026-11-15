@@ -12,7 +12,7 @@ const ReadyMealsSheet: React.FC<Props> = ({ receipts, onApply, onClose }) => {
   const plan = useMemo(() => planMeals(receipts, namer.typeOf, namer.nameOf), [receipts, namer]);
   return (
     <div className="fixed inset-0 z-[120] bg-black/70 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose} data-testid="meals-sheet">
-      <div className="w-full sm:max-w-lg bg-[#121214] border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="w-full sm:max-w-lg bg-ek-card border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-4">
           <h3 className="text-lg font-serif text-white uppercase tracking-tight flex items-center gap-2"><UtensilsCrossed className="w-5 h-5 text-luxury-gold" /> Refeições fora de casa</h3>
           <button onClick={onClose} aria-label="Fechar" className="text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>

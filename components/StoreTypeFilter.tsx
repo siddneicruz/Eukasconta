@@ -47,7 +47,7 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
       </div>
       {open && createPortal(
         <div className="fixed inset-0 z-[260] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={() => setOpen(false)} data-testid="store-type-sheet">
-          <div className="w-full sm:max-w-md max-h-[88dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl" onClick={e => e.stopPropagation()} role="dialog" aria-label="Tipo de estabelecimento">
+          <div className="w-full sm:max-w-md max-h-[88dvh] flex flex-col bg-ek-card2 border border-white/10 rounded-t-[1.75rem] sm:rounded-[2rem] shadow-2xl" onClick={e => e.stopPropagation()} role="dialog" aria-label="Tipo de estabelecimento">
             <div className="px-5 pt-4 pb-2 flex items-center justify-between">
               <h4 className="text-[16px] font-serif text-white tracking-tight">Tipo de estabelecimento</h4>
               <button type="button" onClick={() => setSel([])} disabled={!active} className="text-xs font-semibold text-luxury-gold disabled:text-zinc-600">Todos os tipos</button>

@@ -96,7 +96,7 @@ const CompareDonut: React.FC<{ items: DonutItem[]; title?: string; testId?: stri
         </svg>
         <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none" style={{ left: cx - r + 2, top: layout.cy - r + 2, width: 2 * r - 4, height: 2 * r - 4 }}>
           <span className="text-[10px] text-zinc-500 leading-none">Total</span>
-          <span className="mt-1 text-[10.5px] whitespace-nowrap font-serif font-bold text-white tabular-nums leading-tight" data-testid="donut-total">{brl(sum)}</span>
+          <span className="mt-1 text-[11px] whitespace-nowrap font-serif font-bold text-white tabular-nums leading-tight" data-testid="donut-total">{brl(sum)}</span>
         </div>
         {[...layout.rightRows.map(r2 => ({ ...r2, side: 'r' as const })), ...layout.leftRows.map(r2 => ({ ...r2, side: 'l' as const }))].map(({ s, y, side }) => (
           <div key={`t-${s.id}`} data-testid="donut-label"

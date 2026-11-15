@@ -46,7 +46,7 @@ const MasterStructureView: React.FC<{ taxonomy: TaxonomyNode[]; onOpenAdmin?: ()
         <h3 className="text-xl font-serif text-white uppercase tracking-tight flex items-center gap-3"><Layers className="w-5 h-5 text-luxury-gold" /> Estrutura de Taxonomia</h3>
         <div className="mt-4 flex items-start gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/[0.05] p-3.5">
           <Lock className="w-4 h-4 text-luxury-gold shrink-0 mt-0.5" />
-          <div className="min-w-0 flex-1 text-[12.5px] leading-snug text-zinc-300">
+          <div className="min-w-0 flex-1 text-[13px] leading-snug text-zinc-300">
             <p className="font-semibold text-zinc-100">Estrutura da tabela mãe, igual para todos os usuários.</p>
             <p className="mt-0.5 text-zinc-400">
               Versão {info.version}{info.publishedAt ? ` · publicada em ${when(info.publishedAt)}` : ''}.{' '}

@@ -78,7 +78,7 @@ const CompareCard: React.FC<Props> = ({ options, chosen, onToggle, max, receipts
   const noSpend = !empty && stats.total === 0;
 
   return (
-    <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="compare-card">
+    <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="compare-card">
       <div className="flex items-center justify-between gap-3 mb-2.5 px-0.5">
         <h3 className="text-[12px] font-semibold text-zinc-300 flex items-center gap-1.5">
           <LineChartIcon className="w-3.5 h-3.5 text-luxury-gold" /> Comparar categorias

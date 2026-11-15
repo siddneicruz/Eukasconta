@@ -92,7 +92,7 @@ const ProductPhotoSheet: React.FC<Props> = ({ initialCode = '', onClose, onSaved
           {photos.map((p, i) => (
             <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
               <img src={p.url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" onClick={() => { if (!read || failed) openCamera(i); }} />
-              {(!read || failed) && <span className="absolute bottom-0 inset-x-0 text-center text-[9px] bg-black/60 text-white py-0.5 pointer-events-none">tocar p/ trocar</span>}
+              {(!read || failed) && <span className="absolute bottom-0 inset-x-0 text-center text-[10px] bg-black/60 text-white py-0.5 pointer-events-none">tocar p/ trocar</span>}
               <button type="button" aria-label="Remover foto" onClick={() => { setPhotos(a => a.filter((_, j) => j !== i)); setRead(false); setFailed(false); }} className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center"><X className="w-3.5 h-3.5 text-white" /></button>
             </div>
           ))}

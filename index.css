@@ -13,7 +13,7 @@
 
 /* Celular: respeita entalhe (notch) e barra de gestos do aparelho */
 :root {
-  --ek-bg: #0A0A0C; --ek-tab: #101013;
+  --ek-bg: #0A0A0C; --ek-tab: #101013; --ek-page: #09090b; --ek-card: #121214; --ek-card2: #0c0c0e;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -97,7 +97,7 @@ button:focus-visible, select:focus-visible {
   outline: none !important;
 }
 
-html.light-theme { --ek-bg: #F6F3EA; --ek-tab: #FFFFFF; }
+html.light-theme { --ek-bg: #F6F3EA; --ek-tab: #FFFFFF; --ek-page: #F6F3EA; --ek-card: #FFFFFF; --ek-card2: #FFFFFF; }
 
 /* Cabeçalho de mês fixo no Histórico: o padding da área rolável já deixa o espaço do cabeçalho do app, então gruda em 0 */
 .month-sticky { top: 0; }
@@ -116,3 +116,25 @@ html.light-theme .qb{--q-bg:#E9E6DC;--q-hd:#DEDACD;--q-bd:#CBC6B6;--q-bd2:#B9B3A
   --q-t1:#1B1912;--q-t2:#3E3A2F;--q-t3:#6B665A;--q-t4:#8A8472;
   --q-up:#B42323;--q-up-bg:rgba(180,35,35,.1);--q-up-bd:rgba(180,35,35,.35);--q-dn:#0B7A52;--q-dn-bg:rgba(11,122,82,.1);--q-dn-bd:rgba(11,122,82,.35);--q-flat:#5E5A4F;--q-flat-bg:rgba(27,25,18,.06);--q-flat-bd:rgba(27,25,18,.2);
   --q-gold:#8A6D10;--q-gold-bg:rgba(138,109,16,.12);--q-gold-bd:rgba(138,109,16,.4);--q-on-gold:#fff;--q-warn:#9A5B00}
+
+/* Modo leve (aparelho fraco): sem desfoque de fundo; barras fixas ficam opacas para não perder leitura */
+html.ek-lite [class*="backdrop-blur"] { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.ek-lite .app-header { background-color: var(--ek-bg) !important; }
+html.ek-lite .md\:sticky.bg-black\/60,
+html.ek-lite .sticky.bg-black\/60 { background-color: var(--ek-bg) !important; }
+html.ek-lite .bg-black\/95 { background-color: rgba(0,0,0,.97) !important; }
+html.ek-lite .bg-black\/80 { background-color: rgba(0,0,0,.9) !important; }
+html.light-theme.ek-lite .bg-black\/80 { background-color: rgba(255,255,255,.96) !important; }
+/* Transições só nas propriedades baratas */
+html.ek-lite .transition-all { transition-property: color, background-color, border-color, opacity, transform !important; }
+html.light-theme [data-testid="scroll-up"] { color: #3E3A2F; border-color: rgba(0,0,0,.15); }
+@media (min-width: 768px) { [data-testid="scroll-up"] { bottom: 24px !important; left: auto !important; right: 24px; transform: none !important; } }
+
+/* Esqueleto de carregamento */
+.ek-skel { background: rgba(255,255,255,.06); position: relative; overflow: hidden; }
+.ek-skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent); animation: ek-skel 1.4s ease-in-out infinite; }
+@keyframes ek-skel { to { transform: translateX(100%); } }
+html.light-theme .ek-skel { background: rgba(27,25,18,.07); }
+html.light-theme .ek-skel::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent); }
+html.ek-lite .ek-skel::after { display: none; }
+@media (prefers-reduced-motion: reduce) { .ek-skel::after { display: none; } }

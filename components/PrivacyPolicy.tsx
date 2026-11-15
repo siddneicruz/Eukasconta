@@ -24,7 +24,7 @@ const PrivacyPolicy: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md" onClick={onClose} data-testid="privacy-policy">
       <div role="dialog" aria-modal="true" aria-label="Política de privacidade" onClick={e => e.stopPropagation()}
-        className="w-full sm:max-w-lg max-h-[88vh] overflow-y-auto bg-[#0c0c0e] border border-white/10 rounded-t-[2rem] sm:rounded-[2rem] p-6 sm:p-8">
+        className="w-full sm:max-w-lg max-h-[88vh] overflow-y-auto bg-ek-card2 border border-white/10 rounded-t-[2rem] sm:rounded-[2rem] p-6 sm:p-8">
         <div className="flex items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-3"><ShieldCheck className="w-5 h-5 text-luxury-gold" /><h2 className="font-serif text-lg text-white">Política de privacidade</h2></div>
           <button onClick={onClose} aria-label="Fechar" className="w-9 h-9 rounded-full border border-white/10 text-zinc-400 flex items-center justify-center"><X className="w-4 h-4" /></button>

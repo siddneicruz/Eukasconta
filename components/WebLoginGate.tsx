@@ -55,7 +55,7 @@ const WebLoginGate: React.FC<{ cloud: CloudApi }> = ({ cloud }) => {
 
   if (!cloud.ready || waiting) {
     return (
-      <div className="min-h-[100dvh] bg-[#09090b] flex flex-col items-center justify-center gap-4" data-testid="web-gate-loading">
+      <div className="min-h-[100dvh] bg-ek-page flex flex-col items-center justify-center gap-4" data-testid="web-gate-loading">
         <AppMark className="w-16 h-16" title="Eu Kasconta" />
         <Loader2 className="w-5 h-5 text-luxury-gold animate-spin" />
       </div>
@@ -63,7 +63,7 @@ const WebLoginGate: React.FC<{ cloud: CloudApi }> = ({ cloud }) => {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#09090b] text-zinc-100 flex items-center justify-center px-5 py-10" data-testid="web-gate">
+    <div className="min-h-[100dvh] bg-ek-page text-zinc-100 flex items-center justify-center px-5 py-10" data-testid="web-gate">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center text-center">
           <AppMark className="w-20 h-20 drop-shadow-[0_8px_30px_rgba(212,175,55,0.25)]" title="Eu Kasconta" />

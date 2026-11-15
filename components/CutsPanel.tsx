@@ -104,7 +104,7 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
 
   return (
     <div className="space-y-3 md:space-y-4" data-testid="cut-analysis" data-cut-id={cut.id}>
-      <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl">
+      <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-[14px] md:text-lg font-semibold text-zinc-100 truncate" data-testid="cut-title">{cutTitle(cut)}</h3>
@@ -215,14 +215,14 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
       </div>
 
       {bounds.min < bounds.max && (
-        <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-5 shadow-xl" data-testid="cut-ruler">
+        <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-5 shadow-xl" data-testid="cut-ruler">
           <DateRangeSlider min={bounds.min} max={bounds.max} from={eff.from} to={eff.to}
             onChange={(f, t) => { if (f !== eff.from || t !== eff.to) onChangeFilter({ ...cut, from: f, to: t }); }} testId="cut-range" />
         </div>
       )}
 
       {!empty && a.byDept.length > 0 && (
-        <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="cut-depts">
+        <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="cut-depts">
           <h3 className="text-[12px] font-semibold text-zinc-300 flex items-center gap-1.5 mb-2 px-0.5">
             <PieChartIcon className="w-3.5 h-3.5 text-luxury-gold" /> Por categoria
           </h3>
@@ -257,7 +257,7 @@ const CutAnalysisView: React.FC<ViewProps> = ({ cut, receipts, displayName, onEd
       )}
 
       {!empty && stores.length > 0 && (
-        <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="cut-stores">
+        <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="cut-stores">
           <h3 className="text-[12px] font-semibold text-zinc-300 flex items-center gap-1.5 mb-2 px-0.5">
             <Store className="w-3.5 h-3.5 text-emerald-500" /> Onde comprou
           </h3>
@@ -353,7 +353,7 @@ const CutsPanel: React.FC<Props> = ({ receipts, displayName, selectedId, onSelec
   return (
     <div className="space-y-3 md:space-y-4" data-testid="cuts-panel">
       {sorted.length === 0 ? (
-        <div className="bg-[#121214] border border-white/5 rounded-2xl md:rounded-[1.75rem] px-5 py-8 text-center shadow-xl" data-testid="cut-empty">
+        <div className="bg-ek-card border border-white/5 rounded-2xl md:rounded-[2rem] px-5 py-8 text-center shadow-xl" data-testid="cut-empty">
           <div className="mx-auto w-11 h-11 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center mb-3"><CalendarRange className="w-5 h-5" /></div>
           <p className="text-[14px] font-semibold text-zinc-100">Crie um recorte do tempo</p>
           <p className="text-[13px] text-zinc-500 mt-1.5 max-w-xs mx-auto leading-snug">

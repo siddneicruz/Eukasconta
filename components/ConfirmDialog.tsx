@@ -34,7 +34,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ title, message, confirmLa
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
         onClick={e => e.stopPropagation()}
-        className={`w-full max-w-sm bg-[#0c0c0e] border ${gold ? 'border-luxury-gold/30' : 'border-red-900/30'} rounded-[2rem] p-6 sm:p-8 text-center shadow-2xl`}
+        className={`w-full max-w-sm bg-ek-card2 border ${gold ? 'border-luxury-gold/30' : 'border-red-900/30'} rounded-[2rem] p-6 sm:p-8 text-center shadow-2xl`}
       >
         <div className={`mx-auto mb-4 w-12 h-12 rounded-full border flex items-center justify-center ${gold ? 'bg-luxury-gold/10 border-luxury-gold/30 text-luxury-gold' : 'bg-red-950/40 border-red-900/40 text-red-400'}`}>
           {icon ?? <Trash2 className="w-5 h-5" />}

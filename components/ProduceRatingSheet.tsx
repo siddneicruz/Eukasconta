@@ -49,7 +49,7 @@ const ProduceRatingSheet: React.FC<Props> = ({ store, items, onSubmit, onClose }
 
   return (
     <div className="fixed inset-0 z-[140] flex items-end md:items-center justify-center p-0 md:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in" onClick={onClose} data-testid="produce-rating">
-      <div onClick={e => e.stopPropagation()} className="w-full max-w-lg max-h-[85dvh] overflow-y-auto custom-scrollbar bg-[#09090b] border border-white/10 rounded-t-[2rem] md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-8 duration-300"
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-lg max-h-[85dvh] overflow-y-auto custom-scrollbar bg-ek-page border border-white/10 rounded-t-[2rem] md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-8 duration-300"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-start justify-between gap-4 p-5 pb-4 border-b border-white/5">
           <div className="flex items-start gap-3">

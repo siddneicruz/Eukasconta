@@ -389,7 +389,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
         </div>
 
         {lists.length === 0 ? (
-          <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 text-center shadow-xl" data-testid="shop-empty">
+          <div className="bg-ek-card border border-white/5 rounded-2xl p-6 text-center shadow-xl" data-testid="shop-empty">
             <ShoppingCart className="w-9 h-9 text-luxury-gold mx-auto" />
             <p className="text-[14px] font-semibold text-zinc-100 mt-3">Nenhuma lista ainda</p>
             <p className="text-[12px] text-zinc-500 mt-1 leading-snug">O app descobre de quanto em quanto tempo você compra, monta a lista com os últimos preços, divide por semana, respeita um teto e confere depois com os cupons.</p>
@@ -401,12 +401,12 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
               const items = l.purchases.reduce((s, p) => s + p.entries.length, 0);
               const inCart = l.purchases.reduce((s, p) => s + p.entries.filter(e => e.cart).length, 0);
               return (
-                <li key={l.id} className="bg-[#121214] border border-white/5 rounded-2xl shadow-xl flex items-stretch" data-testid="shop-list-card" data-id={l.id}>
+                <li key={l.id} className="bg-ek-card border border-white/5 rounded-2xl shadow-xl flex items-stretch" data-testid="shop-list-card" data-id={l.id}>
                   <button type="button" onClick={() => open(l.id)} className="min-w-0 flex-1 text-left p-4 flex items-center gap-3">
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5 min-w-0">
                         <span className="block text-[14px] font-semibold text-zinc-100 truncate">{l.name}</span>
-                        {l.id === baseId && <span className="shrink-0 inline-flex items-center gap-1 text-[10.5px] font-bold text-luxury-gold" data-testid="shop-base-badge"><Star className="w-3 h-3 fill-current" /> Base</span>}
+                        {l.id === baseId && <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-luxury-gold" data-testid="shop-base-badge"><Star className="w-3 h-3 fill-current" /> Base</span>}
                       </span>
                       <span className="block text-[11px] text-zinc-500 tabular-nums mt-0.5">
                         {l.purchases.length} {l.purchases.length === 1 ? 'compra' : 'compras'} · {items} itens · {inCart} no carrinho
@@ -519,7 +519,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
         </button>
       )}
 
-      <section className="bg-[#121214] border border-white/5 rounded-2xl p-4 shadow-xl" data-testid="shop-summary-card">
+      <section className="bg-ek-card border border-white/5 rounded-2xl p-4 shadow-xl" data-testid="shop-summary-card">
         <p className="text-[11px] text-zinc-500">Total estimado com os últimos preços</p>
         <p className="text-3xl font-serif font-bold text-white tabular-nums leading-tight" data-testid="shop-total">{brl(total)}</p>
         {bs.status !== 'livre' && (
@@ -547,7 +547,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
         )}
       </section>
 
-      <section className="bg-[#121214] border border-white/5 rounded-2xl p-3 shadow-xl" data-testid="shop-info">
+      <section className="bg-ek-card border border-white/5 rounded-2xl p-3 shadow-xl" data-testid="shop-info">
         <p className="flex items-start gap-2 text-[12px] text-zinc-300 leading-snug">
           <Sparkles className={`w-4 h-4 shrink-0 mt-0.5 ${info.source === 'ia' ? 'text-luxury-gold' : 'text-zinc-600'}`} />
           <span>
@@ -590,7 +590,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
         </div>
       )}
 
-      <section className="bg-[#121214] border border-white/5 rounded-2xl shadow-xl overflow-hidden" data-testid="shop-purchase" data-index={idx}>
+      <section className="bg-ek-card border border-white/5 rounded-2xl shadow-xl overflow-hidden" data-testid="shop-purchase" data-index={idx}>
         <div className="flex items-start justify-between gap-3 px-4 pt-3 pb-2">
           <div className="min-w-0">
             <h3 className="text-[14px] font-semibold text-zinc-100 capitalize tabular-nums">{purchaseLabel}</h3>
@@ -655,7 +655,7 @@ const ShoppingListView: React.FC<Props> = ({ receipts: allReceipts, masters, onO
       </section>
 
       {list.cut.length > 0 && (
-        <section className="bg-[#121214] border border-white/5 rounded-2xl shadow-xl" data-testid="shop-cut">
+        <section className="bg-ek-card border border-white/5 rounded-2xl shadow-xl" data-testid="shop-cut">
           <button type="button" onClick={() => setCutOpen(v => !v)} aria-expanded={cutOpen} data-testid="shop-cut-toggle" className="w-full flex items-center justify-between gap-3 px-4 min-h-[52px] text-left">
             <span className="min-w-0">
               <span className="block text-[13px] font-semibold text-zinc-100">Fora da lista ({list.cut.length})</span>

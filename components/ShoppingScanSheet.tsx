@@ -113,9 +113,9 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
           <p className="text-[13px] text-zinc-300">Este código (<span className="tabular-nums text-white">{choices[0].code}</span>) está ligado a mais de um produto na tabela. Qual é o que você está segurando?</p>
           {eanInfo && (
             <div className="mt-2 rounded-xl border border-luxury-gold/30 bg-luxury-gold/[0.06] px-3 py-2" data-testid="shop-scan-eaninfo">
-              <p className="text-[10.5px] uppercase tracking-wide text-luxury-gold">O catálogo diz que esse código é</p>
-              <p className="text-[13.5px] font-semibold text-zinc-100 leading-snug">{eanInfo.description || '—'}</p>
-              <p className="text-[11.5px] text-zinc-400">{[eanInfo.brand, eanInfo.size].filter(Boolean).join(' · ') || 'sem marca/peso no catálogo'}</p>
+              <p className="text-[11px] uppercase tracking-wide text-luxury-gold">O catálogo diz que esse código é</p>
+              <p className="text-[14px] font-semibold text-zinc-100 leading-snug">{eanInfo.description || '—'}</p>
+              <p className="text-[12px] text-zinc-400">{[eanInfo.brand, eanInfo.size].filter(Boolean).join(' · ') || 'sem marca/peso no catálogo'}</p>
             </div>
           )}
           <ul className="mt-2 space-y-1.5">
@@ -123,7 +123,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
               <li key={h.pid}>
                 <button type="button" onClick={() => choose(h)} className="w-full text-left min-h-[48px] px-3 py-2 rounded-xl border border-white/10 bg-white/[0.03] active:bg-white/10">
                   <span className="block text-[14px] font-semibold text-zinc-100">{h.name}</span>
-                  <span className="block text-[11.5px] text-zinc-300">{[h.brand, h.size || 'sem peso no nome', h.unit && h.unit !== 'UN' ? h.unit : ''].filter(Boolean).join(' · ')}</span>
+                  <span className="block text-[12px] text-zinc-300">{[h.brand, h.size || 'sem peso no nome', h.unit && h.unit !== 'UN' ? h.unit : ''].filter(Boolean).join(' · ')}</span>
                   <span className="block text-[11px] text-zinc-500">{h.dept}{h.price > 0 ? ` · último ${brl(h.price)}` : ''}</span>
                 </button>
               </li>
@@ -151,9 +151,9 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
           {cur ? (
             <>
               <p className="text-[16px] font-semibold text-white leading-snug">{cur.name}</p>
-              {infoOf(cur) && <p className="text-[12.5px] text-luxury-gold font-medium" data-testid="shop-scan-pack">{infoOf(cur)}</p>}
+              {infoOf(cur) && <p className="text-[13px] text-luxury-gold font-medium" data-testid="shop-scan-pack">{infoOf(cur)}</p>}
               {eanInfo && (eanInfo.size || eanInfo.brand)
-                ? <p className="text-[11.5px] text-zinc-400" data-testid="shop-scan-cat">Catálogo: {[eanInfo.brand, eanInfo.size].filter(Boolean).join(' · ')}{eanInfo.description ? ` · ${eanInfo.description}` : ''}</p>
+                ? <p className="text-[12px] text-zinc-400" data-testid="shop-scan-cat">Catálogo: {[eanInfo.brand, eanInfo.size].filter(Boolean).join(' · ')}{eanInfo.description ? ` · ${eanInfo.description}` : ''}</p>
                 : !cur.size && <p className="text-[11px] text-zinc-600">Peso/embalagem: este código ainda não está no catálogo de EAN.</p>}
               <p className="text-[11px] text-zinc-500 tabular-nums">{cur.dept} · código {cur.code}</p>
               <p className="text-[12px] mt-1 text-zinc-400" data-testid="shop-scan-source">
@@ -164,7 +164,7 @@ const ShoppingScanSheet: React.FC<Props> = ({ purchase, purchaseLabel, resolve, 
                 <div className="flex flex-wrap gap-1.5 mt-2" role="group" aria-label="Outros preços por perto">
                   {near.rows.map(r => (
                     <button key={r.establishment_id} type="button" onClick={() => { setPriceTxt(moneyText(r.unit_price)); setSrc(`${r.establishment_name} · a ${r.distance_km.toLocaleString('pt-BR')} km · ${r.observed_on.split('-').reverse().join('/')}`); }}
-                      className="px-3 min-h-[34px] rounded-full border border-white/10 text-[11.5px] text-zinc-300 active:bg-white/10">{r.establishment_name.length > 18 ? r.establishment_name.slice(0, 17) + '…' : r.establishment_name} · {brl(r.unit_price)} · {r.distance_km.toLocaleString('pt-BR')} km</button>
+                      className="px-3 min-h-[34px] rounded-full border border-white/10 text-[12px] text-zinc-300 active:bg-white/10">{r.establishment_name.length > 18 ? r.establishment_name.slice(0, 17) + '…' : r.establishment_name} · {brl(r.unit_price)} · {r.distance_km.toLocaleString('pt-BR')} km</button>
                   ))}
                 </div>
               )}

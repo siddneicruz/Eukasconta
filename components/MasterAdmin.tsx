@@ -17,7 +17,7 @@ import AdminQueue from './AdminQueue';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const when = (iso: string | null) => { try { return iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''; } catch { return ''; } };
-const btn = 'inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-[12.5px] font-bold active:opacity-80 disabled:opacity-40';
+const btn = 'inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-[13px] font-bold active:opacity-80 disabled:opacity-40';
 
 const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]; establishments: Establishment[]; onToast?: (m: string) => void }> = ({ taxonomy, masters, establishments, onToast }) => {
   const info = useMasterInfo();
@@ -170,10 +170,10 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" data-testid="madmin-file" onChange={e => { const f = e.target.files?.[0]; if (f) void readSheet(f); }} />
         </div>
-        <p className="mt-4 text-[11.5px] text-zinc-500">Ou baixe e publique cada tabela separada (uma não mexe nas outras):</p>
+        <p className="mt-4 text-[12px] text-zinc-500">Ou baixe e publique cada tabela separada (uma não mexe nas outras):</p>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {([['Só lojas', { estrutura: false, produtos: false, lojas: true }, 'tabela-lojas.xlsx'], ['Só produtos e códigos', { estrutura: false, produtos: true, lojas: false }, 'tabela-produtos.xlsx'], ['Só estrutura', { estrutura: true, produtos: false, lojas: false }, 'tabela-estrutura.xlsx']] as const).map(([label, parts, file]) => (
-            <button key={label} type="button" disabled={!!busy} onClick={() => exportSheet(parts, file)} className="h-10 px-2 rounded-lg bg-white/5 border border-white/10 text-[11.5px] font-bold text-zinc-200 active:opacity-80 disabled:opacity-40">{label}</button>
+            <button key={label} type="button" disabled={!!busy} onClick={() => exportSheet(parts, file)} className="h-10 px-2 rounded-lg bg-white/5 border border-white/10 text-[12px] font-bold text-zinc-200 active:opacity-80 disabled:opacity-40">{label}</button>
           ))}
         </div>
         {error && <p className="mt-3 text-xs text-red-400 leading-snug" data-testid="madmin-error" role="alert">{error}</p>}
@@ -182,7 +182,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
       {parsed && (
         <div className="bg-black/40 border border-luxury-gold/30 rounded-[2.5rem] p-5 sm:p-8 shadow-2xl" data-testid="madmin-preview">
           <h4 className="text-base font-semibold text-zinc-100 flex items-center gap-2"><FileSpreadsheet className="w-4 h-4 text-luxury-gold" /> {parsed.file}</h4>
-          <dl className="mt-3 grid grid-cols-2 gap-2 text-[12.5px]">
+          <dl className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
             {[
               ['Categorias na planilha', parsed.data.counts.nodes], ['Novas', parsed.diff.added.length],
               ['Saem da estrutura', parsed.diff.removed.length], ['Produtos', parsed.data.counts.products],
@@ -217,7 +217,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
           <fieldset className="mt-4 rounded-xl border border-white/10 p-3" data-testid="madmin-scope">
             <legend className="px-1.5 text-[11px] text-zinc-400">O que publicar (o resto fica como está)</legend>
             {([['lojas', 'Lojas e tipos de loja', !!(parsed.data.payload.stores?.length || parsed.data.payload.storeTypes?.length)], ['produtos', 'Produtos, EANs e códigos das lojas', parsed.data.counts.products > 0], ['estrutura', 'Estrutura de categorias (troca a de todos)', parsed.data.counts.nodes > 0]] as const).map(([k, label, present]) => (
-              <label key={k} className={`flex items-center gap-2.5 min-h-[36px] text-[12.5px] ${present ? 'text-zinc-200' : 'text-zinc-600'}`}>
+              <label key={k} className={`flex items-center gap-2.5 min-h-[36px] text-[13px] ${present ? 'text-zinc-200' : 'text-zinc-600'}`}>
                 <input type="checkbox" disabled={!present} checked={scope[k] && present} onChange={e => { setScope(sc => ({ ...sc, [k]: e.target.checked })); setConfirm(false); }} className="w-4 h-4 accent-yellow-500" />
                 {label}{!present && ' (não veio na planilha)'}
               </label>
@@ -248,7 +248,7 @@ const MasterAdmin: React.FC<{ taxonomy: TaxonomyNode[]; masters: MasterProduct[]
                 <p className="text-[12px] text-zinc-400 break-words">{s.parent_path.join(' › ')} ›</p>
                 <input value={names[s.id] ?? s.name} onChange={e => setNames(p => ({ ...p, [s.id]: e.target.value }))} aria-label="Nome da etiqueta" data-testid="madmin-sug-name"
                   className="mt-1 w-full h-10 rounded-lg bg-black/60 border border-white/10 px-3 text-sm text-zinc-100 focus:border-luxury-gold/40 outline-none" />
-                {s.product_description && <p className="mt-1.5 text-[11.5px] text-zinc-500 break-words">Para o produto: {s.product_description}{s.product_code ? ` (código ${s.product_code})` : ''}</p>}
+                {s.product_description && <p className="mt-1.5 text-[12px] text-zinc-500 break-words">Para o produto: {s.product_description}{s.product_code ? ` (código ${s.product_code})` : ''}</p>}
                 <p className="mt-0.5 text-[11px] text-zinc-600">{when(s.created_at)}</p>
                 <div className="mt-2.5 flex gap-2">
                   <button type="button" disabled={working === s.id} onClick={() => review(s, true)} data-testid="madmin-approve" className={`${btn} flex-1 h-10 bg-luxury-gold text-black`}>{working === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Aprovar</button>

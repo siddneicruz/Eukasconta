@@ -22,6 +22,8 @@ export default {
         black: '#0A0A0C',
         background: '#0A0A0C',
         surface: '#131316',
+        // Fundos que trocam com o tema (valores em index.css): página, cartão e cartão interno
+        ek: { page: 'var(--ek-page)', card: 'var(--ek-card)', card2: 'var(--ek-card2)' },
         surfaceHighlight: '#25252C',
         zinc: {
           100: '#F6F3EA', 200: '#E6E1D2', 300: '#CFCABD', 400: '#B9B4A8', 500: '#948F84',
@@ -31,6 +33,7 @@ export default {
         luxury: {
           gold: '#DDB94B',
           goldDim: '#A67C0A',
+          goldHover: '#B5952F',
           accent: '#F59E0B',
         },
       },

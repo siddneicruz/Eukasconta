@@ -1,7 +1,6 @@
 
 import { DiagnosticLog, LogType, PerformanceReport } from '../types';
 import { generateId } from './idUtils';
-import { GoogleGenAI } from "@google/genai";
 
 class DiagnosticService {
     private logs: DiagnosticLog[] = [];

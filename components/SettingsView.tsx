@@ -3,7 +3,7 @@ import * as LucideIcons from 'lucide-react';
 import { 
     Plus, Trash2, X, Search, Layers, Database, AlertTriangle, Download, 
     Upload, RefreshCw, Calculator, Eraser, History as HistoryIcon, Clock, 
-    FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText, TrendingUp
+    FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText
 } from 'lucide-react';
 import type { StoreDraft } from '../services/establishmentEdit';
 import { Link2 } from 'lucide-react';
@@ -13,8 +13,6 @@ const TaxonomyEditor = lazy(() => import('./TaxonomyEditor'));
 import MasterStructureView from './MasterStructureView';
 const MasterAdmin = lazy(() => import('./MasterAdmin'));
 import { useMasterInfo } from './MasterContext';
-import Switch from './Switch';
-import { useQuotesTicker } from './QuotesPanel';
 import { useStoreNames } from './StoreNamesContext';
 import type { MergeResult } from '../services/taxonomyDedupe';
 const ProductMappingEditor = lazy(() => import('./ProductMappingEditor'));
@@ -149,7 +147,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const master = useMasterInfo();
   // quem não é administrador abre em Conta (ou Backup, sem conta): estrutura e tabela mãe são assunto de administração
   const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account' | 'master'>((initialTab as any) || (master.isAdmin ? 'taxonomy' : cloud ? 'account' : 'system'));
-  const [tickerOn, setTickerOn] = useQuotesTicker();
   const storeNames = useStoreNames();
   const masterByCnpj = useMemo(() => new Map((master.master?.stores || []).filter(m => m.name).map(m => [String(m.cnpj).replace(/\D/g, ''), m.name] as const)), [master.master?.stores]);
   const masterAliasOf = (est: { cnpj?: string }): string | null => { const d = String(est.cnpj || '').replace(/\D/g, ''); const a = d ? masterByCnpj.get(d) : null; return a ? storeNames.aliasOf('', est.cnpj) : null; };
@@ -237,11 +234,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
       {settingsTab === 'taxonomy' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-900/50 min-h-[52px] flex items-center gap-3 px-4" data-testid="settings-ticker">
-                  <TrendingUp className="w-5 h-5 text-luxury-gold shrink-0" />
-                  <span className="flex-1 text-sm font-medium text-zinc-200">Letreiro de cotações no Início</span>
-                  <Switch on={tickerOn} onChange={setTickerOn} label="Mostrar o letreiro de cotações no Início" testId="quotes-ticker-switch" />
-              </div>
               {master.active
                 ? <MasterStructureView taxonomy={taxonomy} onOpenAdmin={master.isAdmin ? () => setSettingsTab('master') : undefined} />
                 : <TaxonomyEditor taxonomy={taxonomy} onUpdateTaxonomy={onUpdateTaxonomy} onEditIcon={onEditIcon} receipts={receipts} onMergeCategories={onMergeCategories} />}
@@ -428,7 +420,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
       {showResetConfirm && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
-              <div className="w-full max-w-sm bg-[#0c0c0e] border border-red-900/20 rounded-[2.5rem] p-6 sm:p-10 text-center shadow-2xl">
+              <div className="w-full max-w-sm bg-ek-card2 border border-red-900/20 rounded-[2.5rem] p-6 sm:p-10 text-center shadow-2xl">
                   <h3 className="text-2xl font-serif text-red-500 mb-2 uppercase tracking-tighter">Hard Reset?</h3>
                   <p className="text-zinc-500 text-[11px] mb-10 leading-relaxed uppercase tracking-wider">Esta ação removerá permanentemente todos os registros e auditorias deste aparelho. Antes de apagar, o estado de agora fica guardado na lista de pontos de restauração; os pontos já criados continuam lá (exclua-os antes se quiser apagá-los também).</p>
                   <div className="flex flex-col gap-3">

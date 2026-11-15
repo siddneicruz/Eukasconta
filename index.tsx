@@ -4,10 +4,12 @@ import App from './App';
 import { installStorageGuard } from './services/storageGuard';
 import { installKeyboardAvoid } from './services/keyboardAvoid';
 import { installScrollReset } from './services/scrollReset';
+import { installLiteMode } from './services/liteMode';
 
 installStorageGuard();
 installKeyboardAvoid();
 installScrollReset();
+installLiteMode();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

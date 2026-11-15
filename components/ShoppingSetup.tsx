@@ -35,7 +35,7 @@ interface Props {
 }
 
 const Card: React.FC<{ icon: React.ReactNode; title: string; sub?: string; children: React.ReactNode; testId?: string }> = ({ icon, title, sub, children, testId }) => (
-  <section className="bg-[#121214] border border-white/5 rounded-2xl p-4 shadow-xl" data-testid={testId}>
+  <section className="bg-ek-card border border-white/5 rounded-2xl p-4 shadow-xl" data-testid={testId}>
     <div className="flex items-start gap-2.5 mb-3">
       <span className="mt-0.5 text-luxury-gold shrink-0">{icon}</span>
       <div className="min-w-0">
@@ -166,7 +166,7 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
               <button key={String(v)} type="button" role="radio" aria-checked={fromBase === v} onClick={() => setFromBase(v)} data-testid={v ? 'shop-from-base' : 'shop-from-history'}
                 className={`w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 min-h-[56px] text-left transition-colors ${fromBase === v ? 'border-luxury-gold/50 bg-luxury-gold/[0.07]' : 'border-white/10'}`}>
                 <span className={`mt-0.5 shrink-0 w-4 h-4 rounded-full border-2 ${fromBase === v ? 'border-luxury-gold bg-luxury-gold' : 'border-zinc-500'}`} />
-                <span className="min-w-0"><span className="block text-[13.5px] font-semibold text-zinc-100 leading-snug break-words">{label}</span><span className="block text-[11.5px] text-zinc-500 leading-snug">{sub}</span></span>
+                <span className="min-w-0"><span className="block text-[14px] font-semibold text-zinc-100 leading-snug break-words">{label}</span><span className="block text-[12px] text-zinc-500 leading-snug">{sub}</span></span>
               </button>
             ))}
           </div>
@@ -255,7 +255,7 @@ const ShoppingSetup: React.FC<Props> = ({ initial, today, history, aiLabel, hasK
                 className={`min-h-[40px] px-3.5 rounded-xl border text-[13px] font-semibold transition-colors ${s.lookback === d ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/10 text-zinc-300'}`}>{lookbackLabel(d)}</button>
             ))}
           </div>
-          <p className="text-[11.5px] text-zinc-500 mt-2 leading-snug tabular-nums" data-testid="shop-lookback-info">
+          <p className="text-[12px] text-zinc-500 mt-2 leading-snug tabular-nums" data-testid="shop-lookback-info">
             {s.lookback === 0 ? `Automático: as últimas semanas (${tripsIn(0)} ${tripsIn(0) === 1 ? 'ida' : 'idas'} ao mercado).` : `${lookbackLabel(s.lookback) === 'Tudo' ? 'Todo o histórico' : `Últimos ${lookbackLabel(s.lookback)}`}: ${tripsIn(s.lookback)} ${tripsIn(s.lookback) === 1 ? 'ida' : 'idas'} ao mercado.`}
           </p>
         </Card>

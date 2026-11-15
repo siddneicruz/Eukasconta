@@ -1,5 +1,8 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+// O pacote do Gemini é grande: só é carregado na primeira vez que uma função de IA roda.
+// "Type" são só textos fixos da biblioteca (mesmos valores do enum original).
+const Type = { OBJECT: 'OBJECT', STRING: 'STRING', NUMBER: 'NUMBER', ARRAY: 'ARRAY', INTEGER: 'INTEGER', BOOLEAN: 'BOOLEAN' } as any;
+const newAi = async (apiKey: string) => { const { GoogleGenAI } = await import('@google/genai'); return new GoogleGenAI({ apiKey }); };
 import { Receipt } from "../types";
 import { diagnostics } from "./diagnosticService";
 import { logAiUsage } from "./cloudService";
@@ -151,7 +154,7 @@ export const parseReceiptImage = async (
   const apiKey = resolveGeminiApiKey();
   if (!apiKey) throw new GeminiError("API Key não configurada. Adicione a sua em Config > Chave IA.", 'AUTH', false);
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = await newAi(apiKey);
 
   try {
     const response = await ai.models.generateContent({
@@ -231,7 +234,7 @@ Retorne apenas o JSON, sem markdown.
 
   const apiKey = resolveGeminiApiKey();
   if (!apiKey) throw new GeminiError("API Key não configurada. Adicione a sua em Config > Chave IA.", 'AUTH', false);
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = await newAi(apiKey);
 
   try {
     const response = await ai.models.generateContent({
@@ -273,7 +276,7 @@ export const askAiForJson = async (prompt: string, opts: { budgetMs?: number } =
 
   const apiKey = resolveGeminiApiKey();
   if (!apiKey) throw new GeminiError('Chave de IA não configurada. Adicione a sua em Config > Chave IA.', 'AUTH', false);
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = await newAi(apiKey);
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -295,7 +298,7 @@ export const askVisionJson = async (images: { b64: string; mime: string }[], pro
   if (orKey) return (await import('./openrouterService')).askOpenRouterVisionJson(orKey, images, prompt);
   const apiKey = resolveGeminiApiKey();
   if (!apiKey) throw new GeminiError("API Key não configurada. Adicione a sua em Config > Chave IA.", 'AUTH', false);
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = await newAi(apiKey);
   try {
     const r = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',

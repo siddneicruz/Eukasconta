@@ -437,7 +437,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
             {alignInfo.total > 0 && (
                 <div className="mx-6 mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3" data-testid="tax-align-banner" data-count={alignInfo.total}>
                     <ListChecks className="w-4 h-4 text-luxury-gold shrink-0" />
-                    <p className="flex-1 min-w-0 text-[12.5px] leading-snug text-zinc-200">
+                    <p className="flex-1 min-w-0 text-[13px] leading-snug text-zinc-200">
                         <span className="font-bold text-zinc-100">{alignInfo.total} {alignInfo.total === 1 ? 'nome de categoria' : 'nomes de categoria'}</span>
                         <span className="text-zinc-400"> nos seus cupons {alignInfo.total === 1 ? 'não é igual' : 'não são iguais'} aos da Estrutura · {alignInfo.items} {alignInfo.items === 1 ? 'item' : 'itens'}</span>
                     </p>
@@ -448,7 +448,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
             {dupInfo.total > 0 && (
                 <div className="mx-6 mt-5 flex items-center gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 px-4 py-3" data-testid="tax-dup-banner">
                     <Copy className="w-4 h-4 text-luxury-gold shrink-0" />
-                    <p className="flex-1 min-w-0 text-[12.5px] leading-snug text-zinc-200">
+                    <p className="flex-1 min-w-0 text-[13px] leading-snug text-zinc-200">
                         <span className="font-bold text-luxury-gold">{dupInfo.total} {dupInfo.total === 1 ? 'grupo de categorias repetidas' : 'grupos de categorias repetidas'}</span>
                         {dupInfo.equal > 0 ? <span className="text-zinc-400"> · {dupInfo.equal} {dupInfo.equal === 1 ? 'idêntico' : 'idênticos'}</span> : null}
                     </p>
@@ -459,7 +459,7 @@ const TaxonomyEditor: React.FC<TaxonomyEditorProps> = ({ taxonomy, onUpdateTaxon
             {unplacedCount > 0 && (
                 <div className="mx-6 mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3" data-testid="tax-refine-banner">
                     <BrainCircuit className="w-4 h-4 text-luxury-gold shrink-0" />
-                    <p className="flex-1 min-w-0 text-[12.5px] leading-snug text-zinc-200">
+                    <p className="flex-1 min-w-0 text-[13px] leading-snug text-zinc-200">
                         <span className="font-bold text-luxury-gold">{unplacedCount} {unplacedCount === 1 ? 'descrição sem grupo ou item' : 'descrições sem grupo ou item'}</span>
                         <span className="text-zinc-400"> · a IA aprende com o que você fixou</span>
                     </p>

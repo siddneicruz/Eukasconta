@@ -10,25 +10,6 @@ import { WhereToBuy } from './ProduceQualityBlocks';
    por item com ÚLTIMO e VAR% numa célula colorida. Para quem COMPRA, preço subindo é ruim: vermelho = mais caro,
    verde = mais barato, cinza = dentro da faixa normal do item. */
 
-const TICKER_KEY = 'ek_quotes_ticker';
-const TICKER_EVT = 'ek-quotes-ticker';
-const readTicker = (): boolean => { try { return localStorage.getItem(TICKER_KEY) !== 'off'; } catch { return true; } };
-/** Mostrar ou ocultar o letreiro do Início (guardado no aparelho; vale em todas as telas que o usam). */
-export const useQuotesTicker = (): [boolean, (v: boolean) => void] => {
-  const [on, setOn] = useState<boolean>(readTicker);
-  useEffect(() => {
-    const sync = () => setOn(readTicker());
-    window.addEventListener(TICKER_EVT, sync);
-    return () => window.removeEventListener(TICKER_EVT, sync);
-  }, []);
-  const set = (v: boolean) => {
-    try { localStorage.setItem(TICKER_KEY, v ? 'on' : 'off'); } catch { /* sem armazenamento: vale só nesta sessão */ }
-    setOn(v);
-    window.dispatchEvent(new Event(TICKER_EVT));
-  };
-  return [on, set];
-};
-
 const num = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pctTxt = (p: number) => { const a = Math.abs(p); return `${a >= 10 ? Math.round(a) : (Math.round(a * 10) / 10).toFixed(1).replace('.', ',')}%`; };
 const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -45,7 +26,7 @@ const VarCell: React.FC<{ q: Quote }> = ({ q }) => {
   return (
     <span className={`inline-flex items-center justify-center gap-1 min-w-[74px] h-8 px-2 rounded-md text-[13px] font-bold ${MONO}`}
       style={{ color: c, background: `var(--q-${toneKey(q)}-bg)`, border: `1px solid var(--q-${toneKey(q)}-bd)` }} title="última compra contra o preço médio">
-      <span className="text-[9px]" aria-hidden="true">{arrowOf(q)}</span>{signed(q)}
+      <span className="text-[10px]" aria-hidden="true">{arrowOf(q)}</span>{signed(q)}
     </span>
   );
 };
@@ -215,7 +196,8 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
 
   return (
     <div className="qb space-y-3 text-[color:var(--q-t1)]" data-testid="quotes-panel">
-      {/* o letreiro já passa no Início; aqui logo abaixo vêm as mesmas altas e quedas em detalhe */}
+      <QuotesTicker receipts={receipts} />
+
       <div className="rounded-2xl bg-[var(--q-bg)] border border-[color:var(--q-bd)] p-3 md:p-5 shadow-xl">
         <div className="flex items-baseline justify-between gap-3">
           <h3 className="text-[13px] font-bold tracking-[0.12em] text-[color:var(--q-gold)] uppercase">Cotações · Açougue e Hortifruti</h3>

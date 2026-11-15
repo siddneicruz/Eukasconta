@@ -82,12 +82,12 @@ const ItemCategoryPicker: React.FC<{
     return (
       <div data-testid={`${testId}-master`}>
         {chain.length > 0 && showPath && (
-          <p className="text-[12.5px] leading-snug text-zinc-300 break-words">{chain.map((p, i) => (
+          <p className="text-[13px] leading-snug text-zinc-300 break-words">{chain.map((p, i) => (
             <React.Fragment key={i}>{i > 0 && <span className="text-luxury-gold/70 mx-1">›</span>}<span className={i === chain.length - 1 ? 'font-semibold text-zinc-100' : ''}>{p}</span></React.Fragment>
           ))}</p>
         )}
         {brandInfo && <p className="mt-1 text-[12px] text-zinc-300" data-testid={`${testId}-brand`}>Marca: <span className="font-semibold text-zinc-100">{brandInfo.brand}</span>{brandInfo.manufacturer && brandInfo.manufacturer.toLowerCase() !== brandInfo.brand.toLowerCase() ? ` · Fabricante: ${brandInfo.manufacturer}` : ''}</p>}
-        <p className="mt-1 text-[11.5px] text-zinc-500 leading-snug">Categoria definida pela tabela mãe{masterInfo.isAdmin ? '. Para mudar, edite a planilha e publique em Config › Tabela mãe.' : '. Se estiver errada, avise o administrador.'}</p>
+        <p className="mt-1 text-[12px] text-zinc-500 leading-snug">Categoria definida pela tabela mãe{masterInfo.isAdmin ? '. Para mudar, edite a planilha e publique em Config › Tabela mãe.' : '. Se estiver errada, avise o administrador.'}</p>
       </div>
     );
   }
@@ -123,14 +123,14 @@ const ItemCategoryPicker: React.FC<{
         <div className="flex rounded-full bg-white/5 border border-white/10 p-0.5">
           {([['tags', 'Etiquetas', Tags], ['tree', 'Pastas', FolderTree]] as const).map(([k, label, Ic]) => (
             <button key={k} type="button" onClick={() => setMode(k)} data-testid={`${testId}-mode-${k}`} aria-pressed={mode === k}
-              className={`px-2.5 h-7 rounded-full text-[11.5px] font-semibold flex items-center gap-1 ${mode === k ? 'bg-luxury-gold text-black' : 'text-zinc-400'}`}>
+              className={`px-2.5 h-7 rounded-full text-[12px] font-semibold flex items-center gap-1 ${mode === k ? 'bg-luxury-gold text-black' : 'text-zinc-400'}`}>
               <Ic className="w-3 h-3" /> {label}
             </button>
           ))}
         </div>
       </div>
       {showPath && chain.length > 0 && (
-        <p className="mb-2.5 text-[12.5px] leading-snug text-zinc-300 break-words" data-testid={`${testId}-chain`} aria-label={`Caminho completo: ${chain.join(', ')}`}>
+        <p className="mb-2.5 text-[13px] leading-snug text-zinc-300 break-words" data-testid={`${testId}-chain`} aria-label={`Caminho completo: ${chain.join(', ')}`}>
           {chain.map((p, i) => (
             <React.Fragment key={i}>
               {i > 0 && <span className="text-luxury-gold/70 mx-1">›</span>}
@@ -163,7 +163,7 @@ const ItemCategoryPicker: React.FC<{
           <p className="min-w-0 flex-1 text-[11px] text-zinc-500 leading-snug">Esta categoria não está na Estrutura de Taxonomia.</p>
           {suggestion && (
             <button type="button" onClick={() => onPick(suggestion)} data-testid={`${testId}-suggest`}
-              className="shrink-0 max-w-[60%] truncate h-8 px-3 rounded-lg border border-luxury-gold/50 text-[11.5px] font-bold text-zinc-100">Usar {suggestion.split(' - ').join(' › ')}</button>
+              className="shrink-0 max-w-[60%] truncate h-8 px-3 rounded-lg border border-luxury-gold/50 text-[12px] font-bold text-zinc-100">Usar {suggestion.split(' - ').join(' › ')}</button>
           )}
         </div>
       )}

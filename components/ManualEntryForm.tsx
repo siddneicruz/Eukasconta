@@ -174,13 +174,13 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                   <button type="button" onClick={onCancel} className="px-6 py-2.5 rounded-xl border border-white/10 text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-sm font-semibold text-center">
                       Cancelar
                   </button>
-                  <button type="submit" className="flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 rounded-xl bg-luxury-gold hover:bg-[#B5952F] text-black font-bold shadow-lg shadow-luxury-gold/20 transition-all active:scale-95 text-sm">
+                  <button type="submit" className="flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 rounded-xl bg-luxury-gold hover:bg-luxury-goldHover text-black font-bold shadow-lg shadow-luxury-gold/20 transition-all active:scale-95 text-sm">
                       <Save className="w-4 h-4" /> Salvar nota
                   </button>
               </div>
           </div>
 
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 mb-6 relative overflow-hidden shadow-2xl">
+          <div className="bg-ek-card border border-white/10 rounded-3xl p-8 mb-6 relative overflow-hidden shadow-2xl">
               {isDataPrefilled && (
                   <div className="absolute top-4 right-8 flex items-center gap-2 text-luxury-gold animate-in fade-in slide-in-from-right-4">
                       <Sparkles className="w-4 h-4" />
@@ -233,7 +233,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                               placeholder="NOME DA LOJA"
                           />
                           {storeOpen && !locked && storeOptions.length > 0 && (
-                              <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-[#121214] border border-white/10 rounded-xl shadow-2xl overflow-hidden" data-testid="manual-store-suggestions">
+                              <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-ek-card border border-white/10 rounded-xl shadow-2xl overflow-hidden" data-testid="manual-store-suggestions">
                                   {storeOptions.map(({ e, label }) => (
                                       <button type="button" key={e.cnpj + e.originalName} onMouseDown={ev => ev.preventDefault()} onClick={() => pickStore(e)} className="w-full text-left px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0">
                                           <span className="block text-sm text-zinc-100 truncate">{label}</span>
@@ -297,7 +297,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
               </div>
           </div>
 
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl">
+          <div className="bg-ek-card border border-white/10 rounded-3xl p-8 shadow-2xl">
               <div className="flex justify-between items-center mb-6">
                   <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-500 font-bold flex items-center gap-2">Itens da Transação</h3>
                   <div className="text-right">
@@ -313,7 +313,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSave, onCancel, kno
                               <label className="md:hidden text-xs text-zinc-500 font-bold block mb-1">Descrição</label>
                               <input type="text" autoComplete="off" onFocus={() => setItemOpen(index)} onBlur={() => setTimeout(() => setItemOpen(o => (o === index ? null : o)), 150)} value={item.description} onChange={e => { updateItem(index, 'description', e.target.value); setItemOpen(index); const k = knownCategoryFor(itemIndex, e.target.value); if (k && NO_CATEGORY.has(fold(items[index].category).trim())) { const ni = [...items]; ni[index] = { ...ni[index], description: e.target.value, category: k.category, unitType: k.unitType || ni[index].unitType }; setItems(ni); } }} className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-zinc-200 focus:border-luxury-gold outline-none" placeholder="Produto"/>
                               {itemOpen === index && (() => { const sg = suggestItems(itemIndex, item.description); return sg.length > 0 ? (
-                                  <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-[#121214] border border-white/10 rounded-xl shadow-2xl overflow-hidden" data-testid={`new-item-suggestions-${index}`}>
+                                  <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-ek-card border border-white/10 rounded-xl shadow-2xl overflow-hidden" data-testid={`new-item-suggestions-${index}`}>
                                       {sg.map(s => (
                                           <button type="button" key={s.description} onMouseDown={ev => ev.preventDefault()} onClick={() => pickItem(index, s)} className="w-full text-left px-3 py-2 hover:bg-white/5 border-b border-white/5 last:border-0">
                                               <span className="block text-sm text-zinc-100 truncate">{s.description}</span>

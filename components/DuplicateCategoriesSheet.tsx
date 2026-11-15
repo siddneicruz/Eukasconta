@@ -32,7 +32,7 @@ const Shell: React.FC<{ title: string; hint?: string; onClose: () => void; testI
   return createPortal(
     <div className="fixed inset-0 z-[210] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose} data-testid={testId}>
       <div role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}
-        className="w-full sm:max-w-lg max-h-[90dvh] flex flex-col bg-[#0c0c0e] border border-white/10 rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        className="w-full sm:max-w-lg max-h-[90dvh] flex flex-col bg-ek-card2 border border-white/10 rounded-t-[1.75rem] sm:rounded-[2rem] shadow-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="shrink-0 w-9 h-9 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center"><GitMerge className="w-4 h-4" /></div>
           <div className="min-w-0 flex-1">
@@ -141,10 +141,10 @@ export const DuplicateCategoriesSheet: React.FC<ListProps> = ({ taxonomy, receip
           return (
             <li key={g.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5" data-testid="dup-group" data-kind={g.kind} data-level={g.level}>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full border ${g.kind === 'igual' ? 'text-luxury-gold border-luxury-gold/40 bg-luxury-gold/10' : 'text-zinc-300 border-white/15 bg-white/5'}`}>{g.kind === 'igual' ? 'Idêntica' : 'Parecida'}</span>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${g.kind === 'igual' ? 'text-luxury-gold border-luxury-gold/40 bg-luxury-gold/10' : 'text-zinc-300 border-white/15 bg-white/5'}`}>{g.kind === 'igual' ? 'Idêntica' : 'Parecida'}</span>
                 <span className="text-[11px] text-zinc-500">{LEVEL_NAME[g.level]}{g.parentPath ? ` em ${titleCase(g.parentPath)}` : ''}</span>
               </div>
-              {g.kind === 'parecida' && <p className="text-[11.5px] text-zinc-500 mt-1 leading-snug">{g.reason}</p>}
+              {g.kind === 'parecida' && <p className="text-[12px] text-zinc-500 mt-1 leading-snug">{g.reason}</p>}
               <ul className="mt-2 space-y-1.5">
                 {g.members.map(m => {
                   const node = byId.get(m.id);
@@ -156,7 +156,7 @@ export const DuplicateCategoriesSheet: React.FC<ListProps> = ({ taxonomy, receip
                       className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 ${isKeeper ? 'border-luxury-gold/40 bg-luxury-gold/5' : 'border-white/10'}`}>
                       <button type="button" aria-label={isKeeper ? `${m.name} é a que fica` : `Deixar ${m.name}`} onClick={() => setKeep(s => ({ ...s, [g.id]: m.id }))} data-testid="dup-keep" className="shrink-0 w-8 h-8 flex items-center justify-center"><Radio on={isKeeper} /></button>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[13.5px] font-semibold text-zinc-100 leading-tight break-words">{titleCase(m.name)}</p>
+                        <p className="text-[14px] font-semibold text-zinc-100 leading-tight break-words">{titleCase(m.name)}</p>
                         <p className="text-[11px] text-zinc-500 leading-tight mt-0.5">{usageText(u, m.kids)}</p>
                       </div>
                       {isKeeper
@@ -181,10 +181,10 @@ export const DuplicateCategoriesSheet: React.FC<ListProps> = ({ taxonomy, receip
         })}
       </ul>
       {pendingSimilar > 0 && (
-        <p className="mt-3 text-[11.5px] text-zinc-500 leading-snug" data-testid="dup-pending">Mais {pendingSimilar} {pendingSimilar === 1 ? 'parecida aparece' : 'parecidas aparecem'} depois de juntar as idênticas.</p>
+        <p className="mt-3 text-[12px] text-zinc-500 leading-snug" data-testid="dup-pending">Mais {pendingSimilar} {pendingSimilar === 1 ? 'parecida aparece' : 'parecidas aparecem'} depois de juntar as idênticas.</p>
       )}
       {ignored.length > 0 && (
-        <button type="button" onClick={() => { setIgnored([]); saveIgnored([]); }} className="mt-3 text-[11.5px] text-zinc-500 underline underline-offset-2">Mostrar de novo as que mandei manter separadas ({ignored.length})</button>
+        <button type="button" onClick={() => { setIgnored([]); saveIgnored([]); }} className="mt-3 text-[12px] text-zinc-500 underline underline-offset-2">Mostrar de novo as que mandei manter separadas ({ignored.length})</button>
       )}
     </Shell>
   );
@@ -261,7 +261,7 @@ export const MergeWithSheet: React.FC<WithProps> = ({ taxonomy, receipts, source
               <li key={o.node.id}>
                 <button type="button" onClick={() => { setTargetId(o.node.id); setKeepSource(false); }} data-testid="merge-with-option"
                   className="w-full text-left py-2.5 min-h-[48px]">
-                  <p className="text-[13.5px] font-semibold text-zinc-100 leading-tight break-words">{o.path}</p>
+                  <p className="text-[14px] font-semibold text-zinc-100 leading-tight break-words">{o.path}</p>
                   <p className="text-[11px] text-zinc-500 mt-0.5">{usageText(usageOfNode(o.node, taxonomy, use), taxonomy.filter(n => n.parentId === o.node.id).length)}</p>
                 </button>
               </li>
@@ -281,7 +281,7 @@ export const MergeWithSheet: React.FC<WithProps> = ({ taxonomy, receipts, source
               <span className={`shrink-0 text-[11px] font-bold ${keepIt ? 'text-luxury-gold' : 'text-zinc-500'}`}>{keepIt ? 'Fica' : 'Sai'}</span>
             </button>
           ))}
-          <p className="text-[11.5px] text-zinc-500 leading-snug pt-1">
+          <p className="text-[12px] text-zinc-500 leading-snug pt-1">
             {srcUse.items > 0 || (target && usageOfNode(target, taxonomy, use).items > 0) ? 'Os itens comprados nas duas passam a contar na que fica.' : 'Nenhuma das duas tem compras ainda.'}
           </p>
         </div>

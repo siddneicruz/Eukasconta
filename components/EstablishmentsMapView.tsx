@@ -586,7 +586,7 @@ const EstablishmentsMapView: React.FC<MapViewProps> = ({ receipts, establishment
         </div>
       )}
 
-      <div ref={mapBox} className="bg-zinc-950 border border-white/5 rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative scroll-mt-20">
+      <div ref={mapBox} className="bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative scroll-mt-20">
         <div className={`h-[340px] md:h-[520px] w-full relative z-0 ${!light && !(maps.useVector && maps.opened) ? 'map-dark' : ''}`} data-testid="map-canvas">
           <MapContainer center={center} zoom={stores.length ? 12 : 4} zoomSnap={0.25} scrollWheelZoom style={{ width: '100%', height: '100%', background: light ? '#f4f4f5' : '#09090b' }}>
             {/* espera ler o que está salvo antes de escolher a base: evita pedir imagens online à toa */}

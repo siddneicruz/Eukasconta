@@ -75,7 +75,7 @@ const PhoneFrame: React.FC<PhoneFrameProps> = ({ onExit }) => {
       <div ref={stageRef} className="flex-1 min-w-0 min-h-0 flex items-center justify-center overflow-auto">
         <div className="shrink-0" style={{ width: frameW * scale, height: frameH * scale }}>
           <div
-            className="rounded-[2.75rem] bg-black shadow-2xl overflow-hidden transition-[width,height] duration-300"
+            className="rounded-[2.5rem] bg-black shadow-2xl overflow-hidden transition-[width,height] duration-300"
             style={{
               width: frameW,
               height: frameH,

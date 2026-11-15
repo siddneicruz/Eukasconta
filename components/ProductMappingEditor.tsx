@@ -425,7 +425,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
 
             {/* Barra de seleção: fica acima das abas do celular */}
             {selectMode && (
-                <div className="fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] md:bottom-6 md:left-auto md:right-8 md:w-96 z-40 flex items-center gap-3 rounded-2xl border border-luxury-gold/30 bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl p-3" data-testid="prod-select-bar">
+                <div className="fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] md:bottom-6 md:left-auto md:right-8 md:w-96 z-40 flex items-center gap-3 rounded-2xl border border-luxury-gold/30 bg-ek-card2/95 backdrop-blur-xl shadow-2xl p-3" data-testid="prod-select-bar">
                     <span className="flex-1 pl-2 text-sm text-zinc-200" data-testid="prod-select-count">
                         {selected.size === 0 ? 'Nenhum marcado' : plural(selected.size, 'marcado', 'marcados')}
                     </span>
@@ -457,7 +457,7 @@ const ProductMappingEditor: React.FC<ProductMappingEditorProps> = ({ receipts, t
             {/* MODAL DE REVISÃO SEMÂNTICA */}
             {reviewModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-                    <div className="w-full max-w-2xl bg-[#0c0c0e] border border-luxury-gold/20 rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-3xl shadow-luxury-gold/5">
+                    <div className="w-full max-w-2xl bg-ek-card2 border border-luxury-gold/20 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl shadow-luxury-gold/5">
                         <div className="p-5 sm:p-8 border-b border-white/5 bg-luxury-gold/5 flex justify-between items-center gap-3">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-luxury-gold text-black rounded-2xl"><Sparkles className="w-6 h-6" /></div>

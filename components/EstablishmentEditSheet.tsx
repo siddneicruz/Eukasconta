@@ -103,7 +103,7 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onDele
   return (
     <div className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-150" onClick={onClose} data-testid="store-edit-sheet">
       <div role="dialog" aria-modal="true" aria-labelledby="store-edit-title" onClick={e => e.stopPropagation()}
-        className="w-full sm:max-w-xl max-h-[94dvh] flex flex-col bg-[#0c0c0e] border border-luxury-gold/30 rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl">
+        className="w-full sm:max-w-xl max-h-[94dvh] flex flex-col bg-ek-card2 border border-luxury-gold/30 rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl">
         <div className="flex items-start gap-3 p-5 sm:p-6 border-b border-white/5">
           <div className="shrink-0 w-10 h-10 rounded-full bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center"><Store className="w-5 h-5" /></div>
           <div className="min-w-0 flex-1">

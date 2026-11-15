@@ -143,6 +143,9 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const [goLetter, setGoLetter] = useState<{ l: string; k: number } | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const lastLetter = useRef('');
+  const [bubble, setBubble] = useState<string | null>(null);   // letra grande no meio da tela enquanto o dedo passa pela barra
+  const bubbleT = useRef<any>(null);
+  const showBubble = (l: string, hold = 0) => { clearTimeout(bubbleT.current); setBubble(l); if (hold) bubbleT.current = setTimeout(() => setBubble(null), hold); };
   const jump = (l: string) => {
     if (!l || l === lastLetter.current) return;
     lastLetter.current = l;
@@ -156,7 +159,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
     const el = listRef.current?.querySelector(`[data-letter="${goLetter.l}"]`) as HTMLElement | null;
     if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' });
   }, [goLetter]);
-  const railTouch = (e: React.TouchEvent) => { const t = e.touches[0]; const el = t && document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null; const l = el?.getAttribute?.('data-rail'); if (l) jump(l); };
+  const railTouch = (e: React.TouchEvent) => { const t = e.touches[0]; const el = t && document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null; const l = el?.getAttribute?.('data-rail'); if (l) { showBubble(l); jump(l); } };
   const ageTxt = (d: number) => (d === 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`);
 
   if (data.nObs === 0) return null;
@@ -166,7 +169,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   );
 
   return (
-    <div className="bg-[#121214] border border-luxury-gold/30 rounded-2xl md:rounded-[1.75rem] p-3 md:p-6 shadow-xl" data-testid="produce-compare" data-open={cardOpen ? 'true' : 'false'}>
+    <div className="bg-ek-card border border-luxury-gold/30 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="produce-compare" data-open={cardOpen ? 'true' : 'false'}>
       <button type="button" onClick={toggleCard} aria-expanded={cardOpen} data-testid="pc-toggle" className="w-full flex items-center gap-3 text-left">
         <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-luxury-gold/15 border border-luxury-gold/40"><Sprout className="w-5 h-5 text-luxury-gold" /></span>
         <span className="min-w-0 flex-1">
@@ -278,11 +281,11 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                           {r.ean && <span className="font-mono"> · EAN {r.ean}</span>}
                         </p>
                       </div>
-                      {!open && cheapest && <span className="shrink-0 text-right leading-tight"><span className="block text-[12px] font-bold tabular-nums" style={{ color: cmp ? '#34d399' : undefined }}>R$ {money(cheapest.last)}</span><span className="block text-[9px] text-zinc-500 max-w-[110px] truncate">{cheapest.name}</span></span>}
+                      {!open && cheapest && <span className="shrink-0 text-right leading-tight"><span className="block text-[12px] font-bold tabular-nums" style={{ color: cmp ? '#34d399' : undefined }}>R$ {money(cheapest.last)}</span><span className="block text-[10px] text-zinc-500 max-w-[110px] truncate">{cheapest.name}</span></span>}
                       {open ? <ChevronUp className="shrink-0 w-4 h-4 text-zinc-500" /> : <ChevronDown className="shrink-0 w-4 h-4 text-zinc-500" />}
                     </button>
                     {open && <div className="mt-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-2.5">
-                      <div className="grid gap-x-3 pt-1.5 pb-0.5 text-[9px] font-bold tracking-[0.1em] text-zinc-500" style={{ gridTemplateColumns: cols }}>
+                      <div className="grid gap-x-3 pt-1.5 pb-0.5 text-[10px] font-bold tracking-[0.1em] text-zinc-500" style={{ gridTemplateColumns: cols }}>
                         <span>LOJA</span><span className="text-right">PREÇO / {unitLabel(r.unit).toUpperCase()}</span>{showQ && <span className="text-right">QUALIDADE</span>}
                       </div>
                       <div className="divide-y divide-white/5">
@@ -299,7 +302,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                               </div>
                               <div className="text-right leading-tight">
                                 <p className="text-[13px] font-bold tabular-nums whitespace-nowrap" style={{ color: priceColor }}>R$ {money(m.last)}</p>
-                                {(first || lastRow) && <p className="text-[9px] font-semibold" style={{ color: priceColor }}>{first ? 'mais barato' : 'mais caro'}</p>}
+                                {(first || lastRow) && <p className="text-[10px] font-semibold" style={{ color: priceColor }}>{first ? 'mais barato' : 'mais caro'}</p>}
                               </div>
                               {showQ && (
                                 <div className="text-right leading-tight" data-testid="pc-item-quality">
@@ -307,7 +310,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                                     : qd && qd.score !== null ? (
                                       <>
                                         <p className="whitespace-nowrap"><QualityFace score={qd.score} size={18} /> <span className="text-[12px] font-bold tabular-nums align-middle" style={{ color: scoreColor(qd.score) }}>{qd.score.toFixed(1).replace('.', ',')}</span></p>
-                                        <p className="text-[9px] text-zinc-500 whitespace-nowrap">{qd.n} {qd.n === 1 ? 'voto' : 'votos'}{qd.n < 5 ? ' · poucos' : ''}{qd.last ? ` · ${short(qd.last.slice(0, 10))}` : ''}</p>
+                                        <p className="text-[10px] text-zinc-500 whitespace-nowrap">{qd.n} {qd.n === 1 ? 'voto' : 'votos'}{qd.n < 5 ? ' · poucos' : ''}{qd.last ? ` · ${short(qd.last.slice(0, 10))}` : ''}</p>
                                       </>
                                     ) : null}
                                 </div>
@@ -328,11 +331,14 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                 );
               })}
             </div>
+            {bubble && (
+              <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none w-24 h-24 rounded-[2rem] flex items-center justify-center text-5xl font-bold text-luxury-gold border border-luxury-gold/40 shadow-2xl" style={{ background: 'var(--ek-tab)' }} data-testid="pc-letter-bubble">{bubble}</div>
+            )}
             {letters.length > 1 && (
               <div className="shrink-0 sticky top-[190px] self-start flex flex-col items-center rounded-full border border-white/10 bg-white/[0.03] py-1 select-none" style={{ touchAction: 'none' }} data-testid="pc-letters" aria-label="Ir para a letra"
-                onTouchStart={railTouch} onTouchMove={railTouch} onTouchEnd={() => { lastLetter.current = ''; }}>
+                onTouchStart={railTouch} onTouchMove={railTouch} onTouchEnd={() => { lastLetter.current = ''; showBubble(bubble || '', 350); }} onTouchCancel={() => { lastLetter.current = ''; setBubble(null); }}>
                 {letters.map(l => (
-                  <button key={l} type="button" data-rail={l} onClick={() => { lastLetter.current = ''; jump(l); lastLetter.current = ''; }} aria-label={`Letra ${l}`}
+                  <button key={l} type="button" data-rail={l} onClick={() => { lastLetter.current = ''; showBubble(l, 600); jump(l); lastLetter.current = ''; }} aria-label={`Letra ${l}`}
                     className={`w-6 h-[19px] text-[10px] font-bold leading-none ${goLetter?.l === l && itemBy === 'az' ? 'text-luxury-gold' : 'text-zinc-500'}`}>{l}</button>
                 ))}
               </div>
@@ -363,9 +369,9 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                     const solid = !!c && c.n >= MIN_DAY_OBS;
                     return (
                       <div key={label} className="rounded-md py-1 text-center border border-white/5" style={{ opacity: c ? (solid ? 1 : 0.5) : 0.25 }}>
-                        <p className="text-[9px] text-zinc-500">{label}</p>
+                        <p className="text-[10px] text-zinc-500">{label}</p>
                         <p className="text-[11px] font-mono font-bold" style={{ color: c ? idxColor(c.index) : '#71717a' }}>{c ? pctTxt(c.index) : '–'}</p>
-                        <p className="text-[8px] text-zinc-500">{c ? `${c.n}x` : ''}</p>
+                        <p className="text-[10px] text-zinc-500">{c ? `${c.n}x` : ''}</p>
                       </div>
                     );
                   })}

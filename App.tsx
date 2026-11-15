@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'rea
 import { UserRound, LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, ShoppingCart, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
 import PhoneFrame from './components/PhoneFrame';
 import SideDrawer from './components/SideDrawer';
-import * as LucideIcons from 'lucide-react';
+import { useAllIcons, getIconByName, allIconNames } from './services/allIcons';
 
 import Dashboard, { getCategoryIcon } from './components/Dashboard';
 const Scanner = lazy(() => import('./components/Scanner'));
@@ -74,7 +74,8 @@ import { buildAndSyncMasterProducts } from './services/productMasterService';
 import { unifyGroups, splitDesc, ProductGroup } from './services/productUnify';
 import type { UnifyPlan } from './components/ProductUnifySheet';
 
-import JSZip from 'jszip';
+import ScrollUpButton from './components/ScrollUpButton';
+import { SkeletonPage } from './components/Skeleton';
 import { downloadFile } from './services/nativeFiles';
 import { markFileBackup } from './services/lastWhen';
 import { App as CapApp } from '@capacitor/app';
@@ -153,7 +154,6 @@ const PT_BR_ICON_MAP: Record<string, string[]> = {
     'lazer': ['Ticket', 'Popcorn', 'Clapperboard', 'Gamepad', 'Gamepad2', 'Dices', 'Puzzle', 'Music', 'Tv', 'Camera', 'Film', 'Tent']
 };
 
-const ALL_ICON_NAMES = Object.keys(LucideIcons).filter(key => key !== 'createLucideIcon' && /^[A-Z]/.test(key));
 
 const ICON_GROUPS = [
     { name: 'Gastronomia & Embutidos', icons: ['Croissant', 'CakeSlice', 'Cookie', 'Wheat', 'ChefHat', 'Donut', 'Pizza', 'Candy', 'IceCream', 'Coffee', 'Milk', 'Utensils', 'Soup', 'Beef', 'Bird', 'Fish', 'Ham', 'Egg', 'EggFried', 'Apple', 'Carrot', 'Cherry', 'Grape', 'Citrus', 'Strawberry', 'Banana', 'NutOff', 'Mushroom', 'Salad', 'Sandwich', 'Popcorn', 'Lollipop', 'GlassWater', 'Beer', 'Wine', 'Martini', 'LeafyGreen', 'Leaf', 'Sprout', 'Cabbage', 'Package', 'Box', 'Drumstick', 'Meat'] },
@@ -168,6 +168,7 @@ const ICON_GROUPS = [
 ];
 
 const App: React.FC = () => {
+  const iconsReady = useAllIcons();
   const [view, setView] = useState<ViewState | 'manual_entry'>('dashboard');
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
@@ -605,9 +606,9 @@ const App: React.FC = () => {
       const ptMatches = Object.entries(PT_BR_ICON_MAP)
           .filter(([key]) => key.includes(search))
           .flatMap(([, icons]) => icons);
-      const directMatches = ALL_ICON_NAMES.filter(name => name.toLowerCase().includes(search));
+      const directMatches = allIconNames().filter(name => name.toLowerCase().includes(search));
       return Array.from(new Set([...ptMatches, ...directMatches])).slice(0, 150);
-  }, [iconSearch]);
+  }, [iconSearch, iconsReady]);
 
   const [metaVersion, setMetaVersion] = useState(0);
 
@@ -947,7 +948,7 @@ const App: React.FC = () => {
               goalColors,
               establishments
           };
-          const ZipModule = (JSZip as any).default || JSZip;
+          const JSZip = (await import('jszip')).default; const ZipModule = (JSZip as any).default || JSZip;
           const zip = new ZipModule(); zip.file("studio_vault.json", JSON.stringify(vaultData, null, 2));
           const content = await zip.generateAsync({ type: "blob" });
           const outcome = await downloadFile(content, `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.zip`);
@@ -1106,7 +1107,7 @@ const App: React.FC = () => {
           }
           else {
               addImportLog('info', 'Detectado arquivo ZIP.');
-              const ZipModule = (JSZip as any).default || JSZip;
+              const JSZip = (await import('jszip')).default; const ZipModule = (JSZip as any).default || JSZip;
               try {
                   const zip = await ZipModule.loadAsync(file);
                   addImportLog('info', 'ZIP carregado.', { files: Object.keys(zip.files) });
@@ -1450,7 +1451,7 @@ const App: React.FC = () => {
 
       <main className="app-main flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto p-4 md:p-12 w-full">
-              <Suspense fallback={<div className="flex items-center justify-center py-24 text-zinc-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+              <Suspense fallback={<SkeletonPage />}>
                 {/* App aberto sem nenhum cupom: se é uma reinstalação, os dados estão na conta */}
                 {view === 'dashboard' && backup.conflict && (
                     <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-luxury-gold/30 bg-luxury-gold/10 pl-4 pr-2 py-2.5" data-testid="conflict-banner">
@@ -1554,7 +1555,7 @@ const App: React.FC = () => {
                 {view === 'scanner' && <Scanner onFinish={() => setView('history')} onCancel={() => setView('dashboard')} onManualEntry={() => setView('manual_entry')} knownEstablishments={[]} categories={categories} establishments={establishments} masterProducts={masterProducts} onImportReceipts={importQrReceipts} existingReceipts={receipts} />}
                 {view === 'manual_entry' && <ManualEntryForm onSave={(r) => { handleScanComplete([r]); setView('history'); showNotification("Lançamento salvo com sucesso."); }} onCancel={() => setView('dashboard')} categories={categories} knownEstablishments={Array.from(new Set(receipts.map(r => r.establishmentName)))} knownProducts={[]} allReceipts={receipts} establishments={establishments} />}
                 {view === 'map' && (
-                    <Suspense fallback={<div className="flex items-center justify-center py-24 text-zinc-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+                    <Suspense fallback={<SkeletonPage />}>
                         <EstablishmentsMapView
                             receipts={receipts}
                             establishments={establishments}
@@ -1619,6 +1620,8 @@ const App: React.FC = () => {
           </div>
       </main>
 
+      <ScrollUpButton resetKey={view} />
+
       <ScanProgressChip hidden={view === 'scanner'} onOpen={() => setView('scanner')} />
 
       {/* Barra de abas do celular (some em telas médias/grandes, onde o menu do topo aparece) */}
@@ -1673,7 +1676,7 @@ const App: React.FC = () => {
                       {iconSearch ? (
                           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
                               {filteredSearchIcons.map(name => {
-                                  const IconComp = (LucideIcons as any)[name];
+                                  const IconComp = getIconByName(name);
                                   if (!IconComp) return null;
                                   return (
                                     <button key={name} onClick={() => handleUpdateMeta(selectedCategoryForIcon, { icon: name })} className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${getActiveMeta(selectedCategoryForIcon).icon === name ? 'border-luxury-gold bg-luxury-gold/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}>
@@ -1692,7 +1695,7 @@ const App: React.FC = () => {
                                       </h5>
                                       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
                                           {group.icons.map(name => {
-                                              const IconComp = (LucideIcons as any)[name];
+                                              const IconComp = getIconByName(name);
                                               if (!IconComp) return null;
                                               return (
                                                 <button key={name} onClick={() => handleUpdateMeta(selectedCategoryForIcon, { icon: name })} className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${getActiveMeta(selectedCategoryForIcon).icon === name ? 'border-luxury-gold bg-luxury-gold/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}>

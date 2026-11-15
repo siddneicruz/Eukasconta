@@ -31,7 +31,7 @@ const ReceiptRow: React.FC<ReceiptRowProps> = ({ receipt, onClick, amountOverrid
       <p className="text-sm text-zinc-100 font-semibold line-clamp-1 break-words group-hover:text-luxury-gold transition-colors font-sans leading-tight">
         {nameOf(receipt.establishmentName, receipt.cnpj)}
       </p>
-      <span className="block text-[11.5px] leading-tight text-zinc-500 tabular-nums mt-0.5">
+      <span className="block text-[12px] leading-tight text-zinc-500 tabular-nums mt-0.5">
         {receipt.date.split('-').reverse().join('/')} · {receipt.time || '12:00'}
         {amountSubLabel && <span className="text-zinc-400 hidden sm:inline"> · {amountSubLabel}</span>}
       </span>

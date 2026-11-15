@@ -271,7 +271,7 @@ const EstablishmentDetailView: React.FC<EstablishmentDetailViewProps> = ({ estab
 };
 
 const KPIBlock = ({ icon, label, value }: any) => (
-  <div className="bg-[#121214] border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center group hover:border-white/20 transition-all shadow-lg">
+  <div className="bg-ek-card border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center group hover:border-white/20 transition-all shadow-lg">
       <div className="mb-2 group-hover:scale-110 transition-transform">{icon}</div>
       <span className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] font-bold mb-1">{label}</span>
       <span className="text-xl md:text-2xl font-serif font-bold text-white tracking-tight">{value}</span>

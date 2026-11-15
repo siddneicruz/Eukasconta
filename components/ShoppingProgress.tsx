@@ -42,7 +42,7 @@ const ShoppingProgress: React.FC<{
 
   return (
     <div ref={topRef} className="space-y-3 scroll-mt-20" data-testid="shop-gen-progress">
-      <section className="bg-[#121214] border border-white/5 rounded-2xl p-4 shadow-xl">
+      <section className="bg-ek-card border border-white/5 rounded-2xl p-4 shadow-xl">
         <div className="flex items-center gap-4">
           <div className="relative shrink-0 w-14 h-14">
             <Loader2 className="w-14 h-14 text-luxury-gold animate-spin" aria-hidden="true" />
@@ -61,7 +61,7 @@ const ShoppingProgress: React.FC<{
         </div>
       </section>
 
-      <section className="bg-[#121214] border border-white/5 rounded-2xl p-2 shadow-xl">
+      <section className="bg-ek-card border border-white/5 rounded-2xl p-2 shadow-xl">
         <ol data-testid="shop-steps">
           {state.steps.map(st => {
             const time = st.status === 'run' && st.since != null ? secs(now - st.since) : st.took != null && st.took >= 1500 ? secs(st.took) : '';
@@ -73,7 +73,7 @@ const ShoppingProgress: React.FC<{
                   <span className={`block text-[14px] leading-snug ${st.status === 'wait' ? 'text-zinc-500' : st.status === 'skip' ? 'text-zinc-400' : 'text-zinc-100 font-semibold'}`}>
                     {st.label}<span className="sr-only"> — {STATUS_TEXT[st.status]}</span>
                   </span>
-                  {st.detail && <span className={`block text-[11.5px] leading-snug mt-0.5 break-words ${st.status === 'fail' ? 'text-rose-400' : 'text-zinc-500'}`} data-testid="shop-step-detail">{st.detail}</span>}
+                  {st.detail && <span className={`block text-[12px] leading-snug mt-0.5 break-words ${st.status === 'fail' ? 'text-rose-400' : 'text-zinc-500'}`} data-testid="shop-step-detail">{st.detail}</span>}
                   {st.status === 'run' && st.ai && <span className="block text-[11px] text-zinc-500 mt-0.5">Os modelos grátis podem demorar um pouco; sigo sem a IA se passar do limite.</span>}
                 </span>
                 {time && <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums mt-0.5">{time}</span>}
@@ -96,11 +96,11 @@ const ShoppingProgress: React.FC<{
         </button>
       </div>
 
-      <section className="bg-[#121214] border border-white/5 rounded-2xl p-3 shadow-xl">
+      <section className="bg-ek-card border border-white/5 rounded-2xl p-3 shadow-xl">
         <h3 className="text-[11px] font-semibold text-zinc-400 px-1 mb-1.5">Registro ao vivo{aiLabel ? ` · ${aiLabel}` : ''}</h3>
         <div ref={logRef} className="h-40 overflow-y-auto rounded-xl bg-white/5 border border-white/5 p-3" data-testid="shop-log" role="log" aria-live="off">
           {state.logs.map((l, i) => (
-            <p key={i} className="text-[11.5px] leading-snug text-zinc-400 font-mono mb-1.5 last:mb-0 break-words" data-testid="shop-log-line">
+            <p key={i} className="text-[12px] leading-snug text-zinc-400 font-mono mb-1.5 last:mb-0 break-words" data-testid="shop-log-line">
               <span className="text-zinc-600 mr-1.5 tabular-nums">{stamp(l.at)}</span>{l.text}
             </p>
           ))}

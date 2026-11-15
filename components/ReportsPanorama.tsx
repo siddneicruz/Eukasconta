@@ -19,7 +19,7 @@ import { CHART_COLORS } from '../services/chartTheme';
    Visual: mesmas superfícies do resto do app (cartões #121214, bordas
    white/5, ouro luxury, títulos Cinzel). Para o tema claro NÃO há cores
    fixas nos elementos HTML: só classes que o index.html já traduz
-   (bg-[#121214], text-white, text-zinc-*, border-white/5, bg-white/5...).
+   (bg-ek-card, text-white, text-zinc-*, border-white/5, bg-white/5...).
    As únicas cores "cruas" ficam dentro dos gráficos SVG, e essas seguem o
    tema via useIsLight().
    ──────────────────────────────────────────────────────────────────────────── */
@@ -431,7 +431,7 @@ const Reveal: React.FC<{ i: number; className?: string; children: React.ReactNod
 );
 
 const Card: React.FC<{ glow?: keyof typeof GLOW; className?: string; children: React.ReactNode }> = ({ glow, className = '', children }) => (
-  <div className={`relative bg-[#121214] border border-white/5 rounded-[2rem] p-5 md:p-8 shadow-2xl overflow-hidden h-full ${className}`}>
+  <div className={`relative bg-ek-card border border-white/5 rounded-[2rem] p-5 md:p-8 shadow-2xl overflow-hidden h-full ${className}`}>
     {glow && <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full pointer-events-none" style={{ background: `radial-gradient(closest-side, rgba(${GLOW[glow]},0.10), transparent)` }} />}
     <div className="relative z-10">{children}</div>
   </div>
@@ -490,7 +490,7 @@ const TipRow: React.FC<{ color: string; label: string; value: number; dashed?: b
 );
 
 const TipBox: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-zinc-950 border border-white/10 px-5 py-4 rounded-[1.5rem] shadow-2xl backdrop-blur-md min-w-[180px]">
+  <div className="bg-zinc-950 border border-white/10 px-5 py-4 rounded-3xl shadow-2xl backdrop-blur-md min-w-[180px]">
     <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-[0.1em] mb-3 border-b border-white/5 pb-2">{title}</p>
     <div className="space-y-2">{children}</div>
   </div>

@@ -129,7 +129,7 @@ const ReceiptStructuredView: React.FC<Props> = ({ items, totalAmount, categories
                         <button type="button" onClick={() => setOpenItem(open ? null : idx)} aria-expanded={open} data-testid={`struct-item-toggle-${idx}`}
                           className="w-full flex items-start gap-2 px-1.5 py-2 text-left">
                           <span className="min-w-0 flex-1">
-                            <span className={`block text-[13.5px] font-medium leading-snug break-words ${highlight && highlight(item) ? 'text-red-500 font-bold' : 'text-zinc-100'}`} data-highlight={highlight && highlight(item) ? '1' : undefined}>{titleCase(item.description)}</span>
+                            <span className={`block text-[14px] font-medium leading-snug break-words ${highlight && highlight(item) ? 'text-red-500 font-bold' : 'text-zinc-100'}`} data-highlight={highlight && highlight(item) ? '1' : undefined}>{titleCase(item.description)}</span>
                             <span className="block text-[11px] text-zinc-500 leading-snug break-words">
                               {qtyFmt.format(Number(item.quantity) || 0)} {(item.unitType || 'UN').toLowerCase()} × {brl.format(Number(item.unitPrice) || 0)}
                               {' · '}<span className={lay.none ? 'text-amber-500/80' : ''} data-testid="struct-layer">{lay.text}</span>

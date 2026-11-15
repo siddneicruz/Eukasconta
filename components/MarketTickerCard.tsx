@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { TrendingUp, TrendingDown, ChevronRight, Loader2 } from 'lucide-react';
+import { SkeletonRows } from './Skeleton';
+import { TrendingUp, TrendingDown, ChevronRight } from 'lucide-react';
 import { Receipt } from '../types';
 import { deptObservations, sharedObservations } from '../services/quotes';
 import { mergeObs } from '../services/produceCompare';
@@ -51,7 +52,7 @@ const MarketTickerCard: React.FC<{ receipts: Receipt[]; center: { lat: number; l
   );
 
   return (
-    <div ref={box} className="bg-black border border-white/10 rounded-[1.75rem] md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl relative overflow-hidden" data-testid="market-ticker">
+    <div ref={box} className="bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl relative overflow-hidden" data-testid="market-ticker">
       <div className="flex items-start justify-between gap-2 mb-1">
         <div>
           <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Variação de preços · Hortifruti</h3>
@@ -60,7 +61,7 @@ const MarketTickerCard: React.FC<{ receipts: Receipt[]; center: { lat: number; l
         {onOpen && <button type="button" onClick={onOpen} className="shrink-0 text-[11px] font-bold text-luxury-gold flex items-center gap-0.5 h-8">ver tudo<ChevronRight className="w-3.5 h-3.5" /></button>}
       </div>
 
-      {rows === undefined && <p className="text-[12px] text-zinc-500 py-6 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Buscando preços de todos os usuários…</p>}
+      {rows === undefined && <SkeletonRows rows={3} className="py-3" />}
       {rows === null && <p className="text-[12px] text-zinc-500 py-5">Sem conexão ou sem posição para comparar com o mercado. Ative a localização ou entre na conta.</p>}
 
       {rows && (

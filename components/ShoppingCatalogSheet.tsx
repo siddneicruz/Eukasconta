@@ -88,7 +88,7 @@ const ShoppingCatalogSheet: React.FC<Props> = ({ group, history, mode, title, su
 
   return (
     <Sheet title={title} subtitle={subtitle} onClose={onClose} testId="cat-sheet" tall footer={footer}>
-      <div className="sticky top-0 z-10 bg-[#0c0c0e] pb-2 -mx-5 px-5">
+      <div className="sticky top-0 z-10 bg-ek-card2 pb-2 -mx-5 px-5">
         <div className="relative">
           <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input data-testid="cat-search" value={q} onChange={e => setQ(e.target.value)} enterKeyHint="done" onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder={`Procurar em ${GROUP_LABEL[group].toLowerCase()}`} aria-label="Procurar no catálogo"
