@@ -15,6 +15,7 @@ import { useStoreNames } from './StoreNamesContext';
 import MarketTickerCard from './MarketTickerCard';
 import ProduceCompareCard from './ProduceCompareCard';
 import LazyMount from './LazyMount';
+import ReportsPanorama from './ReportsPanorama';
 import { homeCenterOf } from '../services/sharedLoader';
 import { 
     Calendar, Fuel, Home, Shirt, ShoppingCart, ScanLine, History, 
@@ -72,6 +73,7 @@ interface DashboardProps {
   onSelectReceipt?: (receipt: Receipt) => void;
   masterProducts?: MasterProduct[];
   establishments?: { cnpj?: string; latitude?: number; longitude?: number }[];
+  onOpenEstablishment?: (name: string) => void;
 }
 
 
@@ -429,7 +431,13 @@ const CustomTooltip = ({ active, payload }: any) => {
     return null;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onQuotesClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [], establishments = [] }) => {
+const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onConfigChange, onCategoryClick, onScanClick, onHistoryClick, onReportsClick, onQuotesClick, onSettingsClick, onEditIcon, onSelectReceipt, masterProducts = [], establishments = [], onOpenEstablishment }) => {
+  const setQuickRange = (range: '7d' | '30d' | 'thisMonth' | 'thisYear') => {
+      const today = new Date();
+      if (range === '7d' || range === '30d') onConfigChange({ ...config, quickFilter: range, month: null });
+      else if (range === 'thisMonth') onConfigChange({ ...config, month: today.getMonth(), year: today.getFullYear(), quickFilter: null });
+      else onConfigChange({ ...config, month: null, year: today.getFullYear(), quickFilter: null });
+  };
   const [whereOpen, setWhereOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_home_where_open') !== '0'; } catch { return true; } });
   const toggleWhere = () => setWhereOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_home_where_open', n ? '1' : '0'); } catch { /* vale só nesta tela */ } return n; });
   const pickMonth = useMonthPick(config, onConfigChange);
@@ -934,6 +942,19 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       <div className="mt-6 md:mt-10" data-testid="home-hortifruti">
           <LazyMount minHeight={320}>
               <ProduceCompareCard receipts={receipts} nameOf={(n, c) => nameOf(n, c)} dept="HORTIFRUTI" label="Hortifruti" center={homeCenterOf(receipts, establishments || [])} />
+          </LazyMount>
+      </div>
+      {/* Panorama (antes em Análises): leitura do período, com os mesmos filtros do Início */}
+      <div className="mt-6 md:mt-10" data-testid="home-panorama">
+          <LazyMount minHeight={400}>
+              <ReportsPanorama
+                  receipts={receipts}
+                  config={config}
+                  displayName={(n, c) => nameOf(n, c)}
+                  onQuickRange={setQuickRange}
+                  onSelectEstablishment={onOpenEstablishment}
+                  onOpenReceipt={(id) => { const r = receipts.find(x => x.id === id); if (r) onSelectReceipt?.(r); }}
+              />
           </LazyMount>
       </div>
       <div className="mt-6 md:mt-10">

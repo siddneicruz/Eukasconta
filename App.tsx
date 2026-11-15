@@ -1479,6 +1479,7 @@ const App: React.FC = () => {
                 )}
                 {view === 'dashboard' && (
                     <Dashboard 
+                      onOpenEstablishment={(name) => { setSelectedEstablishment(name); setView('establishment_detail'); }}
                       receipts={receipts} 
                       taxonomy={taxonomy}
                       config={dashboardConfig} 

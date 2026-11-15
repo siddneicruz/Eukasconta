@@ -16,7 +16,6 @@ import * as Recharts from 'recharts';
 import { calculateSimilarity, cleanDescriptionForMatching } from '../services/productMasterService';
 import { mergedCodeFields } from '../services/productCodes';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
-import ReportsPanorama from './ReportsPanorama';
 import PeriodPicker from './PeriodPicker';
 import { ChevronUp as PeriodUp, ChevronDown as PeriodDown } from 'lucide-react';
 import CategoryTargetPicker from './CategoryTargetPicker';
@@ -43,7 +42,7 @@ const {
 
 interface ReportsProps {
   receipts: Receipt[];
-  initialSection?: 'panorama' | 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog';
+  initialSection?: 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog' | 'panorama';
   establishments?: Establishment[];
   config: DashboardConfig;
   onConfigChange: (config: DashboardConfig) => void;
@@ -125,7 +124,7 @@ const Reports: React.FC<ReportsProps> = ({
     const label = hit ? String(hit.category).split(' - ')[0].trim() : names[0];
     return { slug: plain(names[0]), label: label.charAt(0).toUpperCase() + label.slice(1) };
   }, [panoFilter, receipts]);
-  const [activeSection, setActiveSection] = useState<'panorama' | 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog'>(initialSection || 'panorama');
+  const [activeSection, setActiveSection] = useState<'panorama' | 'quotes' | 'overview' | 'cuts' | 'goals' | 'catalog'>(initialSection && initialSection !== 'panorama' ? initialSection : 'quotes');
   const [cutSelId, setCutSelId] = useState<string | null>(null);
   const [tempGoalValue, setTempGoalValue] = useState<string>('');
   const [goals, setGoals] = useState<Record<string, number>>(() => {
@@ -939,7 +938,6 @@ const Reports: React.FC<ReportsProps> = ({
           está ativa, então a tela mostra uma coisa de cada vez. */}
       <div className="flex items-center gap-0.5 min-[380px]:gap-1 mb-4 md:mb-6 bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
           {[
-              { id: 'panorama' as const, label: 'Panorama', icon: Sparkles },
               { id: 'quotes' as const, label: 'Cotações', icon: TrendingUp },
               { id: 'overview' as const, label: 'Comparativo', icon: LucideLineChart },
               { id: 'cuts' as const, label: 'Recortes', icon: CalendarRange },
@@ -975,32 +973,6 @@ const Reports: React.FC<ReportsProps> = ({
           )}
 
           <div className="space-y-6 md:space-y-8">
-              {activeSection === 'panorama' && (<>
-                  <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
-                  {(compareDept || panoFilter.keys.length === 0) && (() => {
-                      const slug = compareDept ? compareDept.slug : 'ALL';
-                      const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
-                      const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
-                      // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
-                      const base = slug === 'TRANSPORTE' ? receipts
-                          : slug === 'ALL' ? receipts.map(r => (isFood(r) ? r : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
-                          : receipts.filter(isFood);
-                      return (
-                          <ProduceCompareCard key={slug} receipts={base}
-                              nameOf={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
-                              dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} center={homeCenter} />
-                      );
-                  })()}
-                  <ReportsPanorama
-                      receipts={panoReceipts}
-                      config={config}
-                      displayName={(name, cnpj) => getEstablishmentDisplayName(name, cnpj, establishments, aliasOf)}
-                      onQuickRange={setQuickRange}
-                      onSelectEstablishment={onSelectEstablishment}
-                      onOpenReceipt={onOpenReceipt}
-                      onAddManual={onAddManual}
-                  />
-              </>)}
 
               {activeSection === 'overview' && (<>
               <CompareCard options={compareOptions} chosen={chosen} onToggle={toggleCompare} max={MAX_COMPARE} receipts={filteredReceipts} config={config} />
