@@ -137,3 +137,15 @@ html.light-theme .ek-skel { background: rgba(27,25,18,.07); }
 html.light-theme .ek-skel::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent); }
 html.ek-lite .ek-skel::after { display: none; }
 @media (prefers-reduced-motion: reduce) { .ek-skel::after { display: none; } }
+
+/* Brilho dourado na borda do card que acabou de entrar na tela */
+@keyframes ek-card-glow {
+  0%   { box-shadow: 0 0 0 1.5px rgba(221,185,75,.9), 0 0 22px 2px rgba(221,185,75,.45); }
+  100% { box-shadow: 0 0 0 1.5px rgba(221,185,75,0), 0 0 22px 2px rgba(221,185,75,0); }
+}
+.ek-card-glow { animation: ek-card-glow .9s ease-out; }
+html.light-theme .ek-card-glow { animation-name: ek-card-glow-l; }
+@keyframes ek-card-glow-l {
+  0%   { box-shadow: 0 0 0 1.5px rgba(166,124,10,.85), 0 0 20px 2px rgba(166,124,10,.35); }
+  100% { box-shadow: 0 0 0 1.5px rgba(166,124,10,0), 0 0 20px 2px rgba(166,124,10,0); }
+}

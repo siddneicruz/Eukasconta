@@ -19,35 +19,39 @@ function findCards(main: HTMLElement): HTMLElement[] {
   return out;
 }
 
-/** Efeito ímã: ao soltar o dedo perto do começo de um card, a tela se ajusta e para alinhada no topo dele.
-    Usa o "scroll-snap" nativo do navegador (modo proximity: só puxa quando já está perto), então a rolagem normal não muda. */
-function useCardMagnet(resetKey?: string) {
+/** Ao entrar num card novo na tela (ele chega à faixa de leitura, perto do topo): vibração curta e um brilho dourado na borda dele.
+    Só dispara com o dedo rolando, nunca na abertura da tela. Fica desligado em aparelho fraco e com "reduzir movimento". */
+function useCardGlow(resetKey?: string) {
   useEffect(() => {
     const main = document.querySelector('.app-main') as HTMLElement | null;
     if (!main || document.documentElement.classList.contains('ek-lite')) return;
-    let marked: HTMLElement[] = [];
-    const mark = () => {
-      const mTop = main.getBoundingClientRect().top;
-      const head = document.querySelector('.app-header') as HTMLElement | null;
-      let t = Math.max(mTop, head ? head.getBoundingClientRect().bottom : mTop);
-      main.querySelectorAll<HTMLElement>('.sticky').forEach(el => {
-        const r = el.getBoundingClientRect();
-        if (r.width > main.clientWidth * 0.6 && r.height < 220 && r.top <= t + 24 && r.bottom > t) t = Math.max(t, r.bottom);
+    let cards: HTMLElement[] = [];
+    let lastScan = 0;
+    let current: HTMLElement | null = null;
+    let armed = false;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const now = Date.now();
+        if (now - lastScan > 1200) { cards = findCards(main); lastScan = now; }
+        const mTop = main.getBoundingClientRect().top;
+        const line = mTop + main.clientHeight * 0.3;   // faixa de leitura: ~30% abaixo do topo
+        const hit = cards.find(c => { const r = c.getBoundingClientRect(); return r.top <= line && r.bottom > line; }) || null;
+        if (hit && hit !== current) {
+          if (armed && current) {
+            try { navigator.vibrate?.(14); } catch { /* sem vibração */ }
+            hit.classList.remove('ek-card-glow'); void hit.offsetWidth; hit.classList.add('ek-card-glow');
+            setTimeout(() => hit.classList.remove('ek-card-glow'), 1000);
+          }
+          current = hit;
+        } else if (!hit) current = null;
+        armed = true;
       });
-      main.style.scrollPaddingTop = `${Math.round(t - mTop + 12)}px`;
-      const next = findCards(main);
-      marked.filter(c => !next.includes(c)).forEach(c => { c.style.scrollSnapAlign = ''; });
-      next.forEach(c => { c.style.scrollSnapAlign = 'start'; });
-      marked = next;
     };
-    main.style.scrollSnapType = 'y proximity';
-    mark();
-    const iv = setInterval(mark, 1500);   // a tela muda (cards abrem/fecham, listas crescem): remarca de tempos em tempos
-    return () => {
-      clearInterval(iv);
-      main.style.scrollSnapType = ''; main.style.scrollPaddingTop = '';
-      marked.forEach(c => { c.style.scrollSnapAlign = ''; });
-    };
+    main.addEventListener('scroll', onScroll, { passive: true });
+    return () => { main.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); cards.forEach(c => c.classList.remove('ek-card-glow')); };
   }, [resetKey]);
 }
 
@@ -55,7 +59,7 @@ export default function ScrollUpButton({ resetKey }: { resetKey?: string }) {
   const [show, setShow] = useState(false);
   const [top, setTop] = useState(200);
   const mainRef = useRef<HTMLElement | null>(null);
-  useCardMagnet(resetKey);
+  useCardGlow(resetKey);
 
   useEffect(() => {
     const main = document.querySelector('.app-main') as HTMLElement | null;

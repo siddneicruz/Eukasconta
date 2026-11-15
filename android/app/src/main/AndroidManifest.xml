@@ -42,6 +42,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- vibração curta ao entrar num card (permissão comum, concedida na instalação) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Foto do cupom pela câmera. A galeria usa o seletor do sistema e não precisa de permissão. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- "Mais barato perto de mim" -->
