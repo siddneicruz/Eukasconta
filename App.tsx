@@ -1433,9 +1433,6 @@ const App: React.FC = () => {
             </nav>
             <div className="flex md:hidden items-center">
                 <button onClick={goToAccount} className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center ${cloud.user ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label={cloud.user ? 'Minha conta' : 'Entrar ou criar conta'} data-testid="header-login"><UserRound className="w-5 h-5" /></button>
-                <button onClick={() => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme)} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-500 active:text-luxury-gold" aria-label="Alternar tema" data-testid="header-theme">
-                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
                 <BellButton count={cloud.unread} active={view === 'alerts'} onClick={() => setView('alerts')} className="p-2.5 min-w-[44px] min-h-[44px]" />
             </div>
         </div>
@@ -1629,7 +1626,7 @@ const App: React.FC = () => {
 
       {/* Barra de abas do celular (some em telas médias/grandes, onde o menu do topo aparece) */}
       <nav className="app-tabbar md:hidden fixed bottom-0 inset-x-0 z-50 backdrop-blur-xl border-t border-white/10" style={{ background: 'var(--ek-tab)' }}>
-          <div className="tabbar-grid grid grid-cols-5 items-end h-[68px] px-2">
+          <div className="tabbar-grid grid items-end h-[68px] px-1" style={{ gridTemplateColumns: '1fr 1fr 1.15fr 1fr 1fr 0.8fr' }}>
               <MobileTab id="dashboard" label="Início" icon={LayoutDashboard} view={view} setView={setView} />
               <MobileTab id="history" label="Compras" icon={History} view={view} setView={setView} />
               <button onClick={() => setView('scanner')} className="tab-scan flex flex-col items-center justify-end pb-2 -mt-7" aria-label="Escanear cupom">
@@ -1640,6 +1637,11 @@ const App: React.FC = () => {
               </button>
               <MobileTab id="reports" label="Análises" icon={BarChart3} view={view} setView={setView} />
               <MobileTab id="settings" label="Ajustes" icon={Settings} view={view} setView={setView} />
+              {/* tema no rodapé: fica perto do polegar e de onde a onda de troca nasce */}
+              <button onClick={() => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme)} className="relative flex flex-col items-center justify-center gap-1 h-full min-h-[44px] active:scale-95 transition-transform" aria-label="Alternar tema" data-testid="tab-theme">
+                  {theme === 'dark' ? <Sun className="w-[22px] h-[22px] text-zinc-400" /> : <Moon className="w-[22px] h-[22px] text-zinc-400" />}
+                  <span className="text-xs font-semibold leading-none text-zinc-400">Tema</span>
+              </button>
           </div>
       </nav>
 
