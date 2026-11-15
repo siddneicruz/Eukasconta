@@ -127,8 +127,7 @@ html.ek-lite .bg-black\/80 { background-color: rgba(0,0,0,.9) !important; }
 html.light-theme.ek-lite .bg-black\/80 { background-color: rgba(255,255,255,.96) !important; }
 /* Transições só nas propriedades baratas */
 html.ek-lite .transition-all { transition-property: color, background-color, border-color, opacity, transform !important; }
-html.light-theme [data-testid="scroll-nav"] button { color: #3E3A2F; border-color: rgba(0,0,0,.1); background: rgba(255,255,255,.55) !important; }
-@media (min-width: 768px) { [data-testid="scroll-nav"] { bottom: 24px !important; right: 24px !important; } }
+html.light-theme [data-testid="scroll-up"] { color: #3E3A2F; border-color: rgba(0,0,0,.1); background: rgba(255,255,255,.6) !important; }
 
 /* Esqueleto de carregamento */
 .ek-skel { background: rgba(255,255,255,.06); position: relative; overflow: hidden; }
