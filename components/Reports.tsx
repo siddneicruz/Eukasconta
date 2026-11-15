@@ -18,6 +18,7 @@ import { mergedCodeFields } from '../services/productCodes';
 import { isCurrentMonthPeriod } from '../services/currentMonth';
 import ReportsPanorama from './ReportsPanorama';
 import PeriodPicker from './PeriodPicker';
+import { ChevronUp as PeriodUp, ChevronDown as PeriodDown } from 'lucide-react';
 import CategoryTargetPicker from './CategoryTargetPicker';
 import { downloadFile } from '../services/nativeFiles';
 import { renderYTick, axisTickX, AXIS_Y_WIDTH, TL_AXIS_Y_WIDTH, renderTimelineYTick } from '../services/chartFormat';
@@ -94,6 +95,8 @@ const Reports: React.FC<ReportsProps> = ({
   const [typeSel] = useStoreTypeFilter();
   const receipts = useMemo(() => applyStoreTypeFilter(allReceipts, typeSel, typeOf), [allReceipts, typeSel, typeOf]);
   // O que está sendo comparado (departamentos e categorias das compras do usuário) e a cor de cada um
+  const [periodOpen, setPeriodOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_period_open') !== '0'; } catch { return true; } });
+  const togglePeriod = () => setPeriodOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_period_open', n ? '1' : '0'); } catch { /* vale só nesta tela */ } return n; });
   const [sel, setSel] = useState<CompareSelection[]>([]);
   const [rankingId, setRankingId] = useState<string | null>(null);
   const selInit = useRef(false);
@@ -865,8 +868,17 @@ const Reports: React.FC<ReportsProps> = ({
             </div>
         </div>
 
-        {activeSection !== 'cuts' && activeSection !== 'quotes' && (
-        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-2 md:gap-4 ls:gap-2 overflow-hidden" data-testid="period-bar">
+        {activeSection !== 'cuts' && activeSection !== 'quotes' && !periodOpen && (
+        <button type="button" onClick={togglePeriod} aria-expanded={false} data-testid="period-expand"
+          className="bg-white/[0.03] border border-white/5 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-2 text-left">
+          <span className="flex items-center gap-2 text-xs font-bold text-zinc-300 uppercase tracking-[0.08em]"><CalendarDays className="w-4 h-4 text-luxury-gold" />
+            {config.quickFilter === 'custom' ? ((config.customStartDate || config.customEndDate) ? `${config.customStartDate.slice(8, 10)}/${config.customStartDate.slice(5, 7)} a ${config.customEndDate.slice(8, 10)}/${config.customEndDate.slice(5, 7)}` : 'Período') : `${(config.months && config.months.length ? config.months.map(m => MONTHS_SHORT[m]).join(', ') : config.month !== null && config.month !== undefined ? MONTHS_SHORT[config.month] : 'Anual')} ${config.year}`}
+          </span>
+          <PeriodDown className="w-4 h-4 text-zinc-500" />
+        </button>
+        )}
+        {activeSection !== 'cuts' && activeSection !== 'quotes' && periodOpen && (
+        <div className="relative bg-white/[0.03] border border-white/5 rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-2 md:gap-4 ls:gap-2 overflow-hidden" data-testid="period-bar">
             {config.quickFilter === 'custom' ? (
                 <div className="order-3 ls:order-2 w-full md:w-auto ls:w-auto md:flex-1 ls:flex-1 flex items-center gap-1.5 px-2 md:px-6 animate-in slide-in-from-left-2">
                     <PeriodPicker
@@ -918,6 +930,8 @@ const Reports: React.FC<ReportsProps> = ({
                     </button>
                 )}
             </div>
+            <button type="button" onClick={togglePeriod} aria-expanded={true} aria-label="Recolher período" title="Recolher" data-testid="period-collapse"
+              className="order-5 ml-auto shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-zinc-500 hover:text-luxury-gold"><PeriodUp className="w-4 h-4" /></button>
         </div>
         )}
       </div>

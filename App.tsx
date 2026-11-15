@@ -1,4 +1,5 @@
 
+import { switchThemeWave } from './services/themeWave';
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { UserRound, LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, ShoppingCart, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
 import PhoneFrame from './components/PhoneFrame';
@@ -1424,7 +1425,7 @@ const App: React.FC = () => {
                 <button onClick={() => setIsMobilePreview(true)} style={{ display: isInsideEmulator ? 'none' : undefined }} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Emular visualização mobile">
                     <Smartphone className="w-4 h-4" />
                 </button>
-                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Alternar Tema">
+                <button onClick={() => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme)} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Alternar Tema">
                     {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
                 <button onClick={() => setView('shopping')} className={`p-2 transition-colors ${view === 'shopping' ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`} title="Lista de compras" aria-label="Lista de compras" data-testid="header-shopping"><ShoppingCart className="w-4 h-4" /></button>
@@ -1432,7 +1433,7 @@ const App: React.FC = () => {
             </nav>
             <div className="flex md:hidden items-center">
                 <button onClick={goToAccount} className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center ${cloud.user ? 'text-luxury-gold' : 'text-zinc-500 active:text-luxury-gold'}`} aria-label={cloud.user ? 'Minha conta' : 'Entrar ou criar conta'} data-testid="header-login"><UserRound className="w-5 h-5" /></button>
-                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-500 active:text-luxury-gold" aria-label="Alternar tema" data-testid="header-theme">
+                <button onClick={() => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme)} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-500 active:text-luxury-gold" aria-label="Alternar tema" data-testid="header-theme">
                     {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
                 <BellButton count={cloud.unread} active={view === 'alerts'} onClick={() => setView('alerts')} className="p-2.5 min-w-[44px] min-h-[44px]" />
@@ -1573,7 +1574,7 @@ const App: React.FC = () => {
                     <AlertsView cloud={cloud} draft={alertDraft} onDraftConsumed={() => setAlertDraft(null)} onGoToAccount={goToAccount} onBack={() => setView('dashboard')} />
                 )}
                 {view === 'settings' && (
-                    <SettingsQuick theme={theme} setTheme={setTheme} onDiagnostics={() => setIsDiagnosticOpen(true)} onMap={() => setView('map')} onList={() => setView('shopping')} onAlerts={() => setView('alerts')} isAdmin={master.isAdmin} onMaster={() => { setSettingsInitialTab('master'); setView('settings'); }} />
+                    <SettingsQuick theme={theme} setTheme={(t) => switchThemeWave(t, setTheme)} onDiagnostics={() => setIsDiagnosticOpen(true)} onMap={() => setView('map')} onList={() => setView('shopping')} onAlerts={() => setView('alerts')} isAdmin={master.isAdmin} onMaster={() => { setSettingsInitialTab('master'); setView('settings'); }} />
                 )}
                 {view === 'settings' && (
                     <SettingsView 
