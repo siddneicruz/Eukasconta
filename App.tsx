@@ -1626,7 +1626,7 @@ const App: React.FC = () => {
 
       {/* Barra de abas do celular (some em telas médias/grandes, onde o menu do topo aparece) */}
       <nav className="app-tabbar md:hidden fixed bottom-0 inset-x-0 z-50 backdrop-blur-xl border-t border-white/10" style={{ background: 'var(--ek-tab)' }}>
-          <div className="tabbar-grid grid items-end h-[68px] px-1" style={{ gridTemplateColumns: '1fr 1fr 1.15fr 1fr 1fr 0.8fr' }}>
+          <div className="tabbar-grid grid items-end h-[68px] px-1" style={{ gridTemplateColumns: '1.4fr 1.4fr 1.15fr 1fr 1fr 0.8fr' }}>
               <MobileTab id="dashboard" label="Início" icon={LayoutDashboard} view={view} setView={setView} />
               <MobileTab id="history" label="Compras" icon={History} view={view} setView={setView} />
               <button onClick={() => setView('scanner')} className="tab-scan flex flex-col items-center justify-end pb-2 -mt-7" aria-label="Escanear cupom">
