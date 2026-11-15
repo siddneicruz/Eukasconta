@@ -161,6 +161,13 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
     if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' });
   }, [goLetter]);
   const railTouch = (e: React.TouchEvent) => { const t = e.touches[0]; const el = t && document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null; const l = el?.getAttribute?.('data-rail'); if (l) { showBubble(l); jump(l); } };
+  const [openStores, setOpenStores] = useState<Record<string, boolean>>({});
+  const dayAge = (iso: string) => Math.max(0, Math.round((Date.parse(todayIso) - Date.parse(iso)) / 864e5));
+  // todos os itens comprados numa loja: último preço lido, quando, e se é o mais barato entre as lojas que têm o item
+  const itemsOfStore = (id: string) => data.items
+    .map(r => { const c = r.cells.find(x => x.id === id); return c ? { r, c } : null; })
+    .filter((x): x is { r: typeof data.items[number]; c: typeof data.items[number]['cells'][number] } => !!x)
+    .sort((a, b) => a.r.label.localeCompare(b.r.label, 'pt-BR', { sensitivity: 'base' }));
   const ageTxt = (d: number) => (d === 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`);
 
   if (data.nObs === 0) return null;
@@ -206,19 +213,53 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
             {stores.map(s => {
               const q = quality[s.id];
               return (
-                <div key={s.id} className="flex items-center justify-between gap-3 py-2.5" data-testid="pc-store-row">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-zinc-200 truncate">{s.name}</p>
-                    <p className="text-[10px] text-zinc-500 font-mono">{s.days} {s.days === 1 ? 'dia' : 'dias'} de compra · {s.items} {s.items === 1 ? 'item' : 'itens'} em comum</p>
-                  </div>
-                  <div className="text-right shrink-0 leading-tight">
-                    {s.index !== null
-                      ? <span className="block text-sm font-bold font-mono" style={{ color: idxColor(s.index) }}>{pctTxt(s.index)}</span>
-                      : <span className="block text-[11px] text-zinc-500">poucos itens p/ comparar</span>}
-                    {q && q.n > 0 && (q.score !== null
-                      ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}><QualityFace score={q.score} size={14} /> {q.score.toFixed(1).replace('.', ',')} <span className="text-zinc-500">· {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.n < 5 ? ' (poucos)' : ''}{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
-                      : <span className="block text-[10px] font-mono text-zinc-500">{q.n} {q.n === 1 ? 'voto' : 'votos'} (poucos)</span>)}
-                  </div>
+                <div key={s.id} data-testid="pc-store-row">
+                  <button type="button" onClick={() => setOpenStores(o => ({ ...o, [s.id]: !o[s.id] }))} aria-expanded={!!openStores[s.id]} data-testid="pc-store-toggle"
+                    className="w-full flex items-center justify-between gap-3 py-2.5 text-left">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-zinc-200 truncate">{s.name}</p>
+                      <p className="text-[10px] text-zinc-500 font-mono">{s.days} {s.days === 1 ? 'dia' : 'dias'} de compra · {s.items} {s.items === 1 ? 'item' : 'itens'} em comum</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right leading-tight">
+
+                        {s.index !== null
+                          ? <span className="block text-sm font-bold font-mono" style={{ color: idxColor(s.index) }}>{pctTxt(s.index)}</span>
+                          : <span className="block text-[11px] text-zinc-500">poucos itens p/ comparar</span>}
+                        {q && q.n > 0 && (q.score !== null
+                          ? <span className="block text-[11px] font-mono" style={{ color: scoreColor(q.score) }}><QualityFace score={q.score} size={14} /> {q.score.toFixed(1).replace('.', ',')} <span className="text-zinc-500">· {q.n} {q.n === 1 ? 'voto' : 'votos'}{q.n < 5 ? ' (poucos)' : ''}{q.last ? ` · ${short(q.last.slice(0, 10))}` : ''}</span></span>
+                          : <span className="block text-[10px] font-mono text-zinc-500">{q.n} {q.n === 1 ? 'voto' : 'votos'} (poucos)</span>)}
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${openStores[s.id] ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+                  {openStores[s.id] && (() => {
+                    const list = itemsOfStore(s.id);
+                    return (
+                      <div className="mb-2 rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-1" data-testid="pc-store-items">
+                        <p className="py-1.5 text-[11px] font-semibold text-zinc-400">{list.length} {list.length === 1 ? 'item comprado' : 'itens comprados'} aqui</p>
+                        <div className="divide-y divide-white/5">
+                          {list.map(({ r, c }) => {
+                            const best = r.stores > 1 && r.cheap.id === s.id;
+                            const worst = r.stores > 1 && r.dear.id === s.id;
+                            const color = best ? '#34d399' : worst ? '#f87171' : undefined;
+                            return (
+                              <div key={r.item} className="flex items-center justify-between gap-3 py-1.5">
+                                <div className="min-w-0">
+                                  <p className="text-[12px] font-semibold text-zinc-200 leading-snug line-clamp-2">{r.label}</p>
+                                  <p className="text-[10px] text-zinc-500">{c.n} {c.n === 1 ? 'compra' : 'compras'} · {ageTxt(dayAge(c.date))}{r.stores > 1 ? ` · ${r.stores} lojas` : ' · só aqui'}</p>
+                                </div>
+                                <div className="text-right leading-tight shrink-0">
+                                  <p className="text-[13px] font-bold tabular-nums whitespace-nowrap" style={{ color }}>R$ {money(c.last)}<span className="text-[10px] font-normal text-zinc-500"> / {unitLabel(r.unit)}</span></p>
+                                  {(best || worst) && <p className="text-[10px] font-semibold" style={{ color }}>{best ? 'mais barato' : 'mais caro'}</p>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
