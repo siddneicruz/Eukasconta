@@ -39,6 +39,8 @@ import {
     Lightbulb, Scroll, Flame, PartyPopper, Recycle, Vegan, Snowflake, ArrowLeftRight
 } from 'lucide-react';
 import { getIconByName } from '../services/allIcons';
+import { emojiFor } from '../services/emojiIcons';
+import { emojiIconFor } from './EmojiIcon';
 import { Plus as PlusIcon, Minus as MinusIcon } from 'lucide-react';
 import { TL_AXIS_Y_WIDTH, TL_MARGIN_RIGHT as TIMELINE_MARGIN_RIGHT, renderTimelineTick, renderTimelineYTick, useElementWidth } from '../services/chartFormat';
 import { buildEvolution } from '../services/evolutionSeries';
@@ -267,6 +269,8 @@ export const getCategoryIcon = (category: string) => {
         const IconComp = getIconByName(custom.icon);
         if (IconComp) return IconComp;
     }
+    const em = emojiFor(category);
+    if (em) return emojiIconFor(em);
     return matchIconByKeyword(category) || ShoppingBag;
 };
 

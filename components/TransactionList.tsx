@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Receipt, DashboardConfig, MasterProduct, ItemFilter, ReceiptItem } from '../types';
-import { ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, XCircle, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, Copy } from 'lucide-react';
+import { ChevronRight, Calendar, Receipt as ReceiptIcon, Trash2, FileText, Clock, Download, ArrowUpDown, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, Copy } from 'lucide-react';
 import { normalizeProductName } from '../services/productNormalization';
 import { titleCase } from '../services/textFormat';
 import PeriodFilterBar from './PeriodFilterBar';
@@ -252,7 +252,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
             placeholder="Buscar loja, item ou valor"
             textRow={false}
             enterPicksFirst={false}
-            showClear={false}
+            showClear
             emptyHint={false}
         />
             <button 
@@ -265,11 +265,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ storeCheck, onClearSt
                 <ArrowUpDown className="w-3.5 h-3.5" />
                 {sortType === 'date' ? 'Data' : 'Valor'}
             </button>
-            {searchTerm && (
-                <button data-testid="hist-clear" onClick={() => setSearchTerm('')} aria-label="Limpar a busca" className="shrink-0 p-3.5 bg-white/5 hover:bg-red-950/20 text-zinc-500 hover:text-red-400 rounded-xl transition-colors border border-white/5">
-                    <XCircle className="w-4 h-4" />
-                </button>
-            )}
         </div>
 
       </div>
