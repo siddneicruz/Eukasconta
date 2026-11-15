@@ -291,8 +291,8 @@ const Scanner: React.FC<ScannerProps> = ({ onFinish, onCancel, onManualEntry, kn
                         <div className="w-24 h-24 rounded-3xl bg-zinc-900/50 border border-white/5 flex items-center justify-center mb-10 shadow-inner group-hover:border-luxury-gold/50 transition-all duration-700">
                             <ScanLine className="w-10 h-10 text-luxury-gold" />
                         </div>
-                        <h3 className="text-2xl font-serif text-zinc-200 mb-2 uppercase tracking-[0.1em]">Importar Ativos</h3>
-                        <p className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] mb-10 font-bold">Selecione cupons para auditoria AI</p>
+                        <h3 className="text-2xl font-serif text-zinc-200 mb-2 uppercase tracking-[0.1em]">Adicionar cupom</h3>
+                        <p className="text-[11px] text-zinc-500 uppercase tracking-[0.08em] mb-10 font-bold">Fotografe ou escolha o cupom fiscal</p>
                         
                         <div className="flex flex-col gap-4 w-full max-w-sm mt-6">
                             <div className="grid grid-cols-2 gap-4">

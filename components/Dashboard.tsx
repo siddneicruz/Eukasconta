@@ -393,18 +393,21 @@ export const getCategoryColor = (category: string) => {
 const GENERIC_ESTABLISHMENT_PHRASES = [
   'auto posto', 'posto', 'supermercado', 'mercearia', 'padaria', 'cooperativa', 'atacadista',
   'comercio', 'comercial', 'distribuidora', 'armazem', 'mercado', 'minimercado',
-  'hipermercado', 'ltda', 'eireli', 's/a',
+  'hipermercado', 'ltda', 'eireli', 's/a', 's.a',
 ];
 // Nome da loja sem as palavras genéricas ("Supermercado", "Ltda"...). Devolve o nome inteiro limpo;
 // quem precisa de um rótulo curto usa shortLabels (primeira palavra, mais palavras só se houver repetição).
 const cleanEstablishmentName = (name: string): string => {
   if (isUnidentifiedName(name)) return UNIDENTIFIED_LABEL;
-  const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  let cleaned = stripAccents(name);
+  let cleaned = name;
+  // as palavras genéricas são achadas sem diferenciar acento, mas o nome que sobra mantém os acentos ("Super Útil", não "Super Util")
   GENERIC_ESTABLISHMENT_PHRASES.forEach(phrase => {
-    cleaned = cleaned.replace(new RegExp(`\\b${phrase}\\b`, 'gi'), ' ');
+    const re = phrase.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&').replace(/[aeiouc]/g, c => ({ a: '[aàáâãä]', e: '[eèéêë]', i: '[iìíîï]', o: '[oòóôõö]', u: '[uùúûü]', c: '[cç]' } as Record<string, string>)[c]);
+    cleaned = cleaned.replace(new RegExp(`(^|[^\\p{L}\\p{N}])${re}\\.?(?![\\p{L}\\p{N}])`, 'giu'), '$1 ');
   });
-  return cleaned.replace(/\s+/g, ' ').trim() || name.trim();
+  // sobras de pontuação ("Ltda." vira "."), travessões e "e" soltos no fim
+  cleaned = cleaned.replace(/\s+/g, ' ').replace(/\s+([.,;])/g, '$1').replace(/^[\s.,;\-–—]+|[\s.,;\-–—]+$/g, '').replace(/\s+(e|de|da|do)$/i, '').trim();
+  return cleaned || name.trim();
 };
 
 const clip = (text: string, maxLen: number): string =>

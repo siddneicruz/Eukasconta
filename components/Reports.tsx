@@ -862,10 +862,6 @@ const Reports: React.FC<ReportsProps> = ({
                 <h2 className="text-2xl ls:text-2xl md:text-5xl font-serif text-white mb-1 tracking-tight uppercase">Análises</h2>
                 <p className="text-zinc-400 font-sans text-sm">Seu gasto, mês a mês e dia a dia</p>
             </div>
-            <div className="grid grid-cols-2 md:flex ls:flex items-center gap-3">
-                <button onClick={onAddManual} className="px-6 py-3 rounded-xl bg-luxury-gold text-black text-sm font-bold whitespace-nowrap justify-center hover:bg-white transition-all flex items-center gap-2 shadow-lg shadow-luxury-gold/10"><Plus className="w-4 h-4" /> Novo Lançamento</button>
-                <button onClick={onBack} className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-sm font-bold whitespace-nowrap justify-center hover:bg-white/10 transition-all flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Dashboard</button>
-            </div>
         </div>
 
         {activeSection !== 'cuts' && activeSection !== 'quotes' && !periodOpen && (
@@ -1068,9 +1064,9 @@ const Reports: React.FC<ReportsProps> = ({
                         <div>
                             <div className="flex items-center gap-3 mb-1">
                                 <Package className="w-5 h-5 text-violet-400" />
-                                <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">Unificação & Consistência de Dados</h3>
+                                <h3 className="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-bold">Catálogo de produtos</h3>
                             </div>
-                            <span className="text-2xl font-serif text-white tracking-tighter">Produtos do Banco de Dados</span>
+                            <span className="text-2xl font-serif text-white tracking-tighter">Seus produtos</span>
                         </div>
                         
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">

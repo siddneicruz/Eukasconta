@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, LayoutDashboard, ScanLine, History, BarChart3, Settings, Terminal, Sparkles, Bell, Map as MapIcon, ShoppingCart, KeyRound } from 'lucide-react';
+import { X, Terminal, Sparkles, Bell, Map as MapIcon, ShoppingCart, KeyRound } from 'lucide-react';
 import { ViewState } from '../types';
 import { getActiveProvider } from '../services/keyStorageService';
 import { AppMark, PDLogo } from './Brand';
@@ -20,20 +20,13 @@ interface DrawerItem {
   icon: React.ElementType;
 }
 
+// Início, Escanear, Compras, Análises e Ajustes já estão no rodapé (celular) e no topo (computador): o menu não os repete.
+// Fica só o que não tem lugar fixo na barra.
 const SECTIONS: { title: string; items: DrawerItem[] }[] = [
-  { title: 'Navegar', items: [
-    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-    { id: 'scanner', label: 'Escanear', icon: ScanLine },
-    { id: 'history', label: 'Compras', icon: History },
-  ]},
-  { title: 'Analisar', items: [
-    { id: 'reports', label: 'Análises', icon: BarChart3 },
+  { title: 'Atalhos', items: [
     { id: 'map', label: 'Mapa', icon: MapIcon },
     { id: 'shopping', label: 'Lista de compras', icon: ShoppingCart },
     { id: 'alerts', label: 'Avisos e alertas', icon: Bell },
-  ]},
-  { title: 'Configurar', items: [
-    { id: 'settings', label: 'Ajustes', icon: Settings },
   ]},
 ];
 
@@ -41,8 +34,7 @@ const PROVIDER_LABEL: Record<string, string> = { gemini: 'Google Gemini', anthro
 
 // Menu lateral estilo apps de finanças de referência: cabeçalho com a marca,
 // seções agrupadas com título pequeno, item ativo com fundo destacado.
-// Não substitui a navegação existente (topo/abas do rodapé) — é um atalho
-// rápido que abre por cima de qualquer tela, via o ícone de menu no cabeçalho.
+// Não repete a navegação do topo/rodapé: abre por cima de qualquer tela, via o ícone de menu no cabeçalho.
 const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, view, setView, onOpenDiagnostics, isAdmin, onOpenMaster }) => {
   const activeProvider = getActiveProvider();
 

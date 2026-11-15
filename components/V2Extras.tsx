@@ -1,9 +1,7 @@
 import React from 'react';
-import Switch from './Switch';
-import { useQuotesTicker } from './QuotesPanel';
-import { TrendingUp, ScanLine, PencilLine, ShoppingCart, Map as MapIcon, Target, Bell, Terminal, KeyRound } from 'lucide-react';
+import { TrendingUp, ScanLine, PencilLine, ShoppingCart, Map as MapIcon, Target, Bell } from 'lucide-react';
 
-// Redesign v2: atalhos redondos do Início e bloco "Aparência e sistema" dos Ajustes.
+// Redesign v2: atalhos redondos do Início.
 // Só interface — cada botão chama uma função que já existia no app.
 
 export const HomeShortcuts: React.FC<{
@@ -30,40 +28,6 @@ export const HomeShortcuts: React.FC<{
           <span className="text-[10px] font-medium text-zinc-400 max-w-full truncate">{it.label}</span>
         </button>
       ))}
-    </div>
-  );
-};
-
-type Row = { label: string; icon: React.ElementType; on: () => void; t: string };
-
-export const SettingsQuick: React.FC<{
-  theme?: 'dark' | 'light'; setTheme?: (t: 'dark' | 'light') => void;
-  onDiagnostics: () => void; onMap: () => void; onList: () => void; onAlerts: () => void;
-  isAdmin?: boolean; onMaster?: () => void;
-}> = ({ onDiagnostics, onMap, onList, onAlerts, isAdmin, onMaster }) => {
-  const [tickerOn, setTickerOn] = useQuotesTicker();
-  const rows: Row[] = [
-    { label: 'Mapa dos estabelecimentos', icon: MapIcon, on: onMap, t: 'quick-map' },
-    { label: 'Lista de compras', icon: ShoppingCart, on: onList, t: 'quick-list' },
-    { label: 'Avisos e alertas', icon: Bell, on: onAlerts, t: 'quick-alerts' },
-    ...(isAdmin && onMaster ? [{ label: 'Tabela mãe (importar planilha)', icon: KeyRound, on: onMaster, t: 'drawer-master' }] : []),
-    ...(isAdmin ? [{ label: 'Diagnóstico', icon: Terminal, on: onDiagnostics, t: 'quick-diag' }] : []),
-  ];
-  return (
-    <div className="mb-6 space-y-4" data-testid="settings-quick">
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/50 overflow-hidden">
-        {rows.map((r, i) => (
-          <button key={r.label} onClick={r.on} data-testid={r.t} className={`w-full min-h-[52px] flex items-center gap-3 px-4 text-left active:bg-white/5 ${i ? 'border-t border-white/5' : ''}`}>
-            <r.icon className="w-5 h-5 text-luxury-gold shrink-0" />
-            <span className="text-sm font-medium text-zinc-200">{r.label}</span>
-          </button>
-        ))}
-        <div className="w-full min-h-[52px] flex items-center gap-3 px-4 border-t border-white/5">
-          <TrendingUp className="w-5 h-5 text-luxury-gold shrink-0" />
-          <span className="flex-1 text-sm font-medium text-zinc-200">Letreiro de cotações no Início</span>
-          <Switch on={tickerOn} onChange={setTickerOn} label="Mostrar o letreiro de cotações no Início" testId="quotes-ticker-switch" />
-        </div>
-      </div>
     </div>
   );
 };

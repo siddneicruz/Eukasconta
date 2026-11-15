@@ -3,7 +3,7 @@ import * as LucideIcons from 'lucide-react';
 import { 
     Plus, Trash2, X, Search, Layers, Database, AlertTriangle, Download, 
     Upload, RefreshCw, Calculator, Eraser, History as HistoryIcon, Clock, 
-    FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText
+    FolderOpen, HelpCircle, Save, Check, Copy, Palette, BrainCircuit, ChevronDown, ChevronRight, Store, Edit2, Sparkles, KeyRound, UserRound, FileText, TrendingUp
 } from 'lucide-react';
 import type { StoreDraft } from '../services/establishmentEdit';
 import { Link2 } from 'lucide-react';
@@ -13,6 +13,8 @@ const TaxonomyEditor = lazy(() => import('./TaxonomyEditor'));
 import MasterStructureView from './MasterStructureView';
 const MasterAdmin = lazy(() => import('./MasterAdmin'));
 import { useMasterInfo } from './MasterContext';
+import Switch from './Switch';
+import { useQuotesTicker } from './QuotesPanel';
 import { useStoreNames } from './StoreNamesContext';
 import type { MergeResult } from '../services/taxonomyDedupe';
 const ProductMappingEditor = lazy(() => import('./ProductMappingEditor'));
@@ -144,8 +146,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [iconSearch, setIconSearch] = useState('');
-  const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account' | 'master'>((initialTab as any) || 'taxonomy');
   const master = useMasterInfo();
+  // quem não é administrador abre em Conta (ou Backup, sem conta): estrutura e tabela mãe são assunto de administração
+  const [settingsTab, setSettingsTab] = useState<'taxonomy' | 'establishments' | 'intelligence' | 'system' | 'visual_ai' | 'ai_key' | 'account' | 'master'>((initialTab as any) || (master.isAdmin ? 'taxonomy' : cloud ? 'account' : 'system'));
+  const [tickerOn, setTickerOn] = useQuotesTicker();
   const storeNames = useStoreNames();
   const masterByCnpj = useMemo(() => new Map((master.master?.stores || []).filter(m => m.name).map(m => [String(m.cnpj).replace(/\D/g, ''), m.name] as const)), [master.master?.stores]);
   const masterAliasOf = (est: { cnpj?: string }): string | null => { const d = String(est.cnpj || '').replace(/\D/g, ''); const a = d ? masterByCnpj.get(d) : null; return a ? storeNames.aliasOf('', est.cnpj) : null; };
@@ -221,18 +225,23 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           
           <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 flex-wrap gap-y-1">
-              <TabButton active={settingsTab === 'taxonomy'} onClick={() => setSettingsTab('taxonomy')} icon={Layers} label="Estrutura & Estilo" />
-              <TabButton active={settingsTab === 'establishments'} onClick={() => setSettingsTab('establishments')} icon={Store} label="Lojas" />
-              <TabButton active={settingsTab === 'intelligence'} onClick={() => setSettingsTab('intelligence')} icon={BrainCircuit} label="Inteligência" />
-              <TabButton active={settingsTab === 'system'} onClick={() => setSettingsTab('system')} icon={Database} label="Backup e dados" />
-              <TabButton active={settingsTab === 'ai_key'} onClick={() => setSettingsTab('ai_key')} icon={KeyRound} label="Chave IA" />
-              {master.isAdmin && <TabButton active={settingsTab === 'master'} onClick={() => setSettingsTab('master')} icon={KeyRound} label={`Tabela mãe${master.pending ? ` (${master.pending})` : ''}`} />}
-              {cloud && <TabButton active={settingsTab === 'account'} onClick={() => setSettingsTab('account')} icon={UserRound} label="Conta" />}
+              <TabButton active={settingsTab === 'taxonomy'} onClick={() => setSettingsTab('taxonomy')} icon={Layers} label="Estrutura & Estilo" short="Estrutura" />
+              <TabButton active={settingsTab === 'establishments'} onClick={() => setSettingsTab('establishments')} icon={Store} label="Lojas" short="Lojas" />
+              <TabButton active={settingsTab === 'intelligence'} onClick={() => setSettingsTab('intelligence')} icon={BrainCircuit} label="Inteligência" short="IA" />
+              <TabButton active={settingsTab === 'system'} onClick={() => setSettingsTab('system')} icon={Database} label="Backup e dados" short="Backup" />
+              <TabButton active={settingsTab === 'ai_key'} onClick={() => setSettingsTab('ai_key')} icon={KeyRound} label="Chave IA" short="Chave" />
+              {master.isAdmin && <TabButton active={settingsTab === 'master'} onClick={() => setSettingsTab('master')} icon={KeyRound} label={`Tabela mãe${master.pending ? ` (${master.pending})` : ''}`} short={`Mãe${master.pending ? ` (${master.pending})` : ''}`} />}
+              {cloud && <TabButton active={settingsTab === 'account'} onClick={() => setSettingsTab('account')} icon={UserRound} label="Conta" short="Conta" />}
           </div>
       </div>
 
       {settingsTab === 'taxonomy' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
+              <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-900/50 min-h-[52px] flex items-center gap-3 px-4" data-testid="settings-ticker">
+                  <TrendingUp className="w-5 h-5 text-luxury-gold shrink-0" />
+                  <span className="flex-1 text-sm font-medium text-zinc-200">Letreiro de cotações no Início</span>
+                  <Switch on={tickerOn} onChange={setTickerOn} label="Mostrar o letreiro de cotações no Início" testId="quotes-ticker-switch" />
+              </div>
               {master.active
                 ? <MasterStructureView taxonomy={taxonomy} onOpenAdmin={master.isAdmin ? () => setSettingsTab('master') : undefined} />
                 : <TaxonomyEditor taxonomy={taxonomy} onUpdateTaxonomy={onUpdateTaxonomy} onEditIcon={onEditIcon} receipts={receipts} onMergeCategories={onMergeCategories} />}
@@ -444,9 +453,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   );
 };
 
-const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
-    <button onClick={onClick} className={`flex items-center gap-2 px-4 sm:px-6 py-2 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] transition-all whitespace-nowrap shrink-0 ${active ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
+const TabButton = ({ active, onClick, icon: Icon, label, short }: any) => (
+    <button onClick={onClick} aria-label={label} aria-pressed={!!active} className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 min-w-[54px] sm:min-w-0 px-2 sm:px-6 py-1.5 sm:py-2 rounded-xl text-[11px] font-bold sm:uppercase sm:tracking-[0.08em] transition-all whitespace-nowrap shrink-0 ${active ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20' : 'text-zinc-500 hover:text-white'}`}>
         <Icon className="w-4 h-4" />
+        <span className="sm:hidden text-[10px] leading-none font-semibold">{short || label}</span>
         <span className="hidden sm:inline">{label}</span>
     </button>
 );

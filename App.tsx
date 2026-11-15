@@ -82,7 +82,7 @@ import { isNativeApp, WEB_LOGIN_REQUIRED } from './services/platform';
 import WebLoginGate from './components/WebLoginGate';
 import { STORAGE_FULL_EVENT } from './services/storageGuard';
 import { AppMark, BrandName } from './components/Brand';
-import { HomeShortcuts, SettingsQuick } from './components/V2Extras';
+import { HomeShortcuts } from './components/V2Extras';
 
 import { normalizeReceiptList } from './services/receiptNumbers';
 const LUXURY_COLORS = [
@@ -1570,9 +1570,6 @@ const App: React.FC = () => {
                 )}
                 {view === 'alerts' && (
                     <AlertsView cloud={cloud} draft={alertDraft} onDraftConsumed={() => setAlertDraft(null)} onGoToAccount={goToAccount} onBack={() => setView('dashboard')} />
-                )}
-                {view === 'settings' && (
-                    <SettingsQuick theme={theme} setTheme={(t) => switchThemeWave(t, setTheme)} onDiagnostics={() => setIsDiagnosticOpen(true)} onMap={() => setView('map')} onList={() => setView('shopping')} onAlerts={() => setView('alerts')} isAdmin={master.isAdmin} onMaster={() => { setSettingsInitialTab('master'); setView('settings'); }} />
                 )}
                 {view === 'settings' && (
                     <SettingsView 

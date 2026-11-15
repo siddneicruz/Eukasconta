@@ -134,7 +134,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const openKey = `eukasconta_pc_open_${dept}`;
   const [cardOpen, setCardOpen] = useState<boolean>(() => { try { return localStorage.getItem(openKey) !== '0'; } catch { return true; } });
   const toggleCard = () => setCardOpen(o => { try { localStorage.setItem(openKey, o ? '0' : '1'); } catch { /* vale só nesta tela */ } return !o; });
-  const [level, setLevel] = useState<'stores' | 'items'>(() => { try { return localStorage.getItem('eukasconta_pc_level') === 'items' ? 'items' : 'stores'; } catch { return 'stores'; } });
+  const [level, setLevel] = useState<'stores' | 'items'>(() => { try { return localStorage.getItem('eukasconta_pc_level') === 'stores' ? 'stores' : 'items'; } catch { return 'items'; } });
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const pickLevel = (v: 'stores' | 'items') => { setLevel(v); setOpenItems({}); try { localStorage.setItem('eukasconta_pc_level', v); } catch { /* vale só nesta tela */ } };
   // índice por letra (à direita): tocar numa letra põe a lista em ordem alfabética e rola até ela
@@ -225,7 +225,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
 
       {tab === 'items' && (
         <div className="mt-3">
-          <div className="flex gap-1.5 mb-1 overflow-x-auto no-scrollbar">
+          <div className="flex flex-wrap gap-1.5 mb-1">
             <Pill on={itemBy === 'n'} onClick={() => { setItemBy('n'); setLimit(30); }}>Mais comprados</Pill>
             <Pill on={itemBy === 'spread'} onClick={() => { setItemBy('spread'); setLimit(30); }}>Maior diferença</Pill>
             <Pill on={itemBy === 'recent'} onClick={() => { setItemBy('recent'); setLimit(30); }} tid="pc-sort-recent">Recentes</Pill>
@@ -271,14 +271,14 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                   <div key={r.item} className={cmp ? '' : 'opacity-60'} data-testid="pc-item-row" data-letter={firstOfLetter ? L : undefined} style={{ scrollMarginTop: 190 }}>
                     {firstOfLetter && <p className="text-[11px] font-bold text-luxury-gold px-0.5 pt-1 pb-0.5 border-b border-luxury-gold/20 mb-1.5">{L}</p>}
                     <button type="button" onClick={() => setOpenItems(o => ({ ...o, [r.item]: !open }))} aria-expanded={open} data-testid="pc-item-toggle" className="w-full flex items-center justify-between gap-2 px-0.5 text-left min-h-[36px]">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-zinc-100 truncate">{r.label}{sizeTxt && !r.label.toLowerCase().includes(sizeTxt.toLowerCase()) && <span className="text-luxury-gold"> · {sizeTxt}</span>}</p>
-                        {r.ean && <p className="text-[10px] font-mono text-zinc-500">EAN {r.ean}</p>}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-zinc-100 leading-snug line-clamp-2">{r.label}{sizeTxt && !r.label.toLowerCase().includes(sizeTxt.toLowerCase()) && <span className="text-luxury-gold"> · {sizeTxt}</span>}</p>
+                        <p className="text-[10px] text-zinc-500 tabular-nums">
+                          {cmp ? <span className="font-semibold text-zinc-400">dif. {pctTxt(spread)}</span> : <span>{r.cells.length === 1 ? 'só 1 loja' : 'sem comparação atual'}</span>}
+                          {r.ean && <span className="font-mono"> · EAN {r.ean}</span>}
+                        </p>
                       </div>
-                      {cmp
-                        ? <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-white/10 text-zinc-400 tabular-nums">dif. {pctTxt(spread)}</span>
-                        : <span className="shrink-0 text-[10px] text-zinc-500">{r.cells.length === 1 ? 'só 1 loja' : 'sem comparação atual'}</span>}
-                      {!open && cheapest && <span className="shrink-0 text-right leading-tight"><span className="block text-[12px] font-bold tabular-nums" style={{ color: cmp ? '#34d399' : undefined }}>R$ {money(cheapest.last)}</span><span className="block text-[9px] text-zinc-500 max-w-[92px] truncate">{cheapest.name}</span></span>}
+                      {!open && cheapest && <span className="shrink-0 text-right leading-tight"><span className="block text-[12px] font-bold tabular-nums" style={{ color: cmp ? '#34d399' : undefined }}>R$ {money(cheapest.last)}</span><span className="block text-[9px] text-zinc-500 max-w-[110px] truncate">{cheapest.name}</span></span>}
                       {open ? <ChevronUp className="shrink-0 w-4 h-4 text-zinc-500" /> : <ChevronDown className="shrink-0 w-4 h-4 text-zinc-500" />}
                     </button>
                     {open && <div className="mt-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-2.5">
@@ -294,7 +294,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                           return (
                             <div key={m.id} className="grid items-center gap-x-3 py-1.5" style={{ gridTemplateColumns: cols }}>
                               <div className="min-w-0">
-                                <p className="text-[12px] font-semibold text-zinc-200 truncate">{cmp ? `${i + 1}º ` : ''}{m.name}</p>
+                                <p className="text-[12px] font-semibold text-zinc-200 leading-snug line-clamp-2">{cmp ? `${i + 1}º ` : ''}{m.name}</p>
                                 <p className="text-[10px] text-zinc-500">{ageTxt(m.age)}</p>
                               </div>
                               <div className="text-right leading-tight">

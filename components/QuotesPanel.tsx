@@ -215,8 +215,7 @@ const QuotesPanel: React.FC<{ receipts: Receipt[]; onOpenPurchases?: (f: { label
 
   return (
     <div className="qb space-y-3 text-[color:var(--q-t1)]" data-testid="quotes-panel">
-      <QuotesTicker receipts={receipts} />
-
+      {/* o letreiro já passa no Início; aqui logo abaixo vêm as mesmas altas e quedas em detalhe */}
       <div className="rounded-2xl bg-[var(--q-bg)] border border-[color:var(--q-bd)] p-3 md:p-5 shadow-xl">
         <div className="flex items-baseline justify-between gap-3">
           <h3 className="text-[13px] font-bold tracking-[0.12em] text-[color:var(--q-gold)] uppercase">Cotações · Açougue e Hortifruti</h3>
