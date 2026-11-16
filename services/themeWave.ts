@@ -1,4 +1,5 @@
 import { flushSync } from 'react-dom';
+import { makeInkBlots } from './inkBlots';
 
 /** Troca de tema no estilo do app do Claude: o tema novo entra como uma grande forma curva (0,7 s).
  *  São 5 jeitos que se alternam a cada troca (a ordem fica guardada no aparelho):
@@ -6,7 +7,7 @@ import { flushSync } from 'react-dom';
  *    arco-dir  — o mesmo, pelo lado direito
  *    canto-sup — arcos em forma de tigela, nascendo no canto superior esquerdo
  *    canto-inf — arcos em forma de cúpula, nascendo no canto inferior esquerdo
- *    chuva     — gotas de óleo (no claro) ou leite (no escuro) pingando por 3 s, de borda nítida, até cobrir a tela
+ *    chuva     — gotas de óleo (no claro) ou leite (no escuro) pingando por 3 s, de borda nítida e formato de respingo, até cobrir a tela
  *  A página antiga e a nova viram duas imagens separadas; a nova fica dentro de uma forma (círculo enorme ou onda)
  *  que só se DESLOCA (transform), e a imagem dentro dela se desloca ao contrário para ficar parada na tela.
  *  Só transform = animação feita pela placa de vídeo, fora da thread do app — não trava mesmo com a página
@@ -59,63 +60,19 @@ const buildShape = (mode: WaveMode, w: number, h: number): Shape => {
   return circleShape(w, h, corner[0] + (ux / len) * (R + 8), corner[1] + (uy / len) * (R + 8), R);
 };
 
-/** Gota de óleo/leite: mancha de borda NÍTIDA (sem esfumaçado nem degradê), redonda e levemente irregular, com
- *  gotículas ao redor. Desenhada UMA vez num canvas e guardada como imagem: serve de máscara do tema novo e só é
- *  esticada, nunca redesenhada. */
+/** As manchas (óleo/leite) vêm de services/inkBlots.ts: borda nítida, sem esfumaçado nem degradê. São desenhadas UMA vez
+ *  (uns 120 ms) e guardadas; por isso o app as prepara em segundo plano, logo depois de abrir. */
 let blotUrls: string[] | null = null;
 const makeBlots = (): string[] => {
   if (blotUrls) return blotUrls;
-  const out: string[] = [];
-  try {
-    for (let v = 0; v < 3; v++) {
-      const N = 768, c = document.createElement('canvas');
-      c.width = N; c.height = N;
-      const g = c.getContext('2d');
-      if (!g) throw new Error('sem canvas');
-      const cx = N / 2, cy = N / 2;
-      const ph = Array.from({ length: 5 }, () => Math.random() * Math.PI * 2);
-      const am = [0.07, 0.055, 0.045, 0.03, 0.02];
-      const radius = (t: number) => {
-        let r = 0.5;                                       // gota principal ocupa ~metade da imagem
-        for (let k = 0; k < 5; k++) r += am[k] * Math.sin(t * (k + 2) + ph[k]);
-        return r * (N / 2) * 0.62;
-      };
-      g.fillStyle = '#000';
-      g.beginPath();
-      for (let i = 0; i <= 360; i++) {
-        const t = (i / 360) * Math.PI * 2, r = radius(t);
-        const x = cx + Math.cos(t) * r, y = cy + Math.sin(t) * r;
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-      }
-      g.closePath(); g.fill();
-      const U = (N / 2) * 0.62;
-      // respingo 🫟: jatos finos que saem da borda da gota (largos na base, em ponta no fim), cada um com uma
-      // gotícula solta logo depois da ponta — tudo de borda nítida
-      const ns = 11 + Math.floor(Math.random() * 5);
-      for (let k = 0; k < ns; k++) {
-        const t = (k / ns) * Math.PI * 2 + (Math.random() - 0.5) * 0.35, r0 = radius(t);
-        const len = (0.12 + Math.random() * 0.42) * U, wd = (0.05 + Math.random() * 0.07) * U;
-        const bx = cx + Math.cos(t) * (r0 - 4), by = cy + Math.sin(t) * (r0 - 4);
-        const tx = cx + Math.cos(t) * (r0 + len), ty = cy + Math.sin(t) * (r0 + len);
-        const nx = -Math.sin(t) * wd, ny = Math.cos(t) * wd;
-        g.beginPath(); g.moveTo(bx + nx, by + ny); g.lineTo(tx, ty); g.lineTo(bx - nx, by - ny); g.closePath(); g.fill();
-        const dd = r0 + len + (0.04 + Math.random() * 0.12) * U, rr = 2.5 + Math.random() * 7;
-        g.beginPath(); g.arc(cx + Math.cos(t) * dd, cy + Math.sin(t) * dd, rr, 0, Math.PI * 2); g.fill();
-      }
-      // gotículas soltas por perto (algumas quase encostadas, outras mais afastadas)
-      const n = 10 + Math.floor(Math.random() * 6);
-      for (let k = 0; k < n; k++) {
-        const t = Math.random() * Math.PI * 2, r0 = radius(t);
-        const d = r0 + (0.1 + Math.random() * 0.55) * U + 6;
-        const rr = 2.5 + Math.random() * Math.random() * 13;
-        g.beginPath(); g.arc(cx + Math.cos(t) * d, cy + Math.sin(t) * d, rr, 0, Math.PI * 2); g.fill();
-      }
-      out.push(c.toDataURL('image/png'));
-    }
-  } catch { /* sem canvas: o modo chuva se desliga */ }
+  let out: string[] = [];
+  try { out = makeInkBlots(1024); } catch { /* sem canvas: o modo chuva se desliga */ }
   blotUrls = out;
   return out;
 };
+try {
+  if (typeof window !== 'undefined') window.addEventListener('load', () => { window.setTimeout(() => { try { if (!weak()) makeBlots(); } catch { /* ok */ } }, 5000); });
+} catch { /* sem janela */ }
 
 const easeOut = (x: number) => 1 - Math.pow(1 - x, 2.4);
 export const RAIN_MS = 3000;
@@ -124,7 +81,7 @@ const rainCss = (w: number, h: number, dur: number): string | null => {
   const urls = makeBlots();
   if (!urls.length) return null;
   const COLS = 2, ROWS = 4, L = COLS * ROWS;
-  const S = Math.ceil(Math.max(w, h) * 2.6);                       // tamanho final de cada gota (a imagem tem folga)
+  const S = Math.ceil(Math.max(w, h) * 2.4);                       // tamanho final de cada gota (a imagem tem folga)
   const cellW = w / COLS, cellH = h / ROWS;
   const pts: [number, number][] = [];
   for (let r = 0; r < ROWS; r++) for (let q = 0; q < COLS; q++)
