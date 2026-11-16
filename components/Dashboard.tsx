@@ -954,16 +954,16 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       </div>
       </div>
 
-      {/* Hortifruti completo, já aberto: preço por item e loja, qualidade, dia da semana (mesmo cartão de Análises) */}
-      <div className="mt-6 md:mt-10" data-testid="home-hortifruti">
-          <LazyMount minHeight={320}>
-              <ProduceCompareCard receipts={receipts} nameOf={(n, c) => nameOf(n, c)} dept="HORTIFRUTI" label="Hortifruti" center={homeCenterOf(receipts, establishments || [])} />
-          </LazyMount>
-      </div>
       {/* Panorama (antes em Análises): leitura do período, com os mesmos filtros do Início */}
       <div className="mt-6 md:mt-10" data-testid="home-panorama">
           <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
-          {(compareDept || panoFilter.keys.length === 0) && (() => {
+          <LazyMount minHeight={400}>
+              <ReportsPanorama
+                  receipts={panoReceipts}
+                  config={config}
+                  displayName={(n, c) => nameOf(n, c)}
+                  collapseRest
+                  collapsedExtra={(compareDept || panoFilter.keys.length === 0) && (() => {
               const slug = compareDept ? compareDept.slug : 'ALL';
               const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
               const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
@@ -978,15 +978,21 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                   </div>
               );
           })()}
-          <LazyMount minHeight={400}>
-              <ReportsPanorama
-                  receipts={panoReceipts}
-                  config={config}
-                  displayName={(n, c) => nameOf(n, c)}
                   onQuickRange={setQuickRange}
                   onSelectEstablishment={onOpenEstablishment}
                   onOpenReceipt={(id) => { const r = receipts.find(x => x.id === id); if (r) onSelectReceipt?.(r); }}
               />
+          </LazyMount>
+      </div>
+      {/* Cabeçalho das cotações */}
+      <div className="mt-8 md:mt-12 px-1" data-testid="home-market-head">
+          <h2 className="text-lg md:text-xl font-serif font-bold text-white">Acompanhe os preços do mercado</h2>
+          <p className="mt-1 text-xs md:text-sm text-zinc-500">Cotações de hoje por item e por loja, para você saber onde comprar mais barato.</p>
+      </div>
+      {/* Hortifruti completo, já aberto: preço por item e loja, qualidade, dia da semana (mesmo cartão de Análises) */}
+      <div className="mt-4" data-testid="home-hortifruti">
+          <LazyMount minHeight={320}>
+              <ProduceCompareCard receipts={receipts} nameOf={(n, c) => nameOf(n, c)} dept="HORTIFRUTI" label="Hortifruti" center={homeCenterOf(receipts, establishments || [])} />
           </LazyMount>
       </div>
       <div className="mt-6 md:mt-10">

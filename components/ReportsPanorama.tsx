@@ -33,6 +33,10 @@ interface Props {
   /** abre o cupom (a mesma tela do Histórico) */
   onOpenReceipt?: (id: string) => void;
   onAddManual?: () => void;
+  /** Início: só o "Gasto no período" fica à vista; o resto abre com o botão Exibir */
+  collapseRest?: boolean;
+  /** aparece no topo da parte recolhida */
+  collapsedExtra?: React.ReactNode;
 }
 
 /* ───────────────────────────── formatação e datas ───────────────────────────── */
@@ -513,7 +517,8 @@ const HeroTooltip = ({ active, payload, mode, prevLabel, monthly }: any) => {
 
 /* ───────────────────────────── componente ───────────────────────────── */
 
-const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQuickRange, onSelectEstablishment, onOpenReceipt, onAddManual }) => {
+const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQuickRange, onSelectEstablishment, onOpenReceipt, onAddManual, collapseRest, collapsedExtra }) => {
+  const [showRest, setShowRest] = useState(false);
   const light = useIsLight();
   const reduced = usePrefersReducedMotion();
   const ready = useReady();
@@ -674,6 +679,15 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
         </Card>
       </Reveal>
 
+      {collapseRest && (
+        <button type="button" onClick={() => setShowRest(v => !v)} aria-expanded={showRest} data-testid="panorama-toggle"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-luxury-gold flex items-center justify-center gap-2 active:scale-[0.99]">
+          {showRest ? 'Ocultar análises' : 'Exibir análises do período'}
+          <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform ${showRest ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+      )}
+      {(!collapseRest || showRest) && (<>
+      {collapsedExtra}
       {/* ── LEITURAS ─────────────────────────────────────────── */}
       {a.insights.length > 0 && (
         <Reveal i={2}>
@@ -871,6 +885,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
           </Card>
         </Reveal>
       </div>
+      </>)}
     </div>
   );
 };
