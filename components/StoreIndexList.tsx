@@ -5,6 +5,7 @@ import { titleCase } from '../services/textFormat';
 import { fold } from '../services/itemSearch';
 import { formatCNPJ } from '../services/productNormalization';
 import { useStoreNames } from './StoreNamesContext';
+import MasterStoreAlias from './MasterStoreAlias';
 
 /* Lista compacta das lojas (celular): uma linha por loja, em ordem alfabética, com a letra de cada bloco e uma barra de
    letras na lateral para pular direto (toque ou arraste o dedo na barra). O lápis abre a edição ali mesmo: apelido e
@@ -116,9 +117,9 @@ const StoreIndexList: React.FC<Props> = ({ stores, onUpdate, onEditAll }) => {
                         )}
                         <label className="block mt-3">
                           <span className="block text-xs text-zinc-400 font-medium mb-1.5">Apelido</span>
-                          <input type="text" value={est.aliasName || ''} onChange={e => onUpdate({ ...est, aliasName: e.target.value })}
-                            placeholder={aliasFor(est) || 'Como você chama esta loja'} data-testid="store-alias"
-                            className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold placeholder:text-zinc-600 placeholder:font-normal" />
+                          <MasterStoreAlias cnpj={est.cnpj} localAlias={est.aliasName || ''} onLocalChange={v => onUpdate({ ...est, aliasName: v })}
+                            placeholder={aliasFor(est) || 'Como você chama esta loja'} testId="store-alias"
+                            className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-luxury-gold focus:border-luxury-gold/50 outline-none font-semibold placeholder:text-zinc-600 placeholder:font-normal disabled:opacity-80" />
                         </label>
                         {onEditAll && (
                           <button type="button" onClick={() => onEditAll(est)} data-testid="store-edit-open"

@@ -6,6 +6,7 @@ import { cleanCNPJ } from '../services/productNormalization';
 import { formatCNPJ } from '../services/productNormalization';
 import { isValidCNPJ } from '../services/registryLookupService';
 import { useMasterInfo } from './MasterContext';
+import MasterStoreAlias from './MasterStoreAlias';
 import { DEFAULT_STORE_TYPES, suggestStoreType } from '../services/storeTypes';
 import { StoreDraft, draftOf, receiptsOfStore, splitLatLng, summarizeStore } from '../services/establishmentEdit';
 import { isNativeApp } from '../services/platform';
@@ -135,9 +136,9 @@ const EstablishmentEditSheet: React.FC<Props> = ({ est, receipts, onSave, onDele
           </Section>
 
           <Section title="Identificação">
-            <Field label="Apelido" hint={<span className="text-zinc-500">{masterStore?.name ? 'Definido na tabela mãe, igual para todos. Para mudar, edite a aba Lojas da planilha.' : 'Como você chama a loja. Aparece em todas as telas.'}</span>}>
-              <input type="text" value={masterStore?.name || draft.aliasName} disabled={!!masterStore?.name} onChange={e => set({ aliasName: e.target.value })} placeholder="Como você chama esta loja" data-testid="store-edit-alias"
-                className={`${inputCls} !text-luxury-gold font-semibold placeholder:font-normal`} />
+            <Field label="Apelido" hint={masterStore?.name ? undefined : <span className="text-zinc-500">Como você chama a loja. Aparece em todas as telas.</span>}>
+              <MasterStoreAlias cnpj={est.cnpj} localAlias={draft.aliasName} onLocalChange={v => set({ aliasName: v })} placeholder="Como você chama esta loja" testId="store-edit-alias"
+                className={`${inputCls} !text-luxury-gold font-semibold placeholder:font-normal disabled:opacity-80`} />
             </Field>
             <Field label="Tipo de estabelecimento" hint={<span className="text-zinc-500">{draft.type ? 'Usado no filtro do início e nos relatórios.' : (() => { const g = suggestStoreType(`${draft.aliasName} ${draft.originalName}`, typeList); return g ? `Sem escolha, o app usa "${g}", pelo nome da loja.` : 'Sem escolha, a loja fica em "Sem tipo".'; })()}</span>}>
               <select value={draft.type} onChange={e => set({ type: e.target.value })} data-testid="store-edit-type" className={inputCls}>
