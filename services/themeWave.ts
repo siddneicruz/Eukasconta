@@ -6,6 +6,17 @@ import { flushSync } from 'react-dom';
  *  (transform), e a imagem dentro dele se desloca ao contrário para ficar parada na tela. Só transform = animação
  *  feita pela placa de vídeo, fora da thread do app — não trava mesmo com a página ocupada redesenhando o tema. */
 export const DURATION_MS = 700;
+/** 5 jeitos de varrer a tela; a cada troca de tema passa para o próximo (a ordem fica guardada no aparelho). */
+export type WaveMode = 'arco' | 'gota' | 'cortina' | 'diagonal' | 'cima';
+export const WAVE_MODES: WaveMode[] = ['arco', 'gota', 'cortina', 'diagonal', 'cima'];
+const IDX_KEY = 'ek_theme_wave_i';
+const nextMode = (): WaveMode => {
+  let i = 0;
+  try { i = parseInt(localStorage.getItem(IDX_KEY) || '0', 10) || 0; } catch { /* sem armazenamento: começa do arco */ }
+  const m = WAVE_MODES[((i % WAVE_MODES.length) + WAVE_MODES.length) % WAVE_MODES.length];
+  try { localStorage.setItem(IDX_KEY, String(i + 1)); } catch { /* ok */ }
+  return m;
+};
 const EASE = 'cubic-bezier(0.3, 0, 0.15, 1)';
 const STYLE_ID = 'ek-theme-wave-style';
 
@@ -18,7 +29,51 @@ const weak = (): boolean => {
 
 let running = false;
 
-export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'light') => void) => {
+type Origin = Element | { x: number; y: number } | null | undefined;
+const originXY = (o: Origin): { x: number; y: number } => {
+  try {
+    if (o && 'getBoundingClientRect' in o) { const r = (o as Element).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+    if (o && typeof (o as any).x === 'number') return o as { x: number; y: number };
+  } catch { /* usa o centro */ }
+  return { x: window.innerWidth / 2, y: window.innerHeight * 0.9 };
+};
+
+/** Gota na água: anéis brancos; a camada deles usa mistura 'difference' — sobre o escuro viram claros e sobre o claro viram escuros
+ *  (efeito preto-e-branco). O painel entra no estado NOVO da página com nome de transição próprio, para aparecer
+ *  por cima das duas imagens da troca. */
+const buildRipple = (x: number, y: number): HTMLElement => {
+  const w = window.innerWidth, h = window.innerHeight;
+  const R = Math.ceil(Math.max(Math.hypot(x, y), Math.hypot(w - x, y), Math.hypot(x, h - y), Math.hypot(w - x, h - y)));
+  const box = document.createElement('div');
+  box.setAttribute('data-ek-ripple', '1');
+  box.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;view-transition-name:ek-ripple;z-index:2147483000';
+  const ring = 'radial-gradient(circle closest-side,transparent 0,transparent 84%,#fff 90%,#fff 95%,transparent 100%)';
+  [0, 130, 260].forEach((delay, i) => {
+    const el = document.createElement('div');
+    const size = 2 * R * (1 - i * 0.12);
+    el.style.cssText = `position:absolute;left:${x - size / 2}px;top:${y - size / 2}px;width:${size}px;height:${size}px;border-radius:50%;background:${ring};opacity:0;will-change:transform,opacity`;
+    box.appendChild(el);
+    try {
+      el.animate([
+        { transform: 'scale(0.02)', opacity: 0.95 },
+        { transform: 'scale(1)', opacity: 0 },
+      ], { duration: DURATION_MS + 250, delay, easing: 'cubic-bezier(0.2,0.6,0.3,1)', fill: 'both' });
+    } catch { /* sem animação de anel */ }
+  });
+  return box;
+};
+
+const clipKeyframes = (mode: WaveMode, next: 'dark' | 'light', x: number, y: number, R: number): string => {
+  const fromLeft = next === 'light';
+  if (mode === 'cortina') return `from{clip-path:inset(0 ${fromLeft ? '100% 0 0' : '0 0 100%'})}to{clip-path:inset(0 0 0 0)}`;
+  if (mode === 'cima') return `from{clip-path:inset(${fromLeft ? '0 0 100% 0' : '100% 0 0 0'})}to{clip-path:inset(0 0 0 0)}`;
+  if (mode === 'diagonal') return fromLeft
+    ? 'from{clip-path:polygon(0 0,0 0,0 0)}to{clip-path:polygon(0 0,230% 0,0 230%)}'
+    : 'from{clip-path:polygon(100% 0,100% 0,100% 0)}to{clip-path:polygon(100% 0,-130% 0,100% 230%)}';
+  return `from{clip-path:circle(0px at ${x}px ${y}px)}to{clip-path:circle(${R}px at ${x}px ${y}px)}`; // gota
+};
+
+export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'light') => void, origin?: Origin) => {
   const doc = document as any;
   const root = document.documentElement;
   let reduce = false;
@@ -27,15 +82,37 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
   if (running) return; // toque repetido durante a troca: ignora
   running = true;
   const isWeak = weak();
+  const mode = nextMode();
+  const arco = mode === 'arco';
+  let ripple: HTMLElement | null = null;
   let style: HTMLStyleElement | null = null;
   const cleanup = () => {
     running = false;
     try { style?.remove(); } catch { /* já saiu */ }
     root.style.removeProperty('view-transition-name');
     root.classList.remove('theme-switching');
+    try { ripple?.remove(); } catch { /* já saiu */ }
   };
   try {
-    if (!isWeak) {
+    if (!isWeak && !arco) {
+      const w = window.innerWidth, h = window.innerHeight;
+      const o = originXY(origin);
+      const x = Math.round(o.x), y = Math.round(o.y);
+      const R = Math.ceil(Math.max(Math.hypot(x, y), Math.hypot(w - x, y), Math.hypot(x, h - y), Math.hypot(w - x, h - y)));
+      const dur = mode === 'gota' ? DURATION_MS + 100 : DURATION_MS;
+      style = document.createElement('style');
+      style.id = STYLE_ID;
+      style.textContent = `
+::view-transition-old(root){animation:none!important;opacity:1!important;mix-blend-mode:normal}
+::view-transition-new(root){opacity:1!important;mix-blend-mode:normal;animation:ek-clip ${dur}ms ${EASE} both!important}
+::view-transition-group(ek-ripple){animation:none!important;z-index:3}
+::view-transition-old(ek-ripple){display:none}
+::view-transition-new(ek-ripple){animation:none!important;opacity:1!important;mix-blend-mode:difference}
+@keyframes ek-clip{${clipKeyframes(mode, next, x, y, R)}}`;
+      document.head.appendChild(style);
+      if (mode === 'gota') ripple = buildRipple(x, y);
+    }
+    if (!isWeak && arco) {
       const w = window.innerWidth, h = window.innerHeight;
       // raio grande = arco aberto, como no app do Claude; sobra 12% para a borda sair da tela antes do fim
       const R = Math.ceil(Math.max(1.5 * w, Math.hypot(w / 2, h / 2) * 1.12));
@@ -59,7 +136,8 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
       root.classList.add('theme-switching');
       flushSync(() => apply(next));
       root.classList.toggle('light-theme', next === 'light');
-      if (!isWeak) root.style.setProperty('view-transition-name', 'ek-new');
+      if (!isWeak && arco) root.style.setProperty('view-transition-name', 'ek-new');
+      if (ripple) document.body.appendChild(ripple);
     });
     let anim: Animation | null = null;
     const done = () => { try { anim?.cancel(); } catch { /* já terminou */ } cleanup(); };
