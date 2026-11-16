@@ -1426,7 +1426,7 @@ const App: React.FC = () => {
                 <button onClick={() => setIsMobilePreview(true)} style={{ display: isInsideEmulator ? 'none' : undefined }} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Emular visualização mobile">
                     <Smartphone className="w-4 h-4" />
                 </button>
-                <button onClick={(e) => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme, e.currentTarget)} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Alternar Tema">
+                <button onClick={() => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme)} className="p-2 text-zinc-600 hover:text-luxury-gold transition-colors" title="Alternar Tema">
                     {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
                 <button onClick={() => setView('shopping')} className={`p-2 transition-colors ${view === 'shopping' ? 'text-luxury-gold' : 'text-zinc-600 hover:text-luxury-gold'}`} title="Lista de compras" aria-label="Lista de compras" data-testid="header-shopping"><ShoppingCart className="w-4 h-4" /></button>
@@ -1639,7 +1639,7 @@ const App: React.FC = () => {
               <MobileTab id="reports" label="Análises" icon={BarChart3} view={view} setView={setView} />
               <MobileTab id="settings" label="Ajustes" icon={Settings} view={view} setView={setView} />
               {/* tema no rodapé: fica perto do polegar e de onde a onda de troca nasce */}
-              <button onClick={(e) => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme, e.currentTarget)} className="relative flex flex-col items-center justify-center gap-1 h-full min-h-[44px] active:scale-95 transition-transform" aria-label="Alternar tema" data-testid="tab-theme">
+              <button onClick={() => switchThemeWave(theme === 'dark' ? 'light' : 'dark', setTheme)} className="relative flex flex-col items-center justify-center gap-1 h-full min-h-[44px] active:scale-95 transition-transform" aria-label="Alternar tema" data-testid="tab-theme">
                   {theme === 'dark' ? <Sun className="w-[22px] h-[22px] text-zinc-400" /> : <Moon className="w-[22px] h-[22px] text-zinc-400" />}
                   <span className="text-xs font-semibold leading-none text-zinc-400">Tema</span>
               </button>

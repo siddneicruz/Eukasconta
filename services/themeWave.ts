@@ -1,24 +1,32 @@
 import { flushSync } from 'react-dom';
 
-/** Troca de tema no estilo do app do Claude: o tema novo sobe como um grande arco (0,7 s), vindo de um lado
- *  (para o claro vem da esquerda; para o escuro, da direita).
- *  A página antiga e a nova viram duas imagens separadas; a nova fica dentro de um círculo enorme que só se DESLOCA
- *  (transform), e a imagem dentro dele se desloca ao contrário para ficar parada na tela. Só transform = animação
- *  feita pela placa de vídeo, fora da thread do app — não trava mesmo com a página ocupada redesenhando o tema. */
+/** Troca de tema no estilo do app do Claude: o tema novo entra como uma grande forma curva (0,7 s).
+ *  São 5 jeitos que se alternam a cada troca (a ordem fica guardada no aparelho):
+ *    arco-esq  — arco que sobe vindo de baixo, pelo lado esquerdo
+ *    arco-dir  — o mesmo, pelo lado direito
+ *    canto-sup — arcos em forma de tigela, nascendo no canto superior esquerdo
+ *    canto-inf — arcos em forma de cúpula, nascendo no canto inferior esquerdo
+ *    ondas     — frente ondulada em S, vinda da direita
+ *  A página antiga e a nova viram duas imagens separadas; a nova fica dentro de uma forma (círculo enorme ou onda)
+ *  que só se DESLOCA (transform), e a imagem dentro dela se desloca ao contrário para ficar parada na tela.
+ *  Só transform = animação feita pela placa de vídeo, fora da thread do app — não trava mesmo com a página
+ *  ocupada redesenhando o tema. Nenhuma borda reta e nenhum efeito de mistura de cores (eram pesados). */
 export const DURATION_MS = 700;
-/** 5 jeitos de varrer a tela; a cada troca de tema passa para o próximo (a ordem fica guardada no aparelho). */
-export type WaveMode = 'arco' | 'gota' | 'cortina' | 'diagonal' | 'cima';
-export const WAVE_MODES: WaveMode[] = ['arco', 'gota', 'cortina', 'diagonal', 'cima'];
-const IDX_KEY = 'ek_theme_wave_i';
+const EASE = 'cubic-bezier(0.3, 0, 0.15, 1)';
+const STYLE_ID = 'ek-theme-wave-style';
+
+export type WaveMode = 'arco-esq' | 'arco-dir' | 'canto-sup' | 'canto-inf' | 'ondas';
+export const WAVE_MODES: WaveMode[] = ['arco-esq', 'arco-dir', 'canto-sup', 'canto-inf', 'ondas'];
+const IDX_KEY = 'ek_theme_wave_i2';
+
 const nextMode = (): WaveMode => {
   let i = 0;
-  try { i = parseInt(localStorage.getItem(IDX_KEY) || '0', 10) || 0; } catch { /* sem armazenamento: começa do arco */ }
-  const m = WAVE_MODES[((i % WAVE_MODES.length) + WAVE_MODES.length) % WAVE_MODES.length];
+  try { i = parseInt(localStorage.getItem(IDX_KEY) || '0', 10) || 0; } catch { /* sem armazenamento: começa do primeiro */ }
+  const n = WAVE_MODES.length;
+  const m = WAVE_MODES[((i % n) + n) % n];
   try { localStorage.setItem(IDX_KEY, String(i + 1)); } catch { /* ok */ }
   return m;
 };
-const EASE = 'cubic-bezier(0.3, 0, 0.15, 1)';
-const STYLE_ID = 'ek-theme-wave-style';
 
 const weak = (): boolean => {
   try {
@@ -27,53 +35,50 @@ const weak = (): boolean => {
   } catch { return false; }
 };
 
+type Shape = { gw: number; gh: number; from: [number, number]; to: [number, number]; css: string };
+
+/** Círculo enorme: começa fora da tela, encostando no ponto de origem, e termina centrado cobrindo a tela. */
+const circleShape = (w: number, h: number, cx0: number, cy0: number, R: number): Shape => ({
+  gw: 2 * R, gh: 2 * R,
+  from: [Math.round(cx0 - R), Math.round(cy0 - R)],
+  to: [Math.round(w / 2 - R), Math.round(h / 2 - R)],
+  css: 'border-radius:50%;overflow:hidden',
+});
+
+/** Faixa com a frente ondulada em S (duas ondas somadas), entrando pela direita e avançando para a esquerda. */
+const waveShape = (w: number, h: number): Shape => {
+  const A = Math.round(Math.min(w * 0.16, 90));           // amplitude da onda
+  const gw = w + 2 * A + 8, gh = h;
+  const pts: string[] = [];
+  const N = 48;
+  for (let i = 0; i <= N; i++) {
+    const y = (gh * i) / N, t = (i / N) * Math.PI * 2;
+    // S fluido: uma onda principal + um harmônico menor, sempre dentro de [0, 2A]
+    const e = A + A * (0.78 * Math.sin(t + 0.6) + 0.22 * Math.sin(t * 2 + 1.4));
+    pts.push(`${e.toFixed(1)} ${y.toFixed(1)}`);
+  }
+  const d = `M ${pts[0]} L ${pts.slice(1).join(' L ')} L ${gw} ${gh} L ${gw} 0 Z`;
+  return { gw, gh, from: [w, 0], to: [-2 * A - 2, 0], css: `clip-path:path('${d}')` };
+};
+
+const buildShape = (mode: WaveMode, w: number, h: number): Shape => {
+  const hd = Math.hypot(w / 2, h / 2);
+  if (mode === 'arco-esq' || mode === 'arco-dir') {
+    // raio grande = arco aberto; sobra 12% para a borda sair da tela antes do fim
+    const R = Math.ceil(Math.max(1.5 * w, hd * 1.12));
+    return circleShape(w, h, mode === 'arco-esq' ? w * 0.15 : w * 0.85, h + 8 + R, R);
+  }
+  if (mode === 'ondas') return waveShape(w, h);
+  // cantos: o círculo encosta no canto e vem na diagonal; o raio dá a curvatura de tigela/cúpula
+  const R = Math.ceil(Math.max(1.35 * hd, 0.9 * w));
+  const corner: [number, number] = mode === 'canto-sup' ? [0, 0] : [0, h];
+  const ux = corner[0] - w / 2, uy = corner[1] - h / 2, len = Math.hypot(ux, uy) || 1;
+  return circleShape(w, h, corner[0] + (ux / len) * (R + 8), corner[1] + (uy / len) * (R + 8), R);
+};
+
 let running = false;
 
-type Origin = Element | { x: number; y: number } | null | undefined;
-const originXY = (o: Origin): { x: number; y: number } => {
-  try {
-    if (o && 'getBoundingClientRect' in o) { const r = (o as Element).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
-    if (o && typeof (o as any).x === 'number') return o as { x: number; y: number };
-  } catch { /* usa o centro */ }
-  return { x: window.innerWidth / 2, y: window.innerHeight * 0.9 };
-};
-
-/** Gota na água: anéis brancos; a camada deles usa mistura 'difference' — sobre o escuro viram claros e sobre o claro viram escuros
- *  (efeito preto-e-branco). O painel entra no estado NOVO da página com nome de transição próprio, para aparecer
- *  por cima das duas imagens da troca. */
-const buildRipple = (x: number, y: number): HTMLElement => {
-  const w = window.innerWidth, h = window.innerHeight;
-  const R = Math.ceil(Math.max(Math.hypot(x, y), Math.hypot(w - x, y), Math.hypot(x, h - y), Math.hypot(w - x, h - y)));
-  const box = document.createElement('div');
-  box.setAttribute('data-ek-ripple', '1');
-  box.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;view-transition-name:ek-ripple;z-index:2147483000';
-  const ring = 'radial-gradient(circle closest-side,transparent 0,transparent 84%,#fff 90%,#fff 95%,transparent 100%)';
-  [0, 130, 260].forEach((delay, i) => {
-    const el = document.createElement('div');
-    const size = 2 * R * (1 - i * 0.12);
-    el.style.cssText = `position:absolute;left:${x - size / 2}px;top:${y - size / 2}px;width:${size}px;height:${size}px;border-radius:50%;background:${ring};opacity:0;will-change:transform,opacity`;
-    box.appendChild(el);
-    try {
-      el.animate([
-        { transform: 'scale(0.02)', opacity: 0.95 },
-        { transform: 'scale(1)', opacity: 0 },
-      ], { duration: DURATION_MS + 250, delay, easing: 'cubic-bezier(0.2,0.6,0.3,1)', fill: 'both' });
-    } catch { /* sem animação de anel */ }
-  });
-  return box;
-};
-
-const clipKeyframes = (mode: WaveMode, next: 'dark' | 'light', x: number, y: number, R: number): string => {
-  const fromLeft = next === 'light';
-  if (mode === 'cortina') return `from{clip-path:inset(0 ${fromLeft ? '100% 0 0' : '0 0 100%'})}to{clip-path:inset(0 0 0 0)}`;
-  if (mode === 'cima') return `from{clip-path:inset(${fromLeft ? '0 0 100% 0' : '100% 0 0 0'})}to{clip-path:inset(0 0 0 0)}`;
-  if (mode === 'diagonal') return fromLeft
-    ? 'from{clip-path:polygon(0 0,0 0,0 0)}to{clip-path:polygon(0 0,230% 0,0 230%)}'
-    : 'from{clip-path:polygon(100% 0,100% 0,100% 0)}to{clip-path:polygon(100% 0,-130% 0,100% 230%)}';
-  return `from{clip-path:circle(0px at ${x}px ${y}px)}to{clip-path:circle(${R}px at ${x}px ${y}px)}`; // gota
-};
-
-export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'light') => void, origin?: Origin) => {
+export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'light') => void) => {
   const doc = document as any;
   const root = document.documentElement;
   let reduce = false;
@@ -82,49 +87,24 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
   if (running) return; // toque repetido durante a troca: ignora
   running = true;
   const isWeak = weak();
-  const mode = nextMode();
-  const arco = mode === 'arco';
-  let ripple: HTMLElement | null = null;
   let style: HTMLStyleElement | null = null;
   const cleanup = () => {
     running = false;
     try { style?.remove(); } catch { /* já saiu */ }
     root.style.removeProperty('view-transition-name');
     root.classList.remove('theme-switching');
-    try { ripple?.remove(); } catch { /* já saiu */ }
   };
   try {
-    if (!isWeak && !arco) {
+    if (!isWeak) {
       const w = window.innerWidth, h = window.innerHeight;
-      const o = originXY(origin);
-      const x = Math.round(o.x), y = Math.round(o.y);
-      const R = Math.ceil(Math.max(Math.hypot(x, y), Math.hypot(w - x, y), Math.hypot(x, h - y), Math.hypot(w - x, h - y)));
-      const dur = mode === 'gota' ? DURATION_MS + 100 : DURATION_MS;
-      style = document.createElement('style');
-      style.id = STYLE_ID;
-      style.textContent = `
-::view-transition-old(root){animation:none!important;opacity:1!important;mix-blend-mode:normal}
-::view-transition-new(root){opacity:1!important;mix-blend-mode:normal;animation:ek-clip ${dur}ms ${EASE} both!important}
-::view-transition-group(ek-ripple){animation:none!important;z-index:3}
-::view-transition-old(ek-ripple){display:none}
-::view-transition-new(ek-ripple){animation:none!important;opacity:1!important;mix-blend-mode:difference}
-@keyframes ek-clip{${clipKeyframes(mode, next, x, y, R)}}`;
-      document.head.appendChild(style);
-      if (mode === 'gota') ripple = buildRipple(x, y);
-    }
-    if (!isWeak && arco) {
-      const w = window.innerWidth, h = window.innerHeight;
-      // raio grande = arco aberto, como no app do Claude; sobra 12% para a borda sair da tela antes do fim
-      const R = Math.ceil(Math.max(1.5 * w, Math.hypot(w / 2, h / 2) * 1.12));
-      const x0 = next === 'light' ? w * 0.15 : w * 0.85;
-      const a = Math.round(x0 - R), b = h + 8;                       // início: círculo todo abaixo da tela, deslocado para um lado
-      const c = Math.round(w / 2 - R), d = Math.round(h / 2 - R);    // fim: círculo centrado, cobrindo a tela
+      const s = buildShape(nextMode(), w, h);
+      const [a, b] = s.from, [c, d] = s.to;
       style = document.createElement('style');
       style.id = STYLE_ID;
       style.textContent = `
 ::view-transition-group(ek-old){animation:none!important;z-index:1}
 ::view-transition-old(ek-old){animation:none!important;opacity:1!important;mix-blend-mode:normal}
-::view-transition-group(ek-new){left:0!important;top:0!important;width:${2 * R}px!important;height:${2 * R}px!important;border-radius:50%;overflow:hidden;z-index:2;will-change:transform;animation:ek-wave-g ${DURATION_MS}ms ${EASE} both!important}
+::view-transition-group(ek-new){left:0!important;top:0!important;width:${s.gw}px!important;height:${s.gh}px!important;${s.css};z-index:2;will-change:transform;animation:ek-wave-g ${DURATION_MS}ms ${EASE} both!important}
 ::view-transition-new(ek-new){left:0!important;top:0!important;width:${w}px!important;height:${h}px!important;max-width:none;opacity:1!important;mix-blend-mode:normal;will-change:transform;animation:ek-wave-n ${DURATION_MS}ms ${EASE} both!important}
 @keyframes ek-wave-g{from{transform:translate(${a}px,${b}px)}to{transform:translate(${c}px,${d}px)}}
 @keyframes ek-wave-n{from{transform:translate(${-a}px,${-b}px)}to{transform:translate(${-c}px,${-d}px)}}`;
@@ -136,8 +116,7 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
       root.classList.add('theme-switching');
       flushSync(() => apply(next));
       root.classList.toggle('light-theme', next === 'light');
-      if (!isWeak && arco) root.style.setProperty('view-transition-name', 'ek-new');
-      if (ripple) document.body.appendChild(ripple);
+      if (!isWeak) root.style.setProperty('view-transition-name', 'ek-new');
     });
     let anim: Animation | null = null;
     const done = () => { try { anim?.cancel(); } catch { /* já terminou */ } cleanup(); };
