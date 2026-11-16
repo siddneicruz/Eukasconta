@@ -76,18 +76,18 @@ try {
 
 const easeOut = (x: number) => 1 - Math.pow(1 - x, 2.4);
 export const RAIN_MS = 3000;
-/** Gotas pingando uma a uma (grade com sorteio, ordem aleatória), cada uma crescendo até se juntar às outras. */
+/** Gotas pingando uma a uma (grade 3×6 com sorteio, ordem aleatória), cada uma crescendo até se juntar às outras. */
 const rainCss = (w: number, h: number, dur: number): string | null => {
   const urls = makeBlots();
   if (!urls.length) return null;
-  const COLS = 2, ROWS = 4, L = COLS * ROWS;
-  const S = Math.ceil(Math.max(w, h) * 2.4);                       // tamanho final de cada gota (a imagem tem folga)
+  const COLS = 3, ROWS = 6, L = COLS * ROWS;
+  const S = Math.ceil(Math.max(w, h) * 1.25);                       // tamanho final de cada gota (a imagem tem folga)
   const cellW = w / COLS, cellH = h / ROWS;
   const pts: [number, number][] = [];
   for (let r = 0; r < ROWS; r++) for (let q = 0; q < COLS; q++)
     pts.push([Math.round(cellW * (q + 0.2 + Math.random() * 0.6)), Math.round(cellH * (r + 0.2 + Math.random() * 0.6))]);
   const order = pts.map((_, i) => i).sort(() => Math.random() - 0.5);   // quem cai primeiro
-  const start = order.map((_, k) => 0.02 + (k / (L - 1)) * 0.5 + (Math.random() - 0.5) * 0.03);
+  const start = order.map((_, k) => 0.02 + (k / (L - 1)) * 0.5 + (Math.random() - 0.5) * 0.02);
   const span = 0.46;                                               // cada gota cresce durante 46% do tempo
   const steps = 75;
   let kf = '';
