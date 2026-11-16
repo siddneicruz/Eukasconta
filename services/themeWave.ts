@@ -76,12 +76,12 @@ try {
 
 const easeOut = (x: number) => 1 - Math.pow(1 - x, 2.4);
 export const RAIN_MS = 3000;
-/** Gotas pingando uma a uma (grade 3×6 com sorteio, ordem aleatória), cada uma crescendo até se juntar às outras. */
+/** Gotas pingando uma a uma (grade 4×8 com sorteio, ordem aleatória), cada uma crescendo até se juntar às outras. */
 const rainCss = (w: number, h: number, dur: number): string | null => {
   const urls = makeBlots();
   if (!urls.length) return null;
-  const COLS = 3, ROWS = 6, L = COLS * ROWS;
-  const S = Math.ceil(Math.max(w, h) * 1.25);                       // tamanho final de cada gota (a imagem tem folga)
+  const COLS = 4, ROWS = 8, L = COLS * ROWS;
+  const S = Math.ceil(Math.max(w, h) * 0.75);                       // tamanho final de cada gota (a imagem tem folga)
   const cellW = w / COLS, cellH = h / ROWS;
   const pts: [number, number][] = [];
   for (let r = 0; r < ROWS; r++) for (let q = 0; q < COLS; q++)
