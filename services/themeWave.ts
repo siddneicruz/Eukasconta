@@ -7,6 +7,7 @@ import { flushSync } from 'react-dom';
  *    canto-sup — arcos em forma de tigela, nascendo no canto superior esquerdo
  *    canto-inf — arcos em forma de cúpula, nascendo no canto inferior esquerdo
  *    ondas     — frente ondulada em S, vinda da direita
+ *    chuva     — manchas de tinta que pingam em vários pontos e vão se espalhando até cobrir a tela
  *  A página antiga e a nova viram duas imagens separadas; a nova fica dentro de uma forma (círculo enorme ou onda)
  *  que só se DESLOCA (transform), e a imagem dentro dela se desloca ao contrário para ficar parada na tela.
  *  Só transform = animação feita pela placa de vídeo, fora da thread do app — não trava mesmo com a página
@@ -15,8 +16,8 @@ export const DURATION_MS = 700;
 const EASE = 'cubic-bezier(0.3, 0, 0.15, 1)';
 const STYLE_ID = 'ek-theme-wave-style';
 
-export type WaveMode = 'arco-esq' | 'arco-dir' | 'canto-sup' | 'canto-inf' | 'ondas';
-export const WAVE_MODES: WaveMode[] = ['arco-esq', 'arco-dir', 'canto-sup', 'canto-inf', 'ondas'];
+export type WaveMode = 'arco-esq' | 'arco-dir' | 'canto-sup' | 'canto-inf' | 'ondas' | 'chuva';
+export const WAVE_MODES: WaveMode[] = ['arco-esq', 'arco-dir', 'canto-sup', 'canto-inf', 'ondas', 'chuva'];
 const IDX_KEY = 'ek_theme_wave_i2';
 
 const nextMode = (): WaveMode => {
@@ -76,6 +77,85 @@ const buildShape = (mode: WaveMode, w: number, h: number): Shape => {
   return circleShape(w, h, corner[0] + (ux / len) * (R + 8), corner[1] + (uy / len) * (R + 8), R);
 };
 
+/** Mancha de tinta orgânica (bordas esfumaçadas com braços e respingos), desenhada UMA vez num canvas pequeno e
+ *  guardada como imagem: ela serve de máscara do tema novo e só é esticada, nunca redesenhada. */
+let blotUrls: string[] | null = null;
+const makeBlots = (): string[] => {
+  if (blotUrls) return blotUrls;
+  const out: string[] = [];
+  try {
+    for (let v = 0; v < 3; v++) {
+      const N = 320, c = document.createElement('canvas');
+      c.width = N; c.height = N;
+      const g = c.getContext('2d');
+      if (!g) throw new Error('sem canvas');
+      const cx = N / 2, cy = N / 2;
+      const ph = Array.from({ length: 9 }, () => Math.random() * Math.PI * 2);
+      const am = [0.1, 0.09, 0.07, 0.06, 0.05, 0.04, 0.035, 0.03, 0.025];
+      const radius = (t: number) => {
+        let r = 0.62;
+        for (let k = 0; k < 9; k++) r += am[k] * Math.sin(t * (k + 2) + ph[k]);
+        return r * (N / 2);
+      };
+      g.fillStyle = '#000';
+      g.filter = 'blur(2.2px)';
+      g.beginPath();
+      for (let i = 0; i <= 360; i++) {
+        const t = (i / 360) * Math.PI * 2, r = radius(t);
+        const x = cx + Math.cos(t) * r, y = cy + Math.sin(t) * r;
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.closePath(); g.fill();
+      // braços e respingos para fora da mancha
+      for (let k = 0; k < 14; k++) {
+        const t = Math.random() * Math.PI * 2, r0 = radius(t), len = (0.05 + Math.random() * 0.2) * (N / 2);
+        const w0 = (1.5 + Math.random() * 6);
+        g.beginPath(); g.moveTo(cx + Math.cos(t) * (r0 - 6), cy + Math.sin(t) * (r0 - 6));
+        g.lineTo(cx + Math.cos(t + 0.05) * (r0 + len), cy + Math.sin(t + 0.05) * (r0 + len));
+        g.lineWidth = w0; g.strokeStyle = '#000'; g.lineCap = 'round'; g.stroke();
+        g.beginPath(); g.arc(cx + Math.cos(t) * (r0 + len + 5 + Math.random() * 10), cy + Math.sin(t) * (r0 + len + 5 + Math.random() * 10), 1 + Math.random() * 3.2, 0, Math.PI * 2); g.fill();
+      }
+      out.push(c.toDataURL('image/png'));
+    }
+  } catch { /* sem canvas: o modo chuva se desliga */ }
+  blotUrls = out;
+  return out;
+};
+
+const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
+/** Pingos: cada mancha nasce num ponto, em momentos diferentes, e cresce até passar da tela inteira. */
+const rainCss = (w: number, h: number, dur: number): string | null => {
+  const urls = makeBlots();
+  if (!urls.length) return null;
+  const L = 4;
+  const S = Math.ceil(Math.max(w, h) * 2.3);                       // tamanho final de cada mancha
+  // pontos espalhados (um por quadrante, com sorteio dentro dele) para a tela toda ser coberta
+  const pts: [number, number][] = [];
+  const quad = [[0.22, 0.2], [0.78, 0.28], [0.3, 0.74], [0.74, 0.8]];
+  quad.forEach(([qx, qy]) => pts.push([Math.round(w * (qx + (Math.random() - 0.5) * 0.22)), Math.round(h * (qy + (Math.random() - 0.5) * 0.18))]));
+  const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+  const start = [0, 0.1, 0.2, 0.3];
+  const span = 0.62;
+  const steps = 24;
+  let kf = '';
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    const sz: string[] = [], ps: string[] = [];
+    for (let i = 0; i < L; i++) {
+      const p = easeOut(Math.min(1, Math.max(0, (t - start[order[i]]) / span)));
+      const size = Math.round(S * p), [x, y] = pts[i];
+      sz.push(`${size}px ${size}px`); ps.push(`${Math.round(x - size / 2)}px ${Math.round(y - size / 2)}px`);
+    }
+    kf += `${(t * 100).toFixed(2)}%{-webkit-mask-size:${sz.join(',')};-webkit-mask-position:${ps.join(',')};mask-size:${sz.join(',')};mask-position:${ps.join(',')}}`;
+  }
+  const imgs = Array.from({ length: L }, (_, i) => `url(${urls[i % urls.length]})`).join(',');
+  const rep = Array.from({ length: L }, () => 'no-repeat').join(',');
+  return `
+::view-transition-old(root){animation:none!important;opacity:1!important;mix-blend-mode:normal}
+::view-transition-new(root){opacity:1!important;mix-blend-mode:normal;-webkit-mask-image:${imgs};mask-image:${imgs};-webkit-mask-repeat:${rep};mask-repeat:${rep};animation:ek-rain ${dur}ms linear both!important}
+@keyframes ek-rain{${kf}}`;
+};
+
 let running = false;
 
 export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'light') => void) => {
@@ -88,6 +168,7 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
   running = true;
   const isWeak = weak();
   let style: HTMLStyleElement | null = null;
+  let stain = false;
   const cleanup = () => {
     running = false;
     try { style?.remove(); } catch { /* já saiu */ }
@@ -97,11 +178,14 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
   try {
     if (!isWeak) {
       const w = window.innerWidth, h = window.innerHeight;
-      const s = buildShape(nextMode(), w, h);
+      let mode = nextMode();
+      let rain: string | null = null;
+      if (mode === 'chuva') { rain = rainCss(w, h, 950); if (!rain) mode = 'arco-esq'; }
+      const s = buildShape(mode, w, h);
       const [a, b] = s.from, [c, d] = s.to;
       style = document.createElement('style');
       style.id = STYLE_ID;
-      style.textContent = `
+      if (rain) { stain = true; style.textContent = rain; } else style.textContent = `
 ::view-transition-group(ek-old){animation:none!important;z-index:1}
 ::view-transition-old(ek-old){animation:none!important;opacity:1!important;mix-blend-mode:normal}
 ::view-transition-group(ek-new){left:0!important;top:0!important;width:${s.gw}px!important;height:${s.gh}px!important;${s.css};z-index:2;will-change:transform;animation:ek-wave-g ${DURATION_MS}ms ${EASE} both!important}
@@ -109,14 +193,14 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
 @keyframes ek-wave-g{from{transform:translate(${a}px,${b}px)}to{transform:translate(${c}px,${d}px)}}
 @keyframes ek-wave-n{from{transform:translate(${-a}px,${-b}px)}to{transform:translate(${-c}px,${-d}px)}}`;
       document.head.appendChild(style);
-      root.style.setProperty('view-transition-name', 'ek-old');
+      if (!stain) root.style.setProperty('view-transition-name', 'ek-old');
     }
     const vt = doc.startViewTransition(() => {
       // sem transições/animações de CSS durante a troca: elas competiam com a revelação
       root.classList.add('theme-switching');
       flushSync(() => apply(next));
       root.classList.toggle('light-theme', next === 'light');
-      if (!isWeak) root.style.setProperty('view-transition-name', 'ek-new');
+      if (!isWeak && !stain) root.style.setProperty('view-transition-name', 'ek-new');
     });
     let anim: Animation | null = null;
     const done = () => { try { anim?.cancel(); } catch { /* já terminou */ } cleanup(); };
