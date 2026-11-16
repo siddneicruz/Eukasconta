@@ -6,8 +6,7 @@ import { flushSync } from 'react-dom';
  *    arco-dir  — o mesmo, pelo lado direito
  *    canto-sup — arcos em forma de tigela, nascendo no canto superior esquerdo
  *    canto-inf — arcos em forma de cúpula, nascendo no canto inferior esquerdo
- *    ondas     — frente ondulada em S, vinda da direita
- *    chuva     — manchas de tinta que pingam em vários pontos e vão se espalhando até cobrir a tela
+ *    chuva     — gotas de óleo (no claro) ou leite (no escuro) pingando por 3 s, de borda nítida, até cobrir a tela
  *  A página antiga e a nova viram duas imagens separadas; a nova fica dentro de uma forma (círculo enorme ou onda)
  *  que só se DESLOCA (transform), e a imagem dentro dela se desloca ao contrário para ficar parada na tela.
  *  Só transform = animação feita pela placa de vídeo, fora da thread do app — não trava mesmo com a página
@@ -16,8 +15,8 @@ export const DURATION_MS = 700;
 const EASE = 'cubic-bezier(0.3, 0, 0.15, 1)';
 const STYLE_ID = 'ek-theme-wave-style';
 
-export type WaveMode = 'arco-esq' | 'arco-dir' | 'canto-sup' | 'canto-inf' | 'ondas' | 'chuva';
-export const WAVE_MODES: WaveMode[] = ['arco-esq', 'arco-dir', 'canto-sup', 'canto-inf', 'ondas', 'chuva'];
+export type WaveMode = 'arco-esq' | 'arco-dir' | 'canto-sup' | 'canto-inf' | 'chuva';
+export const WAVE_MODES: WaveMode[] = ['arco-esq', 'arco-dir', 'canto-sup', 'canto-inf', 'chuva'];
 const IDX_KEY = 'ek_theme_wave_i2';
 
 const nextMode = (): WaveMode => {
@@ -46,22 +45,6 @@ const circleShape = (w: number, h: number, cx0: number, cy0: number, R: number):
   css: 'border-radius:50%;overflow:hidden',
 });
 
-/** Faixa com a frente ondulada em S (duas ondas somadas), entrando pela direita e avançando para a esquerda. */
-const waveShape = (w: number, h: number): Shape => {
-  const A = Math.round(Math.min(w * 0.16, 90));           // amplitude da onda
-  const gw = w + 2 * A + 8, gh = h;
-  const pts: string[] = [];
-  const N = 48;
-  for (let i = 0; i <= N; i++) {
-    const y = (gh * i) / N, t = (i / N) * Math.PI * 2;
-    // S fluido: uma onda principal + um harmônico menor, sempre dentro de [0, 2A]
-    const e = A + A * (0.78 * Math.sin(t + 0.6) + 0.22 * Math.sin(t * 2 + 1.4));
-    pts.push(`${e.toFixed(1)} ${y.toFixed(1)}`);
-  }
-  const d = `M ${pts[0]} L ${pts.slice(1).join(' L ')} L ${gw} ${gh} L ${gw} 0 Z`;
-  return { gw, gh, from: [w, 0], to: [-2 * A - 2, 0], css: `clip-path:path('${d}')` };
-};
-
 const buildShape = (mode: WaveMode, w: number, h: number): Shape => {
   const hd = Math.hypot(w / 2, h / 2);
   if (mode === 'arco-esq' || mode === 'arco-dir') {
@@ -69,7 +52,6 @@ const buildShape = (mode: WaveMode, w: number, h: number): Shape => {
     const R = Math.ceil(Math.max(1.5 * w, hd * 1.12));
     return circleShape(w, h, mode === 'arco-esq' ? w * 0.15 : w * 0.85, h + 8 + R, R);
   }
-  if (mode === 'ondas') return waveShape(w, h);
   // cantos: o círculo encosta no canto e vem na diagonal; o raio dá a curvatura de tigela/cúpula
   const R = Math.ceil(Math.max(1.35 * hd, 0.9 * w));
   const corner: [number, number] = mode === 'canto-sup' ? [0, 0] : [0, h];
@@ -77,28 +59,28 @@ const buildShape = (mode: WaveMode, w: number, h: number): Shape => {
   return circleShape(w, h, corner[0] + (ux / len) * (R + 8), corner[1] + (uy / len) * (R + 8), R);
 };
 
-/** Mancha de tinta orgânica (bordas esfumaçadas com braços e respingos), desenhada UMA vez num canvas pequeno e
- *  guardada como imagem: ela serve de máscara do tema novo e só é esticada, nunca redesenhada. */
+/** Gota de óleo/leite: mancha de borda NÍTIDA (sem esfumaçado nem degradê), redonda e levemente irregular, com
+ *  gotículas ao redor. Desenhada UMA vez num canvas e guardada como imagem: serve de máscara do tema novo e só é
+ *  esticada, nunca redesenhada. */
 let blotUrls: string[] | null = null;
 const makeBlots = (): string[] => {
   if (blotUrls) return blotUrls;
   const out: string[] = [];
   try {
     for (let v = 0; v < 3; v++) {
-      const N = 320, c = document.createElement('canvas');
+      const N = 768, c = document.createElement('canvas');
       c.width = N; c.height = N;
       const g = c.getContext('2d');
       if (!g) throw new Error('sem canvas');
       const cx = N / 2, cy = N / 2;
-      const ph = Array.from({ length: 9 }, () => Math.random() * Math.PI * 2);
-      const am = [0.1, 0.09, 0.07, 0.06, 0.05, 0.04, 0.035, 0.03, 0.025];
+      const ph = Array.from({ length: 5 }, () => Math.random() * Math.PI * 2);
+      const am = [0.07, 0.055, 0.045, 0.03, 0.02];
       const radius = (t: number) => {
-        let r = 0.62;
-        for (let k = 0; k < 9; k++) r += am[k] * Math.sin(t * (k + 2) + ph[k]);
-        return r * (N / 2);
+        let r = 0.5;                                       // gota principal ocupa ~metade da imagem
+        for (let k = 0; k < 5; k++) r += am[k] * Math.sin(t * (k + 2) + ph[k]);
+        return r * (N / 2) * 0.62;
       };
       g.fillStyle = '#000';
-      g.filter = 'blur(2.2px)';
       g.beginPath();
       for (let i = 0; i <= 360; i++) {
         const t = (i / 360) * Math.PI * 2, r = radius(t);
@@ -106,14 +88,27 @@ const makeBlots = (): string[] => {
         if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
       }
       g.closePath(); g.fill();
-      // braços e respingos para fora da mancha
-      for (let k = 0; k < 14; k++) {
-        const t = Math.random() * Math.PI * 2, r0 = radius(t), len = (0.05 + Math.random() * 0.2) * (N / 2);
-        const w0 = (1.5 + Math.random() * 6);
-        g.beginPath(); g.moveTo(cx + Math.cos(t) * (r0 - 6), cy + Math.sin(t) * (r0 - 6));
-        g.lineTo(cx + Math.cos(t + 0.05) * (r0 + len), cy + Math.sin(t + 0.05) * (r0 + len));
-        g.lineWidth = w0; g.strokeStyle = '#000'; g.lineCap = 'round'; g.stroke();
-        g.beginPath(); g.arc(cx + Math.cos(t) * (r0 + len + 5 + Math.random() * 10), cy + Math.sin(t) * (r0 + len + 5 + Math.random() * 10), 1 + Math.random() * 3.2, 0, Math.PI * 2); g.fill();
+      const U = (N / 2) * 0.62;
+      // respingo 🫟: jatos finos que saem da borda da gota (largos na base, em ponta no fim), cada um com uma
+      // gotícula solta logo depois da ponta — tudo de borda nítida
+      const ns = 11 + Math.floor(Math.random() * 5);
+      for (let k = 0; k < ns; k++) {
+        const t = (k / ns) * Math.PI * 2 + (Math.random() - 0.5) * 0.35, r0 = radius(t);
+        const len = (0.12 + Math.random() * 0.42) * U, wd = (0.05 + Math.random() * 0.07) * U;
+        const bx = cx + Math.cos(t) * (r0 - 4), by = cy + Math.sin(t) * (r0 - 4);
+        const tx = cx + Math.cos(t) * (r0 + len), ty = cy + Math.sin(t) * (r0 + len);
+        const nx = -Math.sin(t) * wd, ny = Math.cos(t) * wd;
+        g.beginPath(); g.moveTo(bx + nx, by + ny); g.lineTo(tx, ty); g.lineTo(bx - nx, by - ny); g.closePath(); g.fill();
+        const dd = r0 + len + (0.04 + Math.random() * 0.12) * U, rr = 2.5 + Math.random() * 7;
+        g.beginPath(); g.arc(cx + Math.cos(t) * dd, cy + Math.sin(t) * dd, rr, 0, Math.PI * 2); g.fill();
+      }
+      // gotículas soltas por perto (algumas quase encostadas, outras mais afastadas)
+      const n = 10 + Math.floor(Math.random() * 6);
+      for (let k = 0; k < n; k++) {
+        const t = Math.random() * Math.PI * 2, r0 = radius(t);
+        const d = r0 + (0.1 + Math.random() * 0.55) * U + 6;
+        const rr = 2.5 + Math.random() * Math.random() * 13;
+        g.beginPath(); g.arc(cx + Math.cos(t) * d, cy + Math.sin(t) * d, rr, 0, Math.PI * 2); g.fill();
       }
       out.push(c.toDataURL('image/png'));
     }
@@ -122,27 +117,28 @@ const makeBlots = (): string[] => {
   return out;
 };
 
-const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
-/** Pingos: cada mancha nasce num ponto, em momentos diferentes, e cresce até passar da tela inteira. */
+const easeOut = (x: number) => 1 - Math.pow(1 - x, 2.4);
+export const RAIN_MS = 3000;
+/** Gotas pingando uma a uma (grade com sorteio, ordem aleatória), cada uma crescendo até se juntar às outras. */
 const rainCss = (w: number, h: number, dur: number): string | null => {
   const urls = makeBlots();
   if (!urls.length) return null;
-  const L = 4;
-  const S = Math.ceil(Math.max(w, h) * 2.3);                       // tamanho final de cada mancha
-  // pontos espalhados (um por quadrante, com sorteio dentro dele) para a tela toda ser coberta
+  const COLS = 2, ROWS = 4, L = COLS * ROWS;
+  const S = Math.ceil(Math.max(w, h) * 2.6);                       // tamanho final de cada gota (a imagem tem folga)
+  const cellW = w / COLS, cellH = h / ROWS;
   const pts: [number, number][] = [];
-  const quad = [[0.22, 0.2], [0.78, 0.28], [0.3, 0.74], [0.74, 0.8]];
-  quad.forEach(([qx, qy]) => pts.push([Math.round(w * (qx + (Math.random() - 0.5) * 0.22)), Math.round(h * (qy + (Math.random() - 0.5) * 0.18))]));
-  const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
-  const start = [0, 0.1, 0.2, 0.3];
-  const span = 0.62;
-  const steps = 24;
+  for (let r = 0; r < ROWS; r++) for (let q = 0; q < COLS; q++)
+    pts.push([Math.round(cellW * (q + 0.2 + Math.random() * 0.6)), Math.round(cellH * (r + 0.2 + Math.random() * 0.6))]);
+  const order = pts.map((_, i) => i).sort(() => Math.random() - 0.5);   // quem cai primeiro
+  const start = order.map((_, k) => 0.02 + (k / (L - 1)) * 0.5 + (Math.random() - 0.5) * 0.03);
+  const span = 0.46;                                               // cada gota cresce durante 46% do tempo
+  const steps = 75;
   let kf = '';
   for (let k = 0; k <= steps; k++) {
     const t = k / steps;
     const sz: string[] = [], ps: string[] = [];
     for (let i = 0; i < L; i++) {
-      const p = easeOut(Math.min(1, Math.max(0, (t - start[order[i]]) / span)));
+      const p = easeOut(Math.min(1, Math.max(0, (t - start[order.indexOf(i)]) / span)));
       const size = Math.round(S * p), [x, y] = pts[i];
       sz.push(`${size}px ${size}px`); ps.push(`${Math.round(x - size / 2)}px ${Math.round(y - size / 2)}px`);
     }
@@ -180,7 +176,7 @@ export const switchThemeWave = (next: 'dark' | 'light', apply: (t: 'dark' | 'lig
       const w = window.innerWidth, h = window.innerHeight;
       let mode = nextMode();
       let rain: string | null = null;
-      if (mode === 'chuva') { rain = rainCss(w, h, 950); if (!rain) mode = 'arco-esq'; }
+      if (mode === 'chuva') { rain = rainCss(w, h, RAIN_MS); if (!rain) mode = 'arco-esq'; }
       const s = buildShape(mode, w, h);
       const [a, b] = s.from, [c, d] = s.to;
       style = document.createElement('style');
