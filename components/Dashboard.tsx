@@ -956,28 +956,13 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
 
       {/* Panorama (antes em Análises): leitura do período, com os mesmos filtros do Início */}
       <div className="mt-6 md:mt-10" data-testid="home-panorama">
-          <DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />
-          <LazyMount minHeight={400}>
+          <LazyMount minHeight={56}>
               <ReportsPanorama
                   receipts={panoReceipts}
                   config={config}
                   displayName={(n, c) => nameOf(n, c)}
                   collapseRest
-                  collapsedExtra={(compareDept || panoFilter.keys.length === 0) && (() => {
-              const slug = compareDept ? compareDept.slug : 'ALL';
-              const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
-              const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
-              // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
-              const base = slug === 'TRANSPORTE' ? receipts
-                  : slug === 'ALL' ? receipts.map(r => (isFood(r) ? r : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
-                  : receipts.filter(isFood);
-              return (
-                  <div className="mt-4" data-testid="home-dept-compare">
-                      <ProduceCompareCard key={slug} receipts={base} nameOf={(n, c) => nameOf(n, c)}
-                          dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} center={homeCenterOf(receipts, establishments || [])} />
-                  </div>
-              );
-          })()}
+                  collapsedHead={<DeptChipsBar receipts={receipts} filter={panoFilter} onChange={setPanoFilter} />}
                   onQuickRange={setQuickRange}
                   onSelectEstablishment={onOpenEstablishment}
                   onOpenReceipt={(id) => { const r = receipts.find(x => x.id === id); if (r) onSelectReceipt?.(r); }}
@@ -993,6 +978,25 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       <div className="mt-4" data-testid="home-hortifruti">
           <LazyMount minHeight={320}>
               <ProduceCompareCard receipts={receipts} nameOf={(n, c) => nameOf(n, c)} dept="HORTIFRUTI" label="Hortifruti" center={homeCenterOf(receipts, establishments || [])} />
+          </LazyMount>
+      </div>
+      <div data-testid="home-dept-compare-wrap">
+          <LazyMount minHeight={120}>
+              {((compareDept ? compareDept.slug !== 'HORTIFRUTI' : panoFilter.keys.length === 0) && (() => {
+              const slug = compareDept ? compareDept.slug : 'ALL';
+              const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
+              const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+              // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
+              const base = slug === 'TRANSPORTE' ? receipts
+                  : slug === 'ALL' ? receipts.map(r => (isFood(r) ? r : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
+                  : receipts.filter(isFood);
+              return (
+                  <div className="mt-4" data-testid="home-dept-compare">
+                      <ProduceCompareCard key={slug} receipts={base} nameOf={(n, c) => nameOf(n, c)}
+                          dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} center={homeCenterOf(receipts, establishments || [])} />
+                  </div>
+              );
+          })())}
           </LazyMount>
       </div>
       <div className="mt-6 md:mt-10">

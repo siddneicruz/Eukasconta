@@ -11,6 +11,7 @@ import { DashboardConfig, Receipt } from '../types';
 import { normalizeUnit } from '../services/productPriceStats';
 import { priceBasis } from '../services/eggs';
 import { properCase } from '../services/textFormat';
+import { useTipAutoHide } from '../services/useTipAutoHide';
 import { CHART_COLORS } from '../services/chartTheme';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -35,8 +36,8 @@ interface Props {
   onAddManual?: () => void;
   /** Início: só o "Gasto no período" fica à vista; o resto abre com o botão Exibir */
   collapseRest?: boolean;
-  /** aparece no topo da parte recolhida */
-  collapsedExtra?: React.ReactNode;
+  /** aparece no topo da parte recolhida (filtro de departamento) */
+  collapsedHead?: React.ReactNode;
 }
 
 /* ───────────────────────────── formatação e datas ───────────────────────────── */
@@ -517,8 +518,10 @@ const HeroTooltip = ({ active, payload, mode, prevLabel, monthly }: any) => {
 
 /* ───────────────────────────── componente ───────────────────────────── */
 
-const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQuickRange, onSelectEstablishment, onOpenReceipt, onAddManual, collapseRest, collapsedExtra }) => {
+const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQuickRange, onSelectEstablishment, onOpenReceipt, onAddManual, collapseRest, collapsedHead }) => {
   const [showRest, setShowRest] = useState(false);
+  const heroTip = useTipAutoHide();
+  const rhythmTip = useTipAutoHide();
   const light = useIsLight();
   const reduced = usePrefersReducedMotion();
   const ready = useReady();
@@ -565,10 +568,20 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
     </div>
   );
 
+  const toggle = (
+        <button type="button" onClick={() => setShowRest(v => !v)} aria-expanded={showRest} data-testid="panorama-toggle"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-luxury-gold flex items-center justify-center gap-2 active:scale-[0.99]">
+          {showRest ? 'Ocultar análises' : 'Exibir análises do período'}
+          <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform ${showRest ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+  );
+
   if (a.count === 0) {
     return (
       <div className="space-y-6">
-        {chipRow}
+        {collapseRest && toggle}
+        {(!collapseRest || showRest) && collapsedHead}
+        {(!collapseRest || showRest) && chipRow}
         <Card glow="gold">
           <div className="py-10 md:py-16 flex flex-col items-center text-center gap-4">
             <div className="p-4 rounded-2xl bg-white/5 text-luxury-gold"><CalendarDays className="w-7 h-7" /></div>
@@ -600,6 +613,9 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
 
   return (
     <div className="space-y-6 md:space-y-8 pb-4">
+      {collapseRest && toggle}
+      {(!collapseRest || showRest) && (<>
+      {collapsedHead}
       <Reveal i={0}>{chipRow}</Reveal>
 
       {/* ── HERO ─────────────────────────────────────────────── */}
@@ -625,7 +641,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
             </p>
           )}
 
-          <div className="h-[220px] md:h-[320px] -mx-2">
+          <div className="h-[220px] md:h-[320px] -mx-2" {...heroTip.bind}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={a.rows} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
                 <defs>
@@ -637,7 +653,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={ct.grid} />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10, fontWeight: 600 }} interval="preserveStartEnd" minTickGap={26} dy={8} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10 }} tickFormatter={compact} width={48} />
-                <Tooltip cursor={{ stroke: '#DDB94B', strokeOpacity: 0.3, strokeDasharray: '3 3' }} content={(p: any) => <HeroTooltip {...p} mode={mode} prevLabel={a.rg.prevLabel} monthly={a.monthly} />} />
+                <Tooltip active={heroTip.active} isAnimationActive={false} cursor={{ stroke: '#DDB94B', strokeOpacity: 0.3, strokeDasharray: '3 3' }} content={(p: any) => <HeroTooltip {...p} mode={mode} prevLabel={a.rg.prevLabel} monthly={a.monthly} />} />
                 <Line type="monotone" dataKey={pKey} stroke={ct.prev} strokeWidth={1.5} strokeDasharray="4 5" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={350} />
                 {mode === 'acum' && a.projection !== null && (
                   <Line type="monotone" dataKey="proj" stroke="#DDB94B" strokeOpacity={0.7} strokeWidth={2} strokeDasharray="2 6" strokeLinecap="round" dot={false} activeDot={false} isAnimationActive={!reduced} animationDuration={350} />
@@ -679,15 +695,6 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
         </Card>
       </Reveal>
 
-      {collapseRest && (
-        <button type="button" onClick={() => setShowRest(v => !v)} aria-expanded={showRest} data-testid="panorama-toggle"
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-luxury-gold flex items-center justify-center gap-2 active:scale-[0.99]">
-          {showRest ? 'Ocultar análises' : 'Exibir análises do período'}
-          <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform ${showRest ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
-        </button>
-      )}
-      {(!collapseRest || showRest) && (<>
-      {collapsedExtra}
       {/* ── LEITURAS ─────────────────────────────────────────── */}
       {a.insights.length > 0 && (
         <Reveal i={2}>
@@ -780,13 +787,14 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
               icon={Clock} kicker="Ritmo" title="Quando você compra" accent="text-emerald-500"
               right={<Segmented value={rhythm} onChange={setRhythm} options={[{ id: 'semana', label: 'Semana' }, { id: 'hora', label: 'Hora', disabled: !a.hasTime }]} />}
             />
-            <div className="h-[220px] -mx-2">
+            <div className="h-[220px] -mx-2" {...rhythmTip.bind}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={rhythmRows} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={ct.grid} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10, fontWeight: 600 }} dy={8} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: ct.tick, fontSize: 10 }} tickFormatter={compact} width={48} />
                   <Tooltip
+                    active={rhythmTip.active} isAnimationActive={false}
                     cursor={{ fill: light ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.03)' }}
                     content={(p: any) => p.active && p.payload?.length ? (
                       <TipBox title={cap(p.payload[0].payload.long)}>
@@ -805,6 +813,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
           </Card>
         </Reveal>
 
+        {!collapseRest && (<>
         {/* ── ESTABELECIMENTOS ──────────────────────────────── */}
         <Reveal i={5}>
           <Card glow="blue">
@@ -884,6 +893,7 @@ const ReportsPanorama: React.FC<Props> = ({ receipts, config, displayName, onQui
             )}
           </Card>
         </Reveal>
+        </>)}
       </div>
       </>)}
     </div>
