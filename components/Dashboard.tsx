@@ -444,16 +444,18 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   // (é o mesmo filtro "Todas categorias" do topo: os chips abaixo do Hortifruti são só outro jeito de mexer nele)
   const [panoFilter, setPanoFilter] = useDeptFilter();
   const panoReceipts = useMemo(() => applyDeptFilter(receipts, panoFilter), [receipts, panoFilter]);
+  // a cotação "Todas as categorias" tem o filtro de departamento só dela (não mexe na análise nem no filtro do topo)
+  const [cmpFilter, setCmpFilter] = useDeptFilter('eukasconta_home_cmp_dept_filter');
   const compareDept = useMemo(() => {
-    if (panoFilter.mode !== 'only' || panoFilter.keys.length === 0) return null;
-    if (panoFilter.keys.some(k => /^[gio]:/.test(k))) return null;
-    const names = Array.from(new Set(panoFilter.keys.map(k => k.replace(/^c:/, '').split(' - ')[0].trim())));
+    if (cmpFilter.mode !== 'only' || cmpFilter.keys.length === 0) return null;
+    if (cmpFilter.keys.some(k => /^[gio]:/.test(k))) return null;
+    const names = Array.from(new Set(cmpFilter.keys.map(k => k.replace(/^c:/, '').split(' - ')[0].trim())));
     if (names.length !== 1) return null;
     const plain = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
     const hit = receipts.flatMap(r => r.items || []).find(i => plain(String(i.category || '').split(' - ')[0]) === plain(names[0]));
     const label = hit ? String(hit.category).split(' - ')[0].trim() : names[0];
     return { slug: plain(names[0]), label: label.charAt(0).toUpperCase() + label.slice(1) };
-  }, [panoFilter, receipts]);
+  }, [cmpFilter, receipts]);
   const [whereOpen, setWhereOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_home_where_open') !== '0'; } catch { return true; } });
   const toggleWhere = () => setWhereOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_home_where_open', n ? '1' : '0'); } catch { /* vale só nesta tela */ } return n; });
   const pickMonth = useMonthPick(config, onConfigChange);
@@ -981,8 +983,9 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           </LazyMount>
       </div>
       <div data-testid="home-dept-compare-wrap">
+          <div className="mt-4"><DeptChipsBar receipts={receipts} filter={cmpFilter} onChange={setCmpFilter} /></div>
           <LazyMount minHeight={120}>
-              {((compareDept ? compareDept.slug !== 'HORTIFRUTI' : panoFilter.keys.length === 0) && (() => {
+              {((compareDept || cmpFilter.keys.length === 0) && (() => {
               const slug = compareDept ? compareDept.slug : 'ALL';
               const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
               const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
