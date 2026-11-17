@@ -990,8 +990,10 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
               const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
               // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
-              const base = slug === 'TRANSPORTE' ? receipts
-                  : slug === 'ALL' ? receipts.map(r => (isFood(r) ? r : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
+              // item de "Transporte" comprado em supermercado/açougue é categoria errada (ex.: linguiça): fica fora da cotação de transporte
+              const noTransp = (r: Receipt): Receipt => ({ ...r, items: (r.items || []).filter(i => !isTransp(i)) });
+              const base = slug === 'TRANSPORTE' ? receipts.filter(r => !isFood(r))
+                  : slug === 'ALL' ? receipts.map(r => (isFood(r) ? noTransp(r) : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
                   : receipts.filter(isFood);
               return (
                   <div className="mt-4" data-testid="home-dept-compare">
