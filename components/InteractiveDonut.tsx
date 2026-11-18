@@ -228,7 +228,7 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
     }
     const widest = candidates.slice(0, 8).reduce((m, i) => Math.max(m, labels[i][0].w), 0);
     const sidePad = LABEL_REACH + widest + 6;
-    const outer = Math.max(40, Math.min(box.w / 2 - sidePad, box.h / 2 - 22));
+    const outer = Math.max(40, Math.min(box.w / 2 - sidePad, box.h / 2 - 16));
     return { outer, inner: outer * 0.7 };
   }, [box, candidates, labels, showLabels]);
 
@@ -297,7 +297,7 @@ const InteractiveDonut: React.FC<InteractiveDonutProps> = ({
       {/* Área do gráfico: deixa uma faixa livre embaixo para a etiqueta (ela nunca cobre o anel) */}
       <div
         ref={containerRef}
-        className="absolute inset-x-0 top-10 bottom-12 touch-none select-none outline-none [&_*]:!outline-none"
+        className="absolute inset-x-0 top-7 bottom-10 touch-none select-none outline-none [&_*]:!outline-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

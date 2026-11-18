@@ -3,14 +3,15 @@ import { ChevronUp } from 'lucide-react';
 
 /* Seta fina para voltar ao topo: aparece no canto direito, logo abaixo da barra de filtros, enquanto a tela está sendo rolada
    (depois de descer um pouco) e some sozinha um instante depois que a rolagem para. Um toque leva direto ao topo, sem paradas. */
-const CARD_SELECTOR = '[data-scroll-anchor], section, [class*="rounded-[2"], [class*="rounded-3xl"]';
+const CARD_SELECTOR = '[data-scroll-anchor], section, [class*="rounded-[2"], [class*="rounded-3xl"], [class*="rounded-2xl"]';
 
 /** Cartões da tela atual: blocos largos de cantos bem arredondados (só os de fora, não os aninhados). */
 function findCards(main: HTMLElement): HTMLElement[] {
   const mw = main.clientWidth;
   const out: HTMLElement[] = [];
   main.querySelectorAll<HTMLElement>(CARD_SELECTOR).forEach(el => {
-    if (el.offsetWidth < mw * 0.55 || el.offsetHeight < 140) return;
+    if (el.offsetWidth < mw * 0.55 || el.offsetHeight < 56) return;   // cartão pequeno também conta
+    if (el.closest('.sticky')) return;                                  // barras fixas não são cartões
     const parent = el.parentElement?.closest(CARD_SELECTOR);
     if (parent && parent !== main && main.contains(parent)) return;
     if (el.closest('[role="dialog"], .fixed')) return;
@@ -19,39 +20,48 @@ function findCards(main: HTMLElement): HTMLElement[] {
   return out;
 }
 
-/** Ao entrar num card novo na tela (ele chega à faixa de leitura, perto do topo): vibração curta e um brilho dourado na borda dele.
+/** Cada vez que o MEIO de um card passa pelo meio da área visível da tela: vibração curta e uma piscada dourada na borda dele.
+    Vale para card grande ou pequeno, rolando para cima ou para baixo, e não depende da velocidade: compara de que lado do meio da tela
+    o meio do card estava no quadro anterior e agora, então um card que passou "voando" também pisca.
     Só dispara com o dedo rolando, nunca na abertura da tela. Fica desligado em aparelho fraco e com "reduzir movimento". */
 function useCardGlow(resetKey?: string) {
   useEffect(() => {
     const main = document.querySelector('.app-main') as HTMLElement | null;
     if (!main || document.documentElement.classList.contains('ek-lite')) return;
+    let reduce = false;
+    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* sem matchMedia */ }
+    if (reduce) return;
     let cards: HTMLElement[] = [];
     let lastScan = 0;
-    let current: HTMLElement | null = null;
-    let armed = false;
+    const side = new Map<HTMLElement, number>();   // de que lado do meio da tela estava o meio do card: -1 acima, 1 abaixo
+    const timers = new Map<HTMLElement, any>();
     let raf = 0;
+    const flash = (c: HTMLElement) => {
+      c.classList.remove('ek-card-glow'); void c.offsetWidth; c.classList.add('ek-card-glow');
+      clearTimeout(timers.get(c));
+      timers.set(c, setTimeout(() => c.classList.remove('ek-card-glow'), 1000));
+    };
     const onScroll = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
         const now = Date.now();
         if (now - lastScan > 1200) { cards = findCards(main); lastScan = now; }
-        const mTop = main.getBoundingClientRect().top;
-        const line = mTop + main.clientHeight * 0.3;   // faixa de leitura: ~30% abaixo do topo
-        const hit = cards.find(c => { const r = c.getBoundingClientRect(); return r.top <= line && r.bottom > line; }) || null;
-        if (hit && hit !== current) {
-          if (armed && current) {
-            try { navigator.vibrate?.(14); } catch { /* sem vibração */ }
-            hit.classList.remove('ek-card-glow'); void hit.offsetWidth; hit.classList.add('ek-card-glow');
-            setTimeout(() => hit.classList.remove('ek-card-glow'), 1000);
-          }
-          current = hit;
-        } else if (!hit) current = null;
-        armed = true;
+        const mr = main.getBoundingClientRect();
+        const mid = mr.top + main.clientHeight / 2;
+        let fired = false;
+        cards.forEach(c => {
+          const r = c.getBoundingClientRect();
+          const sd = (r.top + r.bottom) / 2 < mid ? -1 : 1;
+          const was = side.get(c);
+          side.set(c, sd);
+          if (was !== undefined && was !== sd) { flash(c); fired = true; }
+        });
+        if (fired) { try { navigator.vibrate?.(14); } catch { /* sem vibração */ } }
       });
     };
     main.addEventListener('scroll', onScroll, { passive: true });
-    return () => { main.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); cards.forEach(c => c.classList.remove('ek-card-glow')); };
+    return () => { main.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); timers.forEach(t => clearTimeout(t)); cards.forEach(c => c.classList.remove('ek-card-glow')); };
   }, [resetKey]);
 }
 

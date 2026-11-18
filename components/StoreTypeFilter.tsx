@@ -10,7 +10,7 @@ const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', c
 
 /* Filtro por tipo de estabelecimento (Mercado, Restaurante, Farmácia, Academia...). Fica gravado no aparelho e vale no início e nos relatórios.
    `receipts` são os cupons do período, só para mostrar quanto cada tipo gastou ao lado da opção. */
-const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = ({ receipts, className = '' }) => {
+const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string; grow?: boolean }> = ({ receipts, className = '', grow = false }) => {
   const [sel, setSel] = useStoreTypeFilter();
   const [open, setOpen] = useState(false);
   const { typeOf } = useStoreNames();
@@ -32,12 +32,12 @@ const StoreTypeFilter: React.FC<{ receipts: Receipt[]; className?: string }> = (
 
   return (
     <>
-      <div className={`flex items-center gap-1 ${className}`}>
+      <div className={`flex items-center gap-1 ${grow ? 'flex-1 min-w-0' : ''} ${className}`}>
         <button type="button" onClick={() => setOpen(true)} data-testid="store-type-btn" data-active={active ? 'true' : 'false'} aria-haspopup="dialog"
           aria-label={`Tipo de estabelecimento: ${storeTypeLabel(sel)}. Alterar`}
-          className="min-w-0 h-8 px-2.5 rounded-xl flex items-center gap-2 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-colors">
+          className={`min-w-0 ${grow ? 'flex-1' : ''} h-8 px-2.5 rounded-xl flex items-center gap-2 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-colors`}>
           <Store className="w-4 h-4 text-luxury-gold shrink-0" />
-          <span className={`truncate text-xs font-bold uppercase tracking-[0.08em] ${active ? 'text-luxury-gold' : 'text-zinc-300'}`}>{storeTypeLabel(sel)}</span>
+          <span className={`truncate text-[11px] md:text-xs font-bold uppercase tracking-[0.02em] md:tracking-[0.08em] ${active ? 'text-luxury-gold' : 'text-zinc-300'}`}>{storeTypeLabel(sel)}</span>
           <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
         </button>
         {active && (

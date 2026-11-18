@@ -690,7 +690,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       {deptSheetOpen && <DeptFilterSheet options={deptOptions} filter={deptFilter} onChange={setDeptFilter} onClose={() => setDeptSheetOpen(false)} z="z-[250]" />}
       <div ref={filterBarRef} className={`flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6 transition-[opacity,transform] duration-200 ${hideBar ? 'opacity-0 -translate-y-full pointer-events-none' : ''}`} data-hidden={hideBar ? 'true' : 'false'}>
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>
-            <div className="order-1 flex-1 md:flex-none ls:flex-none min-w-0 flex items-center gap-1 pl-1 pr-1 py-0.5 md:py-0 ls:py-0 md:pl-3 md:pr-3 md:border-r ls:border-r border-white/10 md:shrink-0 ls:shrink-0">
+            <div className="order-1 flex-1 md:flex-none ls:flex-none min-w-0 hidden md:flex ls:flex items-center gap-1 pl-1 pr-1 py-0.5 md:py-0 ls:py-0 md:pl-3 md:pr-3 md:border-r ls:border-r border-white/10 md:shrink-0 ls:shrink-0">
                 <button type="button" onClick={() => setDeptSheetOpen(true)} data-testid="dept-filter-btn" data-active={deptActive ? 'true' : 'false'}
                     aria-haspopup="dialog" aria-label={`Categorias: ${deptLabel}. Alterar`}
                     className="min-w-0 flex-1 md:flex-none md:max-w-[200px] ls:max-w-[150px] h-8 px-2 rounded-xl flex items-center gap-2 text-left hover:bg-white/5 transition-colors">
@@ -716,7 +716,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
             </div>
 
             {/* Celular em pé: o período fechado vira um botão; ao tocar abre ano, meses, 7 dias e período */}
-            <div className="order-1 flex md:hidden ls:hidden shrink-0 items-center gap-1 pr-1">
+            <div className="order-1 flex md:hidden ls:hidden flex-1 min-w-0 items-center gap-1.5 pr-1">
                 {!filtersOpen && hasFilters && (
                     <button type="button" onClick={resetFilters} title="Limpar filtros" aria-label="Limpar filtros" data-testid="filter-reset-collapsed"
                         className="w-8 h-8 flex items-center justify-center rounded-xl border border-white/5 text-zinc-500 active:text-luxury-gold">
@@ -729,6 +729,21 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                     <span className="whitespace-nowrap" data-testid="filter-summary">{shortPeriod(config)}</span>
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`} />
                 </button>
+                {/* Atalho: os 4 últimos meses, um toque para ver o mês */}
+                {!filtersOpen && (
+                    <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto no-scrollbar" data-testid="recent-months">
+                        {[0, 1, 2, 3].map(k => {
+                            const d = new Date(new Date().getFullYear(), new Date().getMonth() - k, 1);
+                            const y = d.getFullYear(), m = d.getMonth();
+                            const on = config.year === y && monthOn(config, m);
+                            return (
+                                <button key={`${y}-${m}`} type="button" data-testid={`recent-month-${k}`} aria-pressed={on}
+                                    onClick={() => onConfigChange({ ...config, year: y, month: m, months: undefined, quickFilter: null })}
+                                    className={`shrink-0 h-8 px-2.5 rounded-xl text-[11px] font-bold border transition-colors ${on ? 'bg-luxury-gold text-black border-luxury-gold' : 'border-white/5 text-zinc-400 active:text-luxury-gold'}`}>{MONTHS_SHORT[m]}</button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
             {/* Aberta, a categoria e o botão do período ficam sozinhos na primeira linha */}
             {filtersOpen && <div className="order-1 w-full h-0 md:hidden ls:hidden" aria-hidden="true" />}
@@ -788,7 +803,24 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
             </div>
         </div>
         {/* Tipo de estabelecimento (Mercado, Restaurante, Farmácia...), logo abaixo do filtro de categorias */}
-        <StoreTypeFilter receipts={periodAllTypes} className="-mt-0.5" />
+        <div className="flex items-center gap-2 md:block ls:block">
+            <div className="flex md:hidden ls:hidden flex-1 min-w-0 items-center gap-1" data-testid="dept-filter-row">
+                <button type="button" onClick={() => setDeptSheetOpen(true)} data-testid="dept-filter-btn-m" data-active={deptActive ? 'true' : 'false'}
+                    aria-haspopup="dialog" aria-label={`Categorias: ${deptLabel}. Alterar`}
+                    className="min-w-0 flex-1 h-8 px-2.5 rounded-xl flex items-center gap-2 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-colors">
+                    <Filter className="w-4 h-4 text-luxury-gold shrink-0" />
+                    <span className={`truncate text-[11px] font-bold uppercase tracking-[0.02em] ${deptActive ? 'dept-active text-luxury-gold' : 'text-zinc-300'}`}>{deptLabel}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                </button>
+                {deptActive && (
+                    <button type="button" onClick={() => setDeptFilter(NO_DEPT_FILTER)} aria-label="Limpar o filtro e mostrar todas as categorias"
+                        className="filter-chip shrink-0 w-8 h-8 flex items-center justify-center rounded-xl border bg-luxury-gold/10 text-luxury-gold border-luxury-gold/25 active:bg-luxury-gold/20">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                )}
+            </div>
+            <StoreTypeFilter receipts={periodAllTypes} className="-mt-0.5" grow />
+        </div>
 
         {/* Item escolhido na busca: também fica sempre visível e com saída óbvia */}
         {config.item && itemSummary && (
@@ -860,7 +892,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                   <AreaChart data={evolutionData} margin={{ top: 10, right: TIMELINE_MARGIN_RIGHT, left: 0, bottom: 2 }}>
                       <defs>
                           <linearGradient id="colorDashboard" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#DDB94B" stopOpacity={0.2}/><stop offset="100%" stopColor="#DDB94B" stopOpacity={0}/>
+                              <stop offset="0%" stopColor="#DDB94B" stopOpacity={0.55}/><stop offset="55%" stopColor="#DDB94B" stopOpacity={0.22}/><stop offset="100%" stopColor="#DDB94B" stopOpacity={0.04}/>
                           </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -931,11 +963,11 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
       })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-10">
-          <div className="lg:col-span-6 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 min-h-[420px] md:min-h-[500px] shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
-               <div className="absolute top-5 left-5 md:top-10 md:left-10 flex flex-col">
+          <div className="lg:col-span-6 bg-zinc-950 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-10 min-h-[300px] md:min-h-[500px] shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
+               <div className="absolute top-4 left-5 md:top-10 md:left-10 flex flex-col">
                    <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Gastos por Departamento</h3>
                </div>
-               <div className="h-[340px] md:h-[400px] w-[calc(100%+1.5rem)] md:w-full relative mt-10 md:mt-0">
+               <div className="h-[290px] md:h-[400px] w-[calc(100%+1.5rem)] md:w-full relative mt-6 md:mt-0">
                    <InteractiveDonut
                        data={chartData}
                        centerLabel={deptActive ? 'Total filtrado' : 'Total do período'}
