@@ -921,13 +921,19 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                    />
                </div>
           </div>
+      {!whereOpen ? <div className="lg:col-span-6"><button type="button" onClick={toggleWhere} aria-expanded={whereOpen} data-testid="where-toggle"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-luxury-gold flex items-center justify-center gap-2 active:scale-[0.99]">
+          {whereOpen ? 'Ocultar onde você gasta' : 'Exibir onde você gasta'}
+          <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform ${whereOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+      </button></div> : (
       <div className="lg:col-span-6 bg-black border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side, rgba(59,130,246,0.10), transparent)' }} />
-          <div className="flex justify-between items-center mb-2 md:mb-6 relative z-10">
-              <button type="button" onClick={toggleWhere} aria-expanded={whereOpen} data-testid="where-toggle" className="flex items-center gap-2 text-left">
-                  <h3 className="text-[13px] text-zinc-200 font-semibold tracking-tight">Onde você gasta</h3>
-                  {whereOpen ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
-              </button>
+          <div className="relative z-10 mb-3 md:mb-6 space-y-2">
+              <button type="button" onClick={toggleWhere} aria-expanded={whereOpen} data-testid="where-toggle"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-luxury-gold flex items-center justify-center gap-2 active:scale-[0.99]">
+          {whereOpen ? 'Ocultar onde você gasta' : 'Exibir onde você gasta'}
+          <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform ${whereOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
               {config.establishment && (
                   <button
                     onClick={() => onConfigChange({ ...config, establishment: null })}
@@ -938,11 +944,6 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               )}
           </div>
           
-          {!whereOpen && (
-              <p className="relative z-10 text-[11px] text-zinc-500 truncate" data-testid="where-summary">
-                  {establishmentData.slice(0, 3).map((e, i) => `${clip(storeLabel(e.name) || establishmentLabels[i] || e.raw, 16)} ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(e.value)}`).join(' · ')}
-              </p>
-          )}
           <div className={`relative z-10 ${whereOpen ? '' : 'hidden'}`}>
               <StoreRanking
                   rows={establishmentData.map((e, i) => ({
@@ -957,7 +958,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
               />
           </div>
           
-      </div>
+      </div>)}
       </div>
 
       {/* Panorama (antes em Análises): leitura do período, com os mesmos filtros do Início */}
