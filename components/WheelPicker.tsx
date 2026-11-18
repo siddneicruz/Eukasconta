@@ -7,7 +7,7 @@ import React, { useEffect, useRef } from 'react';
 export interface WheelOption { key: string; label: string }
 
 const ITEM_H = 30;
-const PAD = 30;   // respiro de cima e de baixo: com ele a linha do meio fica no centro
+const PAD = 8;    // respiro de cima e de baixo: a janela fica com metade da altura de antes (30 + 2×8 = 46 px)
 
 const tick = () => { try { if (navigator.vibrate) navigator.vibrate(7); } catch { /* sem vibração neste aparelho */ } };
 
@@ -76,7 +76,7 @@ const WheelPicker: React.FC<{ options: WheelOption[]; value: string; onChange: (
           onKeyDown={e => { const s = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0; if (s) { e.preventDefault(); goTo(cur.current + s, true); } }}
           className="no-scrollbar overflow-y-auto overscroll-contain"
           style={{ height: ITEM_H + PAD * 2, paddingBlock: PAD, perspective: 400, scrollSnapType: 'y mandatory', touchAction: 'pan-y',
-            WebkitMaskImage: 'linear-gradient(transparent,#000 20%,#000 80%,transparent)', maskImage: 'linear-gradient(transparent,#000 20%,#000 80%,transparent)' }}>
+            WebkitMaskImage: 'linear-gradient(transparent,#000 14%,#000 86%,transparent)', maskImage: 'linear-gradient(transparent,#000 14%,#000 86%,transparent)' }}>
           {options.map((o, i) => (
             <div key={o.key} role="option" aria-selected={o.key === value} onClick={() => goTo(i, true)}
               className="flex items-center justify-center px-2 text-center cursor-pointer select-none text-[13px] font-bold leading-none text-zinc-500 data-[on='1']:text-zinc-100"
