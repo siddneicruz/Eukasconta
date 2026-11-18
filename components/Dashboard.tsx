@@ -809,7 +809,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
                     aria-haspopup="dialog" aria-label={`Categorias: ${deptLabel}. Alterar`}
                     className="min-w-0 flex-1 h-8 px-2.5 rounded-xl flex items-center gap-2 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-colors">
                     <Filter className="w-4 h-4 text-luxury-gold shrink-0" />
-                    <span className={`truncate text-[11px] font-bold uppercase tracking-[0.02em] ${deptActive ? 'dept-active text-luxury-gold' : 'text-zinc-300'}`}>{deptLabel}</span>
+                    <span className={`truncate text-[11px] font-bold uppercase tracking-[0.02em] ${deptActive ? 'dept-active text-luxury-gold' : 'text-zinc-300'}`}>{deptActive ? deptLabel : 'Categorias'}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                 </button>
                 {deptActive && (
