@@ -11,6 +11,7 @@ import { loadShared } from '../services/sharedLoader';
 import { fetchEanSizes, sizeFromText } from '../services/eanSizes';
 import { deptObservations, sharedObservations } from '../services/quotes';
 import { GROCERY_STORE_TYPES } from '../services/storeTypes';
+import WheelPicker, { WheelOption } from './WheelPicker';
 
 /* Hortifruti em Análises › Panorama: compara os mercados onde a pessoa compra (preço, nota de qualidade, dia da semana).
    Preço e dia da semana saem dos cupons dela (todo o histórico). A nota de qualidade vem do banco e, por ora, só para o administrador. */
@@ -24,7 +25,7 @@ const short = (iso: string) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}/$
 type Tab = 'stores' | 'items' | 'days';
 type Q = { score: number | null; n: number; last: string | null };
 
-const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string, cnpj: string) => string; dept?: string; label?: string; minItems?: number; center?: { lat: number; lng: number } | null }> = ({ receipts, nameOf, dept = 'HORTIFRUTI', label = 'Hortifruti', minItems = MIN_ITEMS_RANK, center = null }) => {
+const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string, cnpj: string) => string; dept?: string; label?: string; minItems?: number; center?: { lat: number; lng: number } | null; catWheel?: { options: WheelOption[]; value: string; onChange: (key: string) => void } }> = ({ receipts, nameOf, dept = 'HORTIFRUTI', label = 'Hortifruti', minItems = MIN_ITEMS_RANK, center = null, catWheel }) => {
   const { isAdmin: admin } = useMasterInfo();
   const isAdmin = admin && dept === 'HORTIFRUTI';   // a nota de qualidade só existe para hortifruti
   // Fonte: leituras de TODOS os usuários num raio (anônimas), somadas às suas compras. Sem login, sem conexão ou sem posição: só as suas.
@@ -162,6 +163,20 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   }, [goLetter]);
   const railTouch = (e: React.TouchEvent) => { const t = e.touches[0]; const el = t && document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null; const l = el?.getAttribute?.('data-rail'); if (l) { showBubble(l); jump(l); } };
   const [openStores, setOpenStores] = useState<Record<string, boolean>>({});
+  // trocou de categoria pela roleta: recomeça a lista (o cartão não é mais recriado, para a roleta não perder a posição)
+  const firstDept = useRef(true);
+  useEffect(() => { if (firstDept.current) { firstDept.current = false; return; } setOpenItems({}); setLimit(30); setGoLetter(null); setOpenStores({}); setTab(t => (t === 'stores' && storeBy === 'score' && !isAdmin ? 'items' : t)); }, [dept]);
+  // segunda roleta: o modo de ver (junta as abas Item a item / Lojas / Dia da semana com a ordem de cada uma)
+  const modeOptions = useMemo<WheelOption[]>(() => [
+    { key: 'n', label: 'Mais comprados' }, { key: 'spread', label: 'Maior diferença' }, { key: 'recent', label: 'Recentes' }, { key: 'az', label: 'Item A–Z' },
+    { key: 'stores:price', label: 'Lojas · Preço' }, ...(isAdmin ? [{ key: 'stores:score', label: 'Lojas · Nota' }] : []), { key: 'days', label: 'Dia da semana' },
+  ], [isAdmin]);
+  const modeValue = tab === 'days' ? 'days' : tab === 'stores' ? (storeBy === 'score' && isAdmin ? 'stores:score' : 'stores:price') : itemBy;
+  const pickMode = (k: string) => {
+    if (k === 'days') setTab('days');
+    else if (k.startsWith('stores:')) { setTab('stores'); setStoreBy(k === 'stores:score' ? 'score' : 'price'); }
+    else { setTab('items'); setItemBy(k as 'n' | 'spread' | 'recent' | 'az'); setLimit(30); }
+  };
   const dayAge = (iso: string) => Math.max(0, Math.round((Date.parse(todayIso) - Date.parse(iso)) / 864e5));
   // todos os itens comprados numa loja: último preço lido, quando, e se é o mais barato entre as lojas que têm o item
   const itemsOfStore = (id: string) => data.items
@@ -170,7 +185,24 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
     .sort((a, b) => a.r.label.localeCompare(b.r.label, 'pt-BR', { sensitivity: 'base' }));
   const ageTxt = (d: number) => (d === 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`);
 
-  if (data.nObs === 0) return null;
+  if (data.nObs === 0 && !catWheel) return null;
+  // com a roleta de categoria, uma categoria sem leituras não pode sumir com o cartão (a roleta ficaria presa dentro dele)
+  if (data.nObs === 0 && catWheel) return (
+    <div className="bg-ek-card border border-luxury-gold/30 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="produce-compare" data-open="true">
+      <div className="flex items-center gap-3">
+        <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-luxury-gold/15 border border-luxury-gold/40"><Sprout className="w-5 h-5 text-luxury-gold" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-bold tracking-[0.14em] text-luxury-gold">COTAÇÃO ENTRE LOJAS</span>
+          <span className="block text-lg font-bold text-zinc-100 leading-tight truncate">{label}</span>
+        </span>
+      </div>
+      <div className="grid gap-2 mt-3" style={{ gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,1fr)' }} data-testid="pc-wheels">
+        <WheelPicker title="CATEGORIA" ariaLabel="Categoria" options={catWheel.options} value={catWheel.value} onChange={catWheel.onChange} testId="pc-wheel-cat" />
+        <WheelPicker title="VER POR" ariaLabel="Modo de ver" options={modeOptions} value={modeValue} onChange={pickMode} testId="pc-wheel-mode" />
+      </div>
+      <p className="py-6 text-center text-[13px] text-zinc-500" data-testid="pc-empty">Ainda não há preços desta categoria comprados em duas lojas diferentes.</p>
+    </div>
+  );
   const Pill: React.FC<{ on: boolean; onClick: () => void; children: React.ReactNode; tid?: string }> = ({ on, onClick, children, tid }) => (
     <button type="button" onClick={onClick} aria-pressed={on} data-testid={tid}
       className={`h-8 px-3 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${on ? 'bg-luxury-gold/15 border-luxury-gold/40 text-luxury-gold' : 'border-white/10 text-zinc-500 hover:text-zinc-300'}`}>{children}</button>
@@ -188,6 +220,12 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
         <span className="shrink-0 w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-zinc-400">{cardOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}</span>
       </button>
       {cardOpen && <>
+      {catWheel && (
+        <div className="grid gap-2 mt-3" style={{ gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,1fr)' }} data-testid="pc-wheels">
+          <WheelPicker title="CATEGORIA" ariaLabel="Categoria" options={catWheel.options} value={catWheel.value} onChange={catWheel.onChange} testId="pc-wheel-cat" />
+          <WheelPicker title="VER POR" ariaLabel="Modo de ver" options={modeOptions} value={modeValue} onChange={pickMode} testId="pc-wheel-mode" />
+        </div>
+      )}
       <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto no-scrollbar" data-testid="pc-source">
         <span className="text-[11px] text-zinc-500 whitespace-nowrap">{src === 'shared' ? 'Todos os usuários · raio' : src === 'loading' ? 'Buscando dados de todos os usuários…' : 'Só as suas compras (sem conexão, login ou posição)'}</span>
         {src === 'shared' && [10, 30, 60].map(v => (
@@ -197,18 +235,18 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
       </div>
       {hf && qErr && <p className="text-[10px] text-red-400 px-0.5 mt-1" data-testid="pc-qerr">Notas não carregaram: {qErr}</p>}
 
-      <div className="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar">
+      {!catWheel && <div className="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar">
         <Pill on={tab === 'items'} onClick={() => setTab('items')} tid="pc-tab-items">Item a item</Pill>
         <Pill on={tab === 'stores'} onClick={() => setTab('stores')} tid="pc-tab-stores">Lojas</Pill>
         <Pill on={tab === 'days'} onClick={() => setTab('days')} tid="pc-tab-days">Dia da semana</Pill>
-      </div>
+      </div>}
 
       {tab === 'stores' && (
         <div className="mt-3">
-          <div className="flex gap-1.5 mb-1">
+          {!catWheel && <div className="flex gap-1.5 mb-1">
             <Pill on={storeBy === 'price'} onClick={() => setStoreBy('price')}>Preço</Pill>
             {isAdmin && <Pill on={storeBy === 'score'} onClick={() => setStoreBy('score')}>Nota</Pill>}
-          </div>
+          </div>}
           <div className="divide-y divide-white/5">
             {stores.map(s => {
               const q = quality[s.id];
@@ -270,12 +308,12 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
 
       {tab === 'items' && (
         <div className="mt-3">
-          <div className="flex flex-wrap gap-1.5 mb-1">
+          {!catWheel && <div className="flex flex-wrap gap-1.5 mb-1">
             <Pill on={itemBy === 'n'} onClick={() => { setItemBy('n'); setLimit(30); }}>Mais comprados</Pill>
             <Pill on={itemBy === 'spread'} onClick={() => { setItemBy('spread'); setLimit(30); }}>Maior diferença</Pill>
             <Pill on={itemBy === 'recent'} onClick={() => { setItemBy('recent'); setLimit(30); }} tid="pc-sort-recent">Recentes</Pill>
             <Pill on={itemBy === 'az'} onClick={() => { setItemBy('az'); setLimit(30); }} tid="pc-sort-az">A–Z</Pill>
-          </div>
+          </div>}
           <div className="flex items-center gap-1.5 mb-1" role="group" aria-label="Nível de detalhe">
             <span className="text-[11px] text-zinc-500 whitespace-nowrap">Mostrar</span>
             <Pill on={level === 'items'} onClick={() => pickLevel('items')} tid="pc-level-items">Só itens</Pill>

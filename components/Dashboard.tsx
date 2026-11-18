@@ -444,18 +444,22 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   // (é o mesmo filtro "Todas categorias" do topo: os chips abaixo do Hortifruti são só outro jeito de mexer nele)
   const [panoFilter, setPanoFilter] = useDeptFilter();
   const panoReceipts = useMemo(() => applyDeptFilter(receipts, panoFilter), [receipts, panoFilter]);
-  // a cotação "Todas as categorias" tem o filtro de departamento só dela (não mexe na análise nem no filtro do topo)
-  const [cmpFilter, setCmpFilter] = useDeptFilter('eukasconta_home_cmp_dept_filter');
+  // cotação de mercado: UMA roleta de categoria (Hortifruti por padrão, depois os departamentos, e 'Todas as categorias' no fim).
+  // É independente do filtro do topo e do da análise.
+  const [mktSel, setMktSel] = useState<string>(() => { try { return localStorage.getItem('eukasconta_home_market_sel') || 'HORTI'; } catch { return 'HORTI'; } });
+  const pickMkt = (k: string) => { setMktSel(k); try { localStorage.setItem('eukasconta_home_market_sel', k); } catch { /* vale só nesta tela */ } };
+  const plainName = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+  const mktOptions = useMemo(() => {
+    const depts = buildDeptOptions(receipts, receipts).filter(o => o.kind === 'dept').sort((a, b) => b.total - a.total)
+      .filter(d => plainName(d.label) !== 'HORTIFRUTI');
+    return [{ key: 'HORTI', label: 'Hortifruti' }, ...depts.map(d => ({ key: d.key, label: d.label })), { key: 'ALL', label: 'Todas as categorias' }];
+  }, [receipts]);
+  const mktValue = mktOptions.some(o => o.key === mktSel) ? mktSel : 'HORTI';
   const compareDept = useMemo(() => {
-    if (cmpFilter.mode !== 'only' || cmpFilter.keys.length === 0) return null;
-    if (cmpFilter.keys.some(k => /^[gio]:/.test(k))) return null;
-    const names = Array.from(new Set(cmpFilter.keys.map(k => k.replace(/^c:/, '').split(' - ')[0].trim())));
-    if (names.length !== 1) return null;
-    const plain = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-    const hit = receipts.flatMap(r => r.items || []).find(i => plain(String(i.category || '').split(' - ')[0]) === plain(names[0]));
-    const label = hit ? String(hit.category).split(' - ')[0].trim() : names[0];
-    return { slug: plain(names[0]), label: label.charAt(0).toUpperCase() + label.slice(1) };
-  }, [cmpFilter, receipts]);
+    if (mktValue === 'HORTI' || mktValue === 'ALL') return null;
+    const opt = mktOptions.find(o => o.key === mktValue);
+    return opt ? { slug: plainName(opt.label), label: opt.label } : null;
+  }, [mktValue, mktOptions]);
   const [whereOpen, setWhereOpen] = useState<boolean>(() => { try { return localStorage.getItem('eukasconta_home_where_open') !== '0'; } catch { return true; } });
   const toggleWhere = () => setWhereOpen(o => { const n = !o; try { localStorage.setItem('eukasconta_home_where_open', n ? '1' : '0'); } catch { /* vale só nesta tela */ } return n; });
   const pickMonth = useMonthPick(config, onConfigChange);
@@ -976,32 +980,30 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
           <h2 className="text-lg md:text-xl font-serif font-bold text-white">Acompanhe os preços do mercado</h2>
           <p className="mt-1 text-xs md:text-sm text-zinc-500">Cotações de hoje por item e por loja, para você saber onde comprar mais barato.</p>
       </div>
-      {/* Hortifruti completo, já aberto: preço por item e loja, qualidade, dia da semana (mesmo cartão de Análises) */}
+      {/* Cotação de mercado: duas roletas (categoria e modo de ver) e as tabelas de sempre embaixo */}
       <div className="mt-4" data-testid="home-hortifruti">
           <LazyMount minHeight={320}>
-              <ProduceCompareCard receipts={receipts} nameOf={(n, c) => nameOf(n, c)} dept="HORTIFRUTI" label="Hortifruti" center={homeCenterOf(receipts, establishments || [])} />
-          </LazyMount>
-      </div>
-      <div data-testid="home-dept-compare-wrap">
-          <div className="mt-4"><DeptChipsBar receipts={receipts} filter={cmpFilter} onChange={setCmpFilter} /></div>
-          <LazyMount minHeight={120}>
-              {((compareDept || cmpFilter.keys.length === 0) && (() => {
-              const slug = compareDept ? compareDept.slug : 'ALL';
-              const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
-              const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
-              // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
-              // item de "Transporte" comprado em supermercado/açougue é categoria errada (ex.: linguiça): fica fora da cotação de transporte
-              const noTransp = (r: Receipt): Receipt => ({ ...r, items: (r.items || []).filter(i => !isTransp(i)) });
-              const base = slug === 'TRANSPORTE' ? receipts.filter(r => !isFood(r))
-                  : slug === 'ALL' ? receipts.map(r => (isFood(r) ? noTransp(r) : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
-                  : receipts.filter(isFood);
-              return (
-                  <div className="mt-4" data-testid="home-dept-compare">
-                      <ProduceCompareCard key={slug} receipts={base} nameOf={(n, c) => nameOf(n, c)}
-                          dept={slug} label={compareDept ? compareDept.label : 'Todas as categorias'} minItems={slug === 'TRANSPORTE' ? 1 : 3} center={homeCenterOf(receipts, establishments || [])} />
-                  </div>
-              );
-          })())}
+              {(() => {
+                  const slug = mktValue === 'HORTI' ? 'HORTIFRUTI' : compareDept ? compareDept.slug : 'ALL';
+                  const isFood = (r: Receipt) => GROCERY_STORE_TYPES.has(typeOf(r.establishmentName, r.cnpj));
+                  const isTransp = (i: { category?: string }) => /^transporte/i.test(String(i.category || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+                  // Todos: lojas de comida + os itens de Transporte (posto) das demais lojas
+                  // item de "Transporte" comprado em supermercado/açougue é categoria errada (ex.: linguiça): fica fora da cotação de transporte
+                  const noTransp = (r: Receipt): Receipt => ({ ...r, items: (r.items || []).filter(i => !isTransp(i)) });
+                  const base = slug === 'HORTIFRUTI' ? receipts
+                      : slug === 'TRANSPORTE' ? receipts.filter(r => !isFood(r))
+                      : slug === 'ALL' ? receipts.map(r => (isFood(r) ? noTransp(r) : { ...r, items: (r.items || []).filter(isTransp) })).filter(r => (r.items || []).length > 0)
+                      : receipts.filter(isFood);
+                  return (
+                      <div data-testid="home-dept-compare">
+                          <ProduceCompareCard receipts={base} nameOf={(n, c) => nameOf(n, c)}
+                              dept={slug} label={slug === 'HORTIFRUTI' ? 'Hortifruti' : compareDept ? compareDept.label : 'Todas as categorias'}
+                              minItems={slug === 'TRANSPORTE' ? 1 : slug === 'HORTIFRUTI' ? undefined : 3}
+                              center={homeCenterOf(receipts, establishments || [])}
+                              catWheel={{ options: mktOptions, value: mktValue, onChange: pickMkt }} />
+                      </div>
+                  );
+              })()}
           </LazyMount>
       </div>
       <div className="mt-6 md:mt-10">
