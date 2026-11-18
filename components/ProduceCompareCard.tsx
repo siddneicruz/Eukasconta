@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Sprout } from 'lucide-react';
+import { ChevronDown, ChevronUp, Sprout, Beef, Fuel, Milk, Wheat, Wine, SprayCan, UtensilsCrossed, Shirt, Lamp, LayoutGrid, Croissant, PawPrint, Pill, Smartphone, Tag, Sparkles, Baby, Gamepad2, BookOpen, Wrench, Car, GraduationCap, Dumbbell, Gift, Candy, ShoppingBasket } from 'lucide-react';
 import { Receipt } from '../types';
 import * as cloud from '../services/cloudService';
 import { useMasterInfo } from './MasterContext';
@@ -21,6 +21,41 @@ const pctTxt = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v *
 const idxColor = (v: number) => (v <= -0.02 ? '#34d399' : v >= 0.02 ? '#f87171' : '#a1a1aa');
 const scoreColor = (s: number) => (s >= 7 ? '#34d399' : s >= 4 ? '#DDB94B' : '#f87171');
 const short = (iso: string) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+
+
+/* Ícone de cada categoria no quadrado do cartão (o mesmo traço fino do Sprout do Hortifruti) */
+const CAT_ICONS: Array<[RegExp, React.ComponentType<{ className?: string }>]> = [
+  [/hortifruti|fruta|verdura|legume/, Sprout],
+  [/acougue|carne|aves|peixe/, Beef],
+  [/transporte|combust|posto|automotiv/, Fuel],
+  [/veiculo|carro|oficina/, Car],
+  [/frios|laticin|queijo|leite/, Milk],
+  [/padaria|panific|confeitaria/, Croissant],
+  [/doce|matinal|biscoito|chocolate|sobremesa/, Candy],
+  [/mercearia|grao|cereal|massa/, Wheat],
+  [/bebida|vinho|cerveja|refrigerante/, Wine],
+  [/comer fora|delivery|restaurante|lanche/, UtensilsCrossed],
+  [/higiene|perfum|beleza|cosmet/, Sparkles],
+  [/limpeza|lavanderia/, SprayCan],
+  [/vestuario|roupa|calcado|moda/, Shirt],
+  [/bazar|utilidade|casa|domestic|decora/, Lamp],
+  [/pet|animal/, PawPrint],
+  [/saude|farmacia|medic/, Pill],
+  [/eletron|tecnolog|celular|informatica/, Smartphone],
+  [/bebe|infantil|crianca/, Baby],
+  [/lazer|jogo|entretenimento|brinquedo/, Gamepad2],
+  [/educac|escola|curso/, GraduationCap],
+  [/livro|papelaria/, BookOpen],
+  [/esporte|academia|fitness/, Dumbbell],
+  [/presente|festa/, Gift],
+  [/ferramenta|construc|reforma/, Wrench],
+  [/todas/, LayoutGrid],
+];
+const catIconOf = (label: string): React.ComponentType<{ className?: string }> => {
+  const n = String(label || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const hit = CAT_ICONS.find(([re]) => re.test(n));
+  return hit ? hit[1] : (/mercado|supermerc|aliment/.test(n) ? ShoppingBasket : Tag);
+};
 
 type Tab = 'stores' | 'items' | 'days';
 type Q = { score: number | null; n: number; last: string | null };
@@ -190,7 +225,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   if (data.nObs === 0 && catWheel) return (
     <div className="bg-ek-card border border-luxury-gold/30 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="produce-compare" data-open="true">
       <div className="flex items-center gap-3">
-        <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-luxury-gold/15 border border-luxury-gold/40"><Sprout className="w-5 h-5 text-luxury-gold" /></span>
+        <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-luxury-gold/15 border border-luxury-gold/40">{React.createElement(catIconOf(label), { className: 'w-5 h-5 text-luxury-gold' })}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-[10px] font-bold tracking-[0.14em] text-luxury-gold">COTAÇÃO ENTRE LOJAS</span>
           <span className="block text-lg font-bold text-zinc-100 leading-tight truncate">{label}</span>
@@ -210,8 +245,9 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
 
   return (
     <div className="bg-ek-card border border-luxury-gold/30 rounded-2xl md:rounded-[2rem] p-3 md:p-6 shadow-xl" data-testid="produce-compare" data-open={cardOpen ? 'true' : 'false'}>
+      <div className={catWheel ? 'sticky top-0 z-[39] bg-ek-card -mx-3 px-3 md:-mx-6 md:px-6 pt-1 pb-2' : ''} data-testid={catWheel ? 'pc-sticky' : undefined}>
       <button type="button" onClick={toggleCard} aria-expanded={cardOpen} data-testid="pc-toggle" className="w-full flex items-center gap-3 text-left">
-        <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-luxury-gold/15 border border-luxury-gold/40"><Sprout className="w-5 h-5 text-luxury-gold" /></span>
+        <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-luxury-gold/15 border border-luxury-gold/40">{React.createElement(catIconOf(label), { className: 'w-5 h-5 text-luxury-gold' })}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-[10px] font-bold tracking-[0.14em] text-luxury-gold">COTAÇÃO ENTRE LOJAS</span>
           <span className="block text-lg font-bold text-zinc-100 leading-tight truncate">{label}</span>
@@ -219,13 +255,14 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
         </span>
         <span className="shrink-0 w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-zinc-400">{cardOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}</span>
       </button>
-      {cardOpen && <>
-      {catWheel && (
+      {cardOpen && catWheel && (
         <div className="grid gap-2 mt-3" style={{ gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,1fr)' }} data-testid="pc-wheels">
           <WheelPicker title="CATEGORIA" ariaLabel="Categoria" options={catWheel.options} value={catWheel.value} onChange={catWheel.onChange} testId="pc-wheel-cat" />
           <WheelPicker title="VER POR" ariaLabel="Modo de ver" options={modeOptions} value={modeValue} onChange={pickMode} testId="pc-wheel-mode" />
         </div>
       )}
+      </div>
+      {cardOpen && <>
       <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto no-scrollbar" data-testid="pc-source">
         <span className="text-[11px] text-zinc-500 whitespace-nowrap">{src === 'shared' ? 'Todos os usuários · raio' : src === 'loading' ? 'Buscando dados de todos os usuários…' : 'Só as suas compras (sem conexão, login ou posição)'}</span>
         {src === 'shared' && [10, 30, 60].map(v => (

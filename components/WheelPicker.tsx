@@ -6,7 +6,8 @@ import React, { useEffect, useRef } from 'react';
 
 export interface WheelOption { key: string; label: string }
 
-const ITEM_H = 40;
+const ITEM_H = 30;
+const PAD = 30;   // respiro de cima e de baixo: com ele a linha do meio fica no centro
 
 const tick = () => { try { if (navigator.vibrate) navigator.vibrate(7); } catch { /* sem vibração neste aparelho */ } };
 
@@ -30,7 +31,7 @@ const WheelPicker: React.FC<{ options: WheelOption[]; value: string; onChange: (
     const kids = el.children;
     for (let i = 0; i < kids.length; i++) {
       const it = kids[i] as HTMLElement;
-      const d = (i * ITEM_H + ITEM_H / 2 + 40 - mid) / ITEM_H;   // 40 = respiro de cima
+      const d = (i * ITEM_H + ITEM_H / 2 + PAD - mid) / ITEM_H;   // PAD = respiro de cima
       const a = Math.abs(d);
       if (a < bd) { bd = a; best = i; }
       it.style.transform = `rotateX(${Math.max(-62, Math.min(62, -d * 26))}deg) scale(${1 - Math.min(a, 2.4) * 0.09})`;
@@ -67,20 +68,20 @@ const WheelPicker: React.FC<{ options: WheelOption[]; value: string; onChange: (
 
   return (
     <div className="min-w-0" data-testid={testId}>
-      <p className="ml-1 mb-1 text-[10px] font-bold tracking-[0.14em] text-zinc-500">{title}</p>
-      <div className="relative rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden">
-        <div ref={cap} className="absolute left-1 right-1 rounded-xl border border-luxury-gold/45 bg-luxury-gold/15 pointer-events-none transition-transform duration-150" style={{ top: 40, height: ITEM_H }} />
+      <p className="ml-1 mb-0.5 text-[10px] font-bold tracking-[0.14em] text-zinc-500">{title}</p>
+      <div className="relative rounded-xl bg-white/[0.04] border border-white/10 overflow-hidden">
+        <div ref={cap} className="absolute left-1 right-1 rounded-lg border border-luxury-gold/45 bg-luxury-gold/15 pointer-events-none transition-transform duration-150" style={{ top: PAD, height: ITEM_H }} />
         <div ref={root} role="listbox" aria-label={ariaLabel} tabIndex={0}
           onScroll={() => { if (!raf.current) raf.current = requestAnimationFrame(() => paint()); clearTimeout(settle.current); settle.current = setTimeout(commit, 130); }}
           onKeyDown={e => { const s = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0; if (s) { e.preventDefault(); goTo(cur.current + s, true); } }}
           className="no-scrollbar overflow-y-auto overscroll-contain"
-          style={{ height: ITEM_H * 3 + 0, paddingBlock: 40 - 0, perspective: 460, scrollSnapType: 'y mandatory', touchAction: 'pan-y',
-            WebkitMaskImage: 'linear-gradient(transparent,#000 28%,#000 72%,transparent)', maskImage: 'linear-gradient(transparent,#000 28%,#000 72%,transparent)' }}>
+          style={{ height: ITEM_H + PAD * 2, paddingBlock: PAD, perspective: 400, scrollSnapType: 'y mandatory', touchAction: 'pan-y',
+            WebkitMaskImage: 'linear-gradient(transparent,#000 20%,#000 80%,transparent)', maskImage: 'linear-gradient(transparent,#000 20%,#000 80%,transparent)' }}>
           {options.map((o, i) => (
             <div key={o.key} role="option" aria-selected={o.key === value} onClick={() => goTo(i, true)}
-              className="flex items-center justify-center px-2 text-center cursor-pointer select-none text-[14px] font-bold leading-tight text-zinc-500 data-[on='1']:text-zinc-100"
+              className="flex items-center justify-center px-2 text-center cursor-pointer select-none text-[13px] font-bold leading-none text-zinc-500 data-[on='1']:text-zinc-100"
               style={{ height: ITEM_H, scrollSnapAlign: 'center', willChange: 'transform,opacity' }}>
-              <span className="line-clamp-2">{o.label}</span>
+              <span className="truncate">{o.label}</span>
             </div>
           ))}
         </div>

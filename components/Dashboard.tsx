@@ -466,6 +466,29 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   const [hoveredEstIdx, setHoveredEstIdx] = useState<number | null>(null);
   // No celular a barra de filtros fica numa linha só (categoria + período); toca no período para abrir o resto.
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Na cotação de mercado o cabeçalho de categoria/data sai de cena e quem fica travado no topo são as roletas da própria cotação.
+  const filterBarRef = useRef<HTMLDivElement | null>(null);
+  const [hideBar, setHideBar] = useState(false);
+  const barEdge = useRef(0);   // onde termina a barra quando ela está visível (escondida ela sobe, e a medida mudaria)
+  useEffect(() => {
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const sec = document.querySelector('[data-testid="home-hortifruti"]') as HTMLElement | null;
+      const bar = filterBarRef.current;
+      if (!sec || !bar) return;
+      if (bar.dataset.hidden !== 'true') barEdge.current = bar.getBoundingClientRect().bottom;
+      const edge = barEdge.current;
+      const r = sec.getBoundingClientRect();
+      const inside = r.top <= edge - 8 && r.bottom > edge + 160;
+      setHideBar(prev => (prev === inside ? prev : inside));
+    };
+    const on = () => { if (!raf) raf = requestAnimationFrame(check); };
+    window.addEventListener('scroll', on, { passive: true, capture: true });
+    window.addEventListener('resize', on);
+    on();
+    return () => { window.removeEventListener('scroll', on, true); window.removeEventListener('resize', on); cancelAnimationFrame(raf); };
+  }, []);
   // Filtro de categorias: fica gravado no aparelho (não some ao limpar os outros filtros)
   const [deptFilter, setDeptFilter] = useDeptFilter();
   const layers = useLayers();   // grupos e itens (camadas 3 e 4) da estrutura de categorias
@@ -665,7 +688,7 @@ const Dashboard: React.FC<DashboardProps> = ({ receipts, taxonomy, config, onCon
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
       {deptSheetOpen && <DeptFilterSheet options={deptOptions} filter={deptFilter} onChange={setDeptFilter} onClose={() => setDeptSheetOpen(false)} z="z-[250]" />}
-      <div className="flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6">
+      <div ref={filterBarRef} className={`flex flex-col gap-2 md:gap-3 mb-3 md:mb-10 sticky top-0 z-[40] bg-black/60 backdrop-blur-xl py-2 ls:py-2 md:py-4 -mx-4 px-4 md:-mx-6 md:px-6 transition-[opacity,transform] duration-200 ${hideBar ? 'opacity-0 -translate-y-full pointer-events-none' : ''}`} data-hidden={hideBar ? 'true' : 'false'}>
         <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-1 md:p-1.5 flex flex-wrap md:flex-nowrap ls:flex-nowrap items-center gap-y-1 md:gap-4 ls:gap-2 overflow-hidden" data-testid="filter-bar" data-open={filtersOpen ? 'true' : 'false'}>
             <div className="order-1 flex-1 md:flex-none ls:flex-none min-w-0 flex items-center gap-1 pl-1 pr-1 py-0.5 md:py-0 ls:py-0 md:pl-3 md:pr-3 md:border-r ls:border-r border-white/10 md:shrink-0 ls:shrink-0">
                 <button type="button" onClick={() => setDeptSheetOpen(true)} data-testid="dept-filter-btn" data-active={deptActive ? 'true' : 'false'}
