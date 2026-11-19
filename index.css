@@ -138,14 +138,12 @@ html.light-theme .ek-skel::after { background: linear-gradient(90deg, transparen
 html.ek-lite .ek-skel::after { display: none; }
 @media (prefers-reduced-motion: reduce) { .ek-skel::after { display: none; } }
 
-/* Brilho dourado na borda do card que acabou de entrar na tela */
-@keyframes ek-card-glow {
-  0%   { box-shadow: 0 0 0 1.5px rgba(221,185,75,.9), 0 0 22px 2px rgba(221,185,75,.45); }
-  100% { box-shadow: 0 0 0 1.5px rgba(221,185,75,0), 0 0 22px 2px rgba(221,185,75,0); }
+/* Brilho dourado na borda do card: um anel por dentro que só muda de opacidade (leve para a rolagem; animar sombra grande causava trepidação) */
+.ek-card-glow { position: relative; }
+.ek-card-glow::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 5;
+  box-shadow: inset 0 0 0 1.5px rgba(221,185,75,.95), inset 0 0 26px 2px rgba(221,185,75,.28);
+  opacity: 0; animation: ek-card-glow .9s ease-out;
 }
-.ek-card-glow { animation: ek-card-glow .9s ease-out; }
-html.light-theme .ek-card-glow { animation-name: ek-card-glow-l; }
-@keyframes ek-card-glow-l {
-  0%   { box-shadow: 0 0 0 1.5px rgba(166,124,10,.85), 0 0 20px 2px rgba(166,124,10,.35); }
-  100% { box-shadow: 0 0 0 1.5px rgba(166,124,10,0), 0 0 20px 2px rgba(166,124,10,0); }
-}
+html.light-theme .ek-card-glow::after { box-shadow: inset 0 0 0 1.5px rgba(166,124,10,.9), inset 0 0 26px 2px rgba(166,124,10,.22); }
+@keyframes ek-card-glow { 0% { opacity: 1; } 100% { opacity: 0; } }

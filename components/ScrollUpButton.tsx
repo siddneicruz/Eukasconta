@@ -91,8 +91,7 @@ function useFlingSnap(resetKey?: string) {
     if (reduce) return;
     let samples: { x: number; y: number; t: number }[] = [];
     let ok = false;
-    let anim = 0;
-    const stop = () => { if (anim) { cancelAnimationFrame(anim); anim = 0; } };
+    const stop = () => { /* a rolagem suave do navegador já para sozinha quando o dedo encosta */ };
     const blocked = (el: Element | null) => {
       if (!el) return true;
       if (el.closest('[role="listbox"], input, textarea, select, [data-rail], [data-no-fling], .recharts-wrapper, [role="dialog"], .fixed')) return true;
@@ -101,18 +100,11 @@ function useFlingSnap(resetKey?: string) {
       }
       return false;
     };
-    const glide = (to: number, ms: number) => {
-      stop();
-      const from = main.scrollTop;
+    // rolagem suave do próprio navegador: ele cancela o impulso que já estava correndo e não briga com ele (antes, escrever o scrollTop
+    // a cada quadro competia com o impulso e dava trepidação)
+    const glide = (to: number) => {
       const max = main.scrollHeight - main.clientHeight;
-      to = Math.max(0, Math.min(max, to));
-      const t0 = performance.now();
-      const step = (now: number) => {
-        const k = Math.min(1, (now - t0) / ms);
-        main.scrollTop = from + (to - from) * (1 - Math.pow(1 - k, 3));
-        anim = k < 1 ? requestAnimationFrame(step) : 0;
-      };
-      anim = requestAnimationFrame(step);
+      main.scrollTo({ top: Math.max(0, Math.min(max, to)), behavior: 'smooth' });
     };
     const onStart = (e: TouchEvent) => {
       stop();
@@ -133,12 +125,12 @@ function useFlingSnap(resetKey?: string) {
       const vy = (a.y - b.y) / (b.t - a.t);                                  // px/ms; positivo = conteúdo sobe (rolando para baixo)
       const vx = Math.abs(a.x - b.x) / (b.t - a.t);
       const mag = Math.abs(vy);
-      if (mag < 0.5 || vx > mag * 0.6) return;                               // devagar ou na diagonal: rolagem normal
+      if (mag < 0.9 || vx > mag * 0.6) return;                               // devagar ou na diagonal: rolagem normal
       const dir = vy > 0 ? 1 : -1;
       const max = main.scrollHeight - main.clientHeight;
-      if (mag >= 2.6) {                                                      // muito rápido: topo ou rodapé
+      if (mag >= 3.4) {                                                      // muito rápido: topo ou rodapé
         const to = dir === 1 ? max : 0;
-        glide(to, Math.max(450, Math.min(1100, Math.abs(to - main.scrollTop) / (mag * 2.5))));
+        glide(to);
         return;
       }
       const edge = topEdge(main) + 8;
@@ -147,10 +139,7 @@ function useFlingSnap(resetKey?: string) {
       const to = hit ? main.scrollTop + hit.top - edge : (dir === 1 ? max : 0);
       const dist = Math.abs(to - main.scrollTop);
       if (dist < 4) return;
-      const inBig = cards.some(x => x.top <= edge && x.top + x.h > edge && x.h > main.clientHeight * 1.4);
-      // card grande: acelera (mais velocidade para o mesmo empurrão); card normal: parada curta e macia
-      const ms = inBig ? Math.max(350, Math.min(1000, dist / (mag * 1.8))) : Math.max(300, Math.min(520, dist / (mag * 0.9)));
-      glide(to, ms);
+      glide(to);
       if (hit) flashCard(hit.c);
     };
     main.addEventListener('touchstart', onStart, { passive: true });
