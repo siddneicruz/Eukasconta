@@ -186,6 +186,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
   const jump = (l: string) => {
     if (!l || l === lastLetter.current) return;
     lastLetter.current = l;
+    try { navigator.vibrate?.(9); } catch { /* sem vibração neste aparelho */ }   // toque leve a cada letra nova
     const az = [...ranked].sort((a, b) => a.r.label.localeCompare(b.r.label, 'pt-BR', { sensitivity: 'base' }));
     const idx = az.findIndex(x => letterOf(x.r.label) === l);
     if (idx < 0) return;
