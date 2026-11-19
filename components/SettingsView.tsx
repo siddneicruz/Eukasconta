@@ -258,19 +258,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                           <p className="text-zinc-400 text-xs mt-1.5">Dê um apelido às lojas e corrija nome, CNPJ, endereço e posição no mapa.</p>
                       </div>
                       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4 w-full md:w-auto">
-                          {onMergeStores && onSaveStore && (master.master?.stores?.length ?? 0) > 0 && (
+                          {master.isAdmin && onMergeStores && onSaveStore && (master.master?.stores?.length ?? 0) > 0 && (
                               <button onClick={() => setReconOpen(true)} data-testid="recon-open"
                                   className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 text-zinc-300 text-xs font-bold hover:border-luxury-gold/40 hover:text-luxury-gold transition-all">
                                   <Link2 className="w-4 h-4" /> Conferir com a tabela mãe
                               </button>
                           )}
-                          {onApplyMeals && (
+                          {master.isAdmin && onApplyMeals && (
                               <button onClick={() => setMealsOpen(true)} data-testid="meals-open"
                                   className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 text-zinc-300 text-xs font-bold hover:border-luxury-gold/40 hover:text-luxury-gold transition-all">
                                   Refeições fora de casa
                               </button>
                           )}
-                          {onMergeStores && (
+                          {master.isAdmin && onMergeStores && (
                               <button onClick={() => setDupOpen(true)} data-testid="dup-open" data-count={dupCount}
                                   className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-semibold text-sm transition-all border whitespace-nowrap justify-center ${dupCount > 0 ? 'bg-luxury-gold text-black border-luxury-gold hover:brightness-110' : 'bg-white/5 text-zinc-400 border-white/5 hover:bg-luxury-gold hover:text-black'}`}>
                                   <Copy className="w-4 h-4" /> {dupCount > 0 ? `Revisar ${dupCount} ${dupCount === 1 ? 'loja repetida' : 'lojas repetidas'}` : 'Lojas repetidas'}
@@ -281,7 +281,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                   <Sparkles className="w-4 h-4" /> Sugerir apelidos com IA
                               </button>
                           )}
-                          {onUnifyEstablishments && (
+                          {master.isAdmin && onUnifyEstablishments && (
                               <button onClick={onUnifyEstablishments} className="flex items-center gap-3 bg-white/5 text-zinc-400 px-6 py-3 rounded-2xl font-semibold text-sm hover:bg-luxury-gold hover:text-black transition-all border border-white/5 whitespace-nowrap justify-center">
                                   <RefreshCw className="w-4 h-4" /> Unificar lojas
                               </button>
@@ -299,7 +299,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                   {/* Celular: lista compacta em ordem alfabética, com barra de letras e lápis para editar */}
                   <div className="md:hidden">
-                      <StoreIndexList stores={filteredEstablishments} onUpdate={onUpdateEstablishment} onEditAll={onEditEstablishment} />
+                      <StoreIndexList stores={filteredEstablishments} onUpdate={onUpdateEstablishment} onEditAll={master.isAdmin ? onEditEstablishment : undefined} />
                   </div>
 
                   {/* Tela grande: tabela */}
@@ -310,7 +310,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                   <th className="px-6 py-4 text-xs font-semibold text-zinc-400">CNPJ e cidade</th>
                                   <th className="px-6 py-4 text-xs font-semibold text-zinc-400">Nome no cupom</th>
                                   <th className="px-6 py-4 text-xs font-semibold text-zinc-400">Apelido</th>
-                                  {onEditEstablishment && <th className="px-6 py-4 text-xs font-semibold text-zinc-400 w-px"><span className="sr-only">Editar</span></th>}
+                                  {master.isAdmin && onEditEstablishment && <th className="px-6 py-4 text-xs font-semibold text-zinc-400 w-px"><span className="sr-only">Editar</span></th>}
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
@@ -340,7 +340,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                               <Edit2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-700 opacity-0 group-hover/edit:opacity-50 transition-opacity" />
                                           </div>
                                       </td>
-                                      {onEditEstablishment && (
+                                      {master.isAdmin && onEditEstablishment && (
                                           <td className="px-6 py-4">
                                               <button type="button" onClick={() => onEditEstablishment(est)} data-testid="store-edit-open"
                                                   className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-zinc-300 text-xs font-bold hover:border-luxury-gold/40 hover:text-luxury-gold transition-colors whitespace-nowrap">
@@ -357,11 +357,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
       )}
 
-      {mealsOpen && onApplyMeals && <ReadyMealsSheet receipts={receipts} onApply={onApplyMeals} onClose={() => setMealsOpen(false)} />}
-      {reconOpen && onMergeStores && onSaveStore && (
+      {mealsOpen && master.isAdmin && onApplyMeals && <ReadyMealsSheet receipts={receipts} onApply={onApplyMeals} onClose={() => setMealsOpen(false)} />}
+      {reconOpen && master.isAdmin && onMergeStores && onSaveStore && (
           <MasterReconcileSheet establishments={establishments} receipts={receipts} masterStores={master.master?.stores || []} onMerge={onMergeStores} onSave={onSaveStore} onClose={() => setReconOpen(false)} />
       )}
-      {dupOpen && onMergeStores && (
+      {dupOpen && master.isAdmin && onMergeStores && (
           <StoreDuplicatesSheet establishments={establishments} receipts={receipts} onMerge={onMergeStores} onClose={() => setDupOpen(false)} />
       )}
 
