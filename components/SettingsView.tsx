@@ -20,6 +20,7 @@ const AILearningManager = lazy(() => import('./AILearningManager'));
 import AISettingsPanel from './AISettingsPanel';
 import CloudAccountPanel from './CloudAccountPanel';
 import RestorePointsPanel from './RestorePointsPanel';
+import PrefsPanel from './PrefsPanel';
 import type { RestorePointsApi } from '../services/useRestorePoints';
 import { isNativeApp } from '../services/platform';
 import type { CloudApi } from '../services/useCloud';
@@ -393,6 +394,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
       {settingsTab === 'system' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-12">
+            <PrefsPanel />
+
             <RestorePointsPanel restore={restore} cloudBackupOn={Boolean(backup?.signedIn)} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

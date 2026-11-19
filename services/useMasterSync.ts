@@ -1,4 +1,5 @@
 // Mantém o app igual à tabela mãe: baixa quando a versão muda, troca a estrutura local e reclassifica os itens.
+import { useViewAsUser } from './uiPrefs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MasterProduct, Receipt, TaxonomyNode } from '../types';
 import { supabase } from './supabaseClient';
@@ -30,6 +31,7 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
   const busy = useRef(false);
   const masterRef = useRef(master);
   masterRef.current = master;
+  const asUser = useViewAsUser();
   const roleRef = useRef(role);
   roleRef.current = role;
 
@@ -127,7 +129,7 @@ export const useMasterSync = ({ userId, taxonomy, setTaxonomy, receipts, setRece
   }, [userId, syncNow]);
 
   return {
-    active: !!master, isAdmin: role === 'admin', version: master?.version ?? 0, publishedAt: master?.publishedAt ?? null,
+    active: !!master, isAdmin: role === 'admin' && !asUser, isRealAdmin: role === 'admin', version: master?.version ?? 0, publishedAt: master?.publishedAt ?? null,
     master, pending, syncing, syncNow, refreshPending, createLabel,
   };
 };

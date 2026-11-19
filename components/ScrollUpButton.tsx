@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useMotionPref } from '../services/uiPrefs';
 
 /* Comportamento da rolagem da tela (sem botões): brilho e vibração por card, e o empurrão com o dedo que para no próximo card. */
 const CARD_SELECTOR = '[data-scroll-anchor], section, [class*="rounded-[2"], [class*="rounded-3xl"], [class*="rounded-2xl"]';
@@ -41,8 +42,9 @@ function topEdge(main: HTMLElement): number {
     Vale para card grande ou pequeno, rolando para cima ou para baixo, e não depende da velocidade: compara de que lado do meio da tela
     o meio do card estava no quadro anterior e agora, então um card que passou "voando" também pisca.
     Só dispara com o dedo rolando, nunca na abertura da tela. Fica desligado em aparelho fraco e com "reduzir movimento". */
-function useCardGlow(resetKey?: string) {
+function useCardGlow(resetKey?: string, on = true) {
   useEffect(() => {
+    if (!on) return;
     const main = document.querySelector('.app-main') as HTMLElement | null;
     if (!main || document.documentElement.classList.contains('ek-lite')) return;
     let reduce = false;
@@ -74,7 +76,7 @@ function useCardGlow(resetKey?: string) {
     };
     main.addEventListener('scroll', onScroll, { passive: true });
     return () => { main.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); glowTimers.forEach(t => clearTimeout(t)); cards.forEach(c => c.classList.remove('ek-card-glow')); };
-  }, [resetKey]);
+  }, [resetKey, on]);
 }
 
 /** Empurrão (fling) com o dedo na tela inteira:
@@ -82,8 +84,9 @@ function useCardGlow(resetKey?: string) {
     - médio: para no topo do próximo card (para cima ou para baixo); se o card for grande, a rolagem acelera para chegar lá;
     - muito rápido: vai até o topo ou até o rodapé da tela.
     Não mexe em toques que começam em roleta, barra de letras, campo de texto ou faixa que rola de lado. */
-function useFlingSnap(resetKey?: string) {
+function useFlingSnap(resetKey?: string, on = true) {
   useEffect(() => {
+    if (!on) return;
     const main = document.querySelector('.app-main') as HTMLElement | null;
     if (!main) return;
     let reduce = false;
@@ -147,12 +150,13 @@ function useFlingSnap(resetKey?: string) {
     main.addEventListener('touchend', onEnd, { passive: true });
     main.addEventListener('wheel', stop, { passive: true });
     return () => { stop(); main.removeEventListener('touchstart', onStart); main.removeEventListener('touchmove', onMove); main.removeEventListener('touchend', onEnd); main.removeEventListener('wheel', stop); };
-  }, [resetKey]);
+  }, [resetKey, on]);
 }
 
 /** Sem botões de seta: o empurrão com o dedo faz o papel deles. Fica só o brilho e a vibração ao passar por cada card. */
 export default function ScrollUpButton({ resetKey }: { resetKey?: string }) {
-  useCardGlow(resetKey);
-  useFlingSnap(resetKey);
+  const on = useMotionPref();
+  useCardGlow(resetKey, on);
+  useFlingSnap(resetKey, on);
   return null;
 }

@@ -4,7 +4,10 @@ import type { MasterData } from '../services/masterService';
 /* O que as telas precisam saber da tabela mãe: se está valendo, se esta conta é a do administrador e como sincronizar. */
 export interface MasterInfo {
   active: boolean;
+  /** vale como administrador agora (falso se o administrador escolheu ver como usuário comum) */
   isAdmin: boolean;
+  /** a conta é de administrador, mesmo vendo como usuário comum */
+  isRealAdmin: boolean;
   version: number;
   publishedAt: string | null;
   master: MasterData | null;
@@ -18,7 +21,7 @@ export interface MasterInfo {
 }
 
 export const INACTIVE_MASTER: MasterInfo = {
-  active: false, isAdmin: false, version: 0, publishedAt: null, master: null, pending: 0, syncing: false,
+  active: false, isAdmin: false, isRealAdmin: false, version: 0, publishedAt: null, master: null, pending: 0, syncing: false,
   syncNow: async () => {}, refreshPending: async () => {},
   createLabel: async () => { throw new Error('A tabela mãe ainda não está ligada.'); },
 };
