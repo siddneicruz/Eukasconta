@@ -225,9 +225,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 flex-wrap gap-y-1">
               <TabButton active={settingsTab === 'taxonomy'} onClick={() => setSettingsTab('taxonomy')} icon={Layers} label="Estrutura & Estilo" short="Estrutura" />
               <TabButton active={settingsTab === 'establishments'} onClick={() => setSettingsTab('establishments')} icon={Store} label="Lojas" short="Lojas" />
-              <TabButton active={settingsTab === 'intelligence'} onClick={() => setSettingsTab('intelligence')} icon={BrainCircuit} label="Inteligência" short="IA" />
+              {master.isAdmin && <TabButton active={settingsTab === 'intelligence'} onClick={() => setSettingsTab('intelligence')} icon={BrainCircuit} label="Inteligência" short="IA" />}
               <TabButton active={settingsTab === 'system'} onClick={() => setSettingsTab('system')} icon={Database} label="Backup e dados" short="Backup" />
-              <TabButton active={settingsTab === 'ai_key'} onClick={() => setSettingsTab('ai_key')} icon={KeyRound} label="Chave IA" short="Chave" />
+              {master.isAdmin && <TabButton active={settingsTab === 'ai_key'} onClick={() => setSettingsTab('ai_key')} icon={KeyRound} label="Chave IA" short="Chave" />}
               {master.isAdmin && <TabButton active={settingsTab === 'master'} onClick={() => setSettingsTab('master')} icon={KeyRound} label={`Tabela mãe${master.pending ? ` (${master.pending})` : ''}`} short={`Mãe${master.pending ? ` (${master.pending})` : ''}`} />}
               {cloud && <TabButton active={settingsTab === 'account'} onClick={() => setSettingsTab('account')} icon={UserRound} label="Conta" short="Conta" />}
           </div>
@@ -235,7 +235,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
       {settingsTab === 'taxonomy' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-              {master.active
+              {(master.active || !master.isAdmin)
                 ? <MasterStructureView taxonomy={taxonomy} onOpenAdmin={master.isAdmin ? () => setSettingsTab('master') : undefined} />
                 : <TaxonomyEditor taxonomy={taxonomy} onUpdateTaxonomy={onUpdateTaxonomy} onEditIcon={onEditIcon} receipts={receipts} onMergeCategories={onMergeCategories} />}
           </div>
@@ -276,7 +276,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                   <Copy className="w-4 h-4" /> {dupCount > 0 ? `Revisar ${dupCount} ${dupCount === 1 ? 'loja repetida' : 'lojas repetidas'}` : 'Lojas repetidas'}
                               </button>
                           )}
-                          {onApplyAliases && (
+                          {master.isAdmin && onApplyAliases && (
                               <button onClick={() => setNickOpen(true)} data-testid="nick-open" className="flex items-center gap-3 bg-luxury-gold/10 text-luxury-gold px-6 py-3 rounded-2xl font-semibold text-sm hover:bg-luxury-gold hover:text-black transition-all border border-luxury-gold/30 whitespace-nowrap justify-center">
                                   <Sparkles className="w-4 h-4" /> Sugerir apelidos com IA
                               </button>
@@ -365,11 +365,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           <StoreDuplicatesSheet establishments={establishments} receipts={receipts} onMerge={onMergeStores} onClose={() => setDupOpen(false)} />
       )}
 
-      {nickOpen && onApplyAliases && (
+      {nickOpen && master.isAdmin && onApplyAliases && (
           <NicknameSuggestSheet establishments={establishments} receipts={receipts} onApply={onApplyAliases} onClose={() => setNickOpen(false)} />
       )}
 
-      {settingsTab === 'intelligence' && onUpdateBatchMapping && (
+      {settingsTab === 'intelligence' && master.isAdmin && onUpdateBatchMapping && (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
               <ProductMappingEditor 
                 receipts={receipts} 
@@ -389,7 +389,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
       )}
 
-      {settingsTab === 'ai_key' && <AISettingsPanel />}
+      {settingsTab === 'ai_key' && master.isAdmin && <AISettingsPanel />}
       {settingsTab === 'account' && cloud && <CloudAccountPanel cloud={cloud} backup={backup} onOpenAlerts={() => onOpenAlerts?.()} />}
 
       {settingsTab === 'system' && (
@@ -401,7 +401,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <ActionBlock icon={Calculator} title="Auditar preços" desc="Conferir consistência da carteira" onClick={onAuditPrices} primary />
                 <ActionBlock icon={Eraser} title="Limpar duplicados" desc="Revisar cupons repetidos" onClick={onCleanupDuplicates} />
-                <ActionBlock icon={RefreshCw} title="Reprocessar categorias" desc="Reaplicar taxonomia e IA" onClick={onReprocessCategories} />
+                {master.isAdmin && <ActionBlock icon={RefreshCw} title="Reprocessar categorias" desc="Reaplicar taxonomia e IA" onClick={onReprocessCategories} />}
             </div>
 
             <div className="pt-10 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
