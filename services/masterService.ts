@@ -143,6 +143,14 @@ export const buildMasterIndex = (m: MasterData): MasterIndex => {
     const prev = descSeen.get(d);
     descSeen.set(d, prev === undefined || prev === p.nodeId ? p.nodeId : null);
   });
+  // o código de barras (EAN) do cupom também acha o produto da tabela mãe: o item vem com o EAN, e o código MAE só existe na tabela
+  (m.codes || []).forEach(c => {
+    if (c.kind !== 'ean') return;
+    const k = String(c.code || '').trim();
+    if (!k || byCode.has(k)) return;
+    const nodeId = byCode.get(String(c.master || '').trim());
+    if (nodeId) byCode.set(k, nodeId);
+  });
   const byDesc = new Map<string, string>();
   descSeen.forEach((id, d) => { if (id) byDesc.set(d, id); });
   return { byCode, byDesc, path, hasKids };
