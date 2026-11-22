@@ -349,7 +349,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
               </div>
           ) : (
             viewMode === 'thermal' ? (<ThermalReceiptView receipt={receipt} highlight={highlight} />) : (
-                <ReceiptStructuredView highlight={highlight ? makeItemMatcher(highlight) : undefined} items={receipt.items} totalAmount={receipt.totalAmount} categories={categories} onEditItem={handleEditItemCategory}
+                <ReceiptStructuredView receiptId={receipt.id} highlight={highlight ? makeItemMatcher(highlight) : undefined} items={receipt.items} totalAmount={receipt.totalAmount} categories={categories} onEditItem={handleEditItemCategory}
                   onEggCount={handleEggCount}
                   eggSame={eggSameCount ? (i) => eggSameCount(receipt, i) : undefined}
                   onEggApplySame={onApplyEggSame ? (i) => { onApplyEggSame(receipt, i); } : undefined} />

@@ -11,6 +11,8 @@ import { loadShared } from '../services/sharedLoader';
 import { fetchEanSizes, sizeFromText } from '../services/eanSizes';
 import { deptObservations, sharedObservations } from '../services/quotes';
 import { GROCERY_STORE_TYPES } from '../services/storeTypes';
+import { myLatestRating, useMyRatingsVersion } from '../services/myRatings';
+import { faceOf } from './ProduceRatingSheet';
 import WheelPicker, { WheelOption } from './WheelPicker';
 
 /* Hortifruti em Análises › Panorama: compara os mercados onde a pessoa compra (preço, nota de qualidade, dia da semana).
@@ -80,6 +82,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
     return mergeObs(sharedObservations(shared, dept, t => !t || GROCERY_STORE_TYPES.has(t)), deptObservations(receipts, dept));
   }, [src, shared, receipts, dept]);
   const data = useMemo(() => buildProduceCompare(receipts, nameOf, dept, minItems, obs), [receipts, nameOf, dept, minItems, obs]);
+  useMyRatingsVersion();
   const [tab, setTab] = useState<Tab>('items');
   const [storeBy, setStoreBy] = useState<'price' | 'score'>('price');
   const [itemBy, setItemBy] = useState<'n' | 'spread' | 'recent' | 'az'>('n');
@@ -384,7 +387,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                 const cut = cmp && fresh.length > lines.length;
                 const qMap = qOn && r.mids.length > 0 ? itemQ[r.item] : undefined;
                 const loadingQ = qOn && r.mids.length > 0 && !itemQ[r.item];
-                const hasQ = !!qMap && lines.some(m => { const q = qMap[cnpjOf.get(m.id) || '']; return q && q.score !== null; });
+                const hasQ = !!qMap && lines.some(m => { const q = qMap[cnpjOf.get(m.id) || '']; return q && (q.score !== null || q.n > 0); });
                 const showQ = hasQ || loadingQ;   // sem nenhuma nota no item, a coluna nem aparece
                 const cols = showQ ? 'minmax(0,1fr) auto 92px' : 'minmax(0,1fr) auto';
                 const sizeTxt = (r.ean && eanSize[r.ean]) || sizeFromText(r.label);
@@ -416,7 +419,7 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                             <div key={m.id} className="grid items-center gap-x-3 py-1.5" style={{ gridTemplateColumns: cols }}>
                               <div className="min-w-0">
                                 <p className="text-[12px] font-semibold text-zinc-200 leading-snug line-clamp-2">{cmp ? `${i + 1}º ` : ''}{m.name}</p>
-                                <p className="text-[10px] text-zinc-500">{ageTxt(m.age)}</p>
+                                <p className="text-[10px] text-zinc-500">{ageTxt(m.age)}{(() => { const mr = myLatestRating(cnpjOf.get(m.id) || '', r.label); return mr ? <span className="text-luxury-gold font-semibold" data-testid="pc-my-rating"> · sua nota {faceOf(mr.score)} {mr.score}</span> : null; })()}</p>
                               </div>
                               <div className="text-right leading-tight">
                                 <p className="text-[13px] font-bold tabular-nums whitespace-nowrap" style={{ color: priceColor }}>R$ {money(m.last)}</p>
@@ -425,7 +428,9 @@ const ProduceCompareCard: React.FC<{ receipts: Receipt[]; nameOf: (name: string,
                               {showQ && (
                                 <div className="text-right leading-tight" data-testid="pc-item-quality">
                                   {loadingQ ? <span className="text-[11px] text-zinc-600">…</span>
-                                    : qd && qd.score !== null ? (
+                                    : qd && qd.score === null && qd.n > 0 ? (
+                                      <p className="text-[10px] text-zinc-500 whitespace-nowrap">{qd.n} {qd.n === 1 ? 'voto' : 'votos'} · poucos{qd.last ? ` · ${short(qd.last.slice(0, 10))}` : ''}</p>
+                                    ) : qd && qd.score !== null ? (
                                       <>
                                         <p className="whitespace-nowrap"><QualityFace score={qd.score} size={18} /> <span className="text-[12px] font-bold tabular-nums align-middle" style={{ color: scoreColor(qd.score) }}>{qd.score.toFixed(1).replace('.', ',')}</span></p>
                                         <p className="text-[10px] text-zinc-500 whitespace-nowrap">{qd.n} {qd.n === 1 ? 'voto' : 'votos'}{qd.n < 5 ? ' · poucos' : ''}{qd.last ? ` · ${short(qd.last.slice(0, 10))}` : ''}</p>

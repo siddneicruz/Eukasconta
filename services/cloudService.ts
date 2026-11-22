@@ -227,6 +227,13 @@ export const bestPricesNearby = async (masterId: string, at: Coords, radiusKm = 
 export const rateProduce = (cnpj: string, receiptRef: string, items: ProduceRatingInput[]): Promise<number> =>
   rpc<number>('rate_produce', { p_cnpj: cleanCNPJ(cnpj), p_receipt_ref: receiptRef, p_items: items });
 
+export interface MyProduceRating { receipt_ref: string; cnpj: string; description: string; score: number; created_at: string }
+/** as notas que a própria pessoa deu (só as dela) */
+export const myProduceRatings = async (): Promise<MyProduceRating[]> => {
+  const rows = await rpc<any[]>('my_produce_ratings', {});
+  return (rows || []).map(r => ({ receipt_ref: String(r.receipt_ref), cnpj: String(r.cnpj || ''), description: String(r.description || ''), score: num(r.score), created_at: String(r.created_at) }));
+};
+
 export const produceQuality = async (masterId: string, establishmentIds: string[], days = 14): Promise<ProduceQuality[]> => {
   if (!establishmentIds.length) return [];
   const rows = await rpc<any[]>('produce_quality', { p_master_product_id: masterId, p_establishment_ids: establishmentIds, p_days: days });

@@ -1,4 +1,5 @@
 
+import { addMyRatings, refreshMyRatings } from './services/myRatings';
 import { switchThemeWave } from './services/themeWave';
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { UserRound, LayoutDashboard, History, ScanLine, Settings, BarChart3, Loader2, CheckCircle2, Map as MapIcon, ShoppingCart, X, Search, Palette, Sun, Moon, Smartphone, Menu, Bell } from 'lucide-react';
@@ -877,6 +878,7 @@ const App: React.FC = () => {
       try {
           let saved = 0;
           for (let i = 0; i < rated.length; i += 10) saved += await cloud.rateProduce(rateQueue.cnpj, rateQueue.ref, rated.slice(i, i + 10));
+          try { addMyRatings(rateQueue.ref, rateQueue.cnpj, rated); void refreshMyRatings(); } catch { /* só não aparece na tela */ }
           try {
               const done: string[] = JSON.parse(localStorage.getItem('ek_rated_receipts') || '[]');
               localStorage.setItem('ek_rated_receipts', JSON.stringify([...done, rateQueue.ref].slice(-500)));

@@ -8,6 +8,8 @@ import { useLayers } from './LayersContext';
 import { isEggItem } from '../services/eggs';
 import { leafFor } from '../services/categoryLayers';
 import { titleCase } from '../services/textFormat';
+import { myRatingForItem, useMyRatingsVersion } from '../services/myRatings';
+import { faceOf } from './ProduceRatingSheet';
 
 /* O cupom "Estruturado", no mesmo jeito compacto da edição: uma linha por categoria (com a fatia do total), e dentro dela
    linhas pequenas por item que abrem para ver o código e trocar a categoria. */
@@ -20,6 +22,8 @@ interface Row { item: ReceiptItem; idx: number }
 interface Group { category: string; rows: Row[]; total: number }
 
 interface Props {
+  /** código do cupom: acha as notas de hortifruti que a pessoa deu nele */
+  receiptId?: string;
   items: ReceiptItem[];
   totalAmount: number;
   categories: string[];
@@ -36,7 +40,8 @@ const splitCategory = (cat: string): { dept: string; name: string } => {
   return i > 0 ? { dept: cat.slice(0, i), name: cat.slice(i + 3) } : { dept: '', name: cat };
 };
 
-const ReceiptStructuredView: React.FC<Props> = ({ items, totalAmount, categories, onEditItem, onEggCount, eggSame, onEggApplySame, highlight }) => {
+const ReceiptStructuredView: React.FC<Props> = ({ receiptId, items, totalAmount, categories, onEditItem, onEggCount, eggSame, onEggApplySame, highlight }) => {
+  useMyRatingsVersion();
   const layers = useLayers();
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
@@ -133,6 +138,7 @@ const ReceiptStructuredView: React.FC<Props> = ({ items, totalAmount, categories
                             <span className="block text-[11px] text-zinc-500 leading-snug break-words">
                               {qtyFmt.format(Number(item.quantity) || 0)} {(item.unitType || 'UN').toLowerCase()} × {brl.format(Number(item.unitPrice) || 0)}
                               {' · '}<span className={lay.none ? 'text-amber-500/80' : ''} data-testid="struct-layer">{lay.text}</span>
+                              {(() => { const mr = receiptId ? myRatingForItem(receiptId, item.description) : null; return mr ? <>{' · '}<span className="text-luxury-gold font-semibold" data-testid="struct-my-rating">sua nota {faceOf(mr.score)} {mr.score}</span></> : null; })()}
                             </span>
                           </span>
                           <span className="shrink-0 text-[13px] font-semibold text-zinc-200 tabular-nums">{brl.format(Number(item.totalPrice) || 0)}</span>
