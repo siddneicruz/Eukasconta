@@ -8,7 +8,7 @@ import { diagnostics } from "./diagnosticService";
 import { logAiUsage } from "./cloudService";
 import { getUserApiKey, getActiveProvider } from "./keyStorageService";
 import { parseReceiptWithClaude, askClaudeForJson } from "./anthropicService";
-import { parseReceiptWithOpenRouter, askOpenRouterForJson } from "./openrouterService";
+import { parseReceiptWithOpenRouter, askOpenRouterForJson, SERVER_KEY, setServerReadKind } from "./openrouterService";
 
 // Se o usuário escolheu Claude e tem chave da Anthropic salva, usa o Claude.
 const resolveClaudeKey = (): string | null => {
@@ -17,7 +17,13 @@ const resolveClaudeKey = (): string | null => {
 
 // Se o usuário escolheu OpenRouter (modelos grátis, entre outros) e tem chave salva, usa o OpenRouter.
 const resolveOpenRouterKey = (): string | null => {
-  return getActiveProvider() === 'openrouter' ? getUserApiKey('openrouter') : null;
+  if (getActiveProvider() === 'openrouter') {
+    const own = getUserApiKey('openrouter');
+    if (own) return own;
+  }
+  // Sem chave própria de nenhum provedor: a leitura vai pelo servidor (tokens e custo registrados lá).
+  if (!resolveClaudeKey() && !getUserApiKey('gemini')) return SERVER_KEY;
+  return null;
 };
 
 // Prioriza a chave que o próprio usuário colou nas Configurações (BYOK).
@@ -143,6 +149,7 @@ export const parseReceiptImage = async (
   const openRouterKey = resolveOpenRouterKey();
   if (openRouterKey) {
     try {
+      setServerReadKind('cupom');
       return await parseReceiptWithOpenRouter(openRouterKey, base64Image, mimeType, getSystemInstruction(availableCategories, knownEstablishments));
     } catch (error: any) {
       diagnostics.log('SYSTEM_ERROR', `Falha na API OpenRouter: ${error.message}`, 0, error);
@@ -227,6 +234,7 @@ Retorne apenas o JSON, sem markdown.
   if (openRouterKey) {
     // Aqui o erro sobe de propósito: com limite diário dos modelos grátis, devolver lista vazia
     // faria o app dizer "nenhuma inconsistência" quando na verdade a chamada falhou.
+    setServerReadKind('texto');
     const parsed = JSON.parse(await askOpenRouterForJson(openRouterKey, `${prompt}\n\nObservação: devolva a lista dentro de um objeto, no formato {"correcoes": [ ... ]}.`));
     const list = Array.isArray(parsed) ? parsed : (Object.values(parsed || {}).find(v => Array.isArray(v)) as any[] | undefined) || [];
     return list.filter((c: any) => c && typeof c.description === 'string' && typeof c.newCategory === 'string');
@@ -272,7 +280,7 @@ export const askAiForJson = async (prompt: string, opts: { budgetMs?: number } =
   }
 
   const openRouterKey = resolveOpenRouterKey();
-  if (openRouterKey) return JSON.parse(await askOpenRouterForJson(openRouterKey, prompt, opts.budgetMs));
+  if (openRouterKey) { setServerReadKind('texto'); return JSON.parse(await askOpenRouterForJson(openRouterKey, prompt, opts.budgetMs)); }
 
   const apiKey = resolveGeminiApiKey();
   if (!apiKey) throw new GeminiError('Chave de IA não configurada. Adicione a sua em Config > Chave IA.', 'AUTH', false);
@@ -295,7 +303,7 @@ export const askVisionJson = async (images: { b64: string; mime: string }[], pro
   const claudeKey = resolveClaudeKey();
   if (claudeKey) return (await import('./anthropicService')).askClaudeVisionJson(claudeKey, images, prompt);
   const orKey = resolveOpenRouterKey();
-  if (orKey) return (await import('./openrouterService')).askOpenRouterVisionJson(orKey, images, prompt);
+  if (orKey) { setServerReadKind('foto'); return (await import('./openrouterService')).askOpenRouterVisionJson(orKey, images, prompt); }
   const apiKey = resolveGeminiApiKey();
   if (!apiKey) throw new GeminiError("API Key não configurada. Adicione a sua em Config > Chave IA.", 'AUTH', false);
   const ai = await newAi(apiKey);

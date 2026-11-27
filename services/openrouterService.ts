@@ -10,8 +10,16 @@ import { Receipt } from '../types';
 import { diagnostics } from './diagnosticService';
 import { GeminiError } from './geminiService';
 import { getOpenRouterModel } from './keyStorageService';
+import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
 
 const BASE_URL = 'https://openrouter.ai/api/v1';
+
+// Sem chave própria, a leitura vai pelo servidor (função read-receipt): a chave do OpenRouter fica lá,
+// e cada leitura grava tokens e custo. `SERVER_KEY` no lugar da chave liga esse caminho.
+export const SERVER_KEY = '@servidor';
+const SERVER_URL = `${supabaseUrl}/functions/v1/read-receipt`;
+let serverKind = 'cupom';
+export const setServerReadKind = (k: 'cupom' | 'texto' | 'foto'): void => { serverKind = k; };
 
 // Roteador oficial que escolhe sozinho um modelo grátis compatível com o pedido (imagem, JSON...).
 export const FREE_ROUTER = 'openrouter/free';
@@ -210,7 +218,48 @@ const embeddedFail = (embedded: any, model: string): Fail => {
 
 // A resposta chega em pedaços (streaming). Assim dá para distinguir "modelo lento, mas escrevendo" de
 // "modelo travado": só se desiste quando não vem texto novo por TIMING.idleMs.
+const callServer = async (o: CallOptions): Promise<{ text: string; model: string } | Fail> => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.max(o.timeoutMs, 60_000));
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const jwt = sess?.session?.access_token;
+    if (!jwt) return { fatal: true, status: 401, error: new GeminiError('Entre na sua conta para ler cupons.', 'AUTH', false) };
+    let res: Response;
+    try {
+      res = await fetch(SERVER_URL, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${jwt}`, apikey: supabaseAnonKey },
+        body: JSON.stringify({
+          kind: serverKind,
+          messages: o.messages,
+          max_tokens: o.maxTokens,
+          ...(o.lean ? {} : { response_format: { type: 'json_object' } }),
+        }),
+      });
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return { fatal: false, error: new GeminiError('A leitura demorou demais. Tente de novo.', 'NETWORK', true) };
+      return { fatal: false, error: new GeminiError('Sem conexão. Verifique a internet.', 'NETWORK', true, err) };
+    }
+    const data: any = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = data?.error || `Erro do servidor (${res.status}).`;
+      const cat = res.status === 401 ? 'AUTH' : (res.status === 402 || res.status === 429) ? 'QUOTA' : 'UNKNOWN';
+      const fatal = res.status === 401 || res.status === 402 || res.status === 429 || res.status === 503 || res.status === 413;
+      return { fatal, status: res.status, error: new GeminiError(msg, cat as any, !fatal) };
+    }
+    const text = readContent(data?.choices?.[0]?.message).trim();
+    if (!text) return { fatal: false, error: new GeminiError('A IA devolveu resposta vazia.', 'PARSING', true) };
+    if (data?.choices?.[0]?.finish_reason === 'length') {
+      return { fatal: false, error: new GeminiError('A IA cortou a resposta no meio (cupom muito longo).', 'PARSING', true) };
+    }
+    return { text, model: data?.model || o.model };
+  } finally { clearTimeout(timer); }
+};
+
 const callOnce = async (apiKey: string, o: CallOptions): Promise<{ text: string; model: string } | Fail> => {
+  if (apiKey === SERVER_KEY) return callServer(o);
   const ctrl = new AbortController();
   let abortWhy: 'first' | 'idle' | 'cap' | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -347,7 +396,9 @@ const runWithFallback = async <T>(
 ): Promise<{ value: T; model: string }> => {
   const started = Date.now();
   const failures: Fail[] = [];
-  const list = Array.from(new Set(candidates.filter(Boolean))).slice(0, MAX_CANDIDATES);
+  const list = apiKey === SERVER_KEY
+    ? [DEFAULT_PAID_VISION_MODEL] // o servidor usa sempre o mesmo modelo; tentar outros só repetiria (e cobraria) a mesma chamada
+    : Array.from(new Set(candidates.filter(Boolean))).slice(0, MAX_CANDIDATES);
 
   for (const model of list) {
     const remaining = totalMs - (Date.now() - started);
