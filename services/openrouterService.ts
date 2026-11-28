@@ -104,7 +104,7 @@ const MAX_CANDIDATES = 5;
 const RECEIPT_FORMAT_HINT = `Responda SOMENTE com um objeto JSON válido (sem markdown, sem comentários, sem texto antes ou depois), neste formato:
 {
   "establishmentName": "nome do estabelecimento",
-  "receiptNumber": "número do cupom",
+  "receiptNumber": "número da nota/cupom (campo \"Numero\" ou \"NFC-e nº\"), só os dígitos, sem a série; \"\" se não aparecer",
   "cnpj": "CNPJ do estabelecimento",
   "ie": "Inscrição Estadual (IE) da loja, só números; \"\" se não aparecer",
   "address": "endereço",

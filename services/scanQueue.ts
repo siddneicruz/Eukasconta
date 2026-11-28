@@ -384,6 +384,8 @@ const runBatch = async (files: File[], ctx: ScanContext, isRetry: boolean) => {
         establishmentName: extractedData.establishmentName || 'Estabelecimento Desconhecido',
         cnpj: extractedData.cnpj || '',
         ...(cleanIE(extractedData.ie) ? { ie: cleanIE(extractedData.ie) } : {}),
+        // Número do cupom/NFC-e: só dígitos, sem zeros à esquerda (o mesmo formato do QR e do XML).
+        ...(String(extractedData.receiptNumber || '').replace(/\D/g, '').replace(/^0+/, '') ? { receiptNumber: String(extractedData.receiptNumber).replace(/\D/g, '').replace(/^0+/, '') } : {}),
         address: extractedData.address || '',
         city: extractedData.city || '',
         state: (extractedData.state || '').toUpperCase().substring(0, 2),
