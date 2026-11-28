@@ -10,21 +10,10 @@ import { getUserApiKey, getActiveProvider } from "./keyStorageService";
 import { parseReceiptWithClaude, askClaudeForJson } from "./anthropicService";
 import { parseReceiptWithOpenRouter, askOpenRouterForJson, SERVER_KEY, setServerReadKind } from "./openrouterService";
 
-// Se o usuário escolheu Claude e tem chave da Anthropic salva, usa o Claude.
-const resolveClaudeKey = (): string | null => {
-  return getActiveProvider() === 'anthropic' ? getUserApiKey('anthropic') : null;
-};
-
-// Se o usuário escolheu OpenRouter (modelos grátis, entre outros) e tem chave salva, usa o OpenRouter.
-const resolveOpenRouterKey = (): string | null => {
-  if (getActiveProvider() === 'openrouter') {
-    const own = getUserApiKey('openrouter');
-    if (own) return own;
-  }
-  // Sem chave própria de nenhum provedor: a leitura vai pelo servidor (tokens e custo registrados lá).
-  if (!resolveClaudeKey() && !getUserApiKey('gemini')) return SERVER_KEY;
-  return null;
-};
+// A partir da v226 toda leitura por IA passa pelo servidor (função read-receipt): a chave do OpenRouter fica lá
+// e cada leitura grava tokens e custo. Chaves próprias salvas no aparelho ou na conta deixam de ser usadas aqui.
+const resolveClaudeKey = (): string | null => null;
+const resolveOpenRouterKey = (): string | null => SERVER_KEY;
 
 // Prioriza a chave que o próprio usuário colou nas Configurações (BYOK).
 // Só cai para a chave de ambiente (.env.local) se o usuário não configurou a dele.
