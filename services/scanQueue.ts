@@ -4,6 +4,7 @@
 // leitura. O Scanner e o indicador de progresso só mostram o andamento deste módulo. Cada cupom lido é
 // gravado no histórico na hora (pelo `commit` que o App registra), então nada se perde se o app fechar
 // no meio de um lote grande.
+import { nfceKeyValid } from './nfceQr';
 import { useSyncExternalStore } from 'react';
 import { Receipt, ReceiptItem, Establishment, MasterProduct } from '../types';
 import { isEggItem, cleanEggCount } from './eggs';
@@ -379,13 +380,22 @@ const runBatch = async (files: File[], ctx: ScanContext, isRetry: boolean) => {
         throw new GeminiError('A leitura veio vazia: não achou nenhum item nem valor neste cupom, por isso ele não foi salvo. Tire outra foto com o cupom inteiro, reto e bem iluminado, ou tente outro modelo em Config.', 'PARSING', true);
       }
 
+      // Chave de acesso (44 dígitos): se o dígito verificador confere, ela é a identidade do cupom (a mesma do QR code, então
+      // o mesmo cupom lido por foto e por QR é reconhecido como repetido) e dela saem o número e o CNPJ, sem depender da leitura da IA.
+      const readKey = String((extractedData as any).accessKey || '').replace(/\D/g, '');
+      const keyOk = nfceKeyValid(readKey);
+      const keyCnpj = keyOk ? readKey.slice(6, 20) : '';
+      const keyNumber = keyOk ? String(Number(readKey.slice(25, 34))) : '';
+      const fmtCnpj = (d: string) => `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+      const aiCnpjDigits = String(extractedData.cnpj || '').replace(/\D/g, '');
+
       const newReceipt: Receipt = {
-        id: generateId(),
+        id: keyOk ? readKey : generateId(),
         establishmentName: extractedData.establishmentName || 'Estabelecimento Desconhecido',
-        cnpj: extractedData.cnpj || '',
+        cnpj: keyOk && aiCnpjDigits !== keyCnpj ? fmtCnpj(keyCnpj) : (extractedData.cnpj || ''),
         ...(cleanIE(extractedData.ie) ? { ie: cleanIE(extractedData.ie) } : {}),
-        // Número do cupom/NFC-e: só dígitos, sem zeros à esquerda (o mesmo formato do QR e do XML).
-        ...(String(extractedData.receiptNumber || '').replace(/\D/g, '').replace(/^0+/, '') ? { receiptNumber: String(extractedData.receiptNumber).replace(/\D/g, '').replace(/^0+/, '') } : {}),
+        // Número do cupom/NFC-e: o da chave quando ela confere; senão o lido pela IA (só dígitos, sem zeros à esquerda).
+        ...((keyNumber || String(extractedData.receiptNumber || '').replace(/\D/g, '').replace(/^0+/, '')) ? { receiptNumber: keyNumber || String(extractedData.receiptNumber).replace(/\D/g, '').replace(/^0+/, '') } : {}),
         address: extractedData.address || '',
         city: extractedData.city || '',
         state: (extractedData.state || '').toUpperCase().substring(0, 2),

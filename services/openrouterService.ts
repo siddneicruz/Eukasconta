@@ -105,6 +105,7 @@ const RECEIPT_FORMAT_HINT = `Responda SOMENTE com um objeto JSON válido (sem ma
 {
   "establishmentName": "nome do estabelecimento",
   "receiptNumber": "número da nota/cupom (campo \"Numero\" ou \"NFC-e nº\"), só os dígitos, sem a série; \"\" se não aparecer",
+  "accessKey": "chave de acesso da NFC-e: 44 dígitos impressos em grupos de 4 perto de \"Consulte pela Chave de Acesso\"; escreva só os dígitos, juntos; \"\" se não aparecer",
   "cnpj": "CNPJ do estabelecimento",
   "ie": "Inscrição Estadual (IE) da loja, só números; \"\" se não aparecer",
   "address": "endereço",
