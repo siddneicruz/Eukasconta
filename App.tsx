@@ -76,6 +76,7 @@ import { unifyGroups, splitDesc, ProductGroup } from './services/productUnify';
 import type { UnifyPlan } from './components/ProductUnifySheet';
 
 import ScrollUpButton from './components/ScrollUpButton';
+import RewardVideoSheet from './components/RewardVideoSheet';
 import { SkeletonPage } from './components/Skeleton';
 import { downloadFile } from './services/nativeFiles';
 import { markFileBackup } from './services/lastWhen';
@@ -259,6 +260,14 @@ const App: React.FC = () => {
 
   // Tela "Alinhar categorias": abre pelo botão da Estrutura e pelo aviso das listas de escolha
   const [alignOpen, setAlignOpen] = useState(false);
+  // Leituras grátis do dia acabaram: o servidor avisa e o app oferece o vídeo para liberar mais uma.
+  const [showReward, setShowReward] = useState(false);
+  useEffect(() => {
+    const on = () => setShowReward(true);
+    window.addEventListener('ek-need-credit', on);
+    return () => window.removeEventListener('ek-need-credit', on);
+  }, []);
+
   useEffect(() => {
     const open = () => setAlignOpen(true);
     window.addEventListener(OPEN_ALIGN_EVENT, open);
@@ -1624,6 +1633,7 @@ const App: React.FC = () => {
       </main>
 
       <ScrollUpButton resetKey={view} />
+      {showReward && <RewardVideoSheet onClose={() => setShowReward(false)} />}
 
       <ScanProgressChip hidden={view === 'scanner'} onOpen={() => setView('scanner')} />
 

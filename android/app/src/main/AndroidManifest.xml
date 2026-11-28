@@ -37,11 +37,14 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
         <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
+        <!-- ID de TESTE do AdMob. Trocar pelo ID real do app depois de publicado e vinculado ao AdMob. -->
+        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713" />
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     <!-- vibração curta ao entrar num card (permissão comum, concedida na instalação) -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Foto do cupom pela câmera. A galeria usa o seletor do sistema e não precisa de permissão. -->

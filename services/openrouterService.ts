@@ -245,6 +245,9 @@ const callServer = async (o: CallOptions): Promise<{ text: string; model: string
     const data: any = await res.json().catch(() => null);
     if (!res.ok) {
       const msg = data?.error || `Erro do servidor (${res.status}).`;
+      if (res.status === 402 && data?.reason === 'sem_credito') {
+        try { window.dispatchEvent(new CustomEvent('ek-need-credit')); } catch { /* sem window */ }
+      }
       const cat = res.status === 401 ? 'AUTH' : (res.status === 402 || res.status === 429) ? 'QUOTA' : 'UNKNOWN';
       const fatal = res.status === 401 || res.status === 402 || res.status === 429 || res.status === 503 || res.status === 413;
       return { fatal, status: res.status, error: new GeminiError(msg, cat as any, !fatal) };

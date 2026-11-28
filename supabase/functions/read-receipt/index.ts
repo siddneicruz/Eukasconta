@@ -1,7 +1,8 @@
 // Leitura de cupons e tarefas de IA pelo servidor.
 // A chave do OpenRouter fica só aqui (secret OPENROUTER_API_KEY); o app envia a conta logada.
 // Cada chamada grava tokens e custo em usage_events (srv_read_begin / srv_read_end).
-// Variáveis: OPENROUTER_API_KEY (obrigatória), CHARGE_READS=1 liga o desconto de crédito, DAILY_CAP (padrão 30).
+// Regra: conta comum tem DAILY_FREE leituras grátis por dia (padrão 5); depois, 1 crédito por leitura (créditos vêm de vídeo).
+// Administrador não tem limite. Variável obrigatória: OPENROUTER_API_KEY.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const MODEL = 'anthropic/claude-haiku-5.5';
@@ -35,18 +36,17 @@ Deno.serve(async (req: Request) => {
   try { b = JSON.parse(raw); } catch { return json(400, { error: 'Pedido inválido.' }); }
   if (!Array.isArray(b?.messages) || b.messages.length === 0) return json(400, { error: 'Pedido sem mensagens.' });
 
-  const charge = Deno.env.get('CHARGE_READS') === '1';
-  const cap = Number(Deno.env.get('DAILY_CAP')) || 30;
+  const freeCap = Number(Deno.env.get('DAILY_FREE')) || 5;
   const kind = b.kind === 'texto' ? 'leitura_texto' : b.kind === 'foto' ? 'leitura_foto' : 'leitura_cupom';
   const ref = typeof b.ref === 'string' ? b.ref : null;
 
-  const { data: gate, error: gErr } = await admin.rpc('srv_read_begin', { p_user: userId, p_daily_cap: cap, p_charge: charge });
+  const { data: gate, error: gErr } = await admin.rpc('srv_read_begin', { p_user: userId, p_free_cap: freeCap });
   if (gErr) return json(500, { error: 'Falha ao conferir o limite de leituras.' });
   if (!gate?.allowed) {
-    const msg = gate.reason === 'limite_diario' ? 'Você atingiu o limite de leituras de hoje. Volte amanhã.'
-      : gate.reason === 'sem_credito' ? 'Sem créditos de leitura. Assista a um vídeo para liberar.'
+    const msg = gate.reason === 'sem_credito'
+      ? `Suas ${freeCap} leituras grátis de hoje acabaram. Assista a um vídeo para liberar mais uma.`
       : 'Leitura não liberada para esta conta.';
-    return json(gate.reason === 'sem_credito' ? 402 : 429, { error: msg, reason: gate.reason });
+    return json(gate.reason === 'sem_credito' ? 402 : 403, { error: msg, reason: gate.reason });
   }
 
   const started = Date.now();
@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
     admin.rpc('srv_read_end', {
       p_user: userId, p_kind: kind, p_model: d?.model || MODEL,
       p_tokens_in: d?.usage?.prompt_tokens ?? null, p_tokens_out: d?.usage?.completion_tokens ?? null,
-      p_cost: d?.usage?.cost ?? null, p_ok: ok, p_ms: Date.now() - started, p_ref: ref, p_charge: charge,
+      p_cost: d?.usage?.cost ?? null, p_ok: ok, p_ms: Date.now() - started, p_ref: ref, p_free_cap: freeCap,
     });
 
   try {
@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
     await finish(ok, data);
     if (!ok) return json(res.ok ? 502 : res.status, { error: data?.error?.message || 'A IA não devolveu resposta.', reason: 'ia' });
     return json(200, data);
-  } catch (e) {
+  } catch (_e) {
     await finish(false, null);
     return json(504, { error: 'A leitura demorou demais. Tente de novo.', reason: 'tempo' });
   }
