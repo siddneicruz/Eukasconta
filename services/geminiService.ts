@@ -7,6 +7,7 @@ import { Receipt } from "../types";
 import { diagnostics } from "./diagnosticService";
 import { logAiUsage } from "./cloudService";
 import { getUserApiKey, getActiveProvider } from "./keyStorageService";
+import { offPromptBlock } from "./offMarket";
 import { parseReceiptWithClaude, askClaudeForJson } from "./anthropicService";
 import { parseReceiptWithOpenRouter, askOpenRouterForJson, SERVER_KEY, setServerReadKind } from "./openrouterService";
 
@@ -73,6 +74,8 @@ DIFERENCIAÇÃO DE CATEGORIAS (CRÍTICO):
 
 TAXONOMIA OBRIGATÓRIA (Use exatamente um destes itens para o campo 'category'):
 ${categories.join('\n')}
+
+${offPromptBlock()}
 
 INSTRUÇÕES TÉCNICAS:
 - 'state': Use apenas a sigla (ex: SP, SC).

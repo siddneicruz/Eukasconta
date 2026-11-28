@@ -13,6 +13,7 @@
 //
 // Tudo aqui é função pura: não lê localStorage nem chama rede, então dá para testar isolada.
 
+import { loadOffPins, pinnedOff, isOffDept } from './offMarket';
 import { Establishment, MasterProduct, Receipt, ReceiptItem } from '../types';
 import { cleanDescriptionForMatching } from './productMasterService';
 import { ruleCategoryFor } from './categoryRules';
@@ -313,7 +314,8 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
   ctx.categories.forEach(c => canonical.set(stripKey(c), c));
   const valid = new Set(ctx.categories);
 
-  let known = 0, recategorized = 0, normalizedCats = 0, ruled = 0, byCode = 0, repaired = 0;
+  let known = 0, recategorized = 0, normalizedCats = 0, ruled = 0, byCode = 0, repaired = 0, offPinned = 0, offSuggested = 0;
+  const offPins = loadOffPins();
   receipt.items = (input.items || []).map((item: ReceiptItem) => {
     const next: ReceiptItem = { ...item };
 
@@ -355,6 +357,10 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
       // Item novo: carne trabalhada (linguiça, bacon) não entra como corte de carne
       const fixed = ruleCategoryFor(next.description, next.category, ctx.categories);
       if (fixed) { next.category = fixed; ruled++; }
+      // Gasto fora do mercado: o que a pessoa já escolheu para esta descrição vale na hora; senão fica "sugerido" para ela confirmar.
+      const pin = pinnedOff(next.description, offPins);
+      if (pin) { next.category = pin; next.offState = 'confirmado'; offPinned++; }
+      else if (!next.offState && isOffDept(next.category)) { next.offState = 'sugerido'; offSuggested++; }
     }
     return next;
   });
@@ -368,6 +374,8 @@ export const applyRegistry = (input: Receipt, ctx: RegistryContext): RegistryRes
   if (ruled > 0) {
     notes.push(`${ruled} ${ruled === 1 ? 'item de carne trabalhada (linguiça, bacon) foi' : 'itens de carne trabalhada (linguiça, bacon) foram'} para a categoria de embutidos.`);
   }
+  if (offPinned > 0) notes.push(`${offPinned} ${offPinned === 1 ? 'item de gasto fora do mercado já caiu' : 'itens de gasto fora do mercado já caíram'} na categoria que você escolheu antes.`);
+  if (offSuggested > 0) notes.push(`${offSuggested} ${offSuggested === 1 ? 'item fora do mercado espera' : 'itens fora do mercado esperam'} a sua confirmação de categoria.`);
   if (normalizedCats > 0) {
     notes.push(`${normalizedCats} categoria(s) ajustada(s) para a grafia oficial da taxonomia.`);
   }

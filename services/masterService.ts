@@ -211,16 +211,19 @@ export const applyMasterToReceipts = (receipts: Receipt[], m: MasterData): Apply
     let touched = false;
     const items = (r.items || []).map(it => {
       if (isMealCategory(it.category)) return it;   // prato de restaurante: a tabela mãe não devolve ao mercado
-      const id = nodeForItem(m, it.code, it.description);
+      if (it.offState === 'confirmado') return it;  // gasto fora do mercado que a pessoa já confirmou: a tabela mãe não mexe
+      // ainda "sugerido": só um código de barras conhecido o devolve ao mercado (o nome sozinho pode ser de prato ou serviço)
+      const id = nodeForItem(m, it.code, it.offState === 'sugerido' ? '' : it.description);
       if (!id) return it;
       const path = ix.path.get(id);
       if (!path || path.length === 0) return it;
       const category = path.length >= 2 ? `${path[0]} - ${path[1]}` : path[0];
       const k = `${category}\u0001${it.description}`;
       if (!seen.has(k)) { seen.add(k); pins.push({ category, description: it.description, nodeKey: pinKeyFor(ix, id, path, category) }); }
-      if (it.category === category) return it;
+      if (it.category === category && !it.offState) return it;
       touched = true; changed++;
-      return { ...it, category };
+      const { offState: _off, ...rest } = it;
+      return { ...rest, category };
     });
     return touched ? { ...r, items } : r;
   });

@@ -16,6 +16,8 @@ export interface ReceiptItem {
   // Ovos: quantos ovos vêm em cada unidade vendida (a bandeja). O cupom costuma dizer só "bandeja de ovos"; com este número
   // o app compara o preço pela dúzia. Vazio = o app tenta ler do nome do item.
   eggCount?: number;
+  /** Gasto fora do mercado: 'sugerido' = a IA propôs a categoria e a pessoa ainda não confirmou; 'confirmado' = a pessoa escolheu. */
+  offState?: 'sugerido' | 'confirmado';
 }
 
 export interface Receipt {

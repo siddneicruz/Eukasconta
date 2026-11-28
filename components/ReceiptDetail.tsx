@@ -10,6 +10,8 @@ import { titleCase } from '../services/textFormat';
 import { useStoreNames } from './StoreNamesContext';
 import { generateReceiptText } from '../services/receiptText';
 import EggCountPicker from './EggCountPicker';
+import OffMarketReview from './OffMarketReview';
+import { pendingOffItems } from '../services/offMarket';
 import { isEggItem } from '../services/eggs';
 import { normalizeReceiptNumbers } from '../services/receiptNumbers';
 import ItemCategoryPicker from './ItemCategoryPicker';
@@ -177,6 +179,8 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
   };
   const [viewMode, setViewMode] = useState<'cards' | 'thermal'>('thermal'); // abre no cupom em TXT; o Estruturado fica na aba da direita
   const [isEditing, setIsEditing] = useState(false);
+  const [offReviewOpen, setOffReviewOpen] = useState(false);
+  const offPending = pendingOffItems(receipt.items);
   const [editedReceipt, setEditedReceipt] = useState<Receipt>(receipt);
   const currentStore = useMemo(() => establishments.find(e => (digitsOf(e.cnpj) && digitsOf(e.cnpj) === digitsOf(editedReceipt.cnpj)) || (!digitsOf(e.cnpj) && !digitsOf(editedReceipt.cnpj) && e.originalName === editedReceipt.establishmentName)) ?? null, [establishments, editedReceipt.cnpj, editedReceipt.establishmentName]);
 
@@ -296,6 +300,15 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receipt, onClose, onUpdat
             </div>
           </div>
         )}
+
+        {!isEditing && offPending > 0 && (
+          <button onClick={() => setOffReviewOpen(true)} data-testid="off-banner"
+            className="shrink-0 w-full flex items-center justify-between gap-2 bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-left text-xs text-amber-200">
+            <span>{offPending} {offPending === 1 ? 'item fora do mercado espera' : 'itens fora do mercado esperam'} a sua confirmação de categoria</span>
+            <span className="font-bold uppercase tracking-wide">Confirmar</span>
+          </button>
+        )}
+        {offReviewOpen && <OffMarketReview receipt={receipt} onApply={onUpdateReceipt} onClose={() => setOffReviewOpen(false)} />}
 
         {!isEditing && (
             <div className="flex border-b border-white/5 bg-black/40 shrink-0">

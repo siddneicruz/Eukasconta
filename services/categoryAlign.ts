@@ -1,3 +1,4 @@
+import { isCustomCategory } from './offMarket';
 import { MasterProduct, Receipt, TaxonomyNode } from '../types';
 import { fold } from './itemSearch';
 import { catKey, deptKey } from './textFormat';
@@ -574,6 +575,7 @@ export const buildAlignRemapper = (plan: AlignPlan, choices: AlignChoice[]): Ali
 export const snapCategory = (raw: string, idx: AlignIndex, aliases: Aliases = {}): string => {
   const cat = String(raw ?? '');
   if (!cat.trim() || isUncategorized(cat)) return cat;
+  if (isCustomCategory(cat)) return cat;   // categoria pessoal ("Meus gastos - ..."): fica como a pessoa escreveu
   const k = catKey(cat);
   const own = idx.byKey.get(k);
   if (own) return own.path;
